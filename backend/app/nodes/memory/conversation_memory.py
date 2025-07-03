@@ -1,11 +1,12 @@
 from ..base import ProviderNode, NodeMetadata, NodeInput, NodeType
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.runnables import Runnable
+from typing import cast
 
 class ConversationMemoryNode(ProviderNode):
     def __init__(self):
         super().__init__()
-        self._metadatas = {
+        self._metadata = {
             "name": "ConversationMemory",
             "description": "Provides a conversation buffer window memory.",
             "node_type": NodeType.PROVIDER,
@@ -15,13 +16,14 @@ class ConversationMemoryNode(ProviderNode):
             ]
         }
 
-    def _execute(self, **kwargs) -> Runnable:
+    def execute(self, **kwargs) -> Runnable:
         """Execute with correct ProviderNode signature"""
         k = kwargs.get("k", 5)
         memory_key = kwargs.get("memory_key", "chat_history")
         
-        return ConversationBufferWindowMemory(
-            k=k, 
-            memory_key=memory_key, 
+        memory = ConversationBufferWindowMemory(
+            k=k,
+            memory_key=memory_key,
             return_messages=True
         )
+        return cast(Runnable, memory)

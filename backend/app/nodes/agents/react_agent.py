@@ -10,7 +10,7 @@ from langchain.agents import AgentExecutor, create_react_agent
 class ReactAgentNode(ProcessorNode):
     def __init__(self):
         super().__init__()
-        self._metadatas = {
+        self._metadata = {
             "name": "ReactAgent",
             "description": "Creates a ReAct agent from an LLM, tools, and a prompt.",
             "node_type": NodeType.PROCESSOR,
@@ -22,7 +22,7 @@ class ReactAgentNode(ProcessorNode):
             ]
         }
 
-    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
+    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
         """Execute with correct ProcessorNode signature"""
         llm_runnable = connected_nodes.get("llm")
         tools_runnable = connected_nodes.get("tools")

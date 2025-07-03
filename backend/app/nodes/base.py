@@ -46,31 +46,29 @@ class NodeMetadata(BaseModel):
 
 # 3. Ana Soyut Sınıf (Tüm node'ların atası)
 class BaseNode(ABC):
-    _metadatas: Dict[str, Any] # Geliştiriciler bunu kendi node'larında tanımlayacak.
+    _metadata: Dict[str, Any]  # Node configuration provided by subclasses
     
     def __init__(self):
         self.node_id: Optional[str] = None  # Will be set by GraphBuilder
+        self.context_id: Optional[str] = None  # Credential context for provider
     
     @property
     def metadata(self) -> NodeMetadata:
         """Metadatayı Pydantic modeline göre doğrular ve döndürür."""
-        return NodeMetadata(**self._metadatas)
-
-    @abstractmethod
-    def _execute(self, *args, **kwargs) -> Runnable:
-        """
-        Her alt sınıfın uygulamak zorunda olduğu ana mantık.
-        Bu metod, ilgili LangChain nesnesini oluşturur ve döndürür.
-        """
-        pass
+        meta_dict = getattr(self, "_metadata", None) or getattr(self, "_metadatas", {})
+        return NodeMetadata(**meta_dict)
 
     def execute(self, *args, **kwargs) -> Runnable:
-        """
-        Workflow Runner tarafından çağrılacak olan genel metod.
-        Gelecekte burada loglama, hata yakalama gibi ortak işlemler yapılabilir.
-        """
-        return self._execute(*args, **kwargs)
-    
+        """Ana yürütme metodu.
+
+        Yeni node'lar bu metodu override edebilir.  Geriye dönük uyumluluk için
+        alt sınıf `execute` yerine `_execute` tanımlamışsa onu çağırırız.  Eğer
+        hiçbiri yoksa `NotImplementedError` fırlatılır."""
+        if hasattr(self, "_execute") and callable(getattr(self, "_execute")):
+            # type: ignore[attr-defined]
+            return getattr(self, "_execute")(*args, **kwargs)  # noqa: SLF001
+        raise NotImplementedError(f"{self.__class__.__name__} must implement execute()")
+
     def to_graph_node(self) -> Callable[[FlowState], FlowState]:
         """
         Convert this node to a LangGraph-compatible function
@@ -85,24 +83,24 @@ class BaseNode(ABC):
                 if self.metadata.node_type == NodeType.PROVIDER:
                     # Provider nodes create objects from user inputs only
                     inputs = self._extract_user_inputs(state, metadata.inputs)
-                    result = self._execute(**inputs)
+                    result = self.execute(**inputs)
                     
                 elif self.metadata.node_type == NodeType.PROCESSOR:
                     # Processor nodes need both connected nodes and user inputs
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
                     connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
-                    result = self._execute(inputs=user_inputs, connected_nodes=connected_nodes)
+                    result = self.execute(inputs=user_inputs, connected_nodes=connected_nodes)
                     
                 elif self.metadata.node_type == NodeType.TERMINATOR:
                     # Terminator nodes process previous node output
                     previous_node = self._get_previous_node_output(state)
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
-                    result = self._execute(previous_node=previous_node, inputs=user_inputs)
+                    result = self.execute(previous_node=previous_node, inputs=user_inputs)
                     
                 else:
                     # Fallback for unknown node types
                     inputs = self._extract_all_inputs(state, metadata.inputs)
-                    result = self._execute(**inputs)
+                    result = self.execute(**inputs)
                 
                 # Store the result in state
                 node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
@@ -160,11 +158,10 @@ class BaseNode(ABC):
         return inputs
     
     def get_output_type(self) -> str:
-        """Return the type of output this node produces"""
-        if hasattr(self, '_metadatas') and 'outputs' in self._metadatas:
-            outputs = self._metadatas['outputs']
-            if outputs and len(outputs) > 0:
-                return outputs[0]['type']
+        """Return the node's primary output type, if defined."""
+        outputs = self.metadata.outputs
+        if outputs:
+            return outputs[0].type
         return "any"
     
     def validate_input(self, input_name: str, input_value: Any) -> bool:
@@ -179,14 +176,14 @@ class ProviderNode(BaseNode):
     Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
     """
     def __init__(self):
-        if not hasattr(self, '_metadatas'):
-            self._metadatas = {}
-        if "node_type" not in self._metadatas:
-            self._metadatas["node_type"] = NodeType.PROVIDER
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
+        if "node_type" not in self._metadata:
+            self._metadata["node_type"] = NodeType.PROVIDER
 
-    @abstractmethod
-    def _execute(self, **kwargs) -> Runnable:
-        pass
+    # Subclasses can override execute; fallback implemented in BaseNode
+    def execute(self, **kwargs) -> Runnable:  # type: ignore[override]
+        return super().execute(**kwargs)
 
 
 class ProcessorNode(BaseNode):
@@ -194,18 +191,13 @@ class ProcessorNode(BaseNode):
     Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
     """
     def __init__(self):
-        if not hasattr(self, '_metadatas'):
-            self._metadatas = {}
-        if "node_type" not in self._metadatas:
-            self._metadatas["node_type"] = NodeType.PROCESSOR
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
+        if "node_type" not in self._metadata:
+            self._metadata["node_type"] = NodeType.PROCESSOR
     
-    @abstractmethod
-    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
-        """
-        'inputs' kullanıcıdan gelen verileri, 'connected_nodes' ise bağlanan diğer node'ların
-        çalıştırılabilir (Runnable) nesnelerini içerir.
-        """
-        pass
+    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:  # type: ignore[override]
+        return super().execute(inputs=inputs, connected_nodes=connected_nodes)
 
 class TerminatorNode(BaseNode):
     """
@@ -213,14 +205,10 @@ class TerminatorNode(BaseNode):
     Genellikle tek bir node'dan girdi alırlar.
     """
     def __init__(self):
-        if not hasattr(self, '_metadatas'):
-            self._metadatas = {}
-        if "node_type" not in self._metadatas:
-            self._metadatas["node_type"] = NodeType.TERMINATOR
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
+        if "node_type" not in self._metadata:
+            self._metadata["node_type"] = NodeType.TERMINATOR
 
-    @abstractmethod
-    def _execute(self, previous_node: Runnable, inputs: Dict[str, Any]) -> Runnable:
-        """
-        'previous_node' bir önceki node'dan gelen çalıştırılabilir (Runnable) nesnedir.
-        """
-        pass
+    def execute(self, previous_node: Runnable, inputs: Dict[str, Any]) -> Runnable:  # type: ignore[override]
+        return super().execute(previous_node=previous_node, inputs=inputs)

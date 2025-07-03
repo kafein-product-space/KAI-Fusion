@@ -5,7 +5,7 @@ from langchain_core.runnables import Runnable
 class PromptTemplateNode(ProviderNode):
     def __init__(self):
         super().__init__()
-        self._metadatas = {
+        self._metadata = {
             "name": "PromptTemplate",
             "description": "Creates a chat prompt template from a string.",
             "node_type": NodeType.PROVIDER,
@@ -14,7 +14,7 @@ class PromptTemplateNode(ProviderNode):
             ]
         }
 
-    def _execute(self, **kwargs) -> Runnable:
+    def execute(self, **kwargs) -> Runnable:
         """Execute with correct ProviderNode signature"""
         template = kwargs.get("template", "{input}")
         return ChatPromptTemplate.from_template(template)

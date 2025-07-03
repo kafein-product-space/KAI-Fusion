@@ -230,8 +230,8 @@ class AutoConnector:
         node_type = node.get("type", "")
         node_class = self.registry.get(node_type)
         
-        if node_class and hasattr(node_class, '_metadatas'):
-            metadata = node_class._metadatas
+        if node_class and (hasattr(node_class, '_metadata') or hasattr(node_class, '_metadatas')):
+            metadata = getattr(node_class, '_metadata', None) or getattr(node_class, '_metadatas', {})
             outputs = metadata.get("outputs", [])
             
             for output in outputs:
@@ -266,8 +266,8 @@ class AutoConnector:
         node_type = node.get("type", "")
         node_class = self.registry.get(node_type)
         
-        if node_class and hasattr(node_class, '_metadatas'):
-            metadata = node_class._metadatas
+        if node_class and (hasattr(node_class, '_metadata') or hasattr(node_class, '_metadatas')):
+            metadata = getattr(node_class, '_metadata', None) or getattr(node_class, '_metadatas', {})
             inputs = metadata.get("inputs", [])
             
             for input_spec in inputs:
@@ -293,8 +293,8 @@ class AutoConnector:
         node_type = node.get("type", "")
         node_class = self.registry.get(node_type)
         
-        if node_class and hasattr(node_class, '_metadatas'):
-            metadata = node_class._metadatas
+        if node_class and (hasattr(node_class, '_metadata') or hasattr(node_class, '_metadatas')):
+            metadata = getattr(node_class, '_metadata', None) or getattr(node_class, '_metadatas', {})
             return metadata.get("outputs", [{"name": "output", "type": "any"}])
         
         return [{"name": "output", "type": self._get_output_type(node)}]
@@ -304,8 +304,8 @@ class AutoConnector:
         node_type = node.get("type", "")
         node_class = self.registry.get(node_type)
         
-        if node_class and hasattr(node_class, '_metadatas'):
-            metadata = node_class._metadatas
+        if node_class and (hasattr(node_class, '_metadata') or hasattr(node_class, '_metadatas')):
+            metadata = getattr(node_class, '_metadata', None) or getattr(node_class, '_metadatas', {})
             return metadata.get("inputs", [])
         
         return []

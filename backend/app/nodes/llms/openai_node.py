@@ -11,7 +11,7 @@ from app.core.credential_provider import get_openai_credential
 class OpenAINode(ProviderNode):
     def __init__(self):
         super().__init__()
-        self._metadatas = {
+        self._metadata = {
             "name": "OpenAIChat",
             "description": "OpenAI Chat Model for text generation",
             "category": "LLM",
@@ -60,7 +60,7 @@ class OpenAINode(ProviderNode):
             ]
         }
 
-    def _execute(self, **kwargs) -> Runnable:
+    def execute(self, **kwargs) -> Runnable:
         """
         Execute OpenAI node with secure credential management
         """

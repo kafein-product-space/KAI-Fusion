@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
-from typing import List, Optional
+from typing import List, Optional, cast, Dict, Any
 from app.models.workflow import (
     WorkflowCreate,
     WorkflowUpdate,
@@ -13,6 +13,8 @@ from app.core.workflow_engine import workflow_engine
 from app.core.workflow_runner import WorkflowRunner
 import json
 from pydantic import BaseModel
+from fastapi.responses import StreamingResponse
+from app.core.session_manager import session_manager  # type: ignore
 
 router = APIRouter()
 
@@ -158,10 +160,22 @@ async def execute_workflow(
 
     # Sync execution (unchanged)
     try:
-        result = await workflow_engine.execute_workflow(
-            workflow_id, current_user["id"], data.inputs
+        result_raw = await workflow_engine.execute_workflow(
+            workflow_id=workflow_id,
+            user_id=current_user["id"],
+            inputs=data.inputs,
+            stream=False,
         )
-        return ExecutionResult(**result)
+
+        result_dict = cast(Dict[str, Any], result_raw)
+
+        # Construct pydantic model explicitly for static typing
+        return ExecutionResult(
+            success=result_dict.get("success", True),
+            workflow_id=result_dict.get("workflow_id", workflow_id),
+            execution_id=result_dict.get("execution_id"),
+            results=result_dict.get("results", {}),
+        )
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -269,3 +283,112 @@ async def execute_adhoc_workflow(
         workflow_id=req.workflow_id or "ad-hoc",
         results=result,
     )
+
+# ----------------------------
+# Streaming execute endpoint
+# ----------------------------
+
+@router.post("/{workflow_id}/execute/stream")
+async def execute_workflow_stream(
+    workflow_id: str,
+    data: WorkflowExecute,
+    current_user: dict = Depends(get_current_user),
+):
+    """Execute workflow and stream events as Server-Sent Events (SSE)."""
+
+    async def event_generator():
+        gen = await workflow_engine.execute_workflow(
+            workflow_id=workflow_id,
+            user_id=current_user["id"],
+            inputs=data.inputs,
+            save_execution=True,
+            stream=True,
+        )
+
+        async for evt in gen:  # type: ignore[async-iterable]
+            yield f"data: {json.dumps(evt)}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+# ----------------------------
+# Connection suggestions
+# ----------------------------
+
+class ConnectionSuggestionRequest(BaseModel):
+    nodes: List[dict]
+    existing_edges: Optional[List[dict]] = []
+
+@router.post("/connections/suggest")
+async def suggest_connections(
+    request: ConnectionSuggestionRequest,
+    current_user: Optional[dict] = Depends(get_optional_user),
+):
+    from app.core.auto_connector import AutoConnector
+    from app.core.node_registry import node_registry
+
+    connector = AutoConnector(node_registry.nodes)
+    suggestions = connector.suggest_connections(request.nodes, request.existing_edges)
+
+    return {
+        "suggestions": [
+            {
+                "source_id": s.source_id,
+                "source_handle": s.source_handle,
+                "target_id": s.target_id,
+                "target_handle": s.target_handle,
+                "confidence": s.confidence,
+                "reason": s.reason,
+            }
+            for s in suggestions[:20]
+        ]
+    }
+
+# ----------------------------
+# Session management endpoints
+# ----------------------------
+
+class SessionCreateRequest(BaseModel):
+    workflow_id: Optional[str] = None
+
+@router.post("/sessions")
+async def create_session(request: SessionCreateRequest, current_user: dict = Depends(get_current_user)):
+    session_id = await session_manager.create_session(
+        workflow_id=request.workflow_id or "default", user_id=current_user["id"]
+    )
+    return {"session_id": session_id, "created": True}
+
+@router.get("/sessions/{session_id}")
+async def get_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    session = await session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if session.user_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return session.to_dict()
+
+@router.delete("/sessions/{session_id}")
+async def delete_session(session_id: str, current_user: dict = Depends(get_current_user)):
+    s = await session_manager.get_session(session_id)
+    if not s:
+        raise HTTPException(status_code=404, detail="Session not found")
+    if s.user_id != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    deleted = await session_manager.delete_session(session_id)
+    return {"deleted": deleted}
+
+@router.get("/sessions")
+async def get_session_stats(current_user: dict = Depends(get_current_user)):
+    stats = session_manager.get_stats()
+    return {
+        "total_sessions": stats.get("sessions_by_user", {}).get(current_user["id"], 0),
+        "ttl_minutes": stats.get("ttl_minutes"),
+        "active": True,
+    }

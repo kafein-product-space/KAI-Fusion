@@ -8,6 +8,9 @@ A professional visual workflow builder with Python FastAPI backend and React fro
 - **Dynamic Node System**: Auto-discovery of 18+ node types (LLM, Tools, Memory, etc.)
 - **LangChain Integration**: Full support for LangChain components and agents
 - **Real-time Execution**: Stream workflow execution with live results
+- **Streaming API**: Server-Sent Events endpoint for token-by-token updates
+- **Credential Vault**: Encrypted per-user credential storage with RLS
+- **LangGraph Engine**: Modern graph engine with conditional flows & loops
 - **Authentication**: Secure user management with Supabase Auth
 - **Type Safety**: Full TypeScript implementation with comprehensive error handling
 - **Production Ready**: Docker support, error boundaries, and monitoring
@@ -334,6 +337,14 @@ curl -H "Authorization: Bearer eyJ..." http://localhost:8001/api/v1/workflows
 | **🧩 Nodes** | `GET` | `/api/v1/nodes` | List all available nodes |
 | **⚡ Workflows** | `GET` | `/api/v1/workflows` | List your workflows |
 | **⚡ Workflows** | `POST` | `/api/v1/workflows/execute` | Execute workflow |
+| **⚡ Workflows** | `POST` | `/api/v1/workflows/{id}/execute/stream` | Execute workflow (SSE Stream) |
+| **⚡ Workflows** | `POST` | `/api/v1/workflows/validate` | Validate workflow JSON |
+| **⚡ Workflows** | `POST` | `/api/v1/workflows/connections/suggest` | Auto-connect suggestions |
+| **📚 Sessions** | `POST` | `/api/v1/workflows/sessions` | Create chat/session context |
+| **📚 Sessions** | `GET` | `/api/v1/workflows/sessions/{session_id}` | Get session details |
+| **📚 Sessions** | `DELETE` | `/api/v1/workflows/sessions/{session_id}` | Delete session |
+| **🔒 Credentials** | `GET` | `/api/v1/credentials` | List credentials |
+| **🔒 Credentials** | `POST` | `/api/v1/credentials` | Create credential |
 | **📊 System** | `GET` | `/api/health` | Detailed health check |
 
 ### ⚡ **Quick Workflow Execution**
