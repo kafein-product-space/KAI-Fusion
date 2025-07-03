@@ -1,0 +1,219 @@
+from abc import ABC, abstractmethod
+from typing import Dict, Any, List, Optional, Union, Callable
+from pydantic import BaseModel, Field
+from langchain_core.runnables import Runnable
+from enum import Enum
+
+# Import FlowState for LangGraph compatibility
+from app.core.state import FlowState
+
+# 1. Node'un türünü belirten bir Enum tanımlıyoruz.
+class NodeType(str, Enum):
+    PROVIDER = "provider"    # Bir LangChain nesnesi SAĞLAR (LLM, Tool, Prompt)
+    PROCESSOR = "processor"  # Birden fazla nesneyi İŞLER (Agent gibi)
+    TERMINATOR = "terminator" # Bir zincirin sonunu DÖNÜŞTÜRÜR (Output Parser gibi)
+
+# 2. Metadata için Pydantic modelleri, standartları zorunlu kılar.
+class NodeInput(BaseModel):
+    name: str
+    type: str
+    description: str
+    required: bool = True
+    # Bu alan, girdinin başka bir node'dan mı (bağlantı) yoksa kullanıcıdan mı geleceğini belirtir.
+    is_connection: bool = False 
+    default: Any = None
+
+class NodeOutput(BaseModel):
+    """Defines what a node outputs"""
+    name: str
+    type: str
+    description: str
+
+class NodeMetadata(BaseModel):
+    name: str
+    description: str
+    category: str = "Other"
+    node_type: NodeType # Her node türünü belirtmek zorunda.
+    inputs: List[NodeInput] = []
+    outputs: List[NodeOutput] = []  # Now we track outputs too!
+
+# 3. Ana Soyut Sınıf (Tüm node'ların atası)
+class BaseNode(ABC):
+    _metadatas: Dict[str, Any] # Geliştiriciler bunu kendi node'larında tanımlayacak.
+    
+    def __init__(self):
+        self.node_id: Optional[str] = None  # Will be set by GraphBuilder
+    
+    @property
+    def metadata(self) -> NodeMetadata:
+        """Metadatayı Pydantic modeline göre doğrular ve döndürür."""
+        return NodeMetadata(**self._metadatas)
+
+    @abstractmethod
+    def _execute(self, *args, **kwargs) -> Runnable:
+        """
+        Her alt sınıfın uygulamak zorunda olduğu ana mantık.
+        Bu metod, ilgili LangChain nesnesini oluşturur ve döndürür.
+        """
+        pass
+
+    def execute(self, *args, **kwargs) -> Runnable:
+        """
+        Workflow Runner tarafından çağrılacak olan genel metod.
+        Gelecekte burada loglama, hata yakalama gibi ortak işlemler yapılabilir.
+        """
+        return self._execute(*args, **kwargs)
+    
+    def to_graph_node(self) -> Callable[[FlowState], FlowState]:
+        """
+        Convert this node to a LangGraph-compatible function
+        This method transforms the node into a function that takes and returns FlowState
+        """
+        def graph_node_function(state: FlowState) -> FlowState:
+            try:
+                # Get node metadata for input processing
+                metadata = self.metadata
+                
+                # Prepare inputs based on node type
+                if self.metadata.node_type == NodeType.PROVIDER:
+                    # Provider nodes create objects from user inputs only
+                    inputs = self._extract_user_inputs(state, metadata.inputs)
+                    result = self._execute(**inputs)
+                    
+                elif self.metadata.node_type == NodeType.PROCESSOR:
+                    # Processor nodes need both connected nodes and user inputs
+                    user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
+                    result = self._execute(inputs=user_inputs, connected_nodes=connected_nodes)
+                    
+                elif self.metadata.node_type == NodeType.TERMINATOR:
+                    # Terminator nodes process previous node output
+                    previous_node = self._get_previous_node_output(state)
+                    user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    result = self._execute(previous_node=previous_node, inputs=user_inputs)
+                    
+                else:
+                    # Fallback for unknown node types
+                    inputs = self._extract_all_inputs(state, metadata.inputs)
+                    result = self._execute(**inputs)
+                
+                # Store the result in state
+                node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
+                state.set_node_output(node_id, result)
+                
+                return state
+                
+            except Exception as e:
+                # Handle errors gracefully
+                error_msg = f"Error in {self.__class__.__name__}: {str(e)}"
+                state.add_error(error_msg)
+                return state
+        
+        return graph_node_function
+    
+    def _extract_user_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
+        """Extract user-provided inputs from state"""
+        inputs = {}
+        for input_spec in input_specs:
+            if not input_spec.is_connection:
+                # This is a user input, not a connection
+                if input_spec.name in state.variables:
+                    inputs[input_spec.name] = state.get_variable(input_spec.name)
+                elif input_spec.default is not None:
+                    inputs[input_spec.name] = input_spec.default
+                elif input_spec.required:
+                    raise ValueError(f"Required input '{input_spec.name}' not found in state")
+        return inputs
+    
+    def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
+        """Extract connected node inputs from state"""
+        connected = {}
+        for input_spec in input_specs:
+            if input_spec.is_connection:
+                # This is a connection input - look for it in node outputs
+                output = state.get_node_output(input_spec.name)
+                if output is not None:
+                    connected[input_spec.name] = output
+                elif input_spec.required:
+                    raise ValueError(f"Required connection '{input_spec.name}' not found in state")
+        return connected
+    
+    def _get_previous_node_output(self, state: FlowState) -> Any:
+        """Get the most recent node output for terminator nodes"""
+        if state.executed_nodes:
+            last_node_id = state.executed_nodes[-1]
+            return state.get_node_output(last_node_id)
+        return None
+    
+    def _extract_all_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
+        """Extract all inputs (user + connected) for fallback cases"""
+        inputs = {}
+        inputs.update(self._extract_user_inputs(state, input_specs))
+        inputs.update(self._extract_connected_inputs(state, input_specs))
+        return inputs
+    
+    def get_output_type(self) -> str:
+        """Return the type of output this node produces"""
+        if hasattr(self, '_metadatas') and 'outputs' in self._metadatas:
+            outputs = self._metadatas['outputs']
+            if outputs and len(outputs) > 0:
+                return outputs[0]['type']
+        return "any"
+    
+    def validate_input(self, input_name: str, input_value: Any) -> bool:
+        """Validate if an input value is acceptable"""
+        # Override in subclasses for custom validation
+        return True
+
+# 4. Geliştiricilerin Kullanacağı 3 Standart Node Sınıfı
+
+class ProviderNode(BaseNode):
+    """
+    Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
+    """
+    def __init__(self):
+        if not hasattr(self, '_metadatas'):
+            self._metadatas = {}
+        if "node_type" not in self._metadatas:
+            self._metadatas["node_type"] = NodeType.PROVIDER
+
+    @abstractmethod
+    def _execute(self, **kwargs) -> Runnable:
+        pass
+
+
+class ProcessorNode(BaseNode):
+    """
+    Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
+    """
+    def __init__(self):
+        if not hasattr(self, '_metadatas'):
+            self._metadatas = {}
+        if "node_type" not in self._metadatas:
+            self._metadatas["node_type"] = NodeType.PROCESSOR
+    
+    @abstractmethod
+    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
+        """
+        'inputs' kullanıcıdan gelen verileri, 'connected_nodes' ise bağlanan diğer node'ların
+        çalıştırılabilir (Runnable) nesnelerini içerir.
+        """
+        pass
+
+class TerminatorNode(BaseNode):
+    """
+    Bir zincirin sonuna eklenen ve çıktıyı işleyen/dönüştüren node'lar (örn: OutputParser).
+    Genellikle tek bir node'dan girdi alırlar.
+    """
+    def __init__(self):
+        if not hasattr(self, '_metadatas'):
+            self._metadatas = {}
+        if "node_type" not in self._metadatas:
+            self._metadatas["node_type"] = NodeType.TERMINATOR
+
+    @abstractmethod
+    def _execute(self, previous_node: Runnable, inputs: Dict[str, Any]) -> Runnable:
+        """
+        'previous_node' bir önceki node'dan gelen çalıştırılabilir (Runnable) nesnedir.
+        """
+        pass
