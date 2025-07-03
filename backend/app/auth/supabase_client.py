@@ -10,13 +10,14 @@ class SupabaseAuth:
     """Enhanced Supabase authentication client"""
     
     def __init__(self):
+        self.client: Optional[Client] = None
+        
         if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
             logger.warning("Supabase credentials not configured. Authentication will be disabled.")
-            self.client = None
             return
             
         try:
-            self.client: Client = create_client(
+            self.client = create_client(
                 settings.SUPABASE_URL,
                 settings.SUPABASE_KEY
             )
@@ -25,16 +26,17 @@ class SupabaseAuth:
             logger.error(f"❌ Failed to initialize Supabase auth client: {e}")
             self.client = None
     
-    def _ensure_client(self):
+    def _ensure_client(self) -> Client:
         """Ensure auth client is available"""
         if not self.client:
             raise ValueError("Authentication service not available. Check Supabase configuration.")
+        return self.client
     
     async def sign_up(self, email: str, password: str, metadata: Optional[dict] = None) -> Dict[str, Any]:
         """Register a new user"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.sign_up({
+            response = client.auth.sign_up({
                 "email": email,
                 "password": password,
                 "options": {
@@ -65,9 +67,9 @@ class SupabaseAuth:
     
     async def sign_in(self, email: str, password: str) -> Dict[str, Any]:
         """Sign in with email and password"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.sign_in_with_password({
+            response = client.auth.sign_in_with_password({
                 "email": email,
                 "password": password
             })
@@ -95,9 +97,10 @@ class SupabaseAuth:
     
     async def sign_out(self, token: str) -> Dict[str, Any]:
         """Sign out a user"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            await self.client.auth.sign_out(token)
+            # Supabase sign_out doesn't require token parameter in the current version
+            client.auth.sign_out()
             logger.info("✅ User signed out successfully")
             return {
                 "success": True,
@@ -112,10 +115,13 @@ class SupabaseAuth:
     
     async def get_user(self, token: str) -> Optional[Dict[str, Any]]:
         """Get user from JWT token"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.get_user(token)
-            if response.user:
+            # Set the token for the request
+            client.auth.set_session(token, "")
+            response = client.auth.get_user()
+            
+            if response and response.user:
                 return {
                     "id": response.user.id,
                     "email": response.user.email,
@@ -130,9 +136,9 @@ class SupabaseAuth:
     
     async def refresh_token(self, refresh_token: str) -> Dict[str, Any]:
         """Refresh access token"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.refresh_session(refresh_token)
+            response = client.auth.refresh_session(refresh_token)
             
             if response.session:
                 logger.info("✅ Token refreshed successfully")
@@ -156,12 +162,22 @@ class SupabaseAuth:
     
     async def update_user(self, token: str, updates: Dict[str, Any]) -> Dict[str, Any]:
         """Update user profile"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
             # Set the token for the request
-            self.client.auth.set_session(token, refresh_token=None)
+            client.auth.set_session(token, "")
             
-            response = self.client.auth.update_user(updates)
+            # Create user attributes dict with proper typing
+            user_attributes: Dict[str, Any] = {}
+            if "email" in updates:
+                user_attributes["email"] = updates["email"]
+            if "password" in updates:
+                user_attributes["password"] = updates["password"]
+            if "data" in updates:
+                user_attributes["data"] = updates["data"]
+            
+            # Use type: ignore to handle Supabase typing issues
+            response = client.auth.update_user(user_attributes)  # type: ignore
             
             if response.user:
                 logger.info(f"✅ User updated: {response.user.email}")
@@ -184,9 +200,9 @@ class SupabaseAuth:
     
     async def reset_password(self, email: str) -> Dict[str, Any]:
         """Send password reset email"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.reset_password_email(email)
+            response = client.auth.reset_password_email(email)
             logger.info(f"✅ Password reset email sent to: {email}")
             return {
                 "success": True,
@@ -201,9 +217,9 @@ class SupabaseAuth:
     
     async def verify_email(self, token: str, email: str) -> Dict[str, Any]:
         """Verify email with token"""
-        self._ensure_client()
+        client = self._ensure_client()
         try:
-            response = self.client.auth.verify_otp({
+            response = client.auth.verify_otp({
                 "token": token,
                 "type": "email",
                 "email": email

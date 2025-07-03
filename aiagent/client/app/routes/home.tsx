@@ -7,7 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import Sidebar from "~/components/dashboard/Sidebar";
+import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 
 // Types
 interface StatData {
@@ -87,7 +87,7 @@ export default function DashboardLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-      <Sidebar />
+      <DashboardSidebar />
 
       <main className="flex-1 p-10 m-10">
         <div className="max-w-screen-xl mx-auto">

@@ -1,4 +1,3 @@
-
 from ..base import ProviderNode, NodeMetadata, NodeInput, NodeType
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import Runnable
@@ -26,21 +25,26 @@ Question: {input}
 Thought:{agent_scratchpad}'''
 
 class AgentPromptNode(ProviderNode):
-    _metadatas = {
-        "name": "AgentPrompt",
-        "description": "Creates a standard prompt for a LangChain ReAct agent.",
-        "node_type": NodeType.PROVIDER,
-        "inputs": [
-            NodeInput(
-                name="system_message", 
-                type="string", 
-                description="The system message for the agent.",
-                default=REACT_PROMPT
-            ),
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "AgentPrompt",
+            "description": "Creates a standard prompt for a LangChain ReAct agent.",
+            "node_type": NodeType.PROVIDER,
+            "inputs": [
+                NodeInput(
+                    name="system_message", 
+                    type="string", 
+                    description="The system message for the agent.",
+                    default=REACT_PROMPT
+                ),
+            ]
+        }
 
-    def _execute(self, system_message: str = REACT_PROMPT) -> Runnable:
+    def _execute(self, **kwargs) -> Runnable:
+        """Execute with correct ProviderNode signature"""
+        system_message = kwargs.get("system_message", REACT_PROMPT)
+        
         return ChatPromptTemplate.from_messages([
             ("system", system_message),
             ("human", "{input}"),

@@ -12,7 +12,7 @@ import {
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
-import Sidebar from "~/components/dashboard/Sidebar";
+import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { AuthGuard } from "~/components/AuthGuard";
 import type { Workflow } from "~/types/api";
@@ -120,7 +120,7 @@ export default function WorkflowsLayout() {
   return (
     <AuthGuard>
       <div className="flex h-screen w-screen">
-        <Sidebar />
+        <DashboardSidebar />
 
         {/* Main Content */}
         <main className="flex-1 p-10 m-10 bg-white">

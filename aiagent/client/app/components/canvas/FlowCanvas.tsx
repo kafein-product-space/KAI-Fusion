@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState, useEffect } from "react";
+import React, { useCallback, useRef, useState, useEffect, useMemo } from "react";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -13,11 +13,13 @@ import ToolAgentNode from "./ToolAgentNode";
 import StartNode from "./StartNode";
 import CustomEdge from "./CustomEdge";
 import ConditionNode from "./ConditionNode";
+import GenericNode from "./GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
 
-const nodeTypes = {
+// Base node/edge types always available
+const baseNodeTypes = {
   toolAgent: ToolAgentNode,
   condition: ConditionNode,
   start: StartNode,
@@ -52,6 +54,17 @@ function FlowCanvas() {
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
+
+  // Merge backend-provided node names into nodeTypes so React Flow can render them
+  const nodeTypes = useMemo(() => {
+    const map: Record<string, any> = { ...baseNodeTypes };
+    availableNodes.forEach((n) => {
+      if (!map[n.name]) {
+        map[n.name] = GenericNode; // Fallback generic node component
+      }
+    });
+    return map;
+  }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
 
   // Load workflow if ID is provided in URL
   useEffect(() => {

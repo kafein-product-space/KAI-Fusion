@@ -9,48 +9,50 @@ from ..base import ProcessorNode, NodeInput, NodeOutput, NodeMetadata, NodeType
 class ConditionalChainNode(ProcessorNode):
     """Routes to different chains based on conditions"""
     
-    _metadatas = {
-        "name": "ConditionalChain",
-        "description": "Routes to different chains based on conditions",
-        "category": "Chains",
-        "node_type": NodeType.PROCESSOR,
-        "inputs": [
-            NodeInput(
-                name="default_chain", 
-                type="chain", 
-                description="Default chain to use if no conditions match", 
-                is_connection=True,
-                required=True
-            ),
-            NodeInput(
-                name="condition_chains", 
-                type="dict", 
-                description="Dictionary mapping condition strings to chain node IDs", 
-                default={}
-            ),
-            NodeInput(
-                name="condition_type",
-                type="str",
-                description="Type of condition check: 'contains', 'equals', 'startswith', 'custom'",
-                default="contains"
-            ),
-            NodeInput(
-                name="condition_field",
-                type="str",
-                description="Field to check in input (e.g., 'input', 'query', 'text')",
-                default="input"
-            )
-        ],
-        "outputs": [
-            NodeOutput(
-                name="output", 
-                type="chain", 
-                description="Conditional chain router"
-            )
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "ConditionalChain",
+            "description": "Routes to different chains based on conditions",
+            "category": "Chains",
+            "node_type": NodeType.PROCESSOR,
+            "inputs": [
+                NodeInput(
+                    name="default_chain", 
+                    type="chain", 
+                    description="Default chain to use if no conditions match", 
+                    is_connection=True,
+                    required=True
+                ),
+                NodeInput(
+                    name="condition_chains", 
+                    type="dict", 
+                    description="Dictionary mapping condition strings to chain node IDs", 
+                    default={}
+                ),
+                NodeInput(
+                    name="condition_type",
+                    type="str",
+                    description="Type of condition check: 'contains', 'equals', 'startswith', 'custom'",
+                    default="contains"
+                ),
+                NodeInput(
+                    name="condition_field",
+                    type="str",
+                    description="Field to check in input (e.g., 'input', 'query', 'text')",
+                    default="input"
+                )
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="output", 
+                    type="chain", 
+                    description="Conditional chain router"
+                )
+            ]
+        }
     
-    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Runnable:
+    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
         """Execute node to create a conditional chain"""
         default_chain = connected_nodes.get("default_chain")
         condition_chains = inputs.get("condition_chains", {})
@@ -118,42 +120,44 @@ class ConditionalChainNode(ProcessorNode):
 class RouterChainNode(ProcessorNode):
     """Advanced router that can route based on multiple criteria"""
     
-    _metadatas = {
-        "name": "RouterChain",
-        "description": "Advanced routing based on multiple criteria",
-        "category": "Chains",
-        "node_type": NodeType.PROCESSOR,
-        "inputs": [
-            NodeInput(
-                name="routes",
-                type="list[dict]",
-                description="List of route definitions with conditions and chains",
-                default=[]
-            ),
-            NodeInput(
-                name="default_chain",
-                type="chain",
-                description="Default chain if no routes match",
-                is_connection=True,
-                required=True
-            ),
-            NodeInput(
-                name="route_selector",
-                type="str",
-                description="How to select route: 'first_match', 'all_matches', 'best_match'",
-                default="first_match"
-            )
-        ],
-        "outputs": [
-            NodeOutput(
-                name="output",
-                type="chain",
-                description="Router chain"
-            )
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "RouterChain",
+            "description": "Advanced routing based on multiple criteria",
+            "category": "Chains",
+            "node_type": NodeType.PROCESSOR,
+            "inputs": [
+                NodeInput(
+                    name="routes",
+                    type="list[dict]",
+                    description="List of route definitions with conditions and chains",
+                    default=[]
+                ),
+                NodeInput(
+                    name="default_chain",
+                    type="chain",
+                    description="Default chain if no routes match",
+                    is_connection=True,
+                    required=True
+                ),
+                NodeInput(
+                    name="route_selector",
+                    type="str",
+                    description="How to select route: 'first_match', 'all_matches', 'best_match'",
+                    default="first_match"
+                )
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="output",
+                    type="chain",
+                    description="Router chain"
+                )
+            ]
+        }
     
-    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Runnable:
+    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
         """Create a router chain"""
         routes = inputs.get("routes", [])
         default_chain = connected_nodes.get("default_chain")

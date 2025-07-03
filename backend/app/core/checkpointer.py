@@ -1,11 +1,11 @@
-from typing import Dict, Any, Optional, Iterator, Tuple
+from typing import Dict, Any, Optional, Iterator, Tuple, Union
 import json
 import uuid
 from datetime import datetime
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.base import CheckpointTuple, Checkpoint
-from sqlalchemy import create_engine, Column, String, DateTime, Text, MetaData, Table
+from sqlalchemy import create_engine, Column, String, DateTime, Text, MetaData, Table, text
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.dialects.postgresql import UUID
 
@@ -87,20 +87,26 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         checkpoint_json = json.dumps(checkpoint, default=str)
         metadata_json = json.dumps(metadata or {}, default=str)
         
-        with self.session_factory() as session:
+        with self.session_factory() as session:  # type: ignore
             try:
-                # Insert or update checkpoint
-                insert_stmt = f"""
+                # Use SQLAlchemy text() for raw SQL
+                insert_stmt = text("""
                 INSERT INTO flow_states (thread_id, checkpoint_id, parent_checkpoint_id, checkpoint_data, metadata)
-                VALUES ('{thread_id}', '{checkpoint_id}', {f"'{parent_id}'" if parent_id else 'NULL'}, '{checkpoint_json}', '{metadata_json}')
+                VALUES (:thread_id, :checkpoint_id, :parent_id, :checkpoint_data, :metadata)
                 ON CONFLICT (thread_id, checkpoint_id) 
                 DO UPDATE SET 
                     checkpoint_data = EXCLUDED.checkpoint_data,
                     metadata = EXCLUDED.metadata,
                     updated_at = NOW()
-                """
+                """)
                 
-                session.execute(insert_stmt)
+                session.execute(insert_stmt, {
+                    "thread_id": thread_id,
+                    "checkpoint_id": checkpoint_id,
+                    "parent_id": parent_id,
+                    "checkpoint_data": checkpoint_json,
+                    "metadata": metadata_json
+                })
                 session.commit()
                 
             except Exception as e:
@@ -119,18 +125,18 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         if not thread_id:
             return None
         
-        with self.session_factory() as session:
+        with self.session_factory() as session:  # type: ignore
             try:
                 # Get the most recent checkpoint for this thread
-                query = f"""
+                query = text("""
                 SELECT checkpoint_id, parent_checkpoint_id, checkpoint_data, metadata
                 FROM flow_states 
-                WHERE thread_id = '{thread_id}'
+                WHERE thread_id = :thread_id
                 ORDER BY created_at DESC
                 LIMIT 1
-                """
+                """)
                 
-                result = session.execute(query).fetchone()
+                result = session.execute(query, {"thread_id": thread_id}).fetchone()
                 
                 if not result:
                     return None
@@ -141,11 +147,17 @@ class PostgresCheckpointer(BaseCheckpointSaver):
                 checkpoint = json.loads(checkpoint_data)
                 metadata_dict = json.loads(metadata or '{}')
                 
+                # Create config dictionaries that match RunnableConfig structure
+                current_config: Dict[str, Any] = {"thread_id": thread_id}
+                parent_config: Optional[Dict[str, Any]] = None
+                if parent_id:
+                    parent_config = {"thread_id": thread_id, "checkpoint_id": parent_id}
+                
                 return CheckpointTuple(
-                    config=config,
+                    config=current_config,  # type: ignore
                     checkpoint=checkpoint,
                     metadata=metadata_dict,
-                    parent_config={"thread_id": thread_id, "checkpoint_id": parent_id} if parent_id else None
+                    parent_config=parent_config  # type: ignore
                 )
                 
             except Exception as e:
@@ -160,52 +172,56 @@ class PostgresCheckpointer(BaseCheckpointSaver):
     ) -> Iterator[CheckpointTuple]:
         """List checkpoints for a thread"""
         if not self.is_available():
-            return
+            return iter([])
             
         thread_id = config.get("thread_id")
         if not thread_id:
-            return
+            return iter([])
         
-        with self.session_factory() as session:
+        with self.session_factory() as session:  # type: ignore
             try:
                 # Build query
-                query = f"SELECT checkpoint_id, parent_checkpoint_id, checkpoint_data, metadata FROM flow_states WHERE thread_id = '{thread_id}'"
+                query_str = "SELECT checkpoint_id, parent_checkpoint_id, checkpoint_data, metadata FROM flow_states WHERE thread_id = :thread_id"
+                params = {"thread_id": thread_id}
                 
                 if before:
-                    query += f" AND created_at < '{before}'"
+                    query_str += " AND created_at < :before"
+                    params["before"] = before
                 
-                query += " ORDER BY created_at DESC"
+                query_str += " ORDER BY created_at DESC"
                 
                 if limit:
-                    query += f" LIMIT {limit}"
+                    query_str += " LIMIT :limit"
+                    params["limit"] = limit
                 
-                results = session.execute(query).fetchall()
+                query = text(query_str)
+                results = session.execute(query, params).fetchall()
                 
                 for checkpoint_id, parent_id, checkpoint_data, metadata in results:
                     checkpoint = json.loads(checkpoint_data)
                     metadata_dict = json.loads(metadata or '{}')
                     
+                    current_config: Dict[str, Any] = {"thread_id": thread_id, "checkpoint_id": checkpoint_id}
+                    parent_config: Optional[Dict[str, Any]] = None
+                    if parent_id:
+                        parent_config = {"thread_id": thread_id, "checkpoint_id": parent_id}
+                    
                     yield CheckpointTuple(
-                        config={"thread_id": thread_id, "checkpoint_id": checkpoint_id},
+                        config=current_config,  # type: ignore
                         checkpoint=checkpoint,
                         metadata=metadata_dict,
-                        parent_config={"thread_id": thread_id, "checkpoint_id": parent_id} if parent_id else None
+                        parent_config=parent_config  # type: ignore
                     )
                     
             except Exception as e:
                 print(f"Error listing checkpoints: {e}")
-                return
+                return iter([])
     
     def get_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
         """Get a specific checkpoint by config"""
         return self.get(config)
     
-    def put_writes(
-        self,
-        config: Dict[str, Any],
-        writes: list,
-        task_id: str
-    ) -> None:
+    def put_writes(self, config: Dict[str, Any], writes: list, task_id: str) -> None:  # type: ignore
         """Store pending writes (for advanced use cases)"""
         # This can be implemented later for more advanced scenarios
         pass
@@ -219,9 +235,10 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         if not thread_id:
             return
         
-        with self.session_factory() as session:
+        with self.session_factory() as session:  # type: ignore
             try:
-                session.execute(f"DELETE FROM flow_states WHERE thread_id = '{thread_id}'")
+                query = text("DELETE FROM flow_states WHERE thread_id = :thread_id")
+                session.execute(query, {"thread_id": thread_id})
                 session.commit()
             except Exception as e:
                 session.rollback()
@@ -229,15 +246,15 @@ class PostgresCheckpointer(BaseCheckpointSaver):
     
     def cleanup_old_checkpoints(self, days_old: int = 30) -> int:
         """Clean up old checkpoints to prevent database bloat"""
-        with self.session_factory() as session:
+        with self.session_factory() as session:  # type: ignore
             try:
-                query = f"""
+                query = text("""
                 DELETE FROM flow_states 
-                WHERE created_at < NOW() - INTERVAL '{days_old} days'
-                """
-                result = session.execute(query)
+                WHERE created_at < NOW() - INTERVAL ':days days'
+                """)
+                result = session.execute(query, {"days": days_old})
                 session.commit()
-                return result.rowcount
+                return getattr(result, 'rowcount', 0) or 0
             except Exception as e:
                 session.rollback()
                 print(f"Error cleaning up checkpoints: {e}")

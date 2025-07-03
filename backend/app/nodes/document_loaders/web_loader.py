@@ -1,7 +1,9 @@
 from typing import Dict, Any, List
 from ..base import ProviderNode, NodeInput, NodeType
-from langchain_community.document_loaders import WebBaseLoader
+from langchain_community.document_loaders import WebBaseLoader, SitemapLoader
 from langchain.schema import Document
+from langchain_core.runnables import Runnable
+import json
 
 class WebLoaderNode(ProviderNode):
     """
@@ -40,13 +42,13 @@ class WebLoaderNode(ProviderNode):
             ]
         }
     
-    async def _execute(self, inputs: Dict[str, Any]) -> List[Document]:
+    def _execute(self, **kwargs) -> Runnable:
         """
         Web sayfalarından içerik yükle
         """
-        urls_input = inputs.get("urls", "")
-        verify_ssl = inputs.get("verify_ssl", True)
-        headers_input = inputs.get("headers", "{}")
+        urls_input = kwargs.get("urls", "")
+        verify_ssl = kwargs.get("verify_ssl", True)
+        headers_input = kwargs.get("headers", "{}")
         
         # URLs'i parse et
         if isinstance(urls_input, str):
@@ -61,7 +63,6 @@ class WebLoaderNode(ProviderNode):
         headers = {}
         if headers_input:
             try:
-                import json
                 headers = json.loads(headers_input)
             except json.JSONDecodeError:
                 print(f"Warning: Invalid JSON in headers, using empty headers")
@@ -78,12 +79,7 @@ class WebLoaderNode(ProviderNode):
                 header_template=headers
             )
             
-            # Belgeleri yükle
-            documents = loader.load()
-            
-            print(f"✅ Loaded {len(documents)} documents from {len(urls)} URLs")
-            
-            return documents
+            return loader
             
         except Exception as e:
             print(f"❌ Web loading failed: {str(e)}")
@@ -126,36 +122,25 @@ class SitemapLoaderNode(ProviderNode):
             ]
         }
     
-    async def _execute(self, inputs: Dict[str, Any]) -> List[Document]:
+    def _execute(self, **kwargs) -> Runnable:
         """
         Sitemap'den URL'leri keşfet ve içerik yükle
         """
-        sitemap_url = inputs.get("sitemap_url")
-        filter_pattern = inputs.get("filter_urls")
-        limit = int(inputs.get("limit", 10))
+        sitemap_url = kwargs.get("sitemap_url")
+        filter_pattern = kwargs.get("filter_urls")
+        limit = int(kwargs.get("limit", 10))
         
         if not sitemap_url:
             raise ValueError("Sitemap URL is required")
         
         try:
-            from langchain_community.document_loaders import SitemapLoader
-            
             # Sitemap loader oluştur
             loader = SitemapLoader(
                 web_path=sitemap_url,
                 filter_urls=[filter_pattern] if filter_pattern else None
             )
             
-            # Belgeleri yükle (limit ile)
-            documents = loader.load()
-            
-            # Limit uygula
-            if limit > 0:
-                documents = documents[:limit]
-            
-            print(f"✅ Loaded {len(documents)} documents from sitemap")
-            
-            return documents
+            return loader
             
         except Exception as e:
             print(f"❌ Sitemap loading failed: {str(e)}")
@@ -199,13 +184,13 @@ class YoutubeLoaderNode(ProviderNode):
             ]
         }
     
-    async def _execute(self, inputs: Dict[str, Any]) -> List[Document]:
+    def _execute(self, **kwargs) -> Runnable:
         """
         YouTube videosundan transcript yükle
         """
-        video_url = inputs.get("video_url")
-        language = inputs.get("language", "en")
-        add_video_info = inputs.get("add_video_info", True)
+        video_url = kwargs.get("video_url")
+        language = kwargs.get("language", "en")
+        add_video_info = kwargs.get("add_video_info", True)
         
         if not video_url:
             raise ValueError("Video URL is required")
@@ -223,12 +208,7 @@ class YoutubeLoaderNode(ProviderNode):
                 add_video_info=add_video_info
             )
             
-            # Transcript'i yükle
-            documents = loader.load()
-            
-            print(f"✅ Loaded transcript from YouTube video: {video_id}")
-            
-            return documents
+            return loader
             
         except Exception as e:
             print(f"❌ YouTube loading failed: {str(e)}")
@@ -303,14 +283,14 @@ class GitHubLoaderNode(ProviderNode):
             ]
         }
     
-    async def _execute(self, inputs: Dict[str, Any]) -> List[Document]:
+    def _execute(self, **kwargs) -> Runnable:
         """
         GitHub repository'den dosyaları yükle
         """
-        repo_url = inputs.get("repo_url")
-        branch = inputs.get("branch", "main")
-        file_filter = inputs.get("file_filter", "")
-        max_files = int(inputs.get("max_files", 50))
+        repo_url = kwargs.get("repo_url")
+        branch = kwargs.get("branch", "main")
+        file_filter = kwargs.get("file_filter", "")
+        max_files = int(kwargs.get("max_files", 50))
         
         if not repo_url:
             raise ValueError("Repository URL is required")
@@ -324,20 +304,21 @@ class GitHubLoaderNode(ProviderNode):
             # Gerçek projede git clone + file parsing yapılacak
             
             # Mock implementation for demonstration
-            documents = [
-                Document(
-                    page_content=f"Repository content from {repo_url}",
-                    metadata={
-                        "source": repo_url,
-                        "branch": branch,
-                        "type": "repository"
-                    }
-                )
-            ]
+            from langchain_core.runnables import RunnableLambda
             
-            print(f"✅ Loaded {len(documents)} documents from GitHub repository")
+            def load_github():
+                return [
+                    Document(
+                        page_content=f"Repository content from {repo_url}",
+                        metadata={
+                            "source": repo_url,
+                            "branch": branch,
+                            "type": "repository"
+                        }
+                    )
+                ]
             
-            return documents
+            return RunnableLambda(lambda x: load_github())
             
         except Exception as e:
             print(f"❌ GitHub loading failed: {str(e)}")

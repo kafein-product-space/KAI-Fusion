@@ -1,4 +1,3 @@
-
 from typing import List
 from langchain_community.document_loaders import PyPDFLoader
 from langchain_core.documents import Document
@@ -6,17 +5,22 @@ from langchain_core.runnables import Runnable
 from ..base import ProviderNode, NodeInput, NodeType
 
 class PDFLoaderNode(ProviderNode):
-    _metadatas = {
-        "name": "PDFLoader",
-        "description": "Loads a PDF file and extracts its content into documents.",
-        "node_type": NodeType.PROVIDER,
-        "inputs": [
-            NodeInput(name="file_path", type="string", description="The absolute path to the PDF file.", required=True, is_connection=False),
-        ],
-        "outputs": [{"name": "documents", "type": "List[Document]", "description": "A list of documents extracted from the PDF."}]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "PDFLoader",
+            "description": "Loads a PDF file and extracts its content into documents.",
+            "node_type": NodeType.PROVIDER,
+            "inputs": [
+                NodeInput(name="file_path", type="string", description="The absolute path to the PDF file.", required=True, is_connection=False),
+            ],
+            "outputs": [{"name": "documents", "type": "List[Document]", "description": "A list of documents extracted from the PDF."}]
+        }
 
-    def _execute(self, file_path: str = None) -> Runnable:
+    def _execute(self, **kwargs) -> Runnable:
+        """Execute with correct ProviderNode signature"""
+        file_path = kwargs.get("file_path")
+        
         if not file_path:
             raise ValueError("PDF file path is required.")
         

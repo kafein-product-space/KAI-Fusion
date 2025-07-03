@@ -11,6 +11,11 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   children, 
   fallback = '/signin' 
 }) => {
+  // During development we skip all auth logic so pages render without login.
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
+
   const { isAuthenticated, validateSession, isLoading } = useAuth();
   const location = useLocation();
 
@@ -47,6 +52,11 @@ export const PublicOnly: React.FC<PublicOnlyProps> = ({
   children, 
   redirectTo = '/home' 
 }) => {
+  // Skip auth checks entirely in development
+  if (import.meta.env.DEV) {
+    return <>{children}</>;
+  }
+
   const { isAuthenticated, validateSession, isLoading } = useAuth();
 
   useEffect(() => {

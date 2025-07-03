@@ -13,7 +13,7 @@ from app.models.credential import (
 )
 from app.auth.dependencies import get_current_user
 from app.core.encryption import encrypt_data, decrypt_data
-from app.database import db
+from app.database import get_database
 
 router = APIRouter(prefix="/credentials", tags=["credentials"])
 security = HTTPBearer()
@@ -53,6 +53,7 @@ async def create_credential(
         }
         
         # Save to database
+        db = get_database()
         saved_credential = await db.create_credential(credential_record)
         
         return CredentialOut(**saved_credential)
@@ -72,6 +73,7 @@ async def list_credentials(
     List all credentials for the current user
     """
     try:
+        db = get_database()
         credentials = await db.get_user_credentials(
             user_id=current_user["id"],
             service_type=service_type
@@ -94,7 +96,7 @@ async def get_credential(
     Get a specific credential (without sensitive data)
     """
     try:
-        credential = await db.get_credential(credential_id, current_user["id"])
+        credential = await get_database().get_credential(credential_id, current_user["id"])
         
         if not credential:
             raise HTTPException(
@@ -122,7 +124,7 @@ async def get_credential_with_data(
     This endpoint should be used only when actually needed for API calls
     """
     try:
-        credential = await db.get_credential(credential_id, current_user["id"])
+        credential = await get_database().get_credential(credential_id, current_user["id"])
         
         if not credential:
             raise HTTPException(
@@ -163,7 +165,7 @@ async def update_credential(
     """
     try:
         # Check if credential exists and belongs to user
-        existing = await db.get_credential(credential_id, current_user["id"])
+        existing = await get_database().get_credential(credential_id, current_user["id"])
         if not existing:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -197,7 +199,13 @@ async def update_credential(
         update_data["updated_at"] = datetime.utcnow()
         
         # Update in database
-        updated_credential = await db.update_credential(credential_id, update_data)
+        updated_credential = await get_database().update_credential(credential_id, update_data)
+        
+        if not updated_credential:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Credential not found or could not be updated"
+            )
         
         return CredentialOut(**updated_credential)
         
@@ -219,7 +227,7 @@ async def delete_credential(
     """
     try:
         # Check if credential exists and belongs to user
-        existing = await db.get_credential(credential_id, current_user["id"])
+        existing = await get_database().get_credential(credential_id, current_user["id"])
         if not existing:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -227,7 +235,7 @@ async def delete_credential(
             )
         
         # Soft delete by marking as inactive
-        await db.update_credential(credential_id, {
+        await get_database().update_credential(credential_id, {
             "is_active": False,
             "updated_at": datetime.utcnow()
         })
@@ -249,7 +257,7 @@ async def test_credential(
     Test if a credential is valid by making a simple API call
     """
     try:
-        credential = await db.get_credential(credential_id, current_user["id"])
+        credential = await get_database().get_credential(credential_id, current_user["id"])
         
         if not credential:
             raise HTTPException(

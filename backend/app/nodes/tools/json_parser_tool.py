@@ -2,18 +2,21 @@ import json
 from typing import Any
 from ..base import ProviderNode, NodeInput, NodeType
 from langchain.tools import Tool
+from langchain_core.runnables import Runnable
 
 class JSONParserToolNode(ProviderNode):
     """JSON parsing and manipulation tool node"""
     
-    _metadatas = {
-        "name": "JSONParser",
-        "description": "Parse and manipulate JSON data",
-        "node_type": NodeType.PROVIDER,
-        "inputs": []
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "JSONParser",
+            "description": "Parse and manipulate JSON data",
+            "node_type": NodeType.PROVIDER,
+            "inputs": []
+        }
 
-    def _execute(self) -> Tool:
+    def _execute(self, **kwargs) -> Runnable:
         """Execute the JSON Parser node and return a JSON tool"""
         
         def parse_json(json_string: str) -> str:

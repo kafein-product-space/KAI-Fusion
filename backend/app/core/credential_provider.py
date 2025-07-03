@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import threading
 
 from app.core.encryption import decrypt_data
-from app.database import db
+from app.database import get_database
 
 
 class CredentialProvider:
@@ -136,7 +136,7 @@ class CredentialProvider:
             raise ValueError(f"No user context found for context_id: {context_id}")
         
         try:
-            credentials = await db.get_user_credentials(
+            credentials = await get_database().get_user_credentials(
                 user_id=user_id,
                 service_type=service_type
             )
@@ -176,13 +176,13 @@ class CredentialProvider:
         
         # Try by ID first
         if len(credential_name_or_id) == 36:  # UUID length
-            credential = await db.get_credential(credential_name_or_id, user_id)
+            credential = await get_database().get_credential(credential_name_or_id, user_id)
             if credential and credential["is_active"]:
                 if not service_type or credential["service_type"] == service_type:
                     return credential
         
         # Try by name
-        credentials = await db.get_user_credentials(user_id=user_id)
+        credentials = await get_database().get_user_credentials(user_id=user_id)
         for cred in credentials:
             if (cred["name"] == credential_name_or_id and 
                 cred["is_active"] and

@@ -5,18 +5,22 @@ from langchain_core.runnables import Runnable, RunnableLambda
 class TextFormatterNode(ProviderNode):
     """Text formatting utility node"""
     
-    _metadatas = {
-        "name": "TextFormatter",
-        "description": "Format text with various transformations",
-        "node_type": NodeType.PROVIDER,
-        "inputs": [
-            NodeInput(name="text", type="string", description="Text to format", required=True),
-            NodeInput(name="operation", type="string", description="Format operation (uppercase, lowercase, title, capitalize, strip, reverse)", default="uppercase"),
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "TextFormatter",
+            "description": "Format text with various transformations",
+            "node_type": NodeType.PROVIDER,
+            "inputs": [
+                NodeInput(name="text", type="string", description="Text to format", required=True),
+                NodeInput(name="operation", type="string", description="Format operation (uppercase, lowercase, title, capitalize, strip, reverse)", default="uppercase"),
+            ]
+        }
 
-    def _execute(self, text: str, operation: str = "uppercase") -> Runnable:
+    def _execute(self, **kwargs) -> Runnable:
         """Execute the text formatting operation and return a runnable"""
+        text = kwargs.get("text", "")
+        operation = kwargs.get("operation", "uppercase")
         
         def format_text(input_text: str) -> str:
             if not input_text:

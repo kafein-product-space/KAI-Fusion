@@ -10,50 +10,50 @@ from ..base import ProcessorNode, NodeInput, NodeOutput, NodeMetadata, NodeType
 class SequentialChainNode(ProcessorNode):
     """Chains multiple LLM calls sequentially"""
     
-    _metadatas = {
-        "name": "SequentialChain",
-        "description": "Chains multiple LLM calls sequentially, passing output from one to the next",
-        "category": "Chains",
-        "node_type": NodeType.PROCESSOR,
-        "inputs": [
-            NodeInput(
-                name="chains", 
-                type="list[chain]", 
-                description="List of chains to execute sequentially", 
-                is_connection=True,
-                required=True
-            ),
-            NodeInput(
-                name="input_variables", 
-                type="list[str]", 
-                description="Input variable names", 
-                default=["input"]
-            ),
-            NodeInput(
-                name="output_variables", 
-                type="list[str]", 
-                description="Output variable names", 
-                default=["output"]
-            ),
-            NodeInput(
-                name="return_all",
-                type="bool",
-                description="Return all intermediate outputs",
-                default=False
-            )
-        ],
-        "outputs": [
-            NodeOutput(
-                name="output", 
-                type="chain", 
-                description="Sequential chain executor"
-            )
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "SequentialChain",
+            "description": "Chains multiple LLM calls sequentially, passing output from one to the next",
+            "category": "Chains",
+            "node_type": NodeType.PROCESSOR,
+            "inputs": [
+                NodeInput(
+                    name="chains", 
+                    type="list[chain]", 
+                    description="List of chains to execute sequentially", 
+                    is_connection=True,
+                    required=True
+                ),
+                NodeInput(
+                    name="input_variables", 
+                    type="list[str]", 
+                    description="Input variable names", 
+                    default=["input"]
+                ),
+                NodeInput(
+                    name="output_variables", 
+                    type="list[str]", 
+                    description="Output variable names", 
+                    default=["output"]
+                ),
+                NodeInput(
+                    name="return_all",
+                    type="bool",
+                    description="Return all intermediate outputs",
+                    default=False
+                )
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="output", 
+                    type="chain", 
+                    description="Sequential chain executor"
+                )
+            ]
+        }
     
-
-    
-    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> SequentialChain:
+    def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
         """Execute node to create a sequential chain"""
         chains = connected_nodes.get("chains", [])
         

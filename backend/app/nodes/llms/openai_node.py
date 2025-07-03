@@ -9,54 +9,56 @@ from pydantic import SecretStr
 from app.core.credential_provider import get_openai_credential
 
 class OpenAINode(ProviderNode):
-    _metadatas = {
-        "name": "OpenAIChat",
-        "description": "OpenAI Chat Model for text generation",
-        "category": "LLM",
-        "node_type": NodeType.PROVIDER,
-        "inputs": [
-            NodeInput(
-                name="model_name",
-                type="str",
-                description="OpenAI model to use",
-                default="gpt-3.5-turbo",
-                required=False
-            ),
-            NodeInput(
-                name="temperature",
-                type="float",
-                description="Sampling temperature (0-2)",
-                default=0.7,
-                required=False
-            ),
-            NodeInput(
-                name="max_tokens",
-                type="int",
-                description="Maximum tokens to generate",
-                default=500,
-                required=False
-            ),
-            NodeInput(
-                name="credential_name",
-                type="str",
-                description="Name of OpenAI credential to use (optional)",
-                required=False
-            ),
-            NodeInput(
-                name="api_key",
-                type="str", 
-                description="Direct API Key (fallback, not recommended for production)",
-                required=False
-            )
-        ],
-        "outputs": [
-            NodeOutput(
-                name="output",
-                type="llm",
-                description="OpenAI Chat LLM instance"
-            )
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "OpenAIChat",
+            "description": "OpenAI Chat Model for text generation",
+            "category": "LLM",
+            "node_type": NodeType.PROVIDER,
+            "inputs": [
+                NodeInput(
+                    name="model_name",
+                    type="str",
+                    description="OpenAI model to use",
+                    default="gpt-3.5-turbo",
+                    required=False
+                ),
+                NodeInput(
+                    name="temperature",
+                    type="float",
+                    description="Sampling temperature (0-2)",
+                    default=0.7,
+                    required=False
+                ),
+                NodeInput(
+                    name="max_tokens",
+                    type="int",
+                    description="Maximum tokens to generate",
+                    default=500,
+                    required=False
+                ),
+                NodeInput(
+                    name="credential_name",
+                    type="str",
+                    description="Name of OpenAI credential to use (optional)",
+                    required=False
+                ),
+                NodeInput(
+                    name="api_key",
+                    type="str", 
+                    description="Direct API Key (fallback, not recommended for production)",
+                    required=False
+                )
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="output",
+                    type="llm",
+                    description="OpenAI Chat LLM instance"
+                )
+            ]
+        }
 
     def _execute(self, **kwargs) -> Runnable:
         """

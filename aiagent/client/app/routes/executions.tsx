@@ -2,7 +2,7 @@
 import { Check, MoreVertical, Search, Trash, X } from "lucide-react";
 import React, { useState } from "react";
 
-import Sidebar from "~/components/dashboard/Sidebar";
+import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 
 export default function ExecutionsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -30,7 +30,7 @@ export default function ExecutionsLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-      <Sidebar />
+              <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">

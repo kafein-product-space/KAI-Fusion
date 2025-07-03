@@ -3,7 +3,7 @@ import { Pencil, Plus, Search, Trash } from "lucide-react";
 import React, { useState } from "react";
 import { Link } from "react-router";
 
-import Sidebar from "~/components/dashboard/Sidebar";
+import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 
 export default function CredentialsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -112,7 +112,7 @@ export default function CredentialsLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-      <Sidebar />
+              <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">

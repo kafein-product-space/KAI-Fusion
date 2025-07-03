@@ -6,7 +6,7 @@ import uuid
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
 from langgraph.checkpoint.memory import MemorySaver
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableConfig
 
 from app.core.state import FlowState
 from app.nodes.base import BaseNode
@@ -44,9 +44,9 @@ class GraphBuilder:
         self.checkpointer = checkpointer or postgres_checkpointer
         self.nodes: Dict[str, GraphNodeInstance] = {}
         self.connections: List[NodeConnection] = []
-        self.graph: Optional[StateGraph] = None
+        self.graph: Optional[CompiledStateGraph] = None
         
-    def build_from_flow(self, flow_data: Dict[str, Any]) -> StateGraph:
+    def build_from_flow(self, flow_data: Dict[str, Any]) -> CompiledStateGraph:
         """
         Main entry point: converts ReactFlow data to executable LangGraph
         """
@@ -64,10 +64,10 @@ class GraphBuilder:
         self._instantiate_nodes(nodes)
         
         # Phase 3: Build LangGraph
-        graph = self._build_langgraph()
+        compiled_graph = self._build_langgraph()
         
-        self.graph = graph
-        return graph
+        self.graph = compiled_graph
+        return compiled_graph
     
     def _parse_connections(self, edges: List[Dict[str, Any]]):
         """Parse ReactFlow edges into NodeConnection objects"""
@@ -109,7 +109,7 @@ class GraphBuilder:
             
             print(f"✅ Instantiated node: {node_id} ({node_type})")
     
-    def _build_langgraph(self) -> StateGraph:
+    def _build_langgraph(self) -> CompiledStateGraph:
         """Build the actual LangGraph from instantiated nodes"""
         # Create graph with FlowState
         graph = StateGraph(FlowState)
@@ -195,13 +195,11 @@ class GraphBuilder:
         """
         Add conditional edge for advanced control flow
         This enables if/else logic and routing based on state
+        Note: This should be called before compilation
         """
-        if self.graph:
-            self.graph.add_conditional_edges(
-                source_node,
-                condition_func,
-                condition_map
-            )
+        # This method would need to be called during graph building phase
+        # before compilation, not after
+        raise NotImplementedError("Conditional edges must be added during graph building phase")
     
     def validate_graph(self) -> Dict[str, Any]:
         """Validate the built graph for common issues"""
@@ -297,15 +295,15 @@ class GraphBuilder:
         
         try:
             # Execute graph
-            config = {"thread_id": initial_state.session_id}
-            result = await self.graph.ainvoke(initial_state, config=config)
+            config: RunnableConfig = {"configurable": {"thread_id": initial_state.session_id}}
+            result_state = await self.graph.ainvoke(initial_state, config=config)
             
             return {
                 "success": True,
-                "result": result.last_output,
-                "state": result.to_dict(),
-                "executed_nodes": result.executed_nodes,
-                "session_id": result.session_id
+                "result": getattr(result_state, 'last_output', str(result_state)),
+                "state": getattr(result_state, 'model_dump', lambda: result_state)(),
+                "executed_nodes": getattr(result_state, 'executed_nodes', []),
+                "session_id": getattr(result_state, 'session_id', initial_state.session_id)
             }
             
         except Exception as e:
@@ -328,23 +326,27 @@ class GraphBuilder:
             raise ValueError("No graph built.")
         
         try:
-            config = {"thread_id": session_id}
+            config: RunnableConfig = {"configurable": {"thread_id": session_id}}
             
             # Get current state
-            current_state = await self.graph.aget_state(config)
+            state_snapshot = await self.graph.aget_state(config)  # type: ignore
+            current_state = state_snapshot.values if hasattr(state_snapshot, 'values') else FlowState()
             
             if additional_inputs:
                 # Update state with new inputs
                 for key, value in additional_inputs.items():
-                    current_state.values.set_variable(key, value)
+                    if hasattr(current_state, 'set_variable'):
+                        current_state.set_variable(key, value)  # type: ignore
+                    elif hasattr(current_state, 'variables'):
+                        current_state.variables[key] = value  # type: ignore
             
             # Continue execution
-            result = await self.graph.ainvoke(current_state.values, config=config)
+            result_state = await self.graph.ainvoke(current_state, config=config)
             
             return {
                 "success": True,
-                "result": result.last_output,
-                "state": result.to_dict(),
+                "result": getattr(result_state, 'last_output', str(result_state)),
+                "state": getattr(result_state, 'model_dump', lambda: result_state)(),
                 "session_id": session_id
             }
             

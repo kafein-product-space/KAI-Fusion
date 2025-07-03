@@ -79,7 +79,7 @@ class NodeRegistry:
                         for name, obj in inspect.getmembers(module):
                             if (inspect.isclass(obj) and 
                                 issubclass(obj, BaseNode) and 
-                                obj != BaseNode):
+                                obj != BaseNode and not inspect.isabstract(obj)):
                                 self.register_node(obj)
                                 
                     except Exception as e:

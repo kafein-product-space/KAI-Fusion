@@ -8,19 +8,22 @@ from langchain_core.memory import BaseMemory
 from langchain.agents import AgentExecutor, create_react_agent
 
 class ReactAgentNode(ProcessorNode):
-    _metadatas = {
-        "name": "ReactAgent",
-        "description": "Creates a ReAct agent from an LLM, tools, and a prompt.",
-        "node_type": NodeType.PROCESSOR,
-        "inputs": [
-            NodeInput(name="llm", type="BaseLanguageModel", description="The language model to use.", is_connection=True),
-            NodeInput(name="tools", type="Sequence[BaseTool]", description="The tools for the agent to use.", is_connection=True),
-            NodeInput(name="prompt", type="PromptTemplate", description="The prompt for the agent.", is_connection=True),
-            NodeInput(name="memory", type="BaseMemory", description="The memory for the agent.", is_connection=True, required=False)
-        ]
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "ReactAgent",
+            "description": "Creates a ReAct agent from an LLM, tools, and a prompt.",
+            "node_type": NodeType.PROCESSOR,
+            "inputs": [
+                NodeInput(name="llm", type="BaseLanguageModel", description="The language model to use.", is_connection=True),
+                NodeInput(name="tools", type="Sequence[BaseTool]", description="The tools for the agent to use.", is_connection=True),
+                NodeInput(name="prompt", type="PromptTemplate", description="The prompt for the agent.", is_connection=True),
+                NodeInput(name="memory", type="BaseMemory", description="The memory for the agent.", is_connection=True, required=False)
+            ]
+        }
 
     def _execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
+        """Execute with correct ProcessorNode signature"""
         llm_runnable = connected_nodes.get("llm")
         tools_runnable = connected_nodes.get("tools")
         prompt_runnable = connected_nodes.get("prompt")

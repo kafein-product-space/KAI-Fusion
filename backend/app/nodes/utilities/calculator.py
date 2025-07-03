@@ -1,20 +1,23 @@
 from typing import Any
 from ..base import ProviderNode, NodeInput, NodeType
 from langchain.tools import Tool
+from langchain_core.runnables import Runnable
 import re
 import math
 
 class CalculatorNode(ProviderNode):
     """Calculator tool node for mathematical operations"""
     
-    _metadatas = {
-        "name": "Calculator",
-        "description": "Mathematical expression calculator tool",
-        "node_type": NodeType.PROVIDER,
-        "inputs": []
-    }
+    def __init__(self):
+        super().__init__()
+        self._metadatas = {
+            "name": "Calculator",
+            "description": "Mathematical expression calculator tool",
+            "node_type": NodeType.PROVIDER,
+            "inputs": []
+        }
 
-    def _execute(self) -> Tool:
+    def _execute(self, **kwargs) -> Runnable:
         """Execute the Calculator node and return a calculator tool"""
         
         def safe_calculate(expression: str) -> str:
