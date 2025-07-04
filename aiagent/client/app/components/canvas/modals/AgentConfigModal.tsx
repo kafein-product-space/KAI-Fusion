@@ -1,5 +1,19 @@
-import React, { useState } from "react";
-import { X, Settings, Wrench, CheckCircle, Brain, MessageSquare, Shield, Save } from "lucide-react";
+import React, {
+  forwardRef,
+  useState,
+  useImperativeHandle,
+  useEffect,
+} from "react";
+import {
+  Settings,
+  X,
+  CheckCircle,
+  Wrench,
+  Brain,
+  MessageSquare,
+  Shield,
+  Save,
+} from "lucide-react";
 
 interface AgentConfig {
   name: string;
@@ -12,126 +26,153 @@ interface AgentConfig {
 }
 
 interface AgentConfigModalProps {
-  isOpen: boolean;
-  onClose: () => void;
   nodeData: Partial<AgentConfig>;
   onSave: (config: AgentConfig) => void;
 }
 
-function AgentConfigModal({ isOpen, onClose, nodeData, onSave }: AgentConfigModalProps) {
-  const [config, setConfig] = useState<AgentConfig>({
-    name: nodeData?.name || "Tool Agent",
-    tools: nodeData?.tools || [],
-    memory: nodeData?.memory || { type: "buffer", size: 100 },
-    model: nodeData?.model || { provider: "openai", model: "gpt-4" },
-    prompt: nodeData?.prompt || "Sen yardımcı bir AI asistanısın.",
-    moderation: nodeData?.moderation || { enabled: false },
-    ...nodeData
-  });
+const AgentConfigModal = forwardRef<HTMLDialogElement, AgentConfigModalProps>(
+  ({ nodeData, onSave }, ref) => {
+    const [config, setConfig] = useState<AgentConfig>({
+      name: nodeData?.name || "Tool Agent",
+      tools: nodeData?.tools || [],
+      memory: nodeData?.memory || { type: "buffer", size: 100 },
+      model: nodeData?.model || { provider: "openai", model: "gpt-4" },
+      prompt: nodeData?.prompt || "Sen yardımcı bir AI asistanısın.",
+      moderation: nodeData?.moderation || { enabled: false },
+      ...nodeData,
+    });
 
-  const [availableTools] = useState([
-    { id: "calculator", name: "Calculator", description: "Matematik hesaplamaları" },
-    { id: "websearch", name: "Web Search", description: "İnternet araması" },
-    { id: "textanalyzer", name: "Text Analyzer", description: "Metin analizi" },
-    { id: "fileprocessor", name: "File Processor", description: "Dosya işleme" },
-    { id: "database", name: "Database", description: "Veritabanı sorguları" },
-    { id: "email", name: "Email", description: "Email gönderme" }
-  ]);
+    const [availableTools] = useState([
+      {
+        id: "calculator",
+        name: "Calculator",
+        description: "Matematik hesaplamaları",
+      },
+      { id: "websearch", name: "Web Search", description: "İnternet araması" },
+      {
+        id: "textanalyzer",
+        name: "Text Analyzer",
+        description: "Metin analizi",
+      },
+      {
+        id: "fileprocessor",
+        name: "File Processor",
+        description: "Dosya işleme",
+      },
+      { id: "database", name: "Database", description: "Veritabanı sorguları" },
+      { id: "email", name: "Email", description: "Email gönderme" },
+    ]);
 
-  const handleToolToggle = (toolId: string) => {
-    setConfig((prev) => ({
-      ...prev,
-      tools: prev.tools.includes(toolId)
-        ? prev.tools.filter((t) => t !== toolId)
-        : [...prev.tools, toolId]
-    }));
-  };
+    const dialogRef = React.useRef<HTMLDialogElement>(null);
 
-  const handleSave = () => {
-    onSave(config);
-    onClose();
-  };
+    // Ref dışarıdan kontrol için expose edilir
+    useImperativeHandle(ref, () => dialogRef.current!);
 
-  if (!isOpen) return null;
+    const handleToolToggle = (toolId: string) => {
+      setConfig((prev) => ({
+        ...prev,
+        tools: prev.tools.includes(toolId)
+          ? prev.tools.filter((t) => t !== toolId)
+          : [...prev.tools, toolId],
+      }));
+    };
 
-  return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 w-[20vw]">
-      <div className="bg-white rounded-xl p-6 max-w-2xl w-[20vw] max-h-[90vh] overflow-y-auto m-4">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Settings className="w-6 h-6" />
-            Agent Konfigürasyonu
-          </h2>
-          <button
-            onClick={onClose}
-            className="p-2 hover:bg-gray-100 rounded-lg"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
+    const handleSave = () => {
+      onSave(config);
+      dialogRef.current?.close();
+    };
 
-        <div className="space-y-6">
-          {/* Agent Adı */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Agent Adı
-            </label>
-            <input
-              type="text"
-              value={config.name}
-              onChange={(e) => setConfig((prev) => ({ ...prev, name: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              placeholder="Agent adını girin"
-            />
+    const handleClose = () => {
+      dialogRef.current?.close();
+    };
+
+    return (
+      <dialog ref={dialogRef} className="modal">
+        <div className="modal-box max-w-3xl max-h-[90vh] overflow-y-auto">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="font-bold text-lg flex items-center gap-2">
+              <Settings className="w-5 h-5" />
+              Agent Konfigürasyonu
+            </h3>
+            <form method="dialog">
+              <button
+                className="btn btn-sm btn-circle btn-ghost"
+                onClick={handleClose}
+              >
+                <X />
+              </button>
+            </form>
           </div>
 
-          {/* Araçlar */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              <Wrench className="w-4 h-4 inline mr-2" />
-              Araçlar
-            </label>
-            <div className="grid grid-cols-2 gap-3">
-              {availableTools.map((tool) => (
-                <div
-                  key={tool.id}
-                  onClick={() => handleToolToggle(tool.id)}
-                  className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
-                    config.tools.includes(tool.id)
-                      ? 'border-blue-500 bg-blue-50'
-                      : 'border-gray-200 hover:border-blue-300'
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium text-gray-800">{tool.name}</h4>
-                      <p className="text-sm text-gray-600">{tool.description}</p>
-                    </div>
-                    {config.tools.includes(tool.id) && (
-                      <CheckCircle className="w-5 h-5 text-blue-500" />
-                    )}
-                  </div>
-                </div>
-              ))}
+          <div className="space-y-4">
+            {/* Agent Adı */}
+            <div>
+              <label className="label">
+                <span className="label-text">Agent Adı</span>
+              </label>
+              <input
+                type="text"
+                className="input input-bordered w-full"
+                value={config.name}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, name: e.target.value }))
+                }
+              />
             </div>
-          </div>
 
-          {/* Hafıza Ayarları */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              <Brain className="w-4 h-4 inline mr-2" />
-              Hafıza Ayarları
-            </label>
+            {/* Araçlar */}
+            <div>
+              <label className="label">
+                <span className="label-text flex items-center gap-2">
+                  <Wrench className="w-4 h-4" />
+                  Araçlar
+                </span>
+              </label>
+              <div className="grid grid-cols-2 gap-3">
+                {availableTools.map((tool) => (
+                  <div
+                    key={tool.id}
+                    onClick={() => handleToolToggle(tool.id)}
+                    className={`p-3 rounded-lg border-2 cursor-pointer transition-all ${
+                      config.tools.includes(tool.id)
+                        ? "border-blue-500 bg-blue-50"
+                        : "border-gray-200 hover:border-blue-300"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div>
+                        <h4 className="font-semibold">{tool.name}</h4>
+                        <p className="text-sm text-gray-500">
+                          {tool.description}
+                        </p>
+                      </div>
+                      {config.tools.includes(tool.id) && (
+                        <CheckCircle className="w-5 h-5 text-blue-500" />
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Hafıza ve Model Ayarları */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Hafıza Tipi</label>
+                <label className="label">
+                  <span className="label-text flex items-center gap-1">
+                    <Brain className="w-4 h-4" />
+                    Hafıza Tipi
+                  </span>
+                </label>
                 <select
+                  className="select select-bordered w-full"
                   value={config.memory.type}
-                  onChange={(e) => setConfig((prev) => ({
-                    ...prev,
-                    memory: { ...prev.memory, type: e.target.value }
-                  }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      memory: { ...prev.memory, type: e.target.value },
+                    }))
+                  }
                 >
                   <option value="buffer">Buffer Memory</option>
                   <option value="summary">Summary Memory</option>
@@ -139,66 +180,77 @@ function AgentConfigModal({ isOpen, onClose, nodeData, onSave }: AgentConfigModa
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Hafıza Boyutu</label>
+                <label className="label">
+                  <span className="label-text">Hafıza Boyutu</span>
+                </label>
                 <input
                   type="number"
+                  className="input input-bordered w-full"
                   value={config.memory.size}
-                  onChange={(e) => setConfig((prev) => ({
-                    ...prev,
-                    memory: { ...prev.memory, size: parseInt(e.target.value) }
-                  }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      memory: {
+                        ...prev.memory,
+                        size: parseInt(e.target.value),
+                      },
+                    }))
+                  }
                 />
               </div>
             </div>
-          </div>
 
-          {/* Model Ayarları */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              <MessageSquare className="w-4 h-4 inline mr-2" />
-              Model Ayarları
-            </label>
+            {/* Model Ayarları */}
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Sağlayıcı</label>
+                <label className="label">
+                  <span className="label-text flex items-center gap-1">
+                    <MessageSquare className="w-4 h-4" />
+                    Model Sağlayıcı
+                  </span>
+                </label>
                 <select
+                  className="select select-bordered w-full"
                   value={config.model.provider}
-                  onChange={(e) => setConfig((prev) => ({
-                    ...prev,
-                    model: { ...prev.model, provider: e.target.value }
-                  }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      model: { ...prev.model, provider: e.target.value },
+                    }))
+                  }
                 >
                   <option value="openai">OpenAI</option>
                   <option value="anthropic">Anthropic</option>
                   <option value="google">Google</option>
-                  <option value="local">Local Model</option>
                 </select>
               </div>
               <div>
-                <label className="block text-xs text-gray-600 mb-1">Model</label>
+                <label className="label">
+                  <span className="label-text">Model</span>
+                </label>
                 <select
+                  className="select select-bordered w-full"
                   value={config.model.model}
-                  onChange={(e) => setConfig((prev) => ({
-                    ...prev,
-                    model: { ...prev.model, model: e.target.value }
-                  }))}
-                  className="w-full p-2 border border-gray-300 rounded-md"
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      model: { ...prev.model, model: e.target.value },
+                    }))
+                  }
                 >
-                  {config.model.provider === 'openai' && (
+                  {config.model.provider === "openai" && (
                     <>
                       <option value="gpt-4">GPT-4</option>
                       <option value="gpt-3.5-turbo">GPT-3.5 Turbo</option>
                     </>
                   )}
-                  {config.model.provider === 'anthropic' && (
+                  {config.model.provider === "anthropic" && (
                     <>
                       <option value="claude-3-opus">Claude 3 Opus</option>
                       <option value="claude-3-sonnet">Claude 3 Sonnet</option>
                     </>
                   )}
-                  {config.model.provider === 'google' && (
+                  {config.model.provider === "google" && (
                     <>
                       <option value="gemini-pro">Gemini Pro</option>
                       <option value="gemini-ultra">Gemini Ultra</option>
@@ -207,63 +259,62 @@ function AgentConfigModal({ isOpen, onClose, nodeData, onSave }: AgentConfigModa
                 </select>
               </div>
             </div>
-          </div>
 
-          {/* Prompt Template */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Prompt Template
-            </label>
-            <textarea
-              value={config.prompt}
-              onChange={(e) => setConfig((prev) => ({ ...prev, prompt: e.target.value }))}
-              className="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              rows={4}
-              placeholder="Agent'ın davranış şablonunu girin..."
-            />
-          </div>
-
-          {/* Moderasyon */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">
-              <Shield className="w-4 h-4 inline mr-2" />
-              Moderasyon
-            </label>
-            <div className="flex items-center gap-3">
-              <input
-                type="checkbox"
-                checked={config.moderation.enabled}
-                onChange={(e) => setConfig((prev) => ({
-                  ...prev,
-                  moderation: { ...prev.moderation, enabled: e.target.checked }
-                }))}
-                className="w-4 h-4 text-blue-600"
+            {/* Prompt */}
+            <div>
+              <label className="label">
+                <span className="label-text">Prompt Template</span>
+              </label>
+              <textarea
+                className="textarea textarea-bordered w-full"
+                rows={4}
+                value={config.prompt}
+                onChange={(e) =>
+                  setConfig((prev) => ({ ...prev, prompt: e.target.value }))
+                }
               />
-              <span className="text-sm text-gray-700">
-                Girdi moderasyonunu etkinleştir
-              </span>
+            </div>
+
+            {/* Moderation */}
+            <div className="form-control">
+              <label className="label cursor-pointer">
+                <span className="label-text flex items-center gap-2">
+                  <Shield className="w-4 h-4" />
+                  Moderasyon Açık
+                </span>
+                <input
+                  type="checkbox"
+                  className="toggle toggle-info"
+                  checked={config.moderation.enabled}
+                  onChange={(e) =>
+                    setConfig((prev) => ({
+                      ...prev,
+                      moderation: {
+                        ...prev.moderation,
+                        enabled: e.target.checked,
+                      },
+                    }))
+                  }
+                />
+              </label>
             </div>
           </div>
-        </div>
 
-        <div className="flex justify-end gap-3 mt-8 pt-6 border-t">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-gray-600 hover:bg-gray-100 rounded-lg transition-colors"
-          >
-            İptal
-          </button>
-          <button
-            onClick={handleSave}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors flex items-center gap-2"
-          >
-            <Save className="w-4 h-4" />
-            Kaydet
-          </button>
+          <div className="modal-action">
+            <form method="dialog" className="flex gap-3">
+              <button className="btn" onClick={handleClose}>
+                İptal
+              </button>
+              <button className="btn btn-primary" onClick={handleSave}>
+                <Save className="w-4 h-4" />
+                Kaydet
+              </button>
+            </form>
+          </div>
         </div>
-      </div>
-    </div>
-  );
-}
+      </dialog>
+    );
+  }
+);
 
-export default AgentConfigModal; 
+export default AgentConfigModal;

@@ -12,7 +12,13 @@ const LoadingNodes = () => (
 );
 
 // Error Component
-const ErrorNodes = ({ error, onRetry }: { error: string; onRetry: () => void }) => (
+const ErrorNodes = ({
+  error,
+  onRetry,
+}: {
+  error: string;
+  onRetry: () => void;
+}) => (
   <div className="p-4 text-center">
     <AlertCircle className="h-8 w-8 text-red-500 mx-auto mb-2" />
     <p className="text-sm text-gray-600 mb-2">{error}</p>
@@ -67,8 +73,8 @@ function Sidebar() {
 
   // Convert backend node metadata to draggable node format
   const convertToNodeType = (nodeMetadata: any) => ({
-    id: nodeMetadata.name,
-    type: nodeMetadata.name,
+    id: nodeMetadata.name === "ReactAgent" ? "toolAgent" : nodeMetadata.name,
+    type: nodeMetadata.name === "ReactAgent" ? "toolAgent" : nodeMetadata.name,
     label: nodeMetadata.display_name,
     category: nodeMetadata.category,
     data: {
@@ -85,7 +91,7 @@ function Sidebar() {
 
   // Group nodes by category
   const nodesByCategory = nodesToDisplay.reduce((acc, node) => {
-    const category = node.category || 'Other';
+    const category = node.category || "Other";
     if (!acc[category]) {
       acc[category] = [];
     }
@@ -98,7 +104,7 @@ function Sidebar() {
       {/* Header */}
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>
-        
+
         {/* Search Input */}
         <label className="input w-full rounded-2xl border flex items-center gap-2 px-2 py-1 mb-3">
           <Search className="h-4 w-4 opacity-50" />
@@ -114,7 +120,7 @@ function Sidebar() {
         {/* Category Filter */}
         <select
           className="w-full text-sm border rounded-lg px-2 py-1"
-          value={selectedCategory || ''}
+          value={selectedCategory || ""}
           onChange={(e) => filterByCategory(e.target.value || null)}
         >
           <option value="">All Categories</option>
@@ -135,7 +141,9 @@ function Sidebar() {
         ) : nodesToDisplay.length === 0 ? (
           <div className="text-center py-4">
             <p className="text-sm text-gray-500">
-              {searchQuery ? `No nodes match "${searchQuery}"` : 'No nodes available'}
+              {searchQuery
+                ? `No nodes match "${searchQuery}"`
+                : "No nodes available"}
             </p>
           </div>
         ) : (
@@ -144,7 +152,8 @@ function Sidebar() {
               // Show filtered nodes in current category
               <div>
                 <h4 className="text-sm font-medium text-gray-700 mb-2">
-                  {categories.find(c => c.name === selectedCategory)?.display_name || selectedCategory}
+                  {categories.find((c) => c.name === selectedCategory)
+                    ?.display_name || selectedCategory}
                 </h4>
                 <div className="space-y-2">
                   {nodesToDisplay.map((nodeType) => (
@@ -154,20 +163,28 @@ function Sidebar() {
               </div>
             ) : (
               // Show nodes grouped by category
-              Object.entries(nodesByCategory).map(([categoryName, categoryNodes]) => (
-                <div key={categoryName} className="collapse collapse-arrow bg-white border border-base-300 rounded-lg">
-                  <input type="checkbox" defaultChecked />
-                  <div className="collapse-title font-semibold text-sm">
-                    {categories.find(c => c.name === categoryName)?.display_name || categoryName}
-                    <span className="ml-2 text-xs text-gray-500">({categoryNodes.length})</span>
+              Object.entries(nodesByCategory).map(
+                ([categoryName, categoryNodes]) => (
+                  <div
+                    key={categoryName}
+                    className="collapse collapse-arrow bg-white border border-base-300 rounded-lg"
+                  >
+                    <input type="checkbox" defaultChecked />
+                    <div className="collapse-title font-semibold text-sm">
+                      {categories.find((c) => c.name === categoryName)
+                        ?.display_name || categoryName}
+                      <span className="ml-2 text-xs text-gray-500">
+                        ({categoryNodes.length})
+                      </span>
+                    </div>
+                    <div className="collapse-content space-y-2">
+                      {categoryNodes.map((nodeType) => (
+                        <DraggableNode key={nodeType.id} nodeType={nodeType} />
+                      ))}
+                    </div>
                   </div>
-                  <div className="collapse-content space-y-2">
-                    {categoryNodes.map((nodeType) => (
-                      <DraggableNode key={nodeType.id} nodeType={nodeType} />
-                    ))}
-                  </div>
-                </div>
-              ))
+                )
+              )
             )}
 
             {/* Results summary */}
