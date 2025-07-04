@@ -5,7 +5,7 @@ LangGraph and provides convenient helpers for synchronous and streaming
 execution, while persisting execution metadata in the database.
 """
 
-from typing import Dict, Any, Optional, AsyncGenerator, Union
+from typing import Dict, Any, Optional, AsyncGenerator, Union, cast
 from app.core.node_registry import node_registry
 from app.core.graph_builder import GraphBuilder
 from app.database import db
@@ -108,12 +108,24 @@ class WorkflowEngine:
         builder = self._get_builder()
         builder.build_from_flow(flow_data, user_id)
 
-        async for event in builder.execute(
+        # At this point `db` was already validated to be truthy in
+        # `execute_workflow`, but the type checker cannot infer that across
+        # method boundaries.  An explicit `assert` clarifies the contract and
+        # silences the attr-defined warning.
+        assert db is not None  # noqa: S101 – runtime guarantee for type checker
+
+        # `builder.execute` is an async method that returns an async generator when `stream=True`.
+        result_gen = await builder.execute(
             initial_inputs,
             user_id=user_id,
             workflow_id=workflow_id,
             stream=True,
-        ):
+        )
+
+        # MyPy may not narrow the return type correctly, so cast explicitly.
+        stream_generator = cast(AsyncGenerator[Dict[str, Any], None], result_gen)
+
+        async for event in stream_generator:
             yield event
             if execution_id and event.get("type") == "complete":
                 await db.update_execution(execution_id, "completed", event.get("result"))

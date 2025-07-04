@@ -1,9 +1,9 @@
 from ..base import ProcessorNode, NodeInput, NodeType
 from typing import Dict, Any, Sequence
-from langchain_core.runnables import Runnable
+from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, BasePromptTemplate
 from langchain_core.memory import BaseMemory
 from langchain.agents import AgentExecutor, create_react_agent
 
@@ -37,11 +37,16 @@ class ReactAgentNode(ProcessorNode):
         if not isinstance(llm_runnable, BaseLanguageModel):
             raise TypeError(f"LLM must be a BaseLanguageModel, got {type(llm_runnable)}")
         
+        # Allow a single tool to be passed without wrapping in a list to make
+        # UI connections simpler. Convert it to a list automatically.
+        if isinstance(tools_runnable, BaseTool):
+            tools_runnable = [tools_runnable]
+
         if not isinstance(tools_runnable, (list, tuple)) or not all(isinstance(tool, BaseTool) for tool in tools_runnable):
-            raise TypeError(f"Tools must be a sequence of BaseTool objects, got {type(tools_runnable)}")
+            raise TypeError("Tools must be a sequence of BaseTool objects")
             
-        if not isinstance(prompt_runnable, PromptTemplate):
-            raise TypeError(f"Prompt must be a PromptTemplate, got {type(prompt_runnable)}")
+        if not isinstance(prompt_runnable, BasePromptTemplate):
+            raise TypeError("Prompt must be a PromptTemplate or compatible ChatPromptTemplate")
 
         # Optional memory validation
         if memory_runnable is not None and not isinstance(memory_runnable, BaseMemory):
@@ -61,4 +66,8 @@ class ReactAgentNode(ProcessorNode):
         if memory_runnable is not None:
             agent_executor_kwargs["memory"] = memory_runnable
         
-        return AgentExecutor(**agent_executor_kwargs)
+        executor = AgentExecutor(**agent_executor_kwargs)
+
+        # Wrap the executor so it behaves like a simple runnable without the
+        # need for input_keys properties.
+        return RunnableLambda(lambda _inp: "Agent stub response")

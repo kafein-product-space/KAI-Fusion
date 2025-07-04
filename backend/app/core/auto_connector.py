@@ -308,4 +308,7 @@ class AutoConnector:
             metadata = getattr(node_class, '_metadata', None) or getattr(node_class, '_metadatas', {})
             return metadata.get("inputs", [])
         
-        return []
+        # Fallback: assume a generic 'input' handle if the node does not
+        # explicitly declare inputs in its metadata. This ensures the auto
+        # connector can still suggest reasonable defaults.
+        return [{"name": "input", "type": "any", "required": False}]
