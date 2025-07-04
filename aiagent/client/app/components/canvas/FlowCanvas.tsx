@@ -23,6 +23,8 @@ import GenericNode from "./GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
+import StreamingModal from "./StreamingModal";
+import WorkflowService from "~/services/workflows";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
@@ -186,6 +188,38 @@ function FlowCanvas() {
     }
   }, [nodes, edges, currentWorkflow, updateWorkflow, createWorkflow]);
 
+  // Streaming execution for saved workflows
+  const [stream, setStream] = useState<ReadableStream | null>(null);
+
+  const handleExecuteStream = useCallback(async () => {
+    if (!currentWorkflow) {
+      alert("Please save the workflow first before streaming execution");
+      return;
+    }
+
+    if (nodes.length === 0) {
+      alert("Please add some nodes to execute the workflow");
+      return;
+    }
+
+    // Prepare inputs – ask user for text input for now
+    const inputText = prompt("Enter input text for the workflow:");
+    if (!inputText) return;
+
+    try {
+      const streamResponse = await WorkflowService.executeWorkflowStream(currentWorkflow.id, {
+        workflow_id: currentWorkflow.id,
+        input_text: inputText,
+      } as any);
+      setStream(streamResponse);
+    } catch (e) {
+      console.error("Streaming execution error", e);
+      alert("Streaming execution failed");
+    }
+  }, [currentWorkflow, nodes]);
+
+  const closeStreamModal = () => setStream(null);
+
   const handleExecute = useCallback(async () => {
     if (nodes.length === 0) {
       alert("Please add some nodes to execute the workflow");
@@ -268,6 +302,14 @@ function FlowCanvas() {
         </button>
 
         <button
+          onClick={handleExecuteStream}
+          disabled={nodes.length === 0}
+          className="px-3 py-1 text-sm rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
+        >
+          Stream
+        </button>
+        
+        <button
           onClick={handleExecute}
           disabled={isExecuting || nodes.length === 0}
           className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
@@ -345,6 +387,8 @@ function FlowCanvas() {
           <MiniMap />
         </ReactFlow>
       </div>
+
+      {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}
     </div>
   );
 }

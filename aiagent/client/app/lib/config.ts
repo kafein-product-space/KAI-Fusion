@@ -40,7 +40,7 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/workflows/${id}`,
     DELETE: (id: string) => `/workflows/${id}`,
     EXECUTE: '/workflows/execute',
-    EXECUTE_STREAM: '/workflows/execute/stream',
+    EXECUTE_STREAM: (id: string) => `/workflows/${id}/execute/stream`,
     VALIDATE: '/workflows/validate',
     EXECUTIONS: (id: string) => `/workflows/${id}/executions`,
   },

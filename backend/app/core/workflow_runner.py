@@ -156,6 +156,19 @@ class WorkflowRunner:
             # Add any other context
             chain_input.update(session_context.get("context", {}))
         
+        # If the workflow is just a single LLM node, many models expect a plain
+        # string rather than a dict. Convert by prepending any chat history.
+        if len(self.builder.nodes) == 1:  # Simple workflow heuristic
+            if "chat_history" in chain_input:
+                prompt = chain_input["chat_history"] + "\nUser: " + input_text
+            else:
+                prompt = input_text
+            return prompt  # type: ignore[return-value]
+
+        # If chain only expects a simple string, return it directly to avoid errors
+        if list(chain_input.keys()) == ["input"]:
+            return input_text  # type: ignore[return-value]
+
         return chain_input
     
     def validate_workflow(self, workflow_data: Dict[str, Any]) -> Dict[str, Any]:
