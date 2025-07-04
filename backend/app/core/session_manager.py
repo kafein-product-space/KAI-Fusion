@@ -2,7 +2,7 @@
 Session management for maintaining conversation context and state
 """
 from typing import Dict, Any, Optional, List
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import uuid
 import asyncio
 from collections import defaultdict
@@ -25,8 +25,8 @@ class SessionManager:
                 session_id=session_id,
                 workflow_id=workflow_id,
                 user_id=user_id or "anonymous",
-                created_at=datetime.utcnow(),
-                last_accessed=datetime.utcnow(),
+                created_at=datetime.now(UTC),
+                last_accessed=datetime.now(UTC),
                 messages=[],
                 context={},
                 memory_store={}
@@ -39,10 +39,10 @@ class SessionManager:
             session = self.sessions.get(session_id)
             if session:
                 # Update last accessed time
-                session.last_accessed = datetime.utcnow()
+                session.last_accessed = datetime.now(UTC)
                 
                 # Check if session expired
-                if datetime.utcnow() - session.created_at > self.ttl:
+                if datetime.now(UTC) - session.created_at > self.ttl:
                     del self.sessions[session_id]
                     return None
                 
@@ -68,7 +68,7 @@ class SessionManager:
                 session.messages.append({
                     "human": human_message,
                     "ai": ai_message,
-                    "timestamp": datetime.utcnow().isoformat()
+                    "timestamp": datetime.now(UTC).isoformat()
                 })
             
             # Update context
@@ -79,7 +79,7 @@ class SessionManager:
             if memory_update:
                 session.memory_store.update(memory_update)
             
-            session.last_accessed = datetime.utcnow()
+            session.last_accessed = datetime.now(UTC)
             return True
     
     async def get_session_context(self, session_id: str) -> Dict[str, Any]:
@@ -107,7 +107,7 @@ class SessionManager:
     async def cleanup_expired_sessions(self):
         """Remove expired sessions"""
         async with self._lock:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC)
             expired_sessions = []
             
             for session_id, session in self.sessions.items():

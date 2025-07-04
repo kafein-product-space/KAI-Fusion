@@ -15,8 +15,9 @@ class GoogleSearchToolNode(ProviderNode):
 
     def execute(self, **kwargs) -> Runnable:  # type: ignore[override]
         try:
-            from langchain_community.utilities import GoogleSearchAPIWrapper
-            from langchain_community.tools import GoogleSearchRun
+            # Prefer new GoogleSearchAPIWrapper from langchain_google_community (no deprecation warnings)
+            from langchain_google_community import GoogleSearchAPIWrapper  # type: ignore
+            from langchain_google_community.tools import GoogleSearchRun  # type: ignore
 
             # Attempt to construct wrapper – will raise if env vars missing
             wrapper = GoogleSearchAPIWrapper()

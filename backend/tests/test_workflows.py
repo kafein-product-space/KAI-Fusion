@@ -1,5 +1,6 @@
 import asyncio
 import json
+import pytest
 from app.core.workflow_runner import WorkflowRunner
 from app.core.node_discovery import get_registry
 
@@ -91,6 +92,7 @@ chain_workflow = {
     ]
 }
 
+@pytest.mark.asyncio
 async def test_simple_chat():
     """Test simple chat workflow"""
     print("\n" + "="*50)
@@ -111,6 +113,7 @@ async def test_simple_chat():
     if result.get('error'):
         print(f"Error: {result['error']}")
 
+@pytest.mark.asyncio
 async def test_chain_workflow():
     """Test chain workflow"""
     print("\n" + "="*50)
@@ -131,6 +134,7 @@ async def test_chain_workflow():
     if result.get('error'):
         print(f"Error: {result['error']}")
 
+@pytest.mark.asyncio
 async def test_agent_workflow():
     """Test agent workflow"""
     print("\n" + "="*50)
@@ -151,6 +155,7 @@ async def test_agent_workflow():
     if result.get('error'):
         print(f"Error: {result['error']}")
 
+@pytest.mark.asyncio
 async def test_streaming():
     """Test streaming execution"""
     print("\n" + "="*50)
