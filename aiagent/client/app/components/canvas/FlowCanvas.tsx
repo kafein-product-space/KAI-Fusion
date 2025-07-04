@@ -26,6 +26,7 @@ import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
 import OpenAIChatNode from "./OpenAIChatNode";
 import StreamingModal from "./StreamingModal";
 import WorkflowService from "~/services/workflows";
+import { Eraser } from "lucide-react";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
@@ -57,6 +58,11 @@ function FlowCanvas() {
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+  ]);
 
   const {
     currentWorkflow,
@@ -292,8 +298,22 @@ function FlowCanvas() {
     setHasUnsavedChanges(false);
   }, [setNodes, setEdges, setCurrentWorkflow, hasUnsavedChanges]);
 
+  const handleSendMessage = () => {
+    if (chatInput.trim() === "") return;
+    setChatMessages((msgs) => [...msgs, { from: "user", text: chatInput }]);
+    setChatInput("");
+    // Burada backend'e mesaj gönderme veya bot cevabı eklenebilir
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([
+      { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+    ]);
+    setChatInput("");
+  };
+
   return (
-    <div className="flex-1 h-full relative">
+    <div className="w-full h-full relative">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex gap-2">
         <button
@@ -396,6 +416,87 @@ function FlowCanvas() {
       </div>
 
       {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}
+
+      {/* Chat Floating Button */}
+      <button
+        className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
+        onClick={() => setChatOpen((v) => !v)}
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
+        Chat
+      </button>
+
+      {/* Chat Panel */}
+      {chatOpen && (
+        <div className="fixed bottom-20 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-2 border-b">
+            <span className="font-semibold text-gray-700">Chat</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearChat}
+                className="text-red-400 hover:text-red-700"
+              >
+                <Eraser className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`text-sm ${
+                  msg.from === "user" ? "text-right" : "text-left"
+                }`}
+              >
+                <span
+                  className={`inline-block px-3 py-2 rounded-lg ${
+                    msg.from === "user"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {msg.text}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="p-2 border-t flex gap-2">
+            <input
+              className="flex-1 border rounded px-2 py-1 focus:outline-none"
+              placeholder="Mesaj yaz..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSendMessage();
+              }}
+            />
+            <button
+              className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
+              onClick={handleSendMessage}
+            >
+              Gönder
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

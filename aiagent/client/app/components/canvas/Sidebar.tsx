@@ -101,7 +101,7 @@ function Sidebar() {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="w-72 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
+    <div className="w-84 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
       {/* Header */}
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>
@@ -171,7 +171,7 @@ function Sidebar() {
                     className="collapse collapse-arrow rounded-lg"
                   >
                     <input type="checkbox" defaultChecked />
-                    <div className="collapse-title font-semibold text-sm">
+                    <div className="collapse-title font-semibold text-sm ">
                       {categories.find((c) => c.name === categoryName)
                         ?.display_name || categoryName}
                       <span className="ml-2 text-xs text-gray-500">
