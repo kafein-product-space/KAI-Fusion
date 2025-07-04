@@ -75,10 +75,10 @@ function Sidebar() {
   const convertToNodeType = (nodeMetadata: any) => ({
     id: nodeMetadata.name,
     type: nodeMetadata.name,
-    label: nodeMetadata.display_name,
+    name: nodeMetadata.name,
     category: nodeMetadata.category,
     data: {
-      name: nodeMetadata.display_name,
+      name: nodeMetadata.name,
       description: nodeMetadata.description,
       inputs: nodeMetadata.inputs,
       outputs: nodeMetadata.outputs,
