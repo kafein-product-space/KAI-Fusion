@@ -1,4 +1,10 @@
-import React, { useCallback, useRef, useState, useEffect, useMemo } from "react";
+import React, {
+  useCallback,
+  useRef,
+  useState,
+  useEffect,
+  useMemo,
+} from "react";
 import ReactFlow, {
   useNodesState,
   useEdgesState,
@@ -17,6 +23,14 @@ import GenericNode from "./GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
+
+// Her node type için özel UI component haritası
+const nodeTypeComponentMap: Record<string, any> = {
+  ReactAgent: ToolAgentNode,
+  ConditionNode: ConditionNode,
+  StartNode: StartNode,
+  // Buraya yeni node tiplerini ekleyebilirsin
+};
 
 // Base node/edge types always available
 const baseNodeTypes = {
@@ -59,16 +73,14 @@ function FlowCanvas() {
   const nodeTypes = useMemo(() => {
     const map: Record<string, any> = { ...baseNodeTypes };
     availableNodes.forEach((n) => {
-      if (!map[n.name]) {
-        map[n.name] = GenericNode; // Fallback generic node component
-      }
+      map[n.name] = nodeTypeComponentMap[n.name] || GenericNode;
     });
     return map;
   }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
 
   // Load workflow if ID is provided in URL
   useEffect(() => {
-    const workflowId = searchParams.get('workflow');
+    const workflowId = searchParams.get("workflow");
     if (workflowId && workflowId !== currentWorkflow?.id) {
       fetchWorkflow(workflowId);
     }
@@ -91,9 +103,10 @@ function FlowCanvas() {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
       };
-      
+
       const originalFlowData = currentWorkflow.flow_data;
-      const hasChanges = JSON.stringify(currentFlowData) !== JSON.stringify(originalFlowData);
+      const hasChanges =
+        JSON.stringify(currentFlowData) !== JSON.stringify(originalFlowData);
       setHasUnsavedChanges(hasChanges);
     }
   }, [nodes, edges, currentWorkflow]);
@@ -126,8 +139,8 @@ function FlowCanvas() {
       });
 
       // Find the node metadata from available nodes
-      const nodeMetadata = availableNodes.find(n => n.name === nodeType.type);
-      
+      const nodeMetadata = availableNodes.find((n) => n.name === nodeType.type);
+
       const newNode: WorkflowNode = {
         id: `${nodeType.type}-${nodeId}`,
         type: nodeType.type,
@@ -169,13 +182,13 @@ function FlowCanvas() {
       }
       setHasUnsavedChanges(false);
     } catch (error) {
-      console.error('Failed to save workflow:', error);
+      console.error("Failed to save workflow:", error);
     }
   }, [nodes, edges, currentWorkflow, updateWorkflow, createWorkflow]);
 
   const handleExecute = useCallback(async () => {
     if (nodes.length === 0) {
-      alert('Please add some nodes to execute the workflow');
+      alert("Please add some nodes to execute the workflow");
       return;
     }
 
@@ -188,17 +201,17 @@ function FlowCanvas() {
     try {
       const validation = await validateWorkflow(flowData);
       if (!validation.valid) {
-        alert(`Workflow validation failed:\n${validation.errors?.join('\n')}`);
+        alert(`Workflow validation failed:\n${validation.errors?.join("\n")}`);
         return;
       }
     } catch (error) {
-      console.error('Validation error:', error);
-      alert('Failed to validate workflow');
+      console.error("Validation error:", error);
+      alert("Failed to validate workflow");
       return;
     }
 
     // Get input from user
-    const inputText = prompt('Enter input text for the workflow:');
+    const inputText = prompt("Enter input text for the workflow:");
     if (!inputText) return;
 
     try {
@@ -207,18 +220,28 @@ function FlowCanvas() {
         flow_data: flowData,
         input_text: inputText,
       });
-      
+
       // Show result in a modal or alert for now
-      alert(`Execution completed!\n\nResult: ${JSON.stringify(result.result, null, 2)}`);
+      alert(
+        `Execution completed!\n\nResult: ${JSON.stringify(
+          result.result,
+          null,
+          2
+        )}`
+      );
     } catch (error) {
-      console.error('Execution error:', error);
-      alert('Workflow execution failed');
+      console.error("Execution error:", error);
+      alert("Workflow execution failed");
     }
   }, [nodes, edges, validateWorkflow, executeWorkflow, clearExecutionResult]);
 
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
-      if (!window.confirm('You have unsaved changes. Are you sure you want to clear the canvas?')) {
+      if (
+        !window.confirm(
+          "You have unsaved changes. Are you sure you want to clear the canvas?"
+        )
+      ) {
         return;
       }
     }
@@ -237,21 +260,21 @@ function FlowCanvas() {
           disabled={isLoading}
           className={`px-3 py-1 text-sm rounded ${
             hasUnsavedChanges
-              ? 'bg-blue-600 text-white hover:bg-blue-700'
-              : 'bg-gray-100 text-gray-600'
+              ? "bg-blue-600 text-white hover:bg-blue-700"
+              : "bg-gray-100 text-gray-600"
           } disabled:opacity-50`}
         >
-          {isLoading ? 'Saving...' : hasUnsavedChanges ? 'Save*' : 'Saved'}
+          {isLoading ? "Saving..." : hasUnsavedChanges ? "Save*" : "Saved"}
         </button>
-        
+
         <button
           onClick={handleExecute}
           disabled={isExecuting || nodes.length === 0}
           className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
         >
-          {isExecuting ? 'Executing...' : 'Execute'}
+          {isExecuting ? "Executing..." : "Execute"}
         </button>
-        
+
         <button
           onClick={handleClear}
           className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
@@ -265,7 +288,9 @@ function FlowCanvas() {
         <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
           <h3 className="font-medium text-gray-900">{currentWorkflow.name}</h3>
           {currentWorkflow.description && (
-            <p className="text-sm text-gray-600 mt-1">{currentWorkflow.description}</p>
+            <p className="text-sm text-gray-600 mt-1">
+              {currentWorkflow.description}
+            </p>
           )}
           <div className="text-xs text-gray-500 mt-2">
             {nodes.length} nodes, {edges.length} connections

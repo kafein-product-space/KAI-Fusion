@@ -73,8 +73,8 @@ function Sidebar() {
 
   // Convert backend node metadata to draggable node format
   const convertToNodeType = (nodeMetadata: any) => ({
-    id: nodeMetadata.name === "ReactAgent" ? "toolAgent" : nodeMetadata.name,
-    type: nodeMetadata.name === "ReactAgent" ? "toolAgent" : nodeMetadata.name,
+    id: nodeMetadata.name,
+    type: nodeMetadata.name,
     label: nodeMetadata.display_name,
     category: nodeMetadata.category,
     data: {
@@ -85,6 +85,7 @@ function Sidebar() {
       icon: nodeMetadata.icon,
       color: nodeMetadata.color,
     },
+    info: nodeMetadata.description,
   });
 
   const nodesToDisplay = filteredNodes.map(convertToNodeType);
@@ -100,7 +101,7 @@ function Sidebar() {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="w-64 bg-gray-50 border-r border-gray-200 overflow-y-auto h-screen">
+    <div className="w-72 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
       {/* Header */}
       <div className="p-3 border-b border-gray-200">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>
@@ -167,7 +168,7 @@ function Sidebar() {
                 ([categoryName, categoryNodes]) => (
                   <div
                     key={categoryName}
-                    className="collapse collapse-arrow bg-white border border-base-300 rounded-lg"
+                    className="collapse collapse-arrow rounded-lg"
                   >
                     <input type="checkbox" defaultChecked />
                     <div className="collapse-title font-semibold text-sm">
@@ -179,7 +180,13 @@ function Sidebar() {
                     </div>
                     <div className="collapse-content space-y-2">
                       {categoryNodes.map((nodeType) => (
-                        <DraggableNode key={nodeType.id} nodeType={nodeType} />
+                        <>
+                          <DraggableNode
+                            key={nodeType.id}
+                            nodeType={nodeType}
+                          />
+                          <hr className="my-2 border-gray-200" />
+                        </>
                       ))}
                     </div>
                   </div>
