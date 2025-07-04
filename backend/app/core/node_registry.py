@@ -14,11 +14,23 @@ class NodeRegistry:
         self.node_configs: Dict[str, NodeMetadata] = {}
     
     def register_node(self, node_class: Type[BaseNode]):
-        """Register a node class"""
-        metadata = node_class().metadata
-        self.nodes[metadata.name] = node_class
-        self.node_configs[metadata.name] = metadata
-        print(f"✅ Registered node: {metadata.name}")
+        """Register a node class if it provides valid metadata."""
+        try:
+            metadata = node_class().metadata
+            # Basic validation – ensure required fields are present
+            if not metadata.name or not metadata.description:
+                # Skip base/abstract-like classes that don't define required metadata
+                return
+
+            self.nodes[metadata.name] = node_class
+            self.node_configs[metadata.name] = metadata
+            # Also register by class name (for convenience) if different
+            if metadata.name != node_class.__name__:
+                self.nodes[node_class.__name__] = node_class
+            print(f"✅ Registered node: {metadata.name}")
+        except Exception as e:  # noqa: BLE001
+            # Skip nodes that cannot be instantiated (likely abstract bases)
+            print(f"⚠️  Skipping node {node_class.__name__}: {e}")
     
     def get_node(self, node_name: str) -> Optional[Type[BaseNode]]:
         """Get a node class by name"""

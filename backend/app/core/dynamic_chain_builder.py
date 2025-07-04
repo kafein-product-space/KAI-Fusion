@@ -10,6 +10,7 @@ from langchain_core.tools import BaseTool
 from langchain_core.memory import BaseMemory
 from langchain.chains import LLMChain, SequentialChain
 from langchain.agents import AgentExecutor
+from app.nodes.base import ProviderNode, ProcessorNode, TerminatorNode
 
 @dataclass
 class NodeConnection:
@@ -169,8 +170,6 @@ class DynamicChainBuilder:
     
     def _execute_node(self, node_instance: Any, inputs: Dict[str, Any]) -> Any:
         """Execute a node with prepared inputs"""
-        from nodes.base import ProviderNode, ProcessorNode, TerminatorNode
-        
         if isinstance(node_instance, ProviderNode):
             # Provider nodes create objects from scratch
             return node_instance.execute(**inputs)

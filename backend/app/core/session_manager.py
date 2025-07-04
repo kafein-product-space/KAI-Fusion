@@ -235,3 +235,13 @@ class ConversationMemoryAdapter:
         if session:
             session.messages.clear()
             session.memory_store.clear()
+
+# Create a default global SessionManager instance for convenience
+session_manager = SessionManager()
+
+__all__ = [
+    "SessionManager",
+    "SessionData",
+    "ConversationMemoryAdapter",
+    "session_manager",
+]

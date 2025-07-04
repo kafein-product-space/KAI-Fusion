@@ -1,6 +1,6 @@
 import os
 from typing import List, Optional
-from pydantic_settings import BaseSettings
+from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import logging
 from pydantic import validator
@@ -8,6 +8,21 @@ from pydantic import validator
 load_dotenv()
 
 class Settings(BaseSettings):
+    """Application configuration parsed from environment variables / .env
+
+    We set ``extra = 'ignore'`` so that unrelated env-vars (e.g. variables coming
+    from other services or deployment platforms) do **not** cause the
+    application to crash with a validation error. Only the variables we define
+    below will be bound; everything else is silently ignored.
+    """
+
+    # pydantic-settings v2 style configuration
+    model_config = SettingsConfigDict(
+        extra="ignore",         # ignore unknown env vars instead of raising
+        env_file=".env",        # load from .env if present
+        case_sensitive=True,
+    )
+
     # App Settings
     APP_NAME: str = "Flowise-FastAPI"
     VERSION: str = "2.0.0"
@@ -91,10 +106,6 @@ class Settings(BaseSettings):
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(",")]
         return v
-
-    class Config:
-        env_file = ".env"
-        case_sensitive = True
 
 # Global settings instance
 _settings = None

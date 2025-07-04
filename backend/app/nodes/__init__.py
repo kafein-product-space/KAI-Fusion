@@ -15,6 +15,7 @@ from .agents.react_agent import ReactAgentNode
 # Chain Nodes
 from .chains.conditional_chain import ConditionalChainNode, RouterChainNode
 from .chains.sequential_chain import SequentialChainNode
+from .chains.llm_chain import LLMChainNode
 
 # Document Loaders
 from .document_loaders.pdf_loader import PDFLoaderNode
@@ -64,7 +65,7 @@ __all__ = [
     "ReactAgentNode",
     
     # Chains
-    "ConditionalChainNode", "RouterChainNode", "SequentialChainNode",
+    "ConditionalChainNode", "RouterChainNode", "SequentialChainNode", "LLMChainNode",
     
     # Document Loaders
     "PDFLoaderNode", "WebLoaderNode", "SitemapLoaderNode", "YoutubeLoaderNode", "GitHubLoaderNode",
@@ -110,6 +111,7 @@ NODE_REGISTRY = {
     "conditional_chain": ConditionalChainNode,
     "router_chain": RouterChainNode,
     "sequential_chain": SequentialChainNode,
+    "llm_chain": LLMChainNode,
     
     # Document Loaders
     "pdf_loader": PDFLoaderNode,
@@ -155,7 +157,7 @@ NODE_REGISTRY = {
 NODE_CATEGORIES = {
     "LLM": ["openai", "gemini", "claude"],
     "Agents": ["react_agent"],
-    "Chains": ["conditional_chain", "router_chain", "sequential_chain"],
+    "Chains": ["conditional_chain", "router_chain", "sequential_chain", "llm_chain"],
     "Document Loaders": ["pdf_loader", "web_loader", "sitemap_loader", "youtube_loader", "github_loader"],
     "Memory": ["conversation_memory"],
     "Output Parsers": ["pydantic_output_parser", "string_output_parser"],

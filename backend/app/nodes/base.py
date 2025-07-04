@@ -55,7 +55,9 @@ class BaseNode(ABC):
     @property
     def metadata(self) -> NodeMetadata:
         """Metadatayı Pydantic modeline göre doğrular ve döndürür."""
-        meta_dict = getattr(self, "_metadata", None) or getattr(self, "_metadatas", {})
+        meta_dict = getattr(self, "_metadata", None) or {}
+        if "name" not in meta_dict:
+            meta_dict = getattr(self, "_metadatas", {})
         return NodeMetadata(**meta_dict)
 
     def execute(self, *args, **kwargs) -> Runnable:

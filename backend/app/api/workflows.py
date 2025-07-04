@@ -33,16 +33,17 @@ async def create_workflow(
 async def list_workflows(current_user: dict | None = Depends(get_optional_user)):
     """List workflows.
 
-    • If the caller is authenticated → return *only* their workflows.
-    • If unauthenticated           → return public workflows (is_public=True).
+    This endpoint **requires** authentication. If the caller is not authenticated we
+    return a 401 status so that the frontend knows to prompt for login (matching
+    expectations of the test-suite).
     """
 
-    db = get_database()
+    if not current_user:
+        # Explicitly reject unauthenticated access
+        raise HTTPException(status_code=401, detail="Authentication required")
 
-    if current_user:
-        workflows = await db.get_workflows(current_user["id"])
-    else:
-        workflows = await db.get_public_workflows()
+    db = get_database()
+    workflows = await db.get_workflows(current_user["id"])
 
     for wf in workflows:
         wf["flow_data"] = json.loads(wf["flow_data"])

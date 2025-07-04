@@ -116,7 +116,8 @@ TAVILY_API_KEY=your-tavily-api-key
 
 # Development
 DEBUG=True
-BACKEND_CORS_ORIGINS=["http://localhost:3000","http://localhost:5173"]
+# Allowed origins for CORS (must match Settings.ALLOWED_ORIGINS)
+ALLOWED_ORIGINS=["http://localhost:3000","http://localhost:5173"]
 ```
 
 ### Frontend (.env)
