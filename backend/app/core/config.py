@@ -3,7 +3,7 @@ from typing import List, Optional
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import logging
-from pydantic import validator
+from pydantic import field_validator
 
 load_dotenv()
 
@@ -100,11 +100,11 @@ class Settings(BaseSettings):
     DB_PORT: Optional[int] = None
     DB_NAME: Optional[str] = None
     
-    @validator('ALLOWED_ORIGINS', pre=True)
-    def parse_cors_origins(cls, v):
-        """Parse CORS origins from string or list."""
+    @field_validator('ALLOWED_ORIGINS', mode='before')
+    def parse_cors_origins(cls, v):  # noqa: N805 – Pydantic validator signature
+        """Parse CORS origins from a comma-separated string to list."""
         if isinstance(v, str):
-            return [origin.strip() for origin in v.split(",")]
+            return [origin.strip() for origin in v.split(',')]
         return v
 
 # Global settings instance

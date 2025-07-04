@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from langchain_core.runnables import Runnable
 from enum import Enum
 
@@ -40,9 +40,10 @@ class NodeMetadata(BaseModel):
     inputs: List[NodeInput] = []
     outputs: List[NodeOutput] = []  # Now we track outputs too!
 
-    @validator('display_name', pre=True, always=True)
-    def default_display_name(cls, v, values):
-        return v or values.get('name')
+    @field_validator('display_name', mode='before')
+    def default_display_name(cls, v, info):  # noqa: N805 – Pydantic validator signature
+        """Provide a default display_name equal to the node *name* if omitted."""
+        return v or info.data.get('name')
 
 # 3. Ana Soyut Sınıf (Tüm node'ların atası)
 class BaseNode(ABC):
