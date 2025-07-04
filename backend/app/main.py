@@ -8,10 +8,11 @@ import logging
 from app.core.config import get_settings, setup_logging, setup_langsmith, validate_api_keys
 from app.core.node_registry import node_registry
 from app.core.session_manager import SessionManager
+from app.core.security import get_current_user
 from app.database import db
 
 # Import API routers
-from app.api import auth, nodes, workflows, tasks
+from app.api import auth, nodes, workflows, tasks, test
 
 # Initialize settings and setup
 settings = get_settings()
@@ -163,7 +164,14 @@ async def get_database():
 app.include_router(
     auth.router, 
     prefix="/api/v1/auth", 
-    tags=["Authentication"]
+    tags=["Authentication"],
+    dependencies=[Depends(get_current_user)],
+)
+
+app.include_router(
+    test.router,
+    prefix="/api/test",
+    tags=["Test"],
 )
 
 app.include_router(

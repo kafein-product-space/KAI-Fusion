@@ -23,20 +23,24 @@ import GenericNode from "./GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
+import OpenAIChatNode from "./OpenAIChatNode";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
   ConditionNode: ConditionNode,
   StartNode: StartNode,
+  OpenAIChat: OpenAIChatNode,
   // Buraya yeni node tiplerini ekleyebilirsin
 };
 
 // Base node/edge types always available
 const baseNodeTypes = {
+  ReactAgent: ToolAgentNode,
   toolAgent: ToolAgentNode,
   condition: ConditionNode,
   start: StartNode,
+  OpenAIChat: OpenAIChatNode,
 };
 
 const edgeTypes = {
