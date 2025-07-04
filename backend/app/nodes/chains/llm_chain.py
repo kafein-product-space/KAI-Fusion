@@ -1,4 +1,4 @@
-from ..base import ProcessorNode, ProviderNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from langchain.chains import LLMChain
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.prompts import BasePromptTemplate

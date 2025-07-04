@@ -156,14 +156,22 @@ class WorkflowRunner:
             # Add any other context
             chain_input.update(session_context.get("context", {}))
         
-        # If the workflow is just a single LLM node, many models expect a plain
-        # string rather than a dict. Convert by prepending any chat history.
-        if len(self.builder.nodes) == 1:  # Simple workflow heuristic
-            if "chat_history" in chain_input:
-                prompt = chain_input["chat_history"] + "\nUser: " + input_text
-            else:
-                prompt = input_text
-            return prompt  # type: ignore[return-value]
+        # If workflow sadece TEK bir node içeriyorsa ve bu node bir LLM
+        # sağlayıcısıysa (OpenAIChat, AnthropicChat, GoogleGemini vb.) o zaman
+        # LLM'e doğrudan string vermek gerekir.  Diğer tek-node senaryolarında
+        # (ör. TestHello) sözlük formatını koruruz.
+
+        if len(self.builder.nodes) == 1:
+            # İlk (ve tek) node tipini al
+            only_node_type = next(iter(self.builder.nodes.values())).type.lower()
+            llm_nodes = {"openaichat", "anthropicchat", "googlegemini"}
+
+            if only_node_type in llm_nodes:
+                if "chat_history" in chain_input:
+                    prompt = chain_input["chat_history"] + "\nUser: " + input_text
+                else:
+                    prompt = input_text
+                return prompt  # type: ignore[return-value]
 
         # If chain only expects a simple string, return it directly to avoid errors
         if list(chain_input.keys()) == ["input"]:
