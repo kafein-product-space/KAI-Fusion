@@ -27,6 +27,7 @@ import OpenAIChatNode from "./OpenAIChatNode";
 import StreamingModal from "./StreamingModal";
 import WorkflowService from "~/services/workflows";
 import { Eraser } from "lucide-react";
+import TextLoaderNode from "./TextLoaderNode";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
@@ -34,6 +35,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   ConditionNode: ConditionNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
+  TextDataLoader: TextLoaderNode,
   // Buraya yeni node tiplerini ekleyebilirsin
 };
 
@@ -44,6 +46,7 @@ const baseNodeTypes = {
   condition: ConditionNode,
   start: StartNode,
   OpenAIChat: OpenAIChatNode,
+  TextDataLoader: TextLoaderNode,
 };
 
 const edgeTypes = {
