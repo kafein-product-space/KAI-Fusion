@@ -79,6 +79,7 @@ function Sidebar() {
     category: nodeMetadata.category,
     data: {
       name: nodeMetadata.name,
+      displayName: nodeMetadata.display_name,
       description: nodeMetadata.description,
       inputs: nodeMetadata.inputs,
       outputs: nodeMetadata.outputs,
