@@ -29,6 +29,7 @@ import OpenAIChatNode from "../nodes/OpenAIChatNode";
 import StreamingModal from "../modals/StreamingModal";
 import TextLoaderNode from "../nodes/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/OpenAIEmbeddingsNode";
+import InMemoryCacheNode from "../nodes/InMemoryCacheNode";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
@@ -38,6 +39,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
+  InMemoryCache: InMemoryCacheNode,
   // Buraya yeni node tiplerini ekleyebilirsin
 };
 
@@ -50,6 +52,7 @@ const baseNodeTypes = {
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
+  InMemoryCache: InMemoryCacheNode,
 };
 
 const edgeTypes = {

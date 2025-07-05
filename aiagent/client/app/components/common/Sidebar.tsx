@@ -102,9 +102,9 @@ function Sidebar() {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="w-84 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
+    <div className="w-100 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
       {/* Header */}
-      <div className="p-3 border-b border-gray-200">
+      <div className="p-4">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>
 
         {/* Search Input */}
@@ -120,7 +120,7 @@ function Sidebar() {
         </label>
 
         {/* Category Filter */}
-        <select
+        {/* <select
           className="w-full text-sm border rounded-lg px-2 py-1"
           value={selectedCategory || ""}
           onChange={(e) => filterByCategory(e.target.value || null)}
@@ -131,7 +131,7 @@ function Sidebar() {
               {category.display_name}
             </option>
           ))}
-        </select>
+        </select> */}
       </div>
 
       {/* Content */}
