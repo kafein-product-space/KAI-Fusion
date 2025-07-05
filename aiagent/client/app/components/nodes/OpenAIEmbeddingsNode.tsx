@@ -1,15 +1,16 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
 import { Bot } from "lucide-react";
-import AgentConfigModal from "./modals/AgentConfigModal";
-import OpenAIChatNodeModal from "./modals/OpenAIChatModal";
+import AgentConfigModal from "../modals/AgentConfigModal";
+import OpenAIChatNodeModal from "../modals/OpenAIChatModal";
+import OpenAIEmbeddingsModal from "../modals/OpenAIEmbeddingsModal";
 
 interface OpenAIChatNodeProps {
   data: any;
   id: string;
 }
 
-function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
+function OpenAIEmbeddingsNode({ data, id }: OpenAIChatNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -70,7 +71,7 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
       </div>
 
       {/* DaisyUI dialog modal */}
-      <OpenAIChatNodeModal
+      <OpenAIEmbeddingsModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}
@@ -80,4 +81,4 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
   );
 }
 
-export default OpenAIChatNode;
+export default OpenAIEmbeddingsNode;

@@ -1,7 +1,7 @@
 import os
 from typing import Dict, Any, Optional
 from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
-from langchain_pinecone import PineconeVectorStore
+from langchain_community.vectorstores import Pinecone
 from langchain_core.runnables import Runnable
 
 class PineconeVectorStoreNode(ProcessorNode):
@@ -68,7 +68,7 @@ class PineconeVectorStoreNode(ProcessorNode):
         if not api_key:
             raise ValueError("Pinecone API Key is required")
         
-        return PineconeVectorStore(
+        return Pinecone(
             index_name=inputs["index_name"],
             embedding=embeddings,
             pinecone_api_key=api_key,

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Search, AlertCircle, RefreshCw } from "lucide-react";
-import DraggableNode from "./DraggableNode";
+import DraggableNode from "../common/DraggableNode";
 import { useNodes } from "~/stores/nodes";
 
 // Loading Component

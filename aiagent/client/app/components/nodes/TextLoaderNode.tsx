@@ -1,14 +1,14 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
-import { Bot } from "lucide-react";
-import AgentConfigModal from "./modals/AgentConfigModal";
+import { FileText } from "lucide-react";
+import TextLoaderModal from "../modals/TextLoaderModal";
 
-interface ToolAgentNodeProps {
+interface TextLoaderNodeProps {
   data: any;
   id: string;
 }
 
-function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
+function TextLoaderNode({ data, id }: TextLoaderNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -31,17 +31,17 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-blue-400 bg-blue-100 hover:bg-blue-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-pink-400 bg-pink-100 hover:bg-pink-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-blue-500 p-3 rounded-2xl">
-          <Bot className="w-6 h-6 text-white" />
+        <div className="bg-pink-500 p-3 rounded-2xl">
+          <FileText className="w-6 h-6 text-white" />
         </div>
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "Agent"}</p>
+            <p className="font-semibold">{data?.name || "TextLoader"}</p>
           </div>
         </div>
 
@@ -49,24 +49,25 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
           type="target"
           position={Position.Left}
           id="input"
-          className="w-16 !bg-teal-500"
+          className="w-16 !bg-pink-500"
         />
         <Handle
           type="source"
           position={Position.Right}
           id="output"
-          className="w-3 h-3 bg-blue-500"
+          className="w-3 h-3 bg-pink-500"
         />
       </div>
 
       {/* DaisyUI dialog modal */}
-      <AgentConfigModal
+      <TextLoaderModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}
+        nodeId={id}
       />
     </>
   );
 }
 
-export default ToolAgentNode;
+export default TextLoaderNode;

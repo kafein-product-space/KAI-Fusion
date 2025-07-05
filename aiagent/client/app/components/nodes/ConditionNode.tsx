@@ -9,7 +9,7 @@ import {
   Info,
   Split,
 } from "lucide-react";
-import  ConditionConfigModal  from "./modals/ConditionConfigModal";
+import ConditionConfigModal from "../modals/ConditionConfigModal";
 
 interface ConditionNodeProps {
   data: any;
@@ -61,7 +61,6 @@ function ConditionNode({ data, id }: ConditionNodeProps) {
         onDoubleClick={handleDoubleClick}
         title="Çift tıklayarak konfigüre edin"
       >
-        
         {/* Sil & Info Butonları */}
         <div className="absolute top-1 right-1 flex gap-1 z-50">
           <button
@@ -106,8 +105,6 @@ function ConditionNode({ data, id }: ConditionNodeProps) {
           </div>
         </div>
 
-       
-
         <Handle
           type="target"
           position={Position.Left}
@@ -141,6 +138,5 @@ function ConditionNode({ data, id }: ConditionNodeProps) {
 }
 
 // Condition Config Modal Component
-
 
 export default ConditionNode;

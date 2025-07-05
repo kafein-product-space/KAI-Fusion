@@ -15,19 +15,20 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import { useSearchParams } from "react-router";
-import ToolAgentNode from "./ToolAgentNode";
-import StartNode from "./StartNode";
-import CustomEdge from "./CustomEdge";
-import ConditionNode from "./ConditionNode";
-import GenericNode from "./GenericNode";
+import ToolAgentNode from "../nodes/ToolAgentNode";
+import StartNode from "../nodes/StartNode";
+import CustomEdge from "../common/CustomEdge";
+import ConditionNode from "../nodes/ConditionNode";
+import GenericNode from "../nodes/GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
-import OpenAIChatNode from "./OpenAIChatNode";
-import StreamingModal from "./StreamingModal";
 import WorkflowService from "~/services/workflows";
 import { Eraser } from "lucide-react";
-import TextLoaderNode from "./TextLoaderNode";
+import OpenAIChatNode from "../nodes/OpenAIChatNode";
+import StreamingModal from "../modals/StreamingModal";
+import TextLoaderNode from "../nodes/TextLoaderNode";
+import OpenAIEmbeddingsNode from "../nodes/OpenAIEmbeddingsNode";
 
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
@@ -36,6 +37,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
+  OpenAIEmbeddings: OpenAIEmbeddingsNode,
   // Buraya yeni node tiplerini ekleyebilirsin
 };
 
@@ -47,6 +49,7 @@ const baseNodeTypes = {
   start: StartNode,
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
+  OpenAIEmbeddings: OpenAIEmbeddingsNode,
 };
 
 const edgeTypes = {
