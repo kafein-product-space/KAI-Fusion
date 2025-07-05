@@ -30,7 +30,7 @@ import StreamingModal from "../modals/StreamingModal";
 import TextLoaderNode from "../nodes/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/InMemoryCacheNode";
-
+import RedisCacheNode from "../nodes/RedisCacheNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -40,7 +40,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
   InMemoryCache: InMemoryCacheNode,
-  // Buraya yeni node tiplerini ekleyebilirsin
+  RedisCache: RedisCacheNode,
 };
 
 // Base node/edge types always available
@@ -53,6 +53,7 @@ const baseNodeTypes = {
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
   InMemoryCache: InMemoryCacheNode,
+  RedisCache: RedisCacheNode,
 };
 
 const edgeTypes = {
