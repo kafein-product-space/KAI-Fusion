@@ -31,6 +31,8 @@ import TextLoaderNode from "../nodes/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/InMemoryCacheNode";
 import RedisCacheNode from "../nodes/RedisCacheNode";
+import ConditionalChainNode from "../nodes/ConditionalChainNode";
+import RouterChainNode from "../nodes/RouterChainNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -41,6 +43,8 @@ const nodeTypeComponentMap: Record<string, any> = {
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
   InMemoryCache: InMemoryCacheNode,
   RedisCache: RedisCacheNode,
+  ConditionalChain: ConditionalChainNode,
+  RouterChain: RouterChainNode,
 };
 
 // Base node/edge types always available
@@ -54,6 +58,8 @@ const baseNodeTypes = {
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
   InMemoryCache: InMemoryCacheNode,
   RedisCache: RedisCacheNode,
+  ConditionalChain: ConditionalChainNode,
+  RouterChain: RouterChainNode,
 };
 
 const edgeTypes = {

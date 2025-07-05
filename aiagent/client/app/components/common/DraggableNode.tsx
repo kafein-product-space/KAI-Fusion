@@ -5,6 +5,7 @@ import {
   CableCar,
   Divide,
   FileText,
+  Link,
   MemoryStick,
   Play,
   Split,
@@ -102,6 +103,8 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
+  ConditionalChain: <Link />,
+  RouterChain: <Link />,
   // Yeni node tipleri buraya eklenebilir
 };
 
