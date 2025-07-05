@@ -106,6 +106,8 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   ConditionalChain: <Link />,
   RouterChain: <Link />,
   LLMChain: <Link />,
+  MapReduceChain: <Link />,
+  SequentialChain: <Link />,
   // Yeni node tipleri buraya eklenebilir
 };
 
