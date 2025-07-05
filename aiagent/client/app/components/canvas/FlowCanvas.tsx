@@ -33,6 +33,7 @@ import InMemoryCacheNode from "../nodes/InMemoryCacheNode";
 import RedisCacheNode from "../nodes/RedisCacheNode";
 import ConditionalChainNode from "../nodes/ConditionalChainNode";
 import RouterChainNode from "../nodes/RouterChainNode";
+import LLMChainNode from "../nodes/LLMChainNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -45,6 +46,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
   RouterChain: RouterChainNode,
+  LLMChain: LLMChainNode,
 };
 
 // Base node/edge types always available
@@ -60,6 +62,7 @@ const baseNodeTypes = {
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
   RouterChain: RouterChainNode,
+  LLMChain: LLMChainNode,
 };
 
 const edgeTypes = {
