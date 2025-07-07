@@ -37,7 +37,7 @@ class TestIntegration:
                 },
                 {
                     "id": "memory_1",
-                    "type": "BufferMemory",
+                    "type": "ConversationMemory",
                     "data": {
                         "memory_key": "chat_history",
                         "return_messages": True
@@ -45,12 +45,12 @@ class TestIntegration:
                 },
                 {
                     "id": "search_tool",
-                    "type": "GoogleSearch",
+                    "type": "GoogleSearchTool",
                     "data": {}
                 },
                 {
                     "id": "wiki_tool",
-                    "type": "Wikipedia",
+                    "type": "WikipediaTool",
                     "data": {}
                 },
                 {
@@ -60,7 +60,7 @@ class TestIntegration:
                 },
                 {
                     "id": "agent_prompt",
-                    "type": "ReactAgentPrompt",
+                    "type": "AgentPrompt",
                     "data": {}
                 },
                 {

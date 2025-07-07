@@ -1,5 +1,11 @@
+"""Configuration management for Agent-Flow V2.
+
+Handles environment variables and application settings using Pydantic Settings.
+"""
+
 import os
 from typing import List, Optional
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import logging
@@ -26,7 +32,7 @@ class Settings(BaseSettings):
     # App Settings
     APP_NAME: str = "Flowise-FastAPI"
     VERSION: str = "2.0.0"
-    DEBUG: bool = os.getenv("DEBUG", "false").lower() == "true"
+    DEBUG: bool = Field(default=True, description="Enable debug mode")
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     RELOAD: bool = True
@@ -67,7 +73,10 @@ class Settings(BaseSettings):
     ]
     
     # Database Settings
-    DATABASE_URL: Optional[str] = os.getenv("DATABASE_URL")
+    DATABASE_URL: str = Field(
+        default="postgresql://agentflow:agentflow@localhost:5432/agentflow_dev",
+        description="Database connection URL"
+    )
     
     # Redis Configuration
     REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
@@ -108,10 +117,10 @@ class Settings(BaseSettings):
         return v
 
 # Global settings instance
-_settings = None
+_settings: Optional[Settings] = None
 
 def get_settings() -> Settings:
-    """Get settings instance (singleton pattern)"""
+    """Get application settings instance."""
     global _settings
     if _settings is None:
         _settings = Settings()

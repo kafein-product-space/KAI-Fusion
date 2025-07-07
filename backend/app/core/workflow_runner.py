@@ -5,8 +5,8 @@ from langchain.callbacks.manager import CallbackManager
 from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 from langchain.callbacks.base import AsyncCallbackHandler
 
-from app.core.dynamic_chain_builder import DynamicChainBuilder
-from app.core.node_discovery import get_registry
+# Migration shim: re-implement WorkflowRunner on top of unified engine
+from app.core.engine_v2 import get_engine
 
 class StreamingCallbackHandler(AsyncCallbackHandler):
     """Custom callback for streaming responses"""
@@ -36,9 +36,11 @@ class WorkflowRunner:
     Executes workflows built by DynamicChainBuilder
     """
     
-    def __init__(self, registry: Optional[Dict[str, Any]] = None):
-        self.registry = registry or get_registry()
-        self.builder = DynamicChainBuilder(self.registry)
+    def __init__(self, registry: Optional[Dict[str, Any]] = None):  # noqa: D401 – legacy signature
+        # Keep the parameter for backward-compat; ignored in new engine.
+        self._engine = get_engine()
+        # Keep reference to registry solely for legacy validation helpers
+        self.registry = registry or {}
     
     async def execute_workflow(
         self, 
@@ -48,34 +50,30 @@ class WorkflowRunner:
     ) -> Dict[str, Any]:
         """Execute a workflow with given input"""
         try:
-            # Build the chain
-            print(f"🔨 Building workflow from {len(workflow_data['nodes'])} nodes...")
-            chain = self.builder.build_from_flow(workflow_data)
-            
-            # Prepare input
+            # Build + execute via unified engine
+            self._engine.build(workflow_data)
+
             chain_input = self._prepare_chain_input(input_text, session_context)
-            
-            # Execute
-            print(f"🚀 Executing workflow with input: {input_text[:100]}...")
-            
-            if hasattr(chain, 'ainvoke'):
-                result = await chain.ainvoke(chain_input)
-            elif hasattr(chain, 'invoke'):
-                result = await asyncio.to_thread(chain.invoke, chain_input)
+
+            exec_result = await self._engine.execute(chain_input if isinstance(chain_input, dict) else {"input": chain_input})
+
+            # Ensure we have a mapping for legacy output structure
+            if isinstance(exec_result, dict):
+                legacy_result = exec_result
             else:
-                result = str(chain)
-            
-            # Process result
-            if isinstance(result, dict):
-                output = result.get("output", result.get("text", str(result)))
-            else:
-                output = str(result)
-            
+                # Should not occur in non-streaming path; fallback
+                legacy_result = {"result": "Streaming result returned in non-streaming path"}
+
             return {
-                "result": output,
-                "execution_order": list(self.builder.nodes.keys()),
-                "status": "completed",
-                "node_count": len(self.builder.nodes)
+                "result": (
+                    legacy_result.get("echo")
+                    or legacy_result.get("result")
+                    or legacy_result.get("last_output")
+                    or str(legacy_result)
+                ),
+                "execution_order": [],
+                "status": "completed" if legacy_result else "failed",
+                "node_count": len(workflow_data.get("nodes", [])),
             }
             
         except Exception as e:
@@ -88,7 +86,7 @@ class WorkflowRunner:
                 "error": str(e),
                 "error_type": type(e).__name__,
                 "status": "failed",
-                "execution_order": list(self.builder.nodes.keys()) if hasattr(self.builder, 'nodes') else []
+                "execution_order": []
             }
     
     async def execute_workflow_stream(
@@ -99,41 +97,22 @@ class WorkflowRunner:
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute workflow with streaming output"""
         try:
-            # Build the chain
+            # Build + execute via unified engine (streaming)
             yield {"type": "status", "message": "Building workflow..."}
-            chain = self.builder.build_from_flow(workflow_data)
-            
-            # Setup streaming
-            yield {"type": "status", "message": "Initializing stream..."}
-            
+            self._engine.build(workflow_data)
+
             chain_input = self._prepare_chain_input(input_text, session_context)
-            
-            # Check if chain supports streaming
-            if hasattr(chain, 'astream'):
-                # Stream tokens
-                full_response = ""
-                async for chunk in chain.astream(chain_input):
-                    if isinstance(chunk, dict):
-                        token = chunk.get("output", chunk.get("text", ""))
-                    else:
-                        token = str(chunk)
-                    
-                    full_response += token
-                    yield {"type": "token", "content": token}
-                
-                yield {"type": "result", "result": full_response}
-            else:
-                # Non-streaming execution
-                yield {"type": "status", "message": "Executing (non-streaming)..."}
-                
-                if hasattr(chain, 'ainvoke'):
-                    result = await chain.ainvoke(chain_input)
-                elif hasattr(chain, 'invoke'):
-                    result = await asyncio.to_thread(chain.invoke, chain_input)
-                else:
-                    result = str(chain)
-                
-                yield {"type": "result", "result": result}
+
+            yield {"type": "status", "message": "Executing (stream)..."}
+
+            result_gen_any = await self._engine.execute(chain_input if isinstance(chain_input, dict) else {"input": chain_input}, stream=True)
+
+            # Type narrow – we ensured stream=True so generator expected
+            assert hasattr(result_gen_any, "__aiter__")
+            result_gen = result_gen_any  # type: ignore[assignment]
+
+            async for event in result_gen:  # type: ignore[async-iterable]
+                yield event
                 
         except Exception as e:
             yield {"type": "error", "error": str(e), "error_type": type(e).__name__}
@@ -161,17 +140,7 @@ class WorkflowRunner:
         # LLM'e doğrudan string vermek gerekir.  Diğer tek-node senaryolarında
         # (ör. TestHello) sözlük formatını koruruz.
 
-        if len(self.builder.nodes) == 1:
-            # İlk (ve tek) node tipini al
-            only_node_type = next(iter(self.builder.nodes.values())).type.lower()
-            llm_nodes = {"openaichat", "anthropicchat", "googlegemini"}
-
-            if only_node_type in llm_nodes:
-                if "chat_history" in chain_input:
-                    prompt = chain_input["chat_history"] + "\nUser: " + input_text
-                else:
-                    prompt = input_text
-                return prompt  # type: ignore[return-value]
+        # NOTE: Single-node optimisation disabled during migration
 
         # If chain only expects a simple string, return it directly to avoid errors
         if list(chain_input.keys()) == ["input"]:
@@ -239,7 +208,7 @@ class WorkflowRunner:
             
             # Try to build without executing
             try:
-                self.builder.build_from_flow(workflow_data)
+                self._engine.build(workflow_data)
             except Exception as e:
                 errors.append(f"Build error: {str(e)}")
             
