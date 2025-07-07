@@ -219,6 +219,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   StringOutputParser: <Link2 />,
   ChromaRetriever: <Link2 />,
   CharacterTextSplitter: <Link2 />,
+  RecursiveTextSplitter: <Link2 />,
   // Yeni node tipleri buraya eklenebilir
 };
 

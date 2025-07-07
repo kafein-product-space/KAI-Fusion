@@ -51,6 +51,7 @@ import PydanticOutputParserNode from "../nodes/PydanticOutputParserNode";
 import StringOutputParserNode from "../nodes/StringOutputParserNode";
 import ChromaRetrieverNode from "../nodes/ChromaRetrieverNode";
 import CharacterTextSplitterNode from "../nodes/CharacterTextSplitterNode";
+import RecursiveTextSplitterNode from "../nodes/RecursiveTextSplitterNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -81,6 +82,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   StringOutputParser: StringOutputParserNode,
   ChromaRetriever: ChromaRetrieverNode,
   CharacterTextSplitter: CharacterTextSplitterNode,
+  RecursiveTextSplitter: RecursiveTextSplitterNode,
 };
 
 // Base node/edge types always available
@@ -114,6 +116,7 @@ const baseNodeTypes = {
   StringOutputParser: StringOutputParserNode,
   ChromaRetriever: ChromaRetrieverNode,
   CharacterTextSplitter: CharacterTextSplitterNode,
+  RecursiveTextSplitter: RecursiveTextSplitterNode,
 };
 
 const edgeTypes = {
