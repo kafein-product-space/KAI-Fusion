@@ -1,7 +1,7 @@
 from celery import current_task
 from celery.exceptions import Retry
 from app.core.celery_app import celery_app
-from app.core.workflow_engine import workflow_engine
+from app.core.engine_v2 import get_engine
 from app.database import db
 from app.models.task import TaskStatus, TaskType, TaskResult
 import asyncio
@@ -84,13 +84,31 @@ def execute_workflow_task(self, workflow_id: str, user_id: str, inputs: Dict[str
             
             await tracker.update_progress(15, "Workflow loaded", f"Executing workflow: {workflow['name']}")
             
-            # Execute the workflow
-            result = await workflow_engine.execute_workflow(
-                workflow_id=workflow_id,
-                user_id=user_id,
-                inputs=inputs,
-                save_execution=True
+            # Execute the workflow using unified engine
+            # Get workflow data
+            workflow_data = workflow["flow_data"]
+            if isinstance(workflow_data, str):
+                import json
+                workflow_data = json.loads(workflow_data)
+            
+            # Create execution record
+            execution_rec = await db.create_execution(workflow_id, user_id, inputs)
+            
+            # Use unified engine
+            engine = get_engine()
+            engine.build(workflow_data, user_context={"user_id": user_id, "workflow_id": workflow_id})
+            engine_result = await engine.execute(
+                inputs,
+                user_context={"user_id": user_id, "workflow_id": workflow_id}
             )
+            
+            # Adapt result format to match expected structure
+            result = {
+                "success": True,
+                "workflow_id": workflow_id,
+                "execution_id": execution_rec["id"] if execution_rec else None,
+                "results": engine_result,
+            }
             
             await tracker.update_progress(90, "Workflow execution completed", "Processing results...")
             
@@ -205,12 +223,36 @@ def bulk_execute_workflows_task(self, workflow_configs: list, user_id: str, task
                 )
                 
                 try:
-                    result = await workflow_engine.execute_workflow(
-                        workflow_id=workflow_id,
-                        user_id=user_id,
-                        inputs=inputs,
-                        save_execution=True
+                    # Get workflow data
+                    if not db:
+                        raise Exception("Database not available")
+                    workflow = await db.get_workflow(workflow_id, user_id)
+                    if not workflow:
+                        raise Exception(f"Workflow {workflow_id} not found")
+                    
+                    workflow_data = workflow["flow_data"]
+                    if isinstance(workflow_data, str):
+                        import json
+                        workflow_data = json.loads(workflow_data)
+                    
+                    # Create execution record
+                    execution_rec = await db.create_execution(workflow_id, user_id, inputs)
+                    
+                    # Use unified engine
+                    engine = get_engine()
+                    engine.build(workflow_data, user_context={"user_id": user_id, "workflow_id": workflow_id})
+                    engine_result = await engine.execute(
+                        inputs,
+                        user_context={"user_id": user_id, "workflow_id": workflow_id}
                     )
+                    
+                    # Adapt result format
+                    result = {
+                        "success": True,
+                        "workflow_id": workflow_id,
+                        "execution_id": execution_rec["id"] if execution_rec else None,
+                        "results": engine_result,
+                    }
                     results.append({
                         'workflow_id': workflow_id,
                         'success': True,

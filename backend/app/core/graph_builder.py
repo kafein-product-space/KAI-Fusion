@@ -154,7 +154,9 @@ class GraphBuilder:
         for node in nodes:
             node_type = node.get("type", "").lower()
             node_id = node["id"]
-            if "condition" in node_type or "router" in node_type:
+            # Treat dedicated flow-control helper nodes specially, but skip
+            # generic `ConditionalChain` which is a regular processing node.
+            if ("condition" in node_type or "router" in node_type) and node_type != "conditionalchain":
                 self.control_flow_nodes[node_id] = {
                     "type": ControlFlowType.CONDITIONAL,
                     "data": node.get("data", {}),

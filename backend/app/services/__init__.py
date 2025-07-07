@@ -1,0 +1,30 @@
+"""Service Layer for Agent-Flow V2.
+
+This module contains business logic services that coordinate between
+the API layer and the repository layer. Services handle business rules,
+validation, complex operations, and orchestration.
+
+Architecture:
+- BaseService: Generic service with common patterns
+- UserService: User management, authentication, authorization
+- WorkflowService: Workflow CRUD, execution orchestration
+- ExecutionService: Execution tracking and management
+- CredentialService: Secure credential management
+- TaskService: Async task management
+"""
+
+from .base import BaseService
+from .user_service import UserService
+from .workflow_service import WorkflowService
+from .execution_service import ExecutionService
+from .credential_service import CredentialService
+from .task_service import TaskService
+
+__all__ = [
+    "BaseService",
+    "UserService", 
+    "WorkflowService",
+    "ExecutionService",
+    "CredentialService",
+    "TaskService",
+] 

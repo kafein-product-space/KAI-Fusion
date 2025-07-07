@@ -8,7 +8,25 @@ from typing import Optional, Dict, Any
 
 security = HTTPBearer(auto_error=False)
 
-async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)) -> Dict[str, Any]:
+async def get_current_user(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Dict[str, Any]:
+    """Return the currently authenticated user or raise 401.
+
+    The ``HTTPBearer`` dependency is configured with ``auto_error=False`` so if
+    the *Authorization* header is missing ``credentials`` will be *None*.
+    In that case—or if the token is invalid—we raise **401 Unauthorized** so
+    callers know they must authenticate first.
+    """
+
+    # No credentials supplied → unauthenticated
+    if credentials is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+
     if auth_client is None:
         # Auth service not configured; treat every request as unauthenticated
         raise HTTPException(
@@ -18,14 +36,14 @@ async def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(s
 
     token = credentials.credentials
     user = await auth_client.get_user(token)
-    
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid authentication credentials",
             headers={"WWW-Authenticate": "Bearer"},
         )
-    
+
     return user
 
 async def get_optional_user(
