@@ -228,6 +228,8 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   RequestsGetTool: <Link2 />,
   RequestsPostTool: <Link2 />,
   TavilySearch: <Link2 />,
+  WebBrowserTool: <Link2 />,
+  WikipediaTool: <Link2 />,
   // Yeni node tipleri buraya eklenebilir
 };
 

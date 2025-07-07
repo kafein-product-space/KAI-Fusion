@@ -60,6 +60,8 @@ import JSONParserToolNode from "../nodes/JSONParserToolNode";
 import RequestsGetToolNode from "../nodes/RequestsGetToolNode";
 import RequestsPostToolNode from "../nodes/RequestsPostToolNode";
 import TavilySearchNode from "../nodes/TavilySearchNode";
+import WebBrowserToolNode from "../nodes/WebBrowserToolNode";
+import WikipediaToolNode from "../nodes/WikipediaToolNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -99,6 +101,8 @@ const nodeTypeComponentMap: Record<string, any> = {
   RequestsGetTool: RequestsGetToolNode,
   RequestsPostTool: RequestsPostToolNode,
   TavilySearch: TavilySearchNode,
+  WebBrowserTool: WebBrowserToolNode,
+  WikipediaTool: WikipediaToolNode,
 };
 
 // Base node/edge types always available
@@ -141,6 +145,8 @@ const baseNodeTypes = {
   RequestsGetTool: RequestsGetToolNode,
   RequestsPostTool: RequestsPostToolNode,
   TavilySearch: TavilySearchNode,
+  WebBrowserTool: WebBrowserToolNode,
+  WikipediaTool: WikipediaToolNode,
 };
 
 const edgeTypes = {
