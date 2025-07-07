@@ -12,6 +12,7 @@ class GeminiNode(ProviderNode):
         self._metadatas = {
             "name": "GoogleGemini",
             "description": "Google Gemini chat model for conversational AI",
+            "category": "LLM",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="google_api_key", type="string", description="Google API Key", required=False),

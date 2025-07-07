@@ -110,6 +110,57 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   SequentialChain: <Link />,
   CohereEmbeddings: <Link />,
   HuggingFaceEmbeddings: <Link />,
+  AnthropicClaude: (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      x="0px"
+      y="0px"
+      width="30"
+      height="30"
+      viewBox="0 0 48 48"
+    >
+      <path
+        fill="#d19b75"
+        d="M40,6H8C6.895,6,6,6.895,6,8v32c0,1.105,0.895,2,2,2h32c1.105,0,2-0.895,2-2V8	C42,6.895,41.105,6,40,6z"
+      ></path>
+      <path
+        fill="#252525"
+        d="M22.197,14.234h-4.404L10.037,33.67c0-0.096,4.452,0,4.452,0l1.484-4.069h8.234l1.58,4.069h4.261	L22.197,14.234z M17.362,26.059l2.729-6.894l2.633,6.894C22.723,26.059,17.266,26.059,17.362,26.059z"
+      ></path>
+      <path
+        fill="#252525"
+        d="M25.963,14.234L33.59,33.67h4.356l-7.803-19.436C30.144,14.234,25.963,14.186,25.963,14.234z"
+      ></path>
+    </svg>
+  ),
+  GoogleGemini: (
+    <svg
+      height="1em"
+      viewBox="0 0 24 24"
+      width="1em"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <title>Gemini</title>
+      <defs>
+        <linearGradient
+          id="lobe-icons-gemini-fill"
+          x1="0%"
+          x2="68.73%"
+          y1="100%"
+          y2="30.395%"
+        >
+          <stop offset="0%" stop-color="#1C7DFF"></stop>
+          <stop offset="52.021%" stop-color="#1C69FF"></stop>
+          <stop offset="100%" stop-color="#F0DCD6"></stop>
+        </linearGradient>
+      </defs>
+      <path
+        d="M12 24A14.304 14.304 0 000 12 14.304 14.304 0 0012 0a14.305 14.305 0 0012 12 14.305 14.305 0 00-12 12"
+        fill="url(#lobe-icons-gemini-fill)"
+        fill-rule="nonzero"
+      ></path>
+    </svg>
+  ),
   // Yeni node tipleri buraya eklenebilir
 };
 

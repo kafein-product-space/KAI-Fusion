@@ -12,6 +12,7 @@ class ClaudeNode(ProviderNode):
         self._metadatas = {
             "name": "AnthropicClaude",
             "description": "Anthropic Claude chat model for conversational AI",
+            "category": "LLM",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="anthropic_api_key", type="string", description="Anthropic API Key", required=False),

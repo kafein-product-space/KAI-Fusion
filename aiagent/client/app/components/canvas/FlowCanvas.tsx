@@ -38,6 +38,8 @@ import MapReduceChainNode from "../nodes/MapReduceChainNode";
 import SequentialChainNode from "../nodes/SequentialChainNode";
 import CohereEmbeddingsNode from "../nodes/CohereEmbeddingsNode";
 import HuggingFaceEmbeddingsNode from "../nodes/HuggingFaceEmbeddingsNode";
+import AnthropicClaudeNode from "../nodes/ClaudeNode";
+import GeminiNode from "../nodes/GeminiNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -55,6 +57,8 @@ const nodeTypeComponentMap: Record<string, any> = {
   SequentialChain: SequentialChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
   HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
+  AnthropicClaude: AnthropicClaudeNode,
+  GoogleGemini: GeminiNode,
 };
 
 // Base node/edge types always available
@@ -75,6 +79,8 @@ const baseNodeTypes = {
   SequentialChain: SequentialChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
   HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
+  AnthropicClaude: AnthropicClaudeNode,
+  GoogleGemini: GeminiNode,
 };
 
 const edgeTypes = {
