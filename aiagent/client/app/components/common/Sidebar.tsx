@@ -182,13 +182,10 @@ function Sidebar() {
                     </div>
                     <div className="collapse-content space-y-2">
                       {categoryNodes.map((nodeType) => (
-                        <>
-                          <DraggableNode
-                            key={nodeType.id}
-                            nodeType={nodeType}
-                          />
+                        <React.Fragment key={nodeType.id}>
+                          <DraggableNode nodeType={nodeType} />
                           <hr className="my-2 border-gray-200" />
-                        </>
+                        </React.Fragment>
                       ))}
                     </div>
                   </div>
