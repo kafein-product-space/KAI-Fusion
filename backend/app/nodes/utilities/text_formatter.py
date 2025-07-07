@@ -10,6 +10,7 @@ class TextFormatterNode(ProviderNode):
         self._metadatas = {
             "name": "TextFormatter",
             "description": "Format text with various transformations",
+            "category": "Utilities",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="text", type="string", description="Text to format", required=True),

@@ -6,6 +6,7 @@ class TestHelloNode(ProviderNode):
     _metadatas = {
         "name": "TestHello",
         "description": "A simple test node that says hello with a custom message",
+    
         "node_type": NodeType.PROVIDER,
         "inputs": [
             NodeInput(

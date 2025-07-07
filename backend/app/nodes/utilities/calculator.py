@@ -12,6 +12,7 @@ class CalculatorNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "Calculator",
+            "category": "Utilities",
             "description": "Mathematical expression calculator tool",
             "node_type": NodeType.PROVIDER,
             "inputs": []
