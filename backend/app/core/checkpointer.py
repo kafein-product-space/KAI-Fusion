@@ -43,6 +43,13 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         else:
             settings = get_settings()
             if settings.DATABASE_URL:
+                # Only enable for real Postgres connections; skip for SQLite
+                if settings.DATABASE_URL.startswith("sqlite"):
+                    import warnings
+                    warnings.warn("Skipping Postgres checkpointer for SQLite DATABASE_URL")
+                    self.engine = None
+                    self.session_factory = None
+                    return
                 self.engine = create_engine(settings.DATABASE_URL)
             else:
                 # Checkpointer not available without proper database URL
@@ -64,19 +71,24 @@ class PostgresCheckpointer(BaseCheckpointSaver):
     
     def is_available(self) -> bool:
         """Check if the checkpointer is available (has a valid database connection)"""
-        return self.engine is not None and self.session_factory is not None
+        return (
+            self.engine is not None
+            and self.session_factory is not None
+            and self.engine.dialect.name == "postgresql"
+        )
     
     def put(
         self,
         config: Dict[str, Any],
         checkpoint: Checkpoint,
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        new_versions: Optional[Any] = None,  # noqa: ANN401 – opaque to us
     ) -> None:
         """Save a checkpoint to PostgreSQL"""
         if not self.is_available():
             return  # Silently skip if checkpointer not available
             
-        thread_id = config.get("thread_id")
+        thread_id = self._get_thread_id(config)
         if not thread_id:
             raise ValueError("thread_id is required in config")
         
@@ -121,7 +133,7 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         if not self.is_available():
             return None
             
-        thread_id = config.get("thread_id")
+        thread_id = self._get_thread_id(config)
         if not thread_id:
             return None
         
@@ -174,7 +186,7 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         if not self.is_available():
             return iter([])
             
-        thread_id = config.get("thread_id")
+        thread_id = self._get_thread_id(config)
         if not thread_id:
             return iter([])
         
@@ -217,8 +229,23 @@ class PostgresCheckpointer(BaseCheckpointSaver):
                 print(f"Error listing checkpoints: {e}")
                 return iter([])
     
+    async def aget_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
+        """Async wrapper around ``get_tuple``."""
+        # In real production we would run in thread-pool; for tests we block.
+        return self.get(config)
+
+    async def aput(
+        self,
+        config: Dict[str, Any],
+        checkpoint: Checkpoint,
+        metadata: Optional[Dict[str, Any]] = None,
+        new_versions: Optional[Any] = None,  # noqa: ANN401
+    ) -> None:
+        """Async wrapper around ``put`` with forward-compat signature."""
+        self.put(config, checkpoint, metadata, new_versions)
+
     def get_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
-        """Get a specific checkpoint by config"""
+        """Get a specific checkpoint by config."""
         return self.get(config)
     
     def put_writes(self, config: Dict[str, Any], writes: list, task_id: str) -> None:  # type: ignore
@@ -231,7 +258,7 @@ class PostgresCheckpointer(BaseCheckpointSaver):
         if not self.is_available():
             return
             
-        thread_id = config.get("thread_id")
+        thread_id = self._get_thread_id(config)
         if not thread_id:
             return
         
@@ -259,6 +286,14 @@ class PostgresCheckpointer(BaseCheckpointSaver):
                 session.rollback()
                 print(f"Error cleaning up checkpoints: {e}")
                 return 0
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    @staticmethod
+    def _get_thread_id(cfg: Dict[str, Any]) -> Optional[str]:
+        """Extract ``thread_id`` from either top-level or configurable dict."""
+        return cfg.get("thread_id") or cfg.get("configurable", {}).get("thread_id")
 
 
 # Global instance - instantiate lazily to avoid import errors

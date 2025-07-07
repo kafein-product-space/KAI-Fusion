@@ -20,8 +20,6 @@ from app.db.models import User, WorkflowCreate, WorkflowUpdate, ExecutionCreate
 
 # Core engine imports
 from app.core.engine_v2 import get_engine
-from app.core.workflow_runner import WorkflowRunner
-from app.core.session_manager import session_manager
 
 import json
 import logging
@@ -611,85 +609,35 @@ async def execute_adhoc_workflow(
             detail=f"Execution failed: {str(e)}"
         )
 
-# Session Management (simplified for V2)
+# ---------------------------------------------------------------------
+# Session endpoints – deprecated
+# ---------------------------------------------------------------------
+
+NOT_IMPLEMENTED_MSG = "Ephemeral SessionManager has been removed; use persistent conversation threads (coming soon)."
+
 
 @router.post(
     "/sessions",
-    summary="🔄 Create Session",
-    description="Create workflow execution session."
+    summary="🔄 Create Session (deprecated)",
+    description="Deprecated – returns 501."
 )
-async def create_session(
-    request: SessionCreateRequest,
-    current_user: User = Depends(get_current_user)
-):
-    """Create execution session."""
-    try:
-        session_id = session_manager.create_session(
-            user_id=current_user.id,
-            workflow_id=request.workflow_id
-        )
-        
-        return {
-            "session_id": session_id,
-            "message": "Session created successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to create session: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to create session"
-        )
+async def create_session(*_):  # noqa: ANN001
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=NOT_IMPLEMENTED_MSG)
+
 
 @router.get(
     "/sessions/{session_id}",
-    summary="📋 Get Session",
-    description="Get session information."
+    summary="📋 Get Session (deprecated)",
+    description="Deprecated – returns 501."
 )
-async def get_session(
-    session_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Get session details."""
-    try:
-        session_data = session_manager.get_session(session_id)
-        
-        if not session_data:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Session not found"
-            )
-        
-        return session_data
-        
-    except Exception as e:
-        logger.error(f"Failed to get session {session_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to retrieve session"
-        )
+async def get_session(*_):  # noqa: ANN001
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=NOT_IMPLEMENTED_MSG)
+
 
 @router.delete(
     "/sessions/{session_id}",
-    summary="🗑️ Delete Session",
-    description="Delete execution session."
+    summary="🗑️ Delete Session (deprecated)",
+    description="Deprecated – returns 501."
 )
-async def delete_session(
-    session_id: str,
-    current_user: User = Depends(get_current_user)
-):
-    """Delete session."""
-    try:
-        session_manager.cleanup_session(session_id)
-        
-        return {
-            "success": True,
-            "message": "Session deleted successfully"
-        }
-        
-    except Exception as e:
-        logger.error(f"Failed to delete session {session_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to delete session"
-        )
+async def delete_session(*_):  # noqa: ANN001
+    raise HTTPException(status_code=status.HTTP_501_NOT_IMPLEMENTED, detail=NOT_IMPLEMENTED_MSG)

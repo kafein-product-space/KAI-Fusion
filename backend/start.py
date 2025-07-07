@@ -12,9 +12,11 @@ import uvicorn
 from pathlib import Path
 
 # Set environment variables for development mode
-os.environ["DISABLE_DATABASE"] = "true"
+os.environ["DISABLE_DATABASE"] = "false"
 os.environ["DEBUG"] = "true"
 os.environ["LOG_LEVEL"] = "info"
+# Use local SQLite file for development if DATABASE_URL not provided
+os.environ.setdefault("DATABASE_URL", "sqlite:///./dev.db")
 
 # Add the backend directory to Python path
 backend_dir = Path(__file__).parent

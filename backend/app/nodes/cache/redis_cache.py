@@ -3,6 +3,8 @@ from typing import Dict, Any
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain.globals import set_llm_cache
+from langchain_community.cache import RedisCache
+from langchain_community.cache import InMemoryCache
 
 class RedisCacheNode(ProviderNode):
     """Redis cache for LLM responses"""
@@ -30,7 +32,6 @@ class RedisCacheNode(ProviderNode):
         ttl = kwargs.get("ttl", 3600)
         
         try:
-            from langchain.cache import RedisCache
             import redis
             
             # Create Redis client
@@ -44,7 +45,6 @@ class RedisCacheNode(ProviderNode):
             
         except ImportError:
             print("Warning: Redis not available, using in-memory cache")
-            from langchain.cache import InMemoryCache
             set_llm_cache(InMemoryCache())
         
         # Return a runnable that passes through

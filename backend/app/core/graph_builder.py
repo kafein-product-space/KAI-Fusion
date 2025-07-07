@@ -222,8 +222,8 @@ class GraphBuilder:
     def _wrap_node(self, node_id: str, gnode: GraphNodeInstance) -> Callable[[FlowState], FlowState]:
         node_func = gnode.node_instance.to_graph_node()
 
-        def wrapper(state: FlowState) -> FlowState:
-            # Inject user-provided static values
+        def wrapper(state: FlowState) -> FlowState:  # noqa: D401
+            """Wrapper that injects static vars then calls node_func."""
             for k, v in gnode.user_data.items():
                 state.set_variable(k, v)
             return node_func(state)
@@ -240,7 +240,8 @@ class GraphBuilder:
                 self._add_conditional_routing(graph, node_id, cdata)
             elif ctype == ControlFlowType.LOOP:
                 self._add_loop_logic(graph, node_id, cdata)
-            # Parallel not yet implemented – fallback regular edges will connect
+            elif ctype == ControlFlowType.PARALLEL:
+                self._add_parallel_fanout(graph, node_id, cdata)
 
     def _add_conditional_routing(self, graph: StateGraph, node_id: str, cfg: Dict[str, Any]):
         outgoing = [c for c in self.connections if c.source_node_id == node_id]
@@ -266,17 +267,50 @@ class GraphBuilder:
         )
 
     def _add_loop_logic(self, graph: StateGraph, node_id: str, cfg: Dict[str, Any]):
-        max_iter = cfg.get("max_iterations", 10)
+        """Create a simple counter-based loop helper.
 
-        def should_continue(state: FlowState) -> str:
+        Flow: LOOP_NODE  ─▶ BODY_NODE … ─▶ LOOP_NODE (edge in original JSON)
+              ^                                           |
+              └──────────────────────── < max_iter ? -----┘
+        The JSON must contain at least one outgoing edge from the loop helper
+        designating the *body* node.  After each body execution, control should
+        return to the loop helper (another edge).  This function injects the
+        conditional routing logic so that execution either jumps to the BODY
+        or terminates (END).
+        """
+        max_iter = int(cfg.get("max_iterations", 3))
+
+        # Identify body (first outgoing edge)
+        outgoing = [c for c in self.connections if c.source_node_id == node_id]
+        if not outgoing:
+            return
+        body_id = outgoing[0].target_node_id
+
+        def loop_router(state: FlowState) -> str:
             counter = state.get_variable(f"{node_id}_counter", 0)
             if counter >= max_iter:
                 return END
             state.set_variable(f"{node_id}_counter", counter + 1)
-            return node_id
+            return body_id
 
-        graph.add_node(node_id, lambda s: s)  # dummy node
-        graph.add_conditional_edges(node_id, should_continue, {node_id: node_id, END: END})
+        graph.add_node(node_id, lambda s: s)  # condition node (no-op)
+        graph.add_conditional_edges(node_id, loop_router, {body_id: body_id, END: END})
+
+    def _add_parallel_fanout(self, graph: StateGraph, node_id: str, cfg: Dict[str, Any]):
+        """Add a fan-out node that duplicates state to multiple branches."""
+        outgoing = [c for c in self.connections if c.source_node_id == node_id]
+        if not outgoing:
+            return
+
+        branch_ids = [c.target_node_id for c in outgoing]
+
+        def fan_out(state: FlowState):  # noqa: D401
+            # Return mapping of channel -> state to create parallel branches
+            return {bid: state.copy() for bid in branch_ids}
+
+        graph.add_node(node_id, fan_out)
+        for bid in branch_ids:
+            graph.add_edge(node_id, bid)
 
     def _evaluate_condition(self, value: Any, branch_cfg: Dict[str, Any], cond_type: str) -> bool:
         try:
@@ -317,7 +351,22 @@ class GraphBuilder:
     # ------------------------------------------------------------------
     async def _execute_sync(self, init_state: FlowState, config: RunnableConfig) -> Dict[str, Any]:
         try:
+            # Prefer async interface if implemented
             result_state = await self.graph.ainvoke(init_state, config=config)  # type: ignore[arg-type]
+            return {
+                "success": True,
+                "result": getattr(result_state, "last_output", str(result_state)),
+                "state": getattr(result_state, "model_dump", lambda: result_state)(),
+                "executed_nodes": getattr(result_state, "executed_nodes", []),
+                "session_id": getattr(result_state, "session_id", init_state.session_id),
+            }
+        except NotImplementedError:
+            # Fallback to sync invoke in thread pool to avoid blocking
+            import asyncio, functools
+            loop = asyncio.get_event_loop()
+            result_state = await loop.run_in_executor(
+                None, functools.partial(self.graph.invoke, init_state, config=config)  # type: ignore[arg-type]
+            )
             return {
                 "success": True,
                 "result": getattr(result_state, "last_output", str(result_state)),

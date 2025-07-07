@@ -2,7 +2,7 @@ from typing import Dict, Any
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain.globals import set_llm_cache
-from langchain.cache import InMemoryCache
+from langchain_community.cache import InMemoryCache
 
 class InMemoryCacheNode(ProviderNode):
     """In-memory cache for LLM responses"""

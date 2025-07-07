@@ -64,3 +64,6 @@ sqlalchemy-stubs>=0.4
 
 # Validation Helpers
 email-validator>=2.0.0
+
+# Added from the code block
+aiosqlite>=0.19.0
