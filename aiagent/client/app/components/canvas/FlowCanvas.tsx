@@ -36,6 +36,8 @@ import RouterChainNode from "../nodes/RouterChainNode";
 import LLMChainNode from "../nodes/LLMChainNode";
 import MapReduceChainNode from "../nodes/MapReduceChainNode";
 import SequentialChainNode from "../nodes/SequentialChainNode";
+import CohereEmbeddingsNode from "../nodes/CohereEmbeddingsNode";
+import HuggingFaceEmbeddingsNode from "../nodes/HuggingFaceEmbeddingsNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -51,6 +53,8 @@ const nodeTypeComponentMap: Record<string, any> = {
   LLMChain: LLMChainNode,
   MapReduceChain: MapReduceChainNode,
   SequentialChain: SequentialChainNode,
+  CohereEmbeddings: CohereEmbeddingsNode,
+  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
 };
 
 // Base node/edge types always available
@@ -69,6 +73,8 @@ const baseNodeTypes = {
   LLMChain: LLMChainNode,
   MapReduceChain: MapReduceChainNode,
   SequentialChain: SequentialChainNode,
+  CohereEmbeddings: CohereEmbeddingsNode,
+  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
 };
 
 const edgeTypes = {

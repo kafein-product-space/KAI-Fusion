@@ -1,14 +1,17 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
-import { Link } from "lucide-react";
-import MapReduceChainConfigModal from "../modals/MapReduceChainConfigModal";
+import { Bot, Link } from "lucide-react";
+import HuggingFaceEmbeddingsConfigModal from "../modals/HuggingFaceEmbeddingsConfigModal";
 
-interface MapReduceChainNodeProps {
+interface HuggingFaceEmbeddingsNodeProps {
   data: any;
   id: string;
 }
 
-function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
+function HuggingFaceEmbeddingsNode({
+  data,
+  id,
+}: HuggingFaceEmbeddingsNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -41,7 +44,9 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "MapReduceChain"}</p>
+            <p className="font-semibold">
+              {data?.displayName || "HuggingFace Embeddings"}
+            </p>
           </div>
         </div>
 
@@ -60,7 +65,7 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
       </div>
 
       {/* DaisyUI dialog modal */}
-      <MapReduceChainConfigModal
+      <HuggingFaceEmbeddingsConfigModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}
@@ -70,4 +75,4 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
   );
 }
 
-export default MapReduceChainNode;
+export default HuggingFaceEmbeddingsNode;

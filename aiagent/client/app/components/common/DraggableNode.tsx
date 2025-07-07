@@ -108,6 +108,8 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   LLMChain: <Link />,
   MapReduceChain: <Link />,
   SequentialChain: <Link />,
+  CohereEmbeddings: <Link />,
+  HuggingFaceEmbeddings: <Link />,
   // Yeni node tipleri buraya eklenebilir
 };
 

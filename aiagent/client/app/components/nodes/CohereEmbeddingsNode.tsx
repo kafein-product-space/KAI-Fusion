@@ -1,14 +1,14 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
-import { Link } from "lucide-react";
-import MapReduceChainConfigModal from "../modals/MapReduceChainConfigModal";
+import { Bot, Link } from "lucide-react";
+import CohereEmbeddingsConfigModal from "../modals/CohereEmbeddingsConfigModal";
 
-interface MapReduceChainNodeProps {
+interface CohereEmbeddingsNodeProps {
   data: any;
   id: string;
 }
 
-function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
+function CohereEmbeddingsNode({ data, id }: CohereEmbeddingsNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -41,7 +41,9 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "MapReduceChain"}</p>
+            <p className="font-semibold">
+              {data?.displayName || "Cohere Embeddings"}
+            </p>
           </div>
         </div>
 
@@ -60,7 +62,7 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
       </div>
 
       {/* DaisyUI dialog modal */}
-      <MapReduceChainConfigModal
+      <CohereEmbeddingsConfigModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}
@@ -70,4 +72,4 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
   );
 }
 
-export default MapReduceChainNode;
+export default CohereEmbeddingsNode;

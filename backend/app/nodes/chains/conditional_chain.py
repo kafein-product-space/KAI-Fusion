@@ -13,6 +13,7 @@ class ConditionalChainNode(ProcessorNode):
         super().__init__()
         self._metadatas = {
             "name": "ConditionalChain",
+            "display_name": "Conditional Chain",
             "description": "Routes to different chains based on conditions",
             "category": "Chains",
             "node_type": NodeType.PROCESSOR,
