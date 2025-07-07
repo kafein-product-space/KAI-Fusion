@@ -170,7 +170,7 @@ else:
     class StubExecuteRequest(BaseModel):
         """Request body for stateless workflow execution"""
         flow_data: Dict[str, Any]
-        input_text: str = Field(..., alias="input_text")
+        inputs: Dict[str, Any] = Field(default_factory=dict)
         session_context: Optional[Dict[str, Any]] = None
 
     @stub_router.post("/execute", summary="⚡ Execute Workflow (stateless)")
@@ -178,9 +178,11 @@ else:
         """Execute workflow entirely in-memory using the LangGraph engine."""
         try:
             engine = get_engine()
+            # Build (compile) the workflow graph for this request
             engine.build(req.flow_data)
+            # Execute with provided runtime inputs
             result = await engine.execute(
-                {"input": req.input_text},
+                req.inputs,
                 user_context=req.session_context or {},
             )
             return result
@@ -196,7 +198,7 @@ else:
             engine.build(req.flow_data)
 
             stream_gen = await engine.execute(
-                {"input": req.input_text},
+                req.inputs,
                 stream=True,
                 user_context=req.session_context or {},
             )
