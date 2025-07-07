@@ -45,6 +45,9 @@ import ConversationMemoryNode from "../nodes/ConversationMemoryNode";
 import SummaryMemoryNode from "../nodes/SummaryMemoryNode";
 import AgentPromptNode from "../nodes/AgentPromptNode";
 import PromptTemplateNode from "../nodes/PromptTemplateNode";
+import PDFLoaderNode from "../nodes/PDFLoaderNode";
+import WebLoaderNode from "../nodes/WebLoaderNode";
+import PydanticOutputParserNode from "../nodes/PydanticOutputParserNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -69,6 +72,9 @@ const nodeTypeComponentMap: Record<string, any> = {
   SummaryMemory: SummaryMemoryNode,
   AgentPrompt: AgentPromptNode,
   PromptTemplate: PromptTemplateNode,
+  PDFLoader: PDFLoaderNode,
+  WebLoader: WebLoaderNode,
+  PydanticOutputParser: PydanticOutputParserNode,
 };
 
 // Base node/edge types always available
@@ -96,6 +102,9 @@ const baseNodeTypes = {
   SummaryMemory: SummaryMemoryNode,
   AgentPrompt: AgentPromptNode,
   PromptTemplate: PromptTemplateNode,
+  PDFLoader: PDFLoaderNode,
+  WebLoader: WebLoaderNode,
+  PydanticOutputParser: PydanticOutputParserNode,
 };
 
 const edgeTypes = {

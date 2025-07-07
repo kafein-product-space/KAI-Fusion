@@ -1,13 +1,13 @@
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 
 class TextDataLoaderNode(ProviderNode):
-    def __init__(self):
+    def __init__(self):" "
         super().__init__()
         self._metadata = {
             "name": "TextDataLoader",
             "display_name": "Text Data Loader",
             "description": "Loads plain text data as a document.",
-            "category": "DOCUMENT_LOADER",
+             "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(

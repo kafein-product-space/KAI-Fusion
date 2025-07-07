@@ -10,6 +10,7 @@ class PDFLoaderNode(ProviderNode):
         self._metadatas = {
             "name": "PDFLoader",
             "description": "Loads a PDF file and extracts its content into documents.",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="file_path", type="string", description="The absolute path to the PDF file.", required=True, is_connection=False),

@@ -15,6 +15,7 @@ class WebLoaderNode(ProviderNode):
         self._metadatas = {
             "name": "WebLoader",
             "description": "Load content from web pages using URLs",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(
