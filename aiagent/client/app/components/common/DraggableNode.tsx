@@ -221,6 +221,13 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   CharacterTextSplitter: <Link2 />,
   RecursiveTextSplitter: <Link2 />,
   TokenTextSplitter: <Link2 />,
+  ArxivTool: <Link2 />,
+  WriteFileTool: <Link2 />,
+  GoogleSearchTool: <Link2 />,
+  JSONParser: <Link2 />,
+  RequestsGetTool: <Link2 />,
+  RequestsPostTool: <Link2 />,
+  TavilySearch: <Link2 />,
   // Yeni node tipleri buraya eklenebilir
 };
 

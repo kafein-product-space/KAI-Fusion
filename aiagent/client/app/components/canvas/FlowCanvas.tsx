@@ -53,6 +53,13 @@ import ChromaRetrieverNode from "../nodes/ChromaRetrieverNode";
 import CharacterTextSplitterNode from "../nodes/CharacterTextSplitterNode";
 import RecursiveTextSplitterNode from "../nodes/RecursiveTextSplitterNode";
 import TokenTextSplitterNode from "../nodes/TokenTextSplitterNode";
+import ArxivToolNode from "../nodes/ArxivToolNode";
+import FileToolNode from "../nodes/FileToolNode";
+import GoogleSearchNode from "../nodes/GoogleSearchNode";
+import JSONParserToolNode from "../nodes/JSONParserToolNode";
+import RequestsGetToolNode from "../nodes/RequestsGetToolNode";
+import RequestsPostToolNode from "../nodes/RequestsPostToolNode";
+import TavilySearchNode from "../nodes/TavilySearchNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -85,6 +92,13 @@ const nodeTypeComponentMap: Record<string, any> = {
   CharacterTextSplitter: CharacterTextSplitterNode,
   RecursiveTextSplitter: RecursiveTextSplitterNode,
   TokenTextSplitter: TokenTextSplitterNode,
+  ArxivTool: ArxivToolNode,
+  WriteFileTool: FileToolNode,
+  GoogleSearchTool: GoogleSearchNode,
+  JSONParser: JSONParserToolNode,
+  RequestsGetTool: RequestsGetToolNode,
+  RequestsPostTool: RequestsPostToolNode,
+  TavilySearch: TavilySearchNode,
 };
 
 // Base node/edge types always available
@@ -120,6 +134,13 @@ const baseNodeTypes = {
   CharacterTextSplitter: CharacterTextSplitterNode,
   RecursiveTextSplitter: RecursiveTextSplitterNode,
   TokenTextSplitter: TokenTextSplitterNode,
+  ArxivTool: ArxivToolNode,
+  WriteFileTool: FileToolNode,
+  GoogleSearchTool: GoogleSearchNode,
+  JSONParser: JSONParserToolNode,
+  RequestsGetTool: RequestsGetToolNode,
+  RequestsPostTool: RequestsPostToolNode,
+  TavilySearch: TavilySearchNode,
 };
 
 const edgeTypes = {
