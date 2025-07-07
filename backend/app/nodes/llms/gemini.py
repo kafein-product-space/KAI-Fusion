@@ -11,6 +11,8 @@ class GeminiNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "GoogleGemini",
+            "display_name": "Google Gemini",
+
             "description": "Google Gemini chat model for conversational AI",
             "category": "LLM",
             "node_type": NodeType.PROVIDER,

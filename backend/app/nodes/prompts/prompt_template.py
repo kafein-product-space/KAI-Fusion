@@ -7,6 +7,8 @@ class PromptTemplateNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "PromptTemplate",
+            "display_name": "Prompt Template",
+
             "description": "Creates a chat prompt template from a string.",
             "node_type": NodeType.PROVIDER,
             "category": "Prompts",

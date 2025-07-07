@@ -10,6 +10,8 @@ class BufferMemoryNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "BufferMemory",
+            "display_name": "Buffer Memory",
+
             "description": "Stores entire conversation history",
             "category": "Memory",
             "node_type": NodeType.PROVIDER,

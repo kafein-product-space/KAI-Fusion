@@ -11,6 +11,8 @@ class ClaudeNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "AnthropicClaude",
+            "display_name": "Anthropic Claude",
+
             "description": "Anthropic Claude chat model for conversational AI",
             "category": "LLM",
             "node_type": NodeType.PROVIDER,

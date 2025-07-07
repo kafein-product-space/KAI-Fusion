@@ -9,6 +9,8 @@ class GoogleSearchToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "GoogleSearchTool",
+            "display_name": "Google Search Tool",
+
             "description": "Provides a tool that queries Google Search. If environment credentials are not available we return a mock implementation so that tests pass.",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

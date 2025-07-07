@@ -29,6 +29,8 @@ class AgentPromptNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "AgentPrompt",
+            "display_name": "Agent Prompt",
+
             "description": "Creates a standard prompt for a LangChain ReAct agent.",
             "node_type": NodeType.PROVIDER,
             "category": "Prompts",

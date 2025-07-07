@@ -10,6 +10,8 @@ class CharacterTextSplitterNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "CharacterTextSplitter",
+            "display_name": "Character Text Splitter",
+
             "description": "Split text into chunks based on character count",
             "category": "Text Splitters",
             "node_type": NodeType.PROVIDER,

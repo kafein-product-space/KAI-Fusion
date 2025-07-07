@@ -14,6 +14,8 @@ class WebLoaderNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "WebLoader",
+            "display_name": "Web Loader",
+
             "description": "Load content from web pages using URLs",
             "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,

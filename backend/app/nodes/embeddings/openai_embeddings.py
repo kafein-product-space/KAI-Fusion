@@ -11,6 +11,8 @@ class OpenAIEmbeddingsNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "OpenAIEmbeddings",
+            "display_name": "OpenAI Embeddings",
+
             "description": "OpenAI embeddings for converting text to vectors",
             "category": "Embeddings",
             "node_type": NodeType.PROVIDER,

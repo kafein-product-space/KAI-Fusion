@@ -13,6 +13,8 @@ class MapReduceChainNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "MapReduceChain",
+            "display_name": "Map Reduce Chain",
+
             "description": "Process multiple documents with map-reduce pattern",
             "category": "Chains",
             "node_type": NodeType.PROCESSOR,

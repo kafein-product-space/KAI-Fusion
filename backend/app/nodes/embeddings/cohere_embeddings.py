@@ -10,6 +10,8 @@ class CohereEmbeddingsNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "CohereEmbeddings",
+            "display_name": "Cohere Embeddings",
+
             "description": "Cohere embeddings for converting text to vectors",
             "category": "Embeddings",
             "node_type": NodeType.PROVIDER,

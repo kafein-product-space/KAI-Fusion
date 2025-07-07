@@ -9,6 +9,8 @@ class PDFLoaderNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "PDFLoader",
+            "display_name": "PDF Loader",
+
             "description": "Loads a PDF file and extracts its content into documents.",
             "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,

@@ -11,6 +11,7 @@ class InMemoryCacheNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "InMemoryCache",
+            "display_name": "In Memory Cache",
             "description": "Cache LLM responses in memory",
             "category": "Cache",
             "node_type": NodeType.PROVIDER,

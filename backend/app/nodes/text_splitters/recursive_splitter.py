@@ -10,6 +10,8 @@ class RecursiveTextSplitterNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "RecursiveTextSplitter",
+            "display_name": "Recursive Text Splitter",
+
             "description": "Split text recursively with multiple separators",
             "category": "Text Splitters",
             "node_type": NodeType.PROVIDER,

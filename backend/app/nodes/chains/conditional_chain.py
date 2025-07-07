@@ -125,6 +125,8 @@ class RouterChainNode(ProcessorNode):
         super().__init__()
         self._metadatas = {
             "name": "RouterChain",
+            "display_name": "Router Chain",
+
             "description": "Advanced routing based on multiple criteria",
             "category": "Chains",
             "node_type": NodeType.PROCESSOR,

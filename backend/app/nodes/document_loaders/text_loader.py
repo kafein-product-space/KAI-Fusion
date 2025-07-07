@@ -7,7 +7,7 @@ class TextDataLoaderNode(ProviderNode):
             "name": "TextDataLoader",
             "display_name": "Text Data Loader",
             "description": "Loads plain text data as a document.",
-             "category": "Document Loaders",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(

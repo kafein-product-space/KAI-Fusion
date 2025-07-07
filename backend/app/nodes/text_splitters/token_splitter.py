@@ -10,6 +10,8 @@ class TokenTextSplitterNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "TokenTextSplitter",
+            "display_name": "Token Text Splitter",
+
             "description": "Split text based on token count",
             "category": "Text Splitters",
             "node_type": NodeType.PROVIDER,

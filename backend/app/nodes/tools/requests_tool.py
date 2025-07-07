@@ -12,6 +12,8 @@ class RequestsGetToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "RequestsGetTool",
+            "display_name": "Requests Get Tool",
+
             "description": "Make HTTP GET requests to APIs",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,
@@ -67,6 +69,8 @@ class RequestsPostToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "RequestsPostTool",
+            "display_name": "Requests Post Tool",
+
             "description": "Make HTTP POST requests to APIs",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

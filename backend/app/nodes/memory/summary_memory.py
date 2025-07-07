@@ -12,6 +12,8 @@ class SummaryMemoryNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "SummaryMemory",
+            "display_name": "Summary Memory",
+
             "description": "Summarizes conversation history using an LLM",
             "category": "Memory",
             "node_type": NodeType.PROCESSOR,

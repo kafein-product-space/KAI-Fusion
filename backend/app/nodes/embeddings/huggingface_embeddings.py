@@ -9,6 +9,8 @@ class HuggingFaceEmbeddingsNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "HuggingFaceEmbeddings",
+            "display_name": "HuggingFace Embeddings",
+
             "description": "HuggingFace embeddings for converting text to vectors",
             "category": "Embeddings",
             "node_type": NodeType.PROVIDER,

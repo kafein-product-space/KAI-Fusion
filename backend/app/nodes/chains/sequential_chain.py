@@ -15,6 +15,8 @@ class SequentialChainNode(ProcessorNode):
         super().__init__()
         self._metadatas = {
             "name": "SequentialChain",
+            "display_name": "Sequential Chain",
+
             "description": "Chains multiple LLM calls sequentially, passing output from one to the next",
             "category": "Chains",
             "node_type": NodeType.PROCESSOR,

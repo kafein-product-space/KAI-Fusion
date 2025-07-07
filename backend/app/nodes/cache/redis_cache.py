@@ -11,6 +11,7 @@ class RedisCacheNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "RedisCache",
+            "display_name": "Redis Cache",
             "description": "Cache LLM responses in Redis",
             "category": "Cache",
             "node_type": NodeType.PROVIDER,

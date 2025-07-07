@@ -11,6 +11,8 @@ class WriteFileToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "WriteFileTool",
+            "display_name": "Write File Tool",
+
             "description": "Write content to files",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,
@@ -66,6 +68,8 @@ class ReadFileToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "ReadFileTool",
+            "display_name": "Read File Tool",
+
             "description": "Read content from files",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

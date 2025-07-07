@@ -8,6 +8,8 @@ class ConversationMemoryNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "ConversationMemory",
+            "display_name": "Conversation Memory",
+
             "description": "Provides a conversation buffer window memory.",
             "category": "Memory",
             "node_type": NodeType.PROVIDER,

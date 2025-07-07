@@ -13,6 +13,8 @@ class OpenAINode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "OpenAIChat",
+            "display_name": "OpenAI",
+
             "description": "OpenAI Chat Model for text generation",
             "category": "LLM",
             "node_type": NodeType.PROVIDER,

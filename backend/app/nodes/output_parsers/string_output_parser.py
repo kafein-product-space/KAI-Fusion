@@ -8,6 +8,8 @@ class StringOutputParserNode(TerminatorNode):
         super().__init__()
         self._metadata = {
             "name": "StringOutputParser",
+            "display_name": "String Output Parser",
+
             "category": "Output Parsers",
             "description": "A simple parser that returns the output of the LLM as a string.",
             "node_type": NodeType.TERMINATOR,

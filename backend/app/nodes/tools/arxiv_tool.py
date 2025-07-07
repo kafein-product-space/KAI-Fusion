@@ -11,6 +11,8 @@ class ArxivToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "ArxivTool",
+            "display_name": "Arxiv Tool",
+
             "description": "Search and retrieve academic papers from arXiv",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

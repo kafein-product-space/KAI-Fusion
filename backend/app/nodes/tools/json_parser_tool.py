@@ -11,6 +11,8 @@ class JSONParserToolNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "JSONParser",
+            "display_name": "JSON Parser",
+
             "description": "Parse and manipulate JSON data",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

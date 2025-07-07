@@ -12,6 +12,8 @@ class LLMChainNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "LLMChain",
+            "display_name": "LLM Chain",
+
             "description": "Combines an LLM and a prompt into an executable chain.",
             "category": "Chains",
             "node_type": NodeType.PROCESSOR,
