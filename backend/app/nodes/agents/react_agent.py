@@ -13,6 +13,7 @@ class ReactAgentNode(ProcessorNode):
         self._metadata = {
             "name": "ReactAgent",
             "description": "Creates a ReAct agent from an LLM, tools, and a prompt.",
+            "category": "Agents",
             "node_type": NodeType.PROCESSOR,
             "inputs": [
                 NodeInput(name="llm", type="BaseLanguageModel", description="The language model to use.", is_connection=True),

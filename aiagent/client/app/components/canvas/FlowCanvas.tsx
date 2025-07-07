@@ -48,6 +48,9 @@ import PromptTemplateNode from "../nodes/PromptTemplateNode";
 import PDFLoaderNode from "../nodes/PDFLoaderNode";
 import WebLoaderNode from "../nodes/WebLoaderNode";
 import PydanticOutputParserNode from "../nodes/PydanticOutputParserNode";
+import StringOutputParserNode from "../nodes/StringOutputParserNode";
+import ChromaRetrieverNode from "../nodes/ChromaRetrieverNode";
+import CharacterTextSplitterNode from "../nodes/CharacterTextSplitterNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -75,6 +78,9 @@ const nodeTypeComponentMap: Record<string, any> = {
   PDFLoader: PDFLoaderNode,
   WebLoader: WebLoaderNode,
   PydanticOutputParser: PydanticOutputParserNode,
+  StringOutputParser: StringOutputParserNode,
+  ChromaRetriever: ChromaRetrieverNode,
+  CharacterTextSplitter: CharacterTextSplitterNode,
 };
 
 // Base node/edge types always available
@@ -105,6 +111,9 @@ const baseNodeTypes = {
   PDFLoader: PDFLoaderNode,
   WebLoader: WebLoaderNode,
   PydanticOutputParser: PydanticOutputParserNode,
+  StringOutputParser: StringOutputParserNode,
+  ChromaRetriever: ChromaRetrieverNode,
+  CharacterTextSplitter: CharacterTextSplitterNode,
 };
 
 const edgeTypes = {

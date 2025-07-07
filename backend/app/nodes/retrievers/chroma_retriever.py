@@ -10,6 +10,7 @@ class ChromaRetrieverNode(ProcessorNode):
         self._metadatas = {
             "name": "ChromaRetriever",
             "description": "A retriever that uses a Chroma vector store to retrieve documents.",
+            "category": "Retrievers",
             "node_type": NodeType.PROCESSOR,
             "inputs": [
                 NodeInput(

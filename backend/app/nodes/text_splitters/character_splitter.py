@@ -11,6 +11,7 @@ class CharacterTextSplitterNode(ProviderNode):
         self._metadatas = {
             "name": "CharacterTextSplitter",
             "description": "Split text into chunks based on character count",
+            "category": "Text Splitters",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="text", type="string", description="Text to split", required=True),

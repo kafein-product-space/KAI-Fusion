@@ -216,6 +216,9 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   ),
   WebLoader: <Link2 />,
   PydanticOutputParser: <Link2 />,
+  StringOutputParser: <Link2 />,
+  ChromaRetriever: <Link2 />,
+  CharacterTextSplitter: <Link2 />,
   // Yeni node tipleri buraya eklenebilir
 };
 
