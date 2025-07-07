@@ -5,8 +5,12 @@ import {
   CableCar,
   Divide,
   FileText,
+  GitBranch,
+  GitCompare,
+  Layers,
   Link,
   Link2,
+  ListOrdered,
   MemoryStick,
   Play,
   Split,
@@ -105,11 +109,11 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
-  ConditionalChain: <Link />,
-  RouterChain: <Link />,
+  ConditionalChain: <GitCompare />,
+  RouterChain: <GitBranch />,
   LLMChain: <Link />,
-  MapReduceChain: <Link />,
-  SequentialChain: <Link />,
+  MapReduceChain: <Layers />,
+  SequentialChain: <ListOrdered />,
   CohereEmbeddings: <Link />,
   HuggingFaceEmbeddings: <Link />,
   AnthropicClaude: (

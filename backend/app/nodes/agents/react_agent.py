@@ -12,7 +12,7 @@ class ReactAgentNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "ReactAgent",
-            "display_name": "React Agent",
+            "display_name": "ReAct Agent",
             "description": "Creates a ReAct agent from an LLM, tools, and a prompt.",
             "category": "Agents",
             "node_type": NodeType.PROCESSOR,
