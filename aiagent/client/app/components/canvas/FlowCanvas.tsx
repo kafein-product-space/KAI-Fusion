@@ -40,6 +40,11 @@ import CohereEmbeddingsNode from "../nodes/CohereEmbeddingsNode";
 import HuggingFaceEmbeddingsNode from "../nodes/HuggingFaceEmbeddingsNode";
 import AnthropicClaudeNode from "../nodes/ClaudeNode";
 import GeminiNode from "../nodes/GeminiNode";
+import BufferMemoryNode from "../nodes/BufferMemory";
+import ConversationMemoryNode from "../nodes/ConversationMemoryNode";
+import SummaryMemoryNode from "../nodes/SummaryMemoryNode";
+import AgentPromptNode from "../nodes/AgentPromptNode";
+import PromptTemplateNode from "../nodes/PromptTemplateNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -59,6 +64,11 @@ const nodeTypeComponentMap: Record<string, any> = {
   HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
   AnthropicClaude: AnthropicClaudeNode,
   GoogleGemini: GeminiNode,
+  BufferMemory: BufferMemoryNode,
+  ConversationMemory: ConversationMemoryNode,
+  SummaryMemory: SummaryMemoryNode,
+  AgentPrompt: AgentPromptNode,
+  PromptTemplate: PromptTemplateNode,
 };
 
 // Base node/edge types always available
@@ -81,6 +91,11 @@ const baseNodeTypes = {
   HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
   AnthropicClaude: AnthropicClaudeNode,
   GoogleGemini: GeminiNode,
+  BufferMemory: BufferMemoryNode,
+  ConversationMemory: ConversationMemoryNode,
+  SummaryMemory: SummaryMemoryNode,
+  AgentPrompt: AgentPromptNode,
+  PromptTemplate: PromptTemplateNode,
 };
 
 const edgeTypes = {

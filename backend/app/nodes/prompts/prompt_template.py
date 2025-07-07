@@ -9,6 +9,7 @@ class PromptTemplateNode(ProviderNode):
             "name": "PromptTemplate",
             "description": "Creates a chat prompt template from a string.",
             "node_type": NodeType.PROVIDER,
+            "category": "Prompts",
             "inputs": [
                 NodeInput(name="template", type="string", description="The template string.", default="{input}")
             ]

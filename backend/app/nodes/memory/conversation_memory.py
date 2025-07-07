@@ -9,6 +9,7 @@ class ConversationMemoryNode(ProviderNode):
         self._metadata = {
             "name": "ConversationMemory",
             "description": "Provides a conversation buffer window memory.",
+            "category": "Memory",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(name="k", type="int", description="The number of messages to keep in the buffer.", default=5),

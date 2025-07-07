@@ -31,6 +31,7 @@ class AgentPromptNode(ProviderNode):
             "name": "AgentPrompt",
             "description": "Creates a standard prompt for a LangChain ReAct agent.",
             "node_type": NodeType.PROVIDER,
+            "category": "Prompts",
             "inputs": [
                 NodeInput(
                     name="system_message", 

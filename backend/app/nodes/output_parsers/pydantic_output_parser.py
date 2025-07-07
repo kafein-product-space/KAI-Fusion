@@ -15,6 +15,7 @@ class PydanticOutputParserNode(TerminatorNode):
         self._metadatas = {
             "name": "PydanticOutputParser",
             "description": "A parser that formats the LLM's output into a Pydantic model.",
+            "category": "Output Parsers",
             "node_type": NodeType.TERMINATOR,
             "inputs": [
                 NodeInput(
