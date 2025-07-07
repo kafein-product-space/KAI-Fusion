@@ -230,6 +230,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   TavilySearch: <Link2 />,
   WebBrowserTool: <Link2 />,
   WikipediaTool: <Link2 />,
+  WolframAlphaTool: <Link2 />,
   // Yeni node tipleri buraya eklenebilir
 };
 

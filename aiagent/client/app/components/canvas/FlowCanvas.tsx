@@ -62,6 +62,7 @@ import RequestsPostToolNode from "../nodes/RequestsPostToolNode";
 import TavilySearchNode from "../nodes/TavilySearchNode";
 import WebBrowserToolNode from "../nodes/WebBrowserToolNode";
 import WikipediaToolNode from "../nodes/WikipediaToolNode";
+import WolframAlphaToolNode from "../nodes/WolframAlphaToolNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -103,6 +104,7 @@ const nodeTypeComponentMap: Record<string, any> = {
   TavilySearch: TavilySearchNode,
   WebBrowserTool: WebBrowserToolNode,
   WikipediaTool: WikipediaToolNode,
+  WolframAlphaTool: WolframAlphaToolNode,
 };
 
 // Base node/edge types always available
@@ -147,6 +149,7 @@ const baseNodeTypes = {
   TavilySearch: TavilySearchNode,
   WebBrowserTool: WebBrowserToolNode,
   WikipediaTool: WikipediaToolNode,
+  WolframAlphaTool: WolframAlphaToolNode,
 };
 
 const edgeTypes = {
