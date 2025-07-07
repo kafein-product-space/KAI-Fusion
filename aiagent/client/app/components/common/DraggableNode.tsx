@@ -16,6 +16,7 @@ interface NodeType {
   id: string;
   type: string;
   name: string;
+  display_name: string;
   data: any;
   info: string;
 }
@@ -255,7 +256,11 @@ function DraggableNode({ nodeType }: DraggableNodeProps) {
       </div>
       <div className="flex flex-col gap-2">
         <div>
-          <h2 className="text-md font-medium text-gray-700">{nodeType.name}</h2>
+          <h2 className="text-md font-medium text-gray-700">
+            {nodeType.display_name ||
+              nodeType.data?.displayName ||
+              nodeType.name}
+          </h2>
         </div>
         <div>
           <p className="text-xs text-gray-500">{nodeType.info}</p>

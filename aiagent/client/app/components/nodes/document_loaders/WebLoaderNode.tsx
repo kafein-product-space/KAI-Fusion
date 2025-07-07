@@ -1,8 +1,7 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
 import { Bot, Link2 } from "lucide-react";
-import PDFLoaderConfigModal from "../modals/PDFLoaderConfigModal";
-import WebLoaderConfigModal from "../modals/WebLoaderConfigModal";
+import WebLoaderConfigModal from "../../modals/document_loaders/WebLoaderConfigModal";
 
 interface WebLoaderNodeProps {
   data: any;
