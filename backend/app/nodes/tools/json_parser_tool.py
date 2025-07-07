@@ -12,6 +12,7 @@ class JSONParserToolNode(ProviderNode):
         self._metadatas = {
             "name": "JSONParser",
             "description": "Parse and manipulate JSON data",
+            "category": "Tools",
             "node_type": NodeType.PROVIDER,
             "inputs": []
         }

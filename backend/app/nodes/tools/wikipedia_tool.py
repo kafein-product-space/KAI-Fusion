@@ -48,6 +48,7 @@ class WikipediaToolNode(ProviderNode):
                 " `wikipedia` python package is not installed, a stub is"
                 " returned instead so that workflows can still execute."
             ),
+            "category": "Tools",
             "node_type": NodeType.PROVIDER,
         }
 

@@ -9,6 +9,7 @@ class TavilySearchNode(ProviderNode):
         self._metadatas = {
             "name": "TavilySearch",
             "description": "Provides a tool that uses the Tavily search API.",
+            "category": "Tools",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(
