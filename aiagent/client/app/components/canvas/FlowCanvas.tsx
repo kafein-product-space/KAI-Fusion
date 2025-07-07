@@ -15,25 +15,96 @@ import ReactFlow, {
   MiniMap,
 } from "reactflow";
 import { useSearchParams } from "react-router";
-import ToolAgentNode from "./ToolAgentNode";
-import StartNode from "./StartNode";
-import CustomEdge from "./CustomEdge";
-import ConditionNode from "./ConditionNode";
-import GenericNode from "./GenericNode";
+import ToolAgentNode from "../nodes/agents/ToolAgentNode";
+import StartNode from "../nodes/other/StartNode";
+import CustomEdge from "../common/CustomEdge";
+import ConditionNode from "../nodes/other/ConditionNode";
+import GenericNode from "../nodes/other/GenericNode";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
-import OpenAIChatNode from "./OpenAIChatNode";
-import StreamingModal from "./StreamingModal";
 import WorkflowService from "~/services/workflows";
-
+import { Eraser } from "lucide-react";
+import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
+import StreamingModal from "../modals/other/StreamingModal";
+import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
+import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
+import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
+import RedisCacheNode from "../nodes/cache/RedisCacheNode";
+import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
+import RouterChainNode from "../nodes/chains/RouterChainNode";
+import LLMChainNode from "../nodes/chains/LLMChainNode";
+import MapReduceChainNode from "../nodes/chains/MapReduceChainNode";
+import SequentialChainNode from "../nodes/chains/SequentialChainNode";
+import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
+import HuggingFaceEmbeddingsNode from "../nodes/embeddings/HuggingFaceEmbeddingsNode";
+import AnthropicClaudeNode from "../nodes/llms/ClaudeNode";
+import GeminiNode from "../nodes/llms/GeminiNode";
+import BufferMemoryNode from "../nodes/memory/BufferMemory";
+import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
+import SummaryMemoryNode from "../nodes/memory/SummaryMemoryNode";
+import AgentPromptNode from "../nodes/prompts/AgentPromptNode";
+import PromptTemplateNode from "../nodes/prompts/PromptTemplateNode";
+import PDFLoaderNode from "../nodes/document_loaders/PDFLoaderNode";
+import WebLoaderNode from "../nodes/document_loaders/WebLoaderNode";
+import PydanticOutputParserNode from "../nodes/output_parsers/PydanticOutputParserNode";
+import StringOutputParserNode from "../nodes/output_parsers/StringOutputParserNode";
+import ChromaRetrieverNode from "../nodes/retrievers/ChromaRetrieverNode";
+import CharacterTextSplitterNode from "../nodes/text_splitters/CharacterTextSplitterNode";
+import RecursiveTextSplitterNode from "../nodes/text_splitters/RecursiveTextSplitterNode";
+import TokenTextSplitterNode from "../nodes/text_splitters/TokenTextSplitterNode";
+import ArxivToolNode from "../nodes/tools/ArxivToolNode";
+import FileToolNode from "../nodes/tools/FileToolNode";
+import GoogleSearchNode from "../nodes/tools/GoogleSearchNode";
+import JSONParserToolNode from "../nodes/tools/JSONParserToolNode";
+import RequestsGetToolNode from "../nodes/tools/RequestsGetToolNode";
+import RequestsPostToolNode from "../nodes/tools/RequestsPostToolNode";
+import TavilySearchNode from "../nodes/tools/TavilySearchNode";
+import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
+import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
+import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
   ConditionNode: ConditionNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
-  // Buraya yeni node tiplerini ekleyebilirsin
+  TextDataLoader: TextLoaderNode,
+  OpenAIEmbeddings: OpenAIEmbeddingsNode,
+  InMemoryCache: InMemoryCacheNode,
+  RedisCache: RedisCacheNode,
+  ConditionalChain: ConditionalChainNode,
+  RouterChain: RouterChainNode,
+  LLMChain: LLMChainNode,
+  MapReduceChain: MapReduceChainNode,
+  SequentialChain: SequentialChainNode,
+  CohereEmbeddings: CohereEmbeddingsNode,
+  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
+  AnthropicClaude: AnthropicClaudeNode,
+  GoogleGemini: GeminiNode,
+  BufferMemory: BufferMemoryNode,
+  ConversationMemory: ConversationMemoryNode,
+  SummaryMemory: SummaryMemoryNode,
+  AgentPrompt: AgentPromptNode,
+  PromptTemplate: PromptTemplateNode,
+  PDFLoader: PDFLoaderNode,
+  WebLoader: WebLoaderNode,
+  PydanticOutputParser: PydanticOutputParserNode,
+  StringOutputParser: StringOutputParserNode,
+  ChromaRetriever: ChromaRetrieverNode,
+  CharacterTextSplitter: CharacterTextSplitterNode,
+  RecursiveTextSplitter: RecursiveTextSplitterNode,
+  TokenTextSplitter: TokenTextSplitterNode,
+  ArxivTool: ArxivToolNode,
+  WriteFileTool: FileToolNode,
+  GoogleSearchTool: GoogleSearchNode,
+  JSONParser: JSONParserToolNode,
+  RequestsGetTool: RequestsGetToolNode,
+  RequestsPostTool: RequestsPostToolNode,
+  TavilySearch: TavilySearchNode,
+  WebBrowserTool: WebBrowserToolNode,
+  WikipediaTool: WikipediaToolNode,
+  WolframAlphaTool: WolframAlphaToolNode,
 };
 
 // Base node/edge types always available
@@ -43,6 +114,42 @@ const baseNodeTypes = {
   condition: ConditionNode,
   start: StartNode,
   OpenAIChat: OpenAIChatNode,
+  TextDataLoader: TextLoaderNode,
+  OpenAIEmbeddings: OpenAIEmbeddingsNode,
+  InMemoryCache: InMemoryCacheNode,
+  RedisCache: RedisCacheNode,
+  ConditionalChain: ConditionalChainNode,
+  RouterChain: RouterChainNode,
+  LLMChain: LLMChainNode,
+  MapReduceChain: MapReduceChainNode,
+  SequentialChain: SequentialChainNode,
+  CohereEmbeddings: CohereEmbeddingsNode,
+  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
+  AnthropicClaude: AnthropicClaudeNode,
+  GoogleGemini: GeminiNode,
+  BufferMemory: BufferMemoryNode,
+  ConversationMemory: ConversationMemoryNode,
+  SummaryMemory: SummaryMemoryNode,
+  AgentPrompt: AgentPromptNode,
+  PromptTemplate: PromptTemplateNode,
+  PDFLoader: PDFLoaderNode,
+  WebLoader: WebLoaderNode,
+  PydanticOutputParser: PydanticOutputParserNode,
+  StringOutputParser: StringOutputParserNode,
+  ChromaRetriever: ChromaRetrieverNode,
+  CharacterTextSplitter: CharacterTextSplitterNode,
+  RecursiveTextSplitter: RecursiveTextSplitterNode,
+  TokenTextSplitter: TokenTextSplitterNode,
+  ArxivTool: ArxivToolNode,
+  WriteFileTool: FileToolNode,
+  GoogleSearchTool: GoogleSearchNode,
+  JSONParser: JSONParserToolNode,
+  RequestsGetTool: RequestsGetToolNode,
+  RequestsPostTool: RequestsPostToolNode,
+  TavilySearch: TavilySearchNode,
+  WebBrowserTool: WebBrowserToolNode,
+  WikipediaTool: WikipediaToolNode,
+  WolframAlphaTool: WolframAlphaToolNode,
 };
 
 const edgeTypes = {
@@ -57,6 +164,11 @@ function FlowCanvas() {
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatInput, setChatInput] = useState("");
+  const [chatMessages, setChatMessages] = useState([
+    { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+  ]);
 
   const {
     currentWorkflow,
@@ -292,8 +404,22 @@ function FlowCanvas() {
     setHasUnsavedChanges(false);
   }, [setNodes, setEdges, setCurrentWorkflow, hasUnsavedChanges]);
 
+  const handleSendMessage = () => {
+    if (chatInput.trim() === "") return;
+    setChatMessages((msgs) => [...msgs, { from: "user", text: chatInput }]);
+    setChatInput("");
+    // Burada backend'e mesaj gönderme veya bot cevabı eklenebilir
+  };
+
+  const handleClearChat = () => {
+    setChatMessages([
+      { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+    ]);
+    setChatInput("");
+  };
+
   return (
-    <div className="flex-1 h-full relative">
+    <div className="w-full h-full relative">
       {/* Toolbar */}
       <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex gap-2">
         <button
@@ -396,6 +522,87 @@ function FlowCanvas() {
       </div>
 
       {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}
+
+      {/* Chat Floating Button */}
+      <button
+        className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
+        onClick={() => setChatOpen((v) => !v)}
+      >
+        <svg
+          className="w-5 h-5"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+          />
+        </svg>
+        Chat
+      </button>
+
+      {/* Chat Panel */}
+      {chatOpen && (
+        <div className="fixed bottom-20 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+          <div className="flex items-center justify-between px-4 py-2 border-b">
+            <span className="font-semibold text-gray-700">Chat</span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleClearChat}
+                className="text-red-400 hover:text-red-700"
+              >
+                <Eraser className="w-5 h-5" />
+              </button>
+              <button
+                onClick={() => setChatOpen(false)}
+                className="text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            {chatMessages.map((msg, i) => (
+              <div
+                key={i}
+                className={`text-sm ${
+                  msg.from === "user" ? "text-right" : "text-left"
+                }`}
+              >
+                <span
+                  className={`inline-block px-3 py-2 rounded-lg ${
+                    msg.from === "user"
+                      ? "bg-blue-100 text-blue-800"
+                      : "bg-gray-100 text-gray-700"
+                  }`}
+                >
+                  {msg.text}
+                </span>
+              </div>
+            ))}
+          </div>
+          <div className="p-2 border-t flex gap-2">
+            <input
+              className="flex-1 border rounded px-2 py-1 focus:outline-none"
+              placeholder="Mesaj yaz..."
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleSendMessage();
+              }}
+            />
+            <button
+              className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
+              onClick={handleSendMessage}
+            >
+              Gönder
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

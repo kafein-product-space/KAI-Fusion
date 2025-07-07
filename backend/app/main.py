@@ -7,9 +7,10 @@ authentication middleware, and comprehensive API endpoints.
 import logging
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException, status
+from fastapi import FastAPI, HTTPException, status, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi import APIRouter
 
 # Core imports
 from app.core.config import get_settings
@@ -139,6 +140,103 @@ if not DISABLE_DATABASE and DB_AVAILABLE:
         app.include_router(credentials_router.router, prefix="/api/v1/credentials", tags=["Credentials"])
     except Exception as e:
         logger.warning(f"Some database-dependent routers failed to load: {e}")
+else:
+    # Stub routers for development when database is disabled
+    stub_router = APIRouter()
+
+    @stub_router.get("/", summary="📋 List Workflows (stub)")
+    async def list_workflows_stub():
+        """Return empty workflow list in dev mode."""
+        return []
+
+    @stub_router.get("", summary="📋 List Workflows (stub no slash)")
+    async def list_workflows_stub_noslash():
+        return []
+
+    @stub_router.post("/validate", summary="✅ Validate Workflow (stub)")
+    async def validate_workflow_stub(payload: dict = Body(...)):
+        """Always return valid=true for workflow validation in dev mode."""
+        return {
+            "valid": True,
+            "errors": [],
+            "message": "Flow data is valid (stub)"
+        }
+
+    @stub_router.post("/execute", summary="⚡ Execute Workflow (stub)")
+    async def execute_workflow_stub(req: dict = Body(...)):
+        """Execute workflow locally using WorkflowRunner without DB."""
+        try:
+            from pydantic import BaseModel, Field
+            from typing import Dict, Any, Optional
+
+            class StubExecuteRequest(BaseModel):
+                flow_data: Dict[str, Any]
+                input_text: str = Field("Hello", alias="input_text")
+                session_context: Optional[Dict[str, Any]] = None
+
+            data = StubExecuteRequest(**req)
+
+            engine = get_engine()
+            engine.build(data.flow_data)
+            result = await engine.execute(
+                {"input_text": data.input_text},
+                user_context=data.session_context or {},
+            )
+            return result
+        except Exception as e:
+            logger.error(f"Stub execute failed: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
+
+    # Optional: placeholder for streaming execute
+    @stub_router.post("/{workflow_id}/execute/stream", summary="🚧 Execute Workflow Stream (stub)")
+    async def execute_workflow_stream_stub(workflow_id: str):
+        raise HTTPException(status_code=501, detail="Streaming execution not supported in stub mode")
+
+    app.include_router(stub_router, prefix="/api/v1/workflows", tags=["Workflows (stub)"])
+
+# ---------------------------------------------------------------------------
+# Auth overrides (development – auth disabled)
+# ---------------------------------------------------------------------------
+try:
+    from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
+    from app.auth.middleware import get_current_user, get_optional_user  # type: ignore
+    from app.db.models import User, UserRole
+    from app.services.dependencies import get_db_session
+    from sqlmodel import select  # Local import to avoid circulars
+
+    async def _ensure_dev_user(session: AsyncSession) -> User:
+        """Create or fetch a persistent dev user in the database."""
+        result = await session.exec(select(User).where(User.email == "dev@example.com"))  # type: ignore[attr-defined]
+        dev_user = result.first()
+        if dev_user:
+            return dev_user
+
+        dev_user = User(
+            email="dev@example.com",
+            full_name="Dev User",
+            hashed_password="stub",
+            role=UserRole.ADMIN,
+            is_active=True,
+        )
+        session.add(dev_user)
+        await session.commit()
+        await session.refresh(dev_user)
+        return dev_user
+
+    async def _stub_current_user(
+        session: AsyncSession = Depends(get_db_session),  # type: ignore
+        *_, **__,
+    ) -> User:
+        return await _ensure_dev_user(session)
+
+    async def _stub_optional_user(*_, **__) -> None:  # noqa: ANN001
+        return None
+
+    app.dependency_overrides[get_current_user] = _stub_current_user  # type: ignore[arg-type]
+    app.dependency_overrides[get_optional_user] = _stub_optional_user  # type: ignore[arg-type]
+    logger.info("🔓 Authentication disabled globally: using dev user")
+except Exception as _e:
+    logger.warning(f"Auth overrides could not be applied: {_e}")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

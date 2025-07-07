@@ -61,6 +61,27 @@ class BaseNode(ABC):
             meta_dict = getattr(self, "_metadatas", {})
         return NodeMetadata(**meta_dict)
 
+    # ------------------------------------------------------------------
+    # Graph-topology helpers
+    # ------------------------------------------------------------------
+    @property
+    def edge_type(self) -> str:
+        """Return edge behaviour hint provided by the frontend.
+
+        Values: "normal" | "conditional" | "parallel" | "loop"
+        Currently optional – GraphBuilder may detect control-flow via
+        dedicated helper nodes, but exposing it here enables future
+        fine-grained behaviours without new node classes.
+        """
+        meta = getattr(self, "_metadata", {})
+        return meta.get("edge_type", "normal")
+
+    @property
+    def condition(self):  # noqa: D401 – simple accessors
+        """Return condition details for conditional / loop edges, if any."""
+        meta = getattr(self, "_metadata", {})
+        return meta.get("condition")
+
     def execute(self, *args, **kwargs) -> Runnable:
         """Ana yürütme metodu.
 
@@ -72,12 +93,12 @@ class BaseNode(ABC):
             return getattr(self, "_execute")(*args, **kwargs)  # noqa: SLF001
         raise NotImplementedError(f"{self.__class__.__name__} must implement execute()")
 
-    def to_graph_node(self) -> Callable[[FlowState], FlowState]:
+    def to_graph_node(self) -> Callable[[FlowState], Dict[str, Any]]:
         """
         Convert this node to a LangGraph-compatible function
         This method transforms the node into a function that takes and returns FlowState
         """
-        def graph_node_function(state: FlowState) -> FlowState:
+        def graph_node_function(state: FlowState) -> Dict[str, Any]:  # noqa: D401
             try:
                 # Get node metadata for input processing
                 metadata = self.metadata
@@ -105,17 +126,56 @@ class BaseNode(ABC):
                     inputs = self._extract_all_inputs(state, metadata.inputs)
                     result = self.execute(**inputs)
                 
-                # Store the result in state
+                # If execute returns a LangChain Runnable, run it to obtain concrete output.
+                if isinstance(result, Runnable):
+                    try:
+                        result = result.invoke(state.variables)
+                    except NotImplementedError:
+                        try:
+                            # Fallback: call the runnable directly if it is callable
+                            call_fn = getattr(result, "__call__", None)
+                            if callable(call_fn):
+                                result = call_fn(state.variables)
+                            else:
+                                result = str(result)
+                        except Exception as inner_exc:
+                            result = f"Runnable execution error: {inner_exc}"
+                    except Exception as inner_exc:
+                        result = f"Runnable execution error: {inner_exc}"
+
+                # Store the result in state – ensure JSON-serialisable to make
+                # MemorySaver deepcopy safe (lambda / Runnable objects are not).
                 node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
-                state.set_node_output(node_id, result)
-                
-                return state
+                try:
+                    import json
+                    json.dumps(result)  # type: ignore[arg-type]
+                    safe_output = result  # Already serialisable
+                except TypeError:
+                    safe_output = str(result)
+
+                # Update state in-place but *return only the diff* to satisfy
+                # LangGraph's "single update per key per step" rule.
+
+                state.set_node_output(node_id, safe_output)
+
+                # Build partial update dict – only keys modified in this node
+                partial_update = {
+                    "last_output": state.last_output,
+                    "node_outputs": {node_id: safe_output},
+                    "executed_nodes": state.executed_nodes,
+                }
+
+                # Also include variables that may have been set for this node
+                if state.variables:
+                    partial_update["variables"] = state.variables
+
+                return partial_update
                 
             except Exception as e:
                 # Handle errors gracefully
                 error_msg = f"Error in {self.__class__.__name__}: {str(e)}"
                 state.add_error(error_msg)
-                return state
+                return {"errors": state.errors}
         
         return graph_node_function
     

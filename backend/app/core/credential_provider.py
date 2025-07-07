@@ -4,7 +4,27 @@ from datetime import datetime, timedelta
 import threading
 
 from app.core.encryption import decrypt_data
-from app.database import get_database
+
+# ------------------------------------------------------------------
+# Legacy Supabase dependency – replaced by SQLAlchemy layer.
+# Provide a stub so that existing credential-provider logic continues to
+# import successfully until full migration is complete.
+# ------------------------------------------------------------------
+
+try:
+    # Attempt to import the old Supabase adapter (may no longer exist)
+    from app.database import get_database  # type: ignore
+except ImportError:  # pragma: no cover – executes once after removal
+    class _StubDB:  # noqa: D101, D401
+        async def get_credential(self, *_, **__):  # noqa: ANN002
+            return None
+
+        async def get_user_credentials(self, *_, **__):  # noqa: ANN002
+            return []
+
+    def get_database():  # type: ignore
+        """Fallback that returns a stub DB object after Supabase removal."""
+        return _StubDB()
 
 
 class CredentialProvider:

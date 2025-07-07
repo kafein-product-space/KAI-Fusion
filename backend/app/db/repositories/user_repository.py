@@ -8,6 +8,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..models import User, UserCreate, UserUpdate
 from ..base import BaseRepository
+from app.core.engine_v2 import get_engine
 
 
 class UserRepository(BaseRepository[User, UserCreate, UserUpdate]):

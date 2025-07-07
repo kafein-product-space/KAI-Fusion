@@ -2,7 +2,6 @@ from fastapi import APIRouter, Depends, HTTPException
 from typing import List, Optional
 from app.auth.dependencies import get_current_user, get_optional_user
 from app.core.node_registry import node_registry
-from app.database import get_database
 from app.nodes.base import NodeMetadata
 from app.models.node import NodeCategory
 from pydantic import BaseModel
@@ -28,6 +27,13 @@ class CustomNodeResponse(BaseModel):
     is_public: bool
     created_at: str
     updated_at: Optional[str] = None
+
+# Legacy Supabase database has been removed; custom-node persistence temporarily disabled.
+
+NOT_IMPLEMENTED_NODES = HTTPException(
+    status_code=501,
+    detail="Custom node persistence is temporarily disabled while migrating to SQLAlchemy layer."
+)
 
 @router.get("/", response_model=List[NodeMetadata])
 async def list_nodes(
@@ -55,54 +61,24 @@ async def list_categories():
     ]
 
 @router.post("/custom", response_model=CustomNodeResponse)
-async def create_custom_node(
-    node: CustomNodeCreate,
-    current_user: dict = Depends(get_current_user)
-):
-    """Create a custom node"""
-    result = await get_database().create_custom_node(current_user["id"], node.dict())
-    return result
+async def create_custom_node_stub(*_, **__):  # noqa: ANN001
+    """Create a custom node (stub)"""
+    raise NOT_IMPLEMENTED_NODES
 
 @router.get("/custom", response_model=List[CustomNodeResponse])
-async def list_custom_nodes(
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
-    """List custom nodes (public and user's own)"""
-    user_id = current_user["id"] if current_user else None
-    nodes = await get_database().get_custom_nodes(user_id)
-    return nodes
+async def list_custom_nodes_stub(*_, **__):  # noqa: ANN001
+    """List custom nodes (stub)"""
+    raise NOT_IMPLEMENTED_NODES
 
 @router.get("/custom/{node_id}", response_model=CustomNodeResponse)
-async def get_custom_node(
-    node_id: str,
-    current_user: Optional[dict] = Depends(get_optional_user)
-):
-    """Get a custom node by ID"""
-    node = await get_database().get_custom_node(node_id)
-    if not node:
-        raise HTTPException(status_code=404, detail="Custom node not found")
-    
-    # Check access permissions
-    if not node['is_public'] and (not current_user or node['user_id'] != current_user['id']):
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    return node
+async def get_custom_node_stub(*_, **__):  # noqa: ANN001
+    """Get a custom node by ID (stub)"""
+    raise NOT_IMPLEMENTED_NODES
 
 @router.delete("/custom/{node_id}")
-async def delete_custom_node(
-    node_id: str,
-    current_user: dict = Depends(get_current_user)
-):
-    """Delete a custom node"""
-    node = await get_database().get_custom_node(node_id)
-    if not node:
-        raise HTTPException(status_code=404, detail="Custom node not found")
-    
-    if node['user_id'] != current_user['id']:
-        raise HTTPException(status_code=403, detail="Access denied")
-    
-    await get_database().delete_custom_node(node_id, current_user['id'])
-    return {"success": True, "message": "Custom node deleted successfully"}
+async def delete_custom_node_stub(*_, **__):  # noqa: ANN001
+    """Delete a custom node (stub)"""
+    raise NOT_IMPLEMENTED_NODES
 
 def get_category_icon(category: NodeCategory) -> str:
     """Get icon for node category"""
