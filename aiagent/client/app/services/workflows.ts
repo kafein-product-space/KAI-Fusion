@@ -90,9 +90,9 @@ export class WorkflowService {
   /**
    * Execute a workflow with streaming response
    */
-  static async executeWorkflowStream(workflowId: string, data: WorkflowExecuteRequest): Promise<ReadableStream> {
+  static async executeWorkflowStream(data: WorkflowExecuteRequest): Promise<ReadableStream> {
     try {
-      const streamEndpoint = API_ENDPOINTS.WORKFLOWS.EXECUTE_STREAM(workflowId);
+      const streamEndpoint = API_ENDPOINTS.WORKFLOWS.EXECUTE_STREAM;
 
       const response = await fetch(`${apiClient.getBaseURL()}${streamEndpoint}`, {
         method: 'POST',

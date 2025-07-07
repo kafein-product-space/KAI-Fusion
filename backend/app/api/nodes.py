@@ -1,6 +1,5 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from typing import List, Optional
-from app.auth.dependencies import get_current_user, get_optional_user
 from app.core.node_registry import node_registry
 from app.nodes.base import NodeMetadata
 from app.models.node import NodeCategory
@@ -38,11 +37,12 @@ NOT_IMPLEMENTED_NODES = HTTPException(
 @router.get("/", response_model=List[NodeMetadata])
 async def list_nodes(
     category: Optional[NodeCategory] = None,
-    current_user: Optional[dict] = Depends(get_optional_user)
 ):
     """List all available nodes"""
-    if category:
-        nodes = node_registry.get_nodes_by_category(category)
+    if category is not None:
+        # Convert Enum to its value (string) so comparison with metadata works
+        category_name = category.value if hasattr(category, "value") else str(category)
+        nodes = node_registry.get_nodes_by_category(category_name)
     else:
         nodes = node_registry.get_all_nodes()
     

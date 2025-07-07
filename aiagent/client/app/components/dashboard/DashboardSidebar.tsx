@@ -32,10 +32,11 @@ const Sidebar = () => {
 
         {/* Ana Linkler */}
         <nav className="space-y-2 mb-8">
+          {/* Workflows page disabled during MVP (relies on DB) – direct users to Canvas instead */}
           <SidebarLink
             icon={<Play className="w-6 h-6" />}
-            label="Workflows"
-            active={location.pathname === "/workflows"}
+            label="Canvas"
+            active={location.pathname === "/canvas"}
           />
           <SidebarLink
             icon={<BarChart2 className="w-6 h-6" />}
@@ -106,7 +107,7 @@ function SidebarLink({
 }) {
   return (
     <Link
-      to={`/${label.toLowerCase()}`}
+      to={label.toLowerCase() === "canvas" ? "/canvas" : `/${label.toLowerCase()}`}
       className={`flex items-center gap-2 p-2 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
         active ? "bg-[#D9DEE8] font-semibold" : ""
       }`}

@@ -162,35 +162,59 @@ else:
             "message": "Flow data is valid (stub)"
         }
 
-    @stub_router.post("/execute", summary="⚡ Execute Workflow (stub)")
-    async def execute_workflow_stub(req: dict = Body(...)):
-        """Execute workflow locally using WorkflowRunner without DB."""
+    from pydantic import BaseModel, Field
+    from typing import Dict, Any, Optional, AsyncGenerator
+    import json
+    from fastapi.responses import StreamingResponse
+
+    class StubExecuteRequest(BaseModel):
+        """Request body for stateless workflow execution"""
+        flow_data: Dict[str, Any]
+        input_text: str = Field(..., alias="input_text")
+        session_context: Optional[Dict[str, Any]] = None
+
+    @stub_router.post("/execute", summary="⚡ Execute Workflow (stateless)")
+    async def execute_workflow_stub(req: StubExecuteRequest):
+        """Execute workflow entirely in-memory using the LangGraph engine."""
         try:
-            from pydantic import BaseModel, Field
-            from typing import Dict, Any, Optional
-
-            class StubExecuteRequest(BaseModel):
-                flow_data: Dict[str, Any]
-                input_text: str = Field("Hello", alias="input_text")
-                session_context: Optional[Dict[str, Any]] = None
-
-            data = StubExecuteRequest(**req)
-
             engine = get_engine()
-            engine.build(data.flow_data)
+            engine.build(req.flow_data)
             result = await engine.execute(
-                {"input_text": data.input_text},
-                user_context=data.session_context or {},
+                {"input": req.input_text},
+                user_context=req.session_context or {},
             )
             return result
         except Exception as e:
             logger.error(f"Stub execute failed: {e}")
             raise HTTPException(status_code=400, detail=str(e))
 
-    # Optional: placeholder for streaming execute
-    @stub_router.post("/{workflow_id}/execute/stream", summary="🚧 Execute Workflow Stream (stub)")
-    async def execute_workflow_stream_stub(workflow_id: str):
-        raise HTTPException(status_code=501, detail="Streaming execution not supported in stub mode")
+    @stub_router.post("/execute/stream", summary="⚡ Execute Workflow Stream (stateless)")
+    async def execute_workflow_stream_stub(req: StubExecuteRequest):
+        """Stream workflow execution results as Server-Sent Events (SSE)."""
+        try:
+            engine = get_engine()
+            engine.build(req.flow_data)
+
+            stream_gen = await engine.execute(
+                {"input": req.input_text},
+                stream=True,
+                user_context=req.session_context or {},
+            )
+
+            if not hasattr(stream_gen, "__aiter__"):
+                # If engine returned the final result instead of a generator, wrap it
+                async def _single_event() -> AsyncGenerator[bytes, None]:
+                    yield f"data: {json.dumps(stream_gen)}\n\n".encode()
+                return StreamingResponse(_single_event(), media_type="text/event-stream")
+
+            async def event_generator() -> AsyncGenerator[bytes, None]:
+                async for event in stream_gen:  # type: ignore[attr-defined]
+                    yield f"data: {json.dumps(event)}\n\n".encode()
+
+            return StreamingResponse(event_generator(), media_type="text/event-stream")
+        except Exception as e:
+            logger.error(f"Stub streaming execute failed: {e}")
+            raise HTTPException(status_code=400, detail=str(e))
 
     app.include_router(stub_router, prefix="/api/v1/workflows", tags=["Workflows (stub)"])
 

@@ -14,7 +14,7 @@ import ReactFlow, {
   Background,
   MiniMap,
 } from "reactflow";
-import { useSearchParams } from "react-router";
+// import { useSearchParams } from "react-router"; // Removed for MVP
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import StartNode from "../nodes/other/StartNode";
 import CustomEdge from "../common/CustomEdge";
@@ -159,7 +159,7 @@ const edgeTypes = {
 function FlowCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  const [searchParams] = useSearchParams();
+  // const [searchParams] = useSearchParams();
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
@@ -172,9 +172,6 @@ function FlowCanvas() {
 
   const {
     currentWorkflow,
-    fetchWorkflow,
-    createWorkflow,
-    updateWorkflow,
     executeWorkflow,
     validateWorkflow,
     setCurrentWorkflow,
@@ -195,14 +192,6 @@ function FlowCanvas() {
     });
     return map;
   }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
-
-  // Load workflow if ID is provided in URL
-  useEffect(() => {
-    const workflowId = searchParams.get("workflow");
-    if (workflowId && workflowId !== currentWorkflow?.id) {
-      fetchWorkflow(workflowId);
-    }
-  }, [searchParams, fetchWorkflow, currentWorkflow?.id]);
 
   // Load workflow data into the canvas
   useEffect(() => {
@@ -277,65 +266,41 @@ function FlowCanvas() {
     [screenToFlowPosition, setNodes, nodeId, availableNodes]
   );
 
-  const handleSave = useCallback(async () => {
-    const flowData: WorkflowData = {
-      nodes: nodes as WorkflowNode[],
-      edges: edges as WorkflowEdge[],
-    };
-
-    try {
-      if (currentWorkflow) {
-        // Update existing workflow
-        await updateWorkflow(currentWorkflow.id, {
-          flow_data: flowData,
-        });
-      } else {
-        // Create new workflow
-        const workflowName = `Workflow ${new Date().toLocaleString()}`;
-        await createWorkflow({
-          name: workflowName,
-          description: "Created from canvas",
-          flow_data: flowData,
-        });
-      }
-      setHasUnsavedChanges(false);
-    } catch (error) {
-      console.error("Failed to save workflow:", error);
-    }
-  }, [nodes, edges, currentWorkflow, updateWorkflow, createWorkflow]);
+  const handleSave = useCallback(() => {
+    // For MVP we skip persistence – simply mark as saved and notify the user
+    setHasUnsavedChanges(false);
+    alert("İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz.");
+  }, [setHasUnsavedChanges]);
 
   // Streaming execution for saved workflows
   const [stream, setStream] = useState<ReadableStream | null>(null);
 
   const handleExecuteStream = useCallback(async () => {
-    if (!currentWorkflow) {
-      alert("Please save the workflow first before streaming execution");
-      return;
-    }
-
     if (nodes.length === 0) {
       alert("Please add some nodes to execute the workflow");
       return;
     }
+
+    const flowData: WorkflowData = {
+      nodes: nodes as WorkflowNode[],
+      edges: edges as WorkflowEdge[],
+    };
 
     // Prepare inputs – ask user for text input for now
     const inputText = prompt("Enter input text for the workflow:");
     if (!inputText) return;
 
     try {
-      const streamResponse = await WorkflowService.executeWorkflowStream(
-        currentWorkflow.id,
-        {
-          workflow_id: currentWorkflow.id,
-          input_text: inputText,
-        } as any
-      );
+      const streamResponse = await WorkflowService.executeWorkflowStream({
+        flow_data: flowData,
+        input_text: inputText,
+      });
       setStream(streamResponse);
     } catch (e) {
       console.error("Streaming execution error", e);
       alert("Streaming execution failed");
     }
-  }, [currentWorkflow, nodes]);
+  }, [nodes, edges]);
 
   const closeStreamModal = () => setStream(null);
 
