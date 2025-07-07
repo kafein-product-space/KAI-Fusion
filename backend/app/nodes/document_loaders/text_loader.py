@@ -1,7 +1,7 @@
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 
 class TextDataLoaderNode(ProviderNode):
-    def __init__(self):" "
+    def __init__(self):
         super().__init__()
         self._metadata = {
             "name": "TextDataLoader",
