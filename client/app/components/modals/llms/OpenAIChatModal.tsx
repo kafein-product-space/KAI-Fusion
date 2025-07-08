@@ -46,7 +46,7 @@ const OpenAIChatNodeModal = forwardRef<
     try {
       // Test endpoint'e göndermek için API çağrısı
       const response = await fetch(
-        "http://localhost:8001/api/test/test-openai-config",
+        "http://localhost:8001/api/v1/test/test-openai-config",
         {
           method: "POST",
           headers: {

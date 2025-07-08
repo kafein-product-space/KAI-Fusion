@@ -63,6 +63,7 @@ import TavilySearchNode from "../nodes/tools/TavilySearchNode";
 import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
 import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
 import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
+import { useSnackbar } from "notistack";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -157,6 +158,7 @@ const edgeTypes = {
 };
 
 function FlowCanvas() {
+  const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState([]);
   // const [searchParams] = useSearchParams();
@@ -169,6 +171,7 @@ function FlowCanvas() {
   const [chatMessages, setChatMessages] = useState([
     { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
   ]);
+  const [isExecuting, setIsExecuting] = useState(false);
 
   const {
     currentWorkflow,
@@ -176,7 +179,6 @@ function FlowCanvas() {
     validateWorkflow,
     setCurrentWorkflow,
     isLoading,
-    isExecuting,
     error,
     executionResult,
     clearExecutionResult,
@@ -301,7 +303,7 @@ function FlowCanvas() {
       setStream(streamResponse);
     } catch (e) {
       console.error("Streaming execution error", e);
-      alert("Streaming execution failed");
+      enqueueSnackbar("Streaming execution failed", { variant: "error" });
     }
   }, [nodes, edges]);
 
@@ -309,7 +311,9 @@ function FlowCanvas() {
 
   const handleExecute = useCallback(async () => {
     if (nodes.length === 0) {
-      alert("Please add some nodes to execute the workflow");
+      enqueueSnackbar("Please add some nodes to execute the workflow", {
+        variant: "error",
+      });
       return;
     }
 
@@ -322,12 +326,17 @@ function FlowCanvas() {
     try {
       const validation = await validateWorkflow(flowData);
       if (!validation.valid) {
-        alert(`Workflow validation failed:\n${validation.errors?.join("\n")}`);
+        enqueueSnackbar(
+          `Workflow validation failed:\n${validation.errors?.join("\n")}`,
+          {
+            variant: "error",
+          }
+        );
         return;
       }
     } catch (error) {
       console.error("Validation error:", error);
-      alert("Failed to validate workflow");
+      enqueueSnackbar("Failed to validate workflow", { variant: "error" });
       return;
     }
 
@@ -343,7 +352,7 @@ function FlowCanvas() {
       });
 
       // Show result in a modal or alert for now
-      alert(
+      enqueueSnackbar(
         `Execution completed!\n\nResult: ${JSON.stringify(
           result.result,
           null,
@@ -352,7 +361,7 @@ function FlowCanvas() {
       );
     } catch (error) {
       console.error("Execution error:", error);
-      alert("Workflow execution failed");
+      enqueueSnackbar("Workflow execution failed", { variant: "error" });
     }
   }, [nodes, edges, validateWorkflow, executeWorkflow, clearExecutionResult]);
 
@@ -372,11 +381,45 @@ function FlowCanvas() {
     setHasUnsavedChanges(false);
   }, [setNodes, setEdges, setCurrentWorkflow, hasUnsavedChanges]);
 
-  const handleSendMessage = () => {
+  const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
     setChatMessages((msgs) => [...msgs, { from: "user", text: chatInput }]);
+    const inputText = chatInput;
     setChatInput("");
-    // Burada backend'e mesaj gönderme veya bot cevabı eklenebilir
+    setIsExecuting(true);
+    try {
+      if (nodes.length === 0) {
+        setChatMessages((msgs) => [
+          ...msgs,
+          { from: "bot", text: "Lütfen önce canvas'a node ekleyin." },
+        ]);
+        return;
+      }
+      const flowData: WorkflowData = {
+        nodes: nodes as WorkflowNode[],
+        edges: edges as WorkflowEdge[],
+      };
+      const result = await executeWorkflow({
+        flow_data: flowData,
+        input_text: inputText,
+      });
+      setChatMessages((msgs) => [
+        ...msgs,
+        {
+          from: "bot",
+          text: result?.result
+            ? JSON.stringify(result.result, null, 2)
+            : "Yanıt yok",
+        },
+      ]);
+    } catch (error) {
+      setChatMessages((msgs) => [
+        ...msgs,
+        { from: "bot", text: "Bir hata oluştu." },
+      ]);
+    } finally {
+      setIsExecuting(false);
+    }
   };
 
   const handleClearChat = () => {
@@ -411,11 +454,11 @@ function FlowCanvas() {
         </button>
 
         <button
-          onClick={handleExecute}
-          disabled={isExecuting || nodes.length === 0}
+          onClick={() => setChatOpen(true)}
+          disabled={nodes.length === 0}
           className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
         >
-          {isExecuting ? "Executing..." : "Execute"}
+          Execute
         </button>
 
         <button
@@ -559,14 +602,16 @@ function FlowCanvas() {
               value={chatInput}
               onChange={(e) => setChatInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleSendMessage();
+                if (e.key === "Enter" && !isExecuting) handleSendMessage();
               }}
+              disabled={isExecuting}
             />
             <button
               className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
               onClick={handleSendMessage}
+              disabled={isExecuting}
             >
-              Gönder
+              {isExecuting ? "Çalışıyor..." : "Gönder"}
             </button>
           </div>
         </div>
