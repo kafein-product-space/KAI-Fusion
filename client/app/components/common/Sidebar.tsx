@@ -119,20 +119,6 @@ function Sidebar() {
             onChange={(e) => setLocalSearchQuery(e.target.value)}
           />
         </label>
-
-        {/* Category Filter */}
-        {/* <select
-          className="w-full text-sm border rounded-lg px-2 py-1"
-          value={selectedCategory || ""}
-          onChange={(e) => filterByCategory(e.target.value || null)}
-        >
-          <option value="">All Categories</option>
-          {categories.map((category) => (
-            <option key={category.name} value={category.name}>
-              {category.display_name}
-            </option>
-          ))}
-        </select> */}
       </div>
 
       {/* Content */}

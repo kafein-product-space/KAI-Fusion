@@ -272,8 +272,11 @@ function FlowCanvas() {
   const handleSave = useCallback(() => {
     // For MVP we skip persistence – simply mark as saved and notify the user
     setHasUnsavedChanges(false);
-    alert(
-      "İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz."
+    enqueueSnackbar(
+      "İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz.",
+      {
+        variant: "success",
+      }
     );
   }, [setHasUnsavedChanges]);
 
@@ -282,7 +285,7 @@ function FlowCanvas() {
 
   const handleExecuteStream = useCallback(async () => {
     if (nodes.length === 0) {
-      alert("Please add some nodes to execute the workflow");
+      enqueueSnackbar("Lütfen bir node ekleyin", { variant: "error" });
       return;
     }
 
@@ -454,7 +457,7 @@ function FlowCanvas() {
         </button>
 
         <button
-          onClick={() => setChatOpen(true)}
+          onClick={handleExecute}
           disabled={nodes.length === 0}
           className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
         >
