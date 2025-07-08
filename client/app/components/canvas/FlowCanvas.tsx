@@ -221,6 +221,7 @@ function FlowCanvas() {
   const onConnect = useCallback(
     (params: any) => {
       setEdges((eds) => addEdge({ ...params, type: "custom" }, eds));
+      console.log("onConnect", params);
     },
     [setEdges]
   );
@@ -269,7 +270,9 @@ function FlowCanvas() {
   const handleSave = useCallback(() => {
     // For MVP we skip persistence – simply mark as saved and notify the user
     setHasUnsavedChanges(false);
-    alert("İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz.");
+    alert(
+      "İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz."
+    );
   }, [setHasUnsavedChanges]);
 
   // Streaming execution for saved workflows
