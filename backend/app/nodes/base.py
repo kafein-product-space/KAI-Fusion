@@ -49,9 +49,20 @@ class NodeMetadata(BaseModel):
 class BaseNode(ABC):
     _metadata: Dict[str, Any]  # Node configuration provided by subclasses
     
+    # Class-level attribute declarations for linter
+    node_id: Optional[str]
+    context_id: Optional[str]
+    _input_connections: Dict[str, Dict[str, str]]
+    _output_connections: Dict[str, List[Dict[str, str]]]
+    user_data: Dict[str, Any]
+    
     def __init__(self):
-        self.node_id: Optional[str] = None  # Will be set by GraphBuilder
-        self.context_id: Optional[str] = None  # Credential context for provider
+        self.node_id = None  # Will be set by GraphBuilder
+        self.context_id = None  # Credential context for provider
+        # 🔥 NEW: Connection mappings set by GraphBuilder
+        self._input_connections = {}
+        self._output_connections = {}
+        self.user_data = {}  # User configuration from frontend
     
     @property
     def metadata(self) -> NodeMetadata:
@@ -126,8 +137,12 @@ class BaseNode(ABC):
                     inputs = self._extract_all_inputs(state, metadata.inputs)
                     result = self.execute(**inputs)
                 
-                # If execute returns a LangChain Runnable, run it to obtain concrete output.
-                if isinstance(result, Runnable):
+                # If execute returns a LangChain Runnable **and** this node is NOT a
+                # provider, we run it immediately to obtain a concrete output.
+                # Provider nodes are expected to *return* runnable objects (e.g.
+                # LLMs, Tools) for downstream processors.
+
+                if isinstance(result, Runnable) and self.metadata.node_type != NodeType.PROVIDER:
                     try:
                         result = result.invoke(state.variables)
                     except NotImplementedError:
@@ -143,31 +158,44 @@ class BaseNode(ABC):
                     except Exception as inner_exc:
                         result = f"Runnable execution error: {inner_exc}"
 
-                # Store the result in state – ensure JSON-serialisable to make
-                # MemorySaver deepcopy safe (lambda / Runnable objects are not).
+                # Store the result in state
                 node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
-                try:
-                    import json
-                    json.dumps(result)  # type: ignore[arg-type]
-                    safe_output = result  # Already serialisable
-                except TypeError:
-                    safe_output = str(result)
+                
+                # For provider nodes, keep the raw result (LLM, Tool, etc.) since
+                # other nodes need to use these objects directly. Only convert to 
+                # string for non-provider nodes or if result is not a Runnable.
+                if self.metadata.node_type == NodeType.PROVIDER:
+                    safe_output = result  # Keep raw LLM/Tool objects
+                else:
+                    # For other node types, ensure JSON-serializable
+                    try:
+                        import json
+                        json.dumps(result)  # type: ignore[arg-type]
+                        safe_output = result  # Already serialisable
+                    except TypeError:
+                        safe_output = str(result)
 
-                # Update state in-place but *return only the diff* to satisfy
-                # LangGraph's "single update per key per step" rule.
+                # Store result using both approaches for maximum compatibility:
+                # 1. Dynamic field for unique key (avoids conflicts in parallel execution)
+                # 2. node_outputs mapping (standard approach that LangGraph handles better)
 
-                state.set_node_output(node_id, safe_output)
+                unique_key = f"output_{node_id}"
 
-                # Build partial update dict – only keys modified in this node
                 partial_update = {
-                    "last_output": state.last_output,
-                    "node_outputs": {node_id: safe_output},
-                    "executed_nodes": state.executed_nodes,
+                    unique_key: safe_output,
+                    "node_outputs": {**state.node_outputs, node_id: safe_output}
                 }
 
-                # Also include variables that may have been set for this node
-                if state.variables:
-                    partial_update["variables"] = state.variables
+                # Debug: log what this node is returning
+                try:
+                    print(f"[DEBUG] Node {node_id} returning diff: {unique_key} -> {type(safe_output)}")
+                except Exception:
+                    pass
+
+                # Do not include `variables` in the diff – GraphBuilder's
+                # wrapper mutates them before this node executes, so adding
+                # them here would lead to duplicate updates within the same
+                # step and trigger InvalidUpdateError.
 
                 return partial_update
                 
@@ -194,16 +222,79 @@ class BaseNode(ABC):
         return inputs
     
     def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
-        """Extract connected node inputs from state"""
+        """Extract connected node inputs from state using new connection mapping."""
         connected = {}
+        
+        print(f"[DEBUG] Node '{self.node_id}' extracting connected inputs...")
+        print(f"[DEBUG] Available input connections: {self._input_connections}")
+        print(f"[DEBUG] State node_outputs keys: {list(state.node_outputs.keys())}")
+        
         for input_spec in input_specs:
             if input_spec.is_connection:
-                # This is a connection input - look for it in node outputs
-                output = state.get_node_output(input_spec.name)
-                if output is not None:
-                    connected[input_spec.name] = output
-                elif input_spec.required:
-                    raise ValueError(f"Required connection '{input_spec.name}' not found in state")
+                # Use new connection mapping format
+                connection_info = self._input_connections.get(input_spec.name)
+                
+                if connection_info:
+                    source_node_id = connection_info["source_node_id"]
+                    source_handle = connection_info["source_handle"]
+                    
+                    print(f"[DEBUG] Resolving connection '{input_spec.name}' from source '{source_node_id}' handle '{source_handle}'")
+                    
+                    # 🔥 NEW: Try multiple strategies to find the output
+                    output = None
+                    
+                    # Strategy 1: Look for source node output in node_outputs
+                    if source_node_id in state.node_outputs:
+                        source_output = state.node_outputs[source_node_id]
+                        
+                        # If source_handle is "output" (default), use the raw output
+                        if source_handle == "output" or source_handle == "result":
+                            output = source_output
+                            print(f"[DEBUG] Found output via default handle from '{source_node_id}': {type(output)}")
+                        else:
+                            # Try to extract specific handle if output is a dict
+                            if isinstance(source_output, dict) and source_handle in source_output:
+                                output = source_output[source_handle]
+                                print(f"[DEBUG] Found output via specific handle '{source_handle}': {type(output)}")
+                            else:
+                                # Fallback: use the raw output
+                                output = source_output
+                                print(f"[DEBUG] Using raw output as fallback for handle '{source_handle}': {type(output)}")
+                    
+                    # Strategy 2: Look for unique key format (output_nodeId)
+                    if output is None:
+                        unique_key = f"output_{source_node_id}"
+                        if hasattr(state, unique_key):
+                            output = getattr(state, unique_key)
+                            print(f"[DEBUG] Found output via unique key '{unique_key}': {type(output)}")
+                    
+                    # Strategy 3: Legacy fallback
+                    if output is None:
+                        output = state.get_node_output(source_node_id)
+                        if output:
+                            print(f"[DEBUG] Found output via legacy method: {type(output)}")
+                    
+                    if output is not None:
+                        connected[input_spec.name] = output
+                        print(f"[DEBUG] ✅ Successfully connected '{input_spec.name}' from '{source_node_id}' handle '{source_handle}'")
+                    elif input_spec.required:
+                        error_msg = f"Required connection '{input_spec.name}' not found - source '{source_node_id}' handle '{source_handle}'"
+                        print(f"[DEBUG] ❌ {error_msg}")
+                        raise ValueError(error_msg)
+                    else:
+                        print(f"[DEBUG] ⚠️ Optional connection '{input_spec.name}' not found, skipping")
+                else:
+                    print(f"[DEBUG] ⚠️ No connection mapping found for input '{input_spec.name}'")
+                    
+                    # Legacy fallback: try direct name lookup
+                    output = state.get_node_output(input_spec.name)
+                    if output is not None:
+                        connected[input_spec.name] = output
+                        print(f"[DEBUG] Found via legacy direct lookup: {type(output)}")
+                    elif input_spec.required:
+                        raise ValueError(f"Required connection '{input_spec.name}' not found in connection mapping")
+        
+        print(f"[DEBUG] Final connected inputs for '{self.node_id}': {list(connected.keys())}")
         return connected
     
     def _get_previous_node_output(self, state: FlowState) -> Any:

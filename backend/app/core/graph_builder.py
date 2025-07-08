@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from enum import Enum
 import uuid
 import asyncio
+import os
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
@@ -130,6 +131,11 @@ class GraphBuilder:
     # Internal helpers – build phase
     # ------------------------------------------------------------------
     def _get_checkpointer(self):
+        if os.getenv("DISABLE_DATABASE", "false").lower() == "true":
+            # Use NoOpCheckpointer to avoid msgpack serialization issues in standalone mode
+            from app.core.checkpointer import NoOpCheckpointer
+            return NoOpCheckpointer()
+
         try:
             pg_cp = get_postgres_checkpointer()
             if pg_cp and pg_cp.is_available():
@@ -173,6 +179,7 @@ class GraphBuilder:
                 }
 
     def _instantiate_nodes(self, nodes: List[Dict[str, Any]], context_id: str):
+        """Instantiate nodes and build proper connection mappings with source handle support."""
         for node_def in nodes:
             node_id = node_def["id"]
             node_type = node_def["type"]
@@ -189,14 +196,45 @@ class GraphBuilder:
             instance.node_id = node_id
             instance.context_id = context_id
 
+            # 🔥 NEW: Build comprehensive connection mapping
+            # Format: {target_handle: {"source_node_id": str, "source_handle": str}}
+            input_connections = {}
+            output_connections = {}  # Track what this node outputs to
+            
+            # Find all connections targeting this node
+            for conn in self.connections:
+                if conn.target_node_id == node_id:
+                    input_connections[conn.target_handle] = {
+                        "source_node_id": conn.source_node_id,
+                        "source_handle": conn.source_handle
+                    }
+                    print(f"[DEBUG] Mapping input '{conn.target_handle}' -> source node '{conn.source_node_id}' handle '{conn.source_handle}'")
+                
+                if conn.source_node_id == node_id:
+                    if conn.source_handle not in output_connections:
+                        output_connections[conn.source_handle] = []
+                    output_connections[conn.source_handle].append({
+                        "target_node_id": conn.target_node_id,
+                        "target_handle": conn.target_handle
+                    })
+
+            # 🔥 CRITICAL: Set connection mappings on the node instance
+            instance._input_connections = input_connections
+            instance._output_connections = output_connections
+            
+            # Store user configuration from frontend
+            instance.user_data = user_data
+
+            # Create GraphNodeInstance
             self.nodes[node_id] = GraphNodeInstance(
                 id=node_id,
                 type=node_type,
                 node_instance=instance,
-                metadata=instance.metadata.model_dump(),
+                metadata={},
                 user_data=user_data,
             )
-            print(f"✅ Instantiated node {node_id} ({node_type})")
+            
+            print(f"[DEBUG] ✅ Instantiated node '{node_id}' with {len(input_connections)} inputs, {len(output_connections)} outputs")
 
     # ------------------------------------------------------------------
     # Internal – Graph building
@@ -219,10 +257,10 @@ class GraphBuilder:
 
         return graph.compile(checkpointer=self.checkpointer)
 
-    def _wrap_node(self, node_id: str, gnode: GraphNodeInstance) -> Callable[[FlowState], FlowState]:
+    def _wrap_node(self, node_id: str, gnode: GraphNodeInstance) -> Callable[[FlowState], Dict[str, Any]]:
         node_func = gnode.node_instance.to_graph_node()
 
-        def wrapper(state: FlowState) -> FlowState:  # noqa: D401
+        def wrapper(state: FlowState) -> Dict[str, Any]:  # noqa: D401
             """Wrapper that injects static vars then calls node_func."""
             for k, v in gnode.user_data.items():
                 state.set_variable(k, v)
@@ -328,10 +366,23 @@ class GraphBuilder:
 
     # ---------------- Regular edges & START/END ------------
     def _add_regular_edges(self, graph: StateGraph):
+        print(f"[DEBUG] Adding regular edges:")
+        
+        # Group connections by target node to handle multi-input nodes properly
+        target_groups = {}
         for c in self.connections:
             if c.source_node_id in self.control_flow_nodes:
                 continue  # handled by control-flow
-            graph.add_edge(c.source_node_id, c.target_node_id)
+            if c.target_node_id not in target_groups:
+                target_groups[c.target_node_id] = []
+            target_groups[c.target_node_id].append(c.source_node_id)
+        
+        # Add edges, ensuring proper dependency order
+        for target_node, source_nodes in target_groups.items():
+            print(f"[DEBUG] Target {target_node} depends on: {source_nodes}")
+            for source_node in source_nodes:
+                print(f"[DEBUG]   {source_node} -> {target_node}")
+                graph.add_edge(source_node, target_node)
 
     def _add_start_end_connections(self, graph: StateGraph):
         incoming_targets = {c.target_node_id for c in self.connections}

@@ -185,7 +185,47 @@ else:
                 req.inputs,
                 user_context=req.session_context or {},
             )
-            return result
+            
+            # Apply the same serialization logic as the streaming endpoint
+            def serialize_value(value: Any) -> Any:
+                """Recursively serialize any value to be JSON-safe"""
+                try:
+                    # Try direct JSON serialization first
+                    json.dumps(value)
+                    return value
+                except (TypeError, ValueError):
+                    # Handle complex types
+                    if value is None:
+                        return None
+                    elif isinstance(value, (str, int, float, bool)):
+                        return value
+                    elif isinstance(value, (list, tuple)):
+                        return [serialize_value(item) for item in value]
+                    elif isinstance(value, dict):
+                        return {k: serialize_value(v) for k, v in value.items()}
+                    elif hasattr(value, 'model_dump'):
+                        # Pydantic models (like FlowState)
+                        try:
+                            return serialize_value(value.model_dump())
+                        except Exception:
+                            return f"<{type(value).__name__}>"
+                    elif hasattr(value, 'dict'):
+                        # Older Pydantic models
+                        try:
+                            return serialize_value(value.dict())
+                        except Exception:
+                            return f"<{type(value).__name__}>"
+                    else:
+                        # For LangChain objects and other complex types, provide a summary
+                        return f"<{type(value).__name__}: {str(value)[:100]}{'...' if len(str(value)) > 100 else ''}>"
+            
+            # Serialize the result to be JSON/msgpack safe
+            if isinstance(result, dict):
+                serialized_result = {k: serialize_value(v) for k, v in result.items()}
+                return serialized_result
+            else:
+                return {"result": serialize_value(result)}
+                
         except Exception as e:
             logger.error(f"Stub execute failed: {e}")
             raise HTTPException(status_code=400, detail=str(e))
@@ -206,12 +246,50 @@ else:
             if not hasattr(stream_gen, "__aiter__"):
                 # If engine returned the final result instead of a generator, wrap it
                 async def _single_event() -> AsyncGenerator[bytes, None]:
-                    yield f"data: {json.dumps(stream_gen)}\n\n".encode()
+                    safe_result = serialize_event(stream_gen) if isinstance(stream_gen, dict) else {"result": str(stream_gen)}
+                    yield f"data: {json.dumps(safe_result)}\n\n".encode()
                 return StreamingResponse(_single_event(), media_type="text/event-stream")
 
+            def serialize_event(event: Dict[str, Any]) -> Dict[str, Any]:
+                """Serialize event for JSON output, handling non-serializable objects"""
+                def serialize_value(value: Any) -> Any:
+                    """Recursively serialize any value to be JSON-safe"""
+                    try:
+                        # Try direct JSON serialization first
+                        json.dumps(value)
+                        return value
+                    except (TypeError, ValueError):
+                        # Handle complex types
+                        if value is None:
+                            return None
+                        elif isinstance(value, (str, int, float, bool)):
+                            return value
+                        elif isinstance(value, (list, tuple)):
+                            return [serialize_value(item) for item in value]
+                        elif isinstance(value, dict):
+                            return {k: serialize_value(v) for k, v in value.items()}
+                        elif hasattr(value, 'model_dump'):
+                            # Pydantic models (like FlowState)
+                            try:
+                                return serialize_value(value.model_dump())
+                            except Exception:
+                                return f"<{type(value).__name__}>"
+                        elif hasattr(value, 'dict'):
+                            # Older Pydantic models
+                            try:
+                                return serialize_value(value.dict())
+                            except Exception:
+                                return f"<{type(value).__name__}>"
+                        else:
+                            # For LangChain objects and other complex types, provide a summary
+                            return f"<{type(value).__name__}: {str(value)[:100]}{'...' if len(str(value)) > 100 else ''}>"
+                
+                return {key: serialize_value(value) for key, value in event.items()}
+            
             async def event_generator() -> AsyncGenerator[bytes, None]:
                 async for event in stream_gen:  # type: ignore[attr-defined]
-                    yield f"data: {json.dumps(event)}\n\n".encode()
+                    safe_event = serialize_event(event)
+                    yield f"data: {json.dumps(safe_event)}\n\n".encode()
 
             return StreamingResponse(event_generator(), media_type="text/event-stream")
         except Exception as e:
@@ -220,49 +298,7 @@ else:
 
     app.include_router(stub_router, prefix="/api/v1/workflows", tags=["Workflows (stub)"])
 
-# ---------------------------------------------------------------------------
-# Auth overrides (development – auth disabled)
-# ---------------------------------------------------------------------------
-try:
-    from sqlalchemy.ext.asyncio import AsyncSession  # type: ignore
-    from app.auth.middleware import get_current_user, get_optional_user  # type: ignore
-    from app.db.models import User, UserRole
-    from app.services.dependencies import get_db_session
-    from sqlmodel import select  # Local import to avoid circulars
-
-    async def _ensure_dev_user(session: AsyncSession) -> User:
-        """Create or fetch a persistent dev user in the database."""
-        result = await session.exec(select(User).where(User.email == "dev@example.com"))  # type: ignore[attr-defined]
-        dev_user = result.first()
-        if dev_user:
-            return dev_user
-
-        dev_user = User(
-            email="dev@example.com",
-            full_name="Dev User",
-            hashed_password="stub",
-            role=UserRole.ADMIN,
-            is_active=True,
-        )
-        session.add(dev_user)
-        await session.commit()
-        await session.refresh(dev_user)
-        return dev_user
-
-    async def _stub_current_user(
-        session: AsyncSession = Depends(get_db_session),  # type: ignore
-        *_, **__,
-    ) -> User:
-        return await _ensure_dev_user(session)
-
-    async def _stub_optional_user(*_, **__) -> None:  # noqa: ANN001
-        return None
-
-    app.dependency_overrides[get_current_user] = _stub_current_user  # type: ignore[arg-type]
-    app.dependency_overrides[get_optional_user] = _stub_optional_user  # type: ignore[arg-type]
-    logger.info("🔓 Authentication disabled globally: using dev user")
-except Exception as _e:
-    logger.warning(f"Auth overrides could not be applied: {_e}")
+#
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])
