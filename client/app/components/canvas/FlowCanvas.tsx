@@ -560,7 +560,7 @@ function FlowCanvas() {
 
       {/* Chat Panel */}
       {chatOpen && (
-        <div className="fixed bottom-20 right-4 w-80 h-96 bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+        <div className="fixed bottom-20 right-4 w-92 h-144 bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
           <div className="flex items-center justify-between px-4 py-2 border-b">
             <span className="font-semibold text-gray-700">Chat</span>
             <div className="flex items-center gap-2">
