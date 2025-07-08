@@ -25,10 +25,10 @@ sys.path.insert(0, str(backend_dir))
 def main():
     """Main startup function."""
     print("🌊 Agent-Flow V2 Backend Starting...")
-    print("📍 Backend will be available at: http://localhost:8000")
-    print("📋 API Documentation: http://localhost:8000/docs")
-    print("🔗 Frontend should connect to: http://localhost:8000/api/v1")
-    print("🚀 Launch command equivalent: DISABLE_DATABASE=true uvicorn app.main:app --port 8000 --no-access-log")
+    print("📍 Backend will be available at: http://localhost:8001")
+    print("📋 API Documentation: http://localhost:8001/docs")
+    print("🔗 Frontend should connect to: http://localhost:8001/api/v1")
+    print("🚀 Launch command equivalent: DISABLE_DATABASE=true uvicorn app.main:app --port 8001 --no-access-log")
     print("⚠️ Database functionality disabled for development")
     print()
     
@@ -37,7 +37,7 @@ def main():
         uvicorn.run(
             "app.main:app",
             host="0.0.0.0",
-            port=8000,
+            port=8001,
             reload=True,
             log_level="info",
             access_log=False,
