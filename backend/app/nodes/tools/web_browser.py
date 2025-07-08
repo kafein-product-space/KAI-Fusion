@@ -12,6 +12,7 @@ class WebBrowserToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "WebBrowserTool",
+            "display_name": "Web Browser Tool",
             "description": "Browse web pages and extract text content",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

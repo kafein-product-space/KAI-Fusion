@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "reactflow";
-import { Bot } from "lucide-react";
+import { Bot, Globe } from "lucide-react";
 import WebBrowserToolConfigModal from "../../modals/tools/WebBrowserToolConfigModal";
 
 interface WebBrowserToolNodeProps {
@@ -31,12 +31,12 @@ function WebBrowserToolNode({ data, id }: WebBrowserToolNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-blue-400 bg-blue-100 hover:bg-blue-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-yellow-700 font-medium cursor-pointer transition-all border-yellow-400 bg-yellow-100 hover:bg-yellow-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-blue-500 p-3 rounded-2xl">
-          <Bot className="w-6 h-6 text-white" />
+        <div className="bg-white p-3 rounded-2xl">
+          <Globe />
         </div>
 
         <div className="flex-1">
