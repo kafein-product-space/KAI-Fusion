@@ -36,7 +36,7 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             x="0px"
@@ -51,16 +51,10 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "OpenAIChat"}</p>
+            <p className="font-semibold">{data?.displayName || data?.name}</p>
           </div>
         </div>
 
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          className="w-16 !bg-gray-500"
-        />
         <Handle
           type="source"
           position={Position.Right}
