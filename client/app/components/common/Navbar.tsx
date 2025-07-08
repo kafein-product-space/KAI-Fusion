@@ -27,7 +27,8 @@ const Navbar = () => {
             onClick={handleRouteBack}
           />
         </div>
-        <div className="">
+
+        <div className="flex flex-col items-center justify-center">
           <input
             type="text"
             value={title}

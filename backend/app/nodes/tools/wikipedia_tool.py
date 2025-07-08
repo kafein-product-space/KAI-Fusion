@@ -43,6 +43,7 @@ class WikipediaToolNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "WikipediaTool",
+            "display_name": "Wikipedia Tool",
             "description": (
                 "Provides a tool that queries Wikipedia. If the optional"
                 " `wikipedia` python package is not installed, a stub is"
