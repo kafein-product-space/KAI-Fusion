@@ -33,14 +33,14 @@ function RedisCacheNode({ data, id }: RedisCacheNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-red-700 font-medium cursor-pointer transition-all border-red-400 bg-red-100 hover:bg-red-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <svg
-            width="50px"
-            height="50px"
+            width="20px"
+            height="20px"
             viewBox="0 -18 256 256"
             xmlns="http://www.w3.org/2000/svg"
             preserveAspectRatio="xMinYMin meet"
@@ -86,7 +86,10 @@ function RedisCacheNode({ data, id }: RedisCacheNodeProps) {
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "OpenAIChat"}</p>
+            <p className="font-semibold">
+              {" "}
+              {data?.displayName || data?.name || "Redis Cache"}
+            </p>
           </div>
         </div>
 

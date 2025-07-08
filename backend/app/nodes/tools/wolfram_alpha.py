@@ -12,6 +12,7 @@ class WolframAlphaToolNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "WolframAlphaTool",
+            "display_name": "Wolfram Alpha Tool",
             "description": "Computational knowledge engine for math, science, and data analysis",
             "category": "Tools",
             "node_type": NodeType.PROVIDER,

@@ -26,7 +26,7 @@ const Sidebar = () => {
         {/* Logo */}
         <div className="font-bold text-xl mb-8">
           <Link to="/">
-            <img src="logo.png" alt="Logo" />
+            <img src="/logo.png" alt="Logo" />
           </Link>
         </div>
 
@@ -107,7 +107,9 @@ function SidebarLink({
 }) {
   return (
     <Link
-      to={label.toLowerCase() === "canvas" ? "/canvas" : `/${label.toLowerCase()}`}
+      to={
+        label.toLowerCase() === "canvas" ? "/canvas" : `/${label.toLowerCase()}`
+      }
       className={`flex items-center gap-2 p-2 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
         active ? "bg-[#D9DEE8] font-semibold" : ""
       }`}

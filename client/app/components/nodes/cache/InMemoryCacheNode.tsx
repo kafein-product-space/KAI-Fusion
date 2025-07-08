@@ -9,10 +9,11 @@ interface InMemoryCacheNodeProps {
   id: string;
 }
 
-function InMemoryCacheNode({ nodeType, data, id }: InMemoryCacheNodeProps) {
+function InMemoryCacheNode({ data, id }: InMemoryCacheNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
+  const deleteRef = useRef<HTMLDialogElement>(null);
 
   const handleOpenModal = () => {
     modalRef.current?.showModal();
@@ -29,15 +30,20 @@ function InMemoryCacheNode({ nodeType, data, id }: InMemoryCacheNodeProps) {
     console.log(newConfig);
   };
 
+  const handleDeleteMenuOpen = () => {
+    deleteRef.current?.showModal();
+  };
+
   return (
     <>
       {/* Ana node kutusu */}
       <div
         className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-red-700 font-medium cursor-pointer transition-all border-red-400 bg-red-100 hover:bg-red-200`}
         onDoubleClick={handleOpenModal}
+        onClick={handleDeleteMenuOpen}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <MemoryStick />
         </div>
 
