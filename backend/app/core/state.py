@@ -1,6 +1,14 @@
 from pydantic import BaseModel, Field
-from typing import Any, List, Dict, Optional, Union
+from typing import Any, List, Dict, Optional, Union, Annotated
 from datetime import datetime
+
+def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
+    """Reducer function to merge node_outputs from multiple nodes running in parallel"""
+    if not isinstance(left, dict):
+        left = {}
+    if not isinstance(right, dict):
+        right = {}
+    return {**left, **right}
 
 class FlowState(BaseModel):
     """
@@ -38,7 +46,17 @@ class FlowState(BaseModel):
     variables: Dict[str, Any] = Field(default_factory=dict, description="Variables that can be set and accessed by nodes")
     
     # Node outputs storage - keeps track of each node's output
-    node_outputs: Dict[str, Any] = Field(default_factory=dict, description="Storage for individual node outputs")
+    # Use Annotated with reducer to handle concurrent updates from parallel nodes
+    node_outputs: Annotated[Dict[str, Any], merge_node_outputs] = Field(default_factory=dict, description="Storage for individual node outputs")
+    
+    # Pydantic config – allow dynamic fields so that each node can attach
+    # its own top-level output key (the node_id).  This avoids concurrent
+    # updates to a shared `node_outputs` dictionary when multiple branches
+    # run in parallel.
+
+    model_config = {
+        "extra": "allow"
+    }
     
     def add_message(self, message: str, role: str = "user") -> None:
         """Add a message to chat history"""
@@ -61,8 +79,30 @@ class FlowState(BaseModel):
         self.updated_at = datetime.now()
         
     def get_node_output(self, node_id: str, default: Any = None) -> Any:
-        """Get output from a specific node"""
-        return self.node_outputs.get(node_id, default)
+        """Get output from a specific node.
+
+        First tries the dedicated `node_outputs` mapping.  If not found,
+        falls back to checking a dynamic top-level attribute matching the
+        *node_id* (used when nodes write their output directly under a
+        unique key to avoid merge conflicts).
+        """
+        if node_id in self.node_outputs:
+            return self.node_outputs[node_id]
+        # Check dynamic 'output_<node_id>' field added by BaseNode
+        dyn_key = f"output_{node_id}"
+        if dyn_key in self.__dict__:
+            return self.__dict__[dyn_key]
+
+        # Debug: log what keys are available when lookup fails
+        try:
+            available_outputs = [k for k in self.__dict__.keys() if k.startswith('output_')]
+            print(f"[DEBUG] get_node_output({node_id}) failed. Available outputs: {available_outputs}")
+            print(f"[DEBUG] Current __dict__ keys: {list(self.__dict__.keys())}")
+        except Exception:
+            pass
+
+        # Fallback: look for attribute matching node_id (older style)
+        return getattr(self, node_id, default)
         
     def add_error(self, error: str) -> None:
         """Add an error to the error list"""

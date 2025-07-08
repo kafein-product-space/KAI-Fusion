@@ -25,8 +25,8 @@ const Sidebar = () => {
       <div>
         {/* Logo */}
         <div className="font-bold text-xl mb-8">
-          <Link to="/">
-            <img src="logo.png" alt="Logo" />
+          <Link to="/" className="text-2xl font-bold text-primary">
+            🔄 Flows
           </Link>
         </div>
 

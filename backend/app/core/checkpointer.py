@@ -308,3 +308,61 @@ def get_postgres_checkpointer() -> PostgresCheckpointer:
 
 # For backwards compatibility
 postgres_checkpointer = None  # Will be set when first accessed 
+
+class NoOpCheckpointer(BaseCheckpointSaver):
+    """
+    No-operation checkpointer that doesn't actually save anything.
+    Useful for testing or standalone mode where state persistence isn't needed.
+    """
+    
+    def __init__(self):
+        super().__init__()
+    
+    def put(
+        self,
+        config: Dict[str, Any],
+        checkpoint: Checkpoint,
+        metadata: Optional[Dict[str, Any]] = None,
+        new_versions: Optional[Any] = None,
+    ) -> None:
+        """No-op: don't save anything"""
+        pass
+    
+    def get(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
+        """No-op: return None (no saved state)"""
+        return None
+    
+    def list(
+        self,
+        config: Dict[str, Any],
+        limit: Optional[int] = None,
+        before: Optional[str] = None
+    ) -> Iterator[CheckpointTuple]:
+        """No-op: return empty iterator"""
+        return iter([])
+    
+    async def aget_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
+        """Async no-op"""
+        return None
+
+    async def aput(
+        self,
+        config: Dict[str, Any],
+        checkpoint: Checkpoint,
+        metadata: Optional[Dict[str, Any]] = None,
+        new_versions: Optional[Any] = None,
+    ) -> None:
+        """Async no-op"""
+        pass
+
+    def get_tuple(self, config: Dict[str, Any]) -> Optional[CheckpointTuple]:
+        """No-op"""
+        return None
+    
+    def put_writes(self, config: Dict[str, Any], writes: list, task_id: str) -> None:
+        """No-op"""
+        pass
+    
+    def delete(self, config: Dict[str, Any]) -> None:
+        """No-op"""
+        pass 

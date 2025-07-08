@@ -87,11 +87,13 @@ class NodeRegistry:
                         # Import the module
                         module = importlib.import_module(module_path)
                         
-                        # Find all BaseNode subclasses
+                        # Find all BaseNode subclasses, excluding abstract base classes
                         for name, obj in inspect.getmembers(module):
                             if (inspect.isclass(obj) and 
                                 issubclass(obj, BaseNode) and 
-                                obj != BaseNode and not inspect.isabstract(obj)):
+                                obj != BaseNode and 
+                                not inspect.isabstract(obj) and
+                                obj.__name__ not in {"ProviderNode", "ProcessorNode", "TerminatorNode"}):
                                 self.register_node(obj)
                                 
                     except Exception as e:

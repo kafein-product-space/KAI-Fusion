@@ -27,8 +27,15 @@ class TestHelloNode(ProviderNode):
     }
 
     def _execute(self, greeting: str = "Hello", name: str = "World") -> Runnable:
+        # Create a simple Tool that returns a greeting - Tools are serializable
+        from langchain.tools import Tool
+        
         def hello_function(inputs):
             user_input = inputs.get("input", "")
             return f"{greeting} {name}! You said: {user_input}"
         
-        return RunnableLambda(hello_function) 
+        return Tool(
+            name="TestHello",
+            description=f"A test tool that greets with '{greeting} {name}'",
+            func=hello_function
+        ) 
