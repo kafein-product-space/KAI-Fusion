@@ -46,13 +46,14 @@ function SummaryMemoryNode({ data, id }: SummaryMemoryNodeProps) {
             </p>
           </div>
         </div>
-
+        {/* llm node */}
         <Handle
           type="target"
           position={Position.Left}
           id="input"
           className="w-16 !bg-gray-500"
         />
+        {/* output node */}
         <Handle
           type="source"
           position={Position.Right}

@@ -54,7 +54,7 @@ function ChromaRetrieverNode({ data, id }: ChromaRetrieverNodeProps) {
             <p className="font-semibold">{data?.name || "Chroma Retriever"}</p>
           </div>
         </div>
-
+        {/* embeddings node */}
         <Handle
           type="target"
           position={Position.Left}

@@ -46,7 +46,7 @@ function RouterChainNode({ data, id }: RouterChainNodeProps) {
             </p>
           </div>
         </div>
-
+        {/*  default chain */}
         <Handle
           type="target"
           position={Position.Left}

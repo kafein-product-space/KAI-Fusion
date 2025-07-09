@@ -45,7 +45,7 @@ function SequentialChainNode({ data, id }: SequentialChainNodeProps) {
             </p>
           </div>
         </div>
-        //chains
+        {/* chains */}
         <Handle
           type="target"
           position={Position.Left}

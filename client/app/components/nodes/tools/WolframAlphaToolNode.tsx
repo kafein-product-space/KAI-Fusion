@@ -46,12 +46,6 @@ function WolframAlphaToolNode({ data, id }: WolframAlphaToolNodeProps) {
         </div>
 
         <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          className="w-16 !bg-teal-500"
-        />
-        <Handle
           type="source"
           position={Position.Right}
           id="output"

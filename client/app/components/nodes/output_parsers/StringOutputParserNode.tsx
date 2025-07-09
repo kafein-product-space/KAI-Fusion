@@ -56,6 +56,7 @@ function StringOutputParserNode({ data, id }: StringOutputParserNodeProps) {
             </p>
           </div>
         </div>
+        {/* chain node */}
 
         <Handle
           type="target"

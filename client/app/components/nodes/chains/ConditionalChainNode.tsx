@@ -47,7 +47,7 @@ function ConditionalChainNode({ data, id }: ConditionalChainNodeProps) {
             </p>
           </div>
         </div>
-        //default chain
+        {/* default chain */}
         <Handle
           type="target"
           position={Position.Left}

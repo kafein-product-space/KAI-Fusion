@@ -44,13 +44,6 @@ function TextLoaderNode({ data, id }: TextLoaderNodeProps) {
             <p className="font-semibold">{data?.name || "TextLoader"}</p>
           </div>
         </div>
-
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          className="w-16 !bg-pink-500"
-        />
         <Handle
           type="source"
           position={Position.Right}

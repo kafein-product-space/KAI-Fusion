@@ -45,7 +45,7 @@ function MapReduceChainNode({ data, id }: MapReduceChainNodeProps) {
             </p>
           </div>
         </div>
-        //llm
+        {/* llm */}
         <Handle
           type="target"
           position={Position.Left}

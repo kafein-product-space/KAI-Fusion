@@ -48,12 +48,6 @@ function TokenTextSplitterNode({ data, id }: TokenTextSplitterNodeProps) {
         </div>
 
         <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          className="w-16 !bg-pink-500"
-        />
-        <Handle
           type="source"
           position={Position.Right}
           id="output"
