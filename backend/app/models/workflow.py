@@ -1,46 +1,33 @@
-from pydantic import BaseModel
-from typing import Optional, List, Dict, Any
-from datetime import datetime
+from sqlalchemy import Column, String, UUID, Text, Boolean, Integer, TIMESTAMP, ForeignKey
+from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship
+from sqlalchemy.dialects.postgresql import JSONB
+import uuid
+from .base import Base
 
-class WorkflowCreate(BaseModel):
-    name: str
-    description: Optional[str] = ""
-    flow_data: Dict[str, Any]
-    is_public: bool = False
+class Workflow(Base):
+    __tablename__ = "workflows"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    is_public = Column(Boolean, default=False, index=True)
+    version = Column(Integer, default=1)
+    flow_data = Column(JSONB, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), default=func.now())
+    updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
+    
+    # Relationship
+    user = relationship("User", back_populates="workflows")
+    executions = relationship("WorkflowExecution", back_populates="workflow")
 
-class WorkflowUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    flow_data: Optional[Dict[str, Any]] = None
-    is_public: Optional[bool] = None
-
-class WorkflowExecute(BaseModel):
-    inputs: Dict[str, Any] = {}
-    async_execution: bool = False
-
-class WorkflowResponse(BaseModel):
-    id: str
-    user_id: str
-    name: str
-    description: str
-    flow_data: Dict[str, Any]
-    is_public: bool
-    created_at: datetime
-    updated_at: Optional[datetime] = None
-
-class ExecutionResponse(BaseModel):
-    id: str
-    workflow_id: str
-    user_id: str
-    inputs: Dict[str, Any]
-    outputs: Optional[Dict[str, Any]] = None
-    status: str
-    error: Optional[str] = None
-    started_at: datetime
-    completed_at: Optional[datetime] = None
-
-class ExecutionResult(BaseModel):
-    success: bool
-    workflow_id: str
-    execution_id: Optional[str] = None
-    results: Dict[str, Any]
+class WorkflowTemplate(Base):
+    __tablename__ = "workflow_templates"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(255), nullable=False)
+    description = Column(Text)
+    category = Column(String(100), default='General')
+    flow_data = Column(JSONB, nullable=False)
+    created_at = Column(TIMESTAMP(timezone=True), default=func.now()) 
