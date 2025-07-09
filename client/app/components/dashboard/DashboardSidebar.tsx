@@ -35,8 +35,8 @@ const Sidebar = () => {
           {/* Workflows page disabled during MVP (relies on DB) – direct users to Canvas instead */}
           <SidebarLink
             icon={<Play className="w-6 h-6" />}
-            label="Canvas"
-            active={location.pathname === "/canvas"}
+            label="Workflows"
+            active={location.pathname === "/workflows"}
           />
           <SidebarLink
             icon={<BarChart2 className="w-6 h-6" />}
@@ -108,7 +108,9 @@ function SidebarLink({
   return (
     <Link
       to={
-        label.toLowerCase() === "canvas" ? "/canvas" : `/${label.toLowerCase()}`
+        label.toLowerCase() === "workflows"
+          ? "/workflows"
+          : `/${label.toLowerCase()}`
       }
       className={`flex items-center gap-2 p-2 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
         active ? "bg-[#D9DEE8] font-semibold" : ""
