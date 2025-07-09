@@ -79,29 +79,23 @@ class FlowState(BaseModel):
         self.updated_at = datetime.now()
         
     def get_node_output(self, node_id: str, default: Any = None) -> Any:
-        """Get output from a specific node.
+        """Get output from a specific node using the unique key format.
 
-        First tries the dedicated `node_outputs` mapping.  If not found,
-        falls back to checking a dynamic top-level attribute matching the
-        *node_id* (used when nodes write their output directly under a
-        unique key to avoid merge conflicts).
+        Öncelik sırası:
+        1. Benzersiz anahtar formatı: 'output_<node_id>'
+        2. Eski node_outputs sözlüğü
+        3. Doğrudan node_id attribute'u (eski stil)
         """
+        # Önce benzersiz anahtar formatını dene
+        dyn_key = f"output_{node_id}"
+        if hasattr(self, dyn_key):
+            return getattr(self, dyn_key)
+            
+        # Eski node_outputs sözlüğünü kontrol et
         if node_id in self.node_outputs:
             return self.node_outputs[node_id]
-        # Check dynamic 'output_<node_id>' field added by BaseNode
-        dyn_key = f"output_{node_id}"
-        if dyn_key in self.__dict__:
-            return self.__dict__[dyn_key]
 
-        # Debug: log what keys are available when lookup fails
-        try:
-            available_outputs = [k for k in self.__dict__.keys() if k.startswith('output_')]
-            print(f"[DEBUG] get_node_output({node_id}) failed. Available outputs: {available_outputs}")
-            print(f"[DEBUG] Current __dict__ keys: {list(self.__dict__.keys())}")
-        except Exception:
-            pass
-
-        # Fallback: look for attribute matching node_id (older style)
+        # Eski stil doğrudan attribute
         return getattr(self, node_id, default)
         
     def add_error(self, error: str) -> None:

@@ -175,29 +175,22 @@ class BaseNode(ABC):
                     except TypeError:
                         safe_output = str(result)
 
-                # Store result using both approaches for maximum compatibility:
-                # 1. Dynamic field for unique key (avoids conflicts in parallel execution)
-                # 2. node_outputs mapping (standard approach that LangGraph handles better)
+                # ÖNEMLİ: LangGraph çakışmalarını önlemek için, her düğümün
+                # çıktısını kendine özel, benzersiz bir anahtar altında döndür.
+                # FlowState'e eklediğimiz `{"extra": "allow"}` ayarı buna izin verir.
 
-                unique_key = f"output_{node_id}"
+                unique_output_key = f"output_{node_id}"
 
-                partial_update = {
-                    unique_key: safe_output,
-                    "node_outputs": {**state.node_outputs, node_id: safe_output}
+                # Bu node'un başarıyla çalıştığını kaydet
+                updated_executed_nodes = state.executed_nodes.copy()
+                if node_id not in updated_executed_nodes:
+                    updated_executed_nodes.append(node_id)
+
+                return {
+                    unique_output_key: safe_output,
+                    "executed_nodes": updated_executed_nodes,
+                    "last_output": str(safe_output)
                 }
-
-                # Debug: log what this node is returning
-                try:
-                    print(f"[DEBUG] Node {node_id} returning diff: {unique_key} -> {type(safe_output)}")
-                except Exception:
-                    pass
-
-                # Do not include `variables` in the diff – GraphBuilder's
-                # wrapper mutates them before this node executes, so adding
-                # them here would lead to duplicate updates within the same
-                # step and trigger InvalidUpdateError.
-
-                return partial_update
                 
             except Exception as e:
                 # Handle errors gracefully
@@ -222,79 +215,28 @@ class BaseNode(ABC):
         return inputs
     
     def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
-        """Extract connected node inputs from state using new connection mapping."""
+        """Extract connected node inputs from state using previous node's unique output key."""
         connected = {}
-        
-        print(f"[DEBUG] Node '{self.node_id}' extracting connected inputs...")
-        print(f"[DEBUG] Available input connections: {self._input_connections}")
-        print(f"[DEBUG] State node_outputs keys: {list(state.node_outputs.keys())}")
-        
-        for input_spec in input_specs:
-            if input_spec.is_connection:
-                # Use new connection mapping format
-                connection_info = self._input_connections.get(input_spec.name)
-                
-                if connection_info:
-                    source_node_id = connection_info["source_node_id"]
-                    source_handle = connection_info["source_handle"]
-                    
-                    print(f"[DEBUG] Resolving connection '{input_spec.name}' from source '{source_node_id}' handle '{source_handle}'")
-                    
-                    # 🔥 NEW: Try multiple strategies to find the output
-                    output = None
-                    
-                    # Strategy 1: Look for source node output in node_outputs
-                    if source_node_id in state.node_outputs:
-                        source_output = state.node_outputs[source_node_id]
-                        
-                        # If source_handle is "output" (default), use the raw output
-                        if source_handle == "output" or source_handle == "result":
-                            output = source_output
-                            print(f"[DEBUG] Found output via default handle from '{source_node_id}': {type(output)}")
-                        else:
-                            # Try to extract specific handle if output is a dict
-                            if isinstance(source_output, dict) and source_handle in source_output:
-                                output = source_output[source_handle]
-                                print(f"[DEBUG] Found output via specific handle '{source_handle}': {type(output)}")
-                            else:
-                                # Fallback: use the raw output
-                                output = source_output
-                                print(f"[DEBUG] Using raw output as fallback for handle '{source_handle}': {type(output)}")
-                    
-                    # Strategy 2: Look for unique key format (output_nodeId)
-                    if output is None:
-                        unique_key = f"output_{source_node_id}"
-                        if hasattr(state, unique_key):
-                            output = getattr(state, unique_key)
-                            print(f"[DEBUG] Found output via unique key '{unique_key}': {type(output)}")
-                    
-                    # Strategy 3: Legacy fallback
-                    if output is None:
-                        output = state.get_node_output(source_node_id)
-                        if output:
-                            print(f"[DEBUG] Found output via legacy method: {type(output)}")
-                    
-                    if output is not None:
-                        connected[input_spec.name] = output
-                        print(f"[DEBUG] ✅ Successfully connected '{input_spec.name}' from '{source_node_id}' handle '{source_handle}'")
-                    elif input_spec.required:
-                        error_msg = f"Required connection '{input_spec.name}' not found - source '{source_node_id}' handle '{source_handle}'"
-                        print(f"[DEBUG] ❌ {error_msg}")
-                        raise ValueError(error_msg)
-                    else:
-                        print(f"[DEBUG] ⚠️ Optional connection '{input_spec.name}' not found, skipping")
-                else:
-                    print(f"[DEBUG] ⚠️ No connection mapping found for input '{input_spec.name}'")
-                    
-                    # Legacy fallback: try direct name lookup
-                    output = state.get_node_output(input_spec.name)
-                    if output is not None:
-                        connected[input_spec.name] = output
-                        print(f"[DEBUG] Found via legacy direct lookup: {type(output)}")
-                    elif input_spec.required:
-                        raise ValueError(f"Required connection '{input_spec.name}' not found in connection mapping")
-        
-        print(f"[DEBUG] Final connected inputs for '{self.node_id}': {list(connected.keys())}")
+
+        # Bu düğüme bağlanan önceki düğümün ID'sini bul.
+        # Bu bilgi GraphBuilder tarafından state'e enjekte edilmeli veya
+        # edges'den okunmalıdır. Şimdilik en son çalışan düğümü varsayalım.
+        if not state.executed_nodes:
+            return {}
+
+        last_executed_node_id = state.executed_nodes[-1]
+
+        # Önceki düğümün çıktısını, onun benzersiz anahtarından al.
+        previous_output_key = f"output_{last_executed_node_id}"
+
+        if hasattr(state, previous_output_key):
+            previous_output = getattr(state, previous_output_key)
+
+            # Bu düğümün bağlantı gerektiren tüm girdilerine, önceki düğümün çıktısını ata.
+            for input_spec in input_specs:
+                if input_spec.is_connection:
+                    connected[input_spec.name] = previous_output
+
         return connected
     
     def _get_previous_node_output(self, state: FlowState) -> Any:
