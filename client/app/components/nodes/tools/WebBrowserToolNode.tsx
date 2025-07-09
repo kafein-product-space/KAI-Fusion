@@ -41,7 +41,9 @@ function WebBrowserToolNode({ data, id }: WebBrowserToolNodeProps) {
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "WebBrowserTool"}</p>
+            <p className="font-semibold">
+              {data?.displayName || data?.name || "Web Browser Tool"}
+            </p>
           </div>
         </div>
 
