@@ -1,4 +1,10 @@
-import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useRef,
+  useCallback,
+  useEffect,
+  useMemo,
+} from "react";
 import {
   ReactFlow,
   useNodesState,
@@ -22,6 +28,7 @@ import LLMChainNode from "../nodes/chains/LLMChainNode";
 import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
 import CustomEdge from "../common/CustomEdge";
 import StreamingModal from "../modals/other/StreamingModal";
+
 import type {
   WorkflowData,
   WorkflowNode,
@@ -30,13 +37,88 @@ import type {
 } from "~/types/api";
 import WorkflowService from "~/services/workflows";
 import { Eraser, Save } from "lucide-react";
+import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
+import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
+import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
+import RedisCacheNode from "../nodes/cache/RedisCacheNode";
+import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
+import RouterChainNode from "../nodes/chains/RouterChainNode";
+import MapReduceChainNode from "../nodes/chains/MapReduceChainNode";
+import SequentialChainNode from "../nodes/chains/SequentialChainNode";
+import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
+import HuggingFaceEmbeddingsNode from "../nodes/embeddings/HuggingFaceEmbeddingsNode";
+import GeminiNode from "../nodes/llms/GeminiNode";
+import AnthropicClaudeNode from "../nodes/llms/ClaudeNode";
+import BufferMemoryNode from "../nodes/memory/BufferMemory";
+import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
+import SummaryMemoryNode from "../nodes/memory/SummaryMemoryNode";
+import AgentPromptNode from "../nodes/prompts/AgentPromptNode";
+import PromptTemplateNode from "../nodes/prompts/PromptTemplateNode";
+import PDFLoaderNode from "../nodes/document_loaders/PDFLoaderNode";
+import WebLoaderNode from "../nodes/document_loaders/WebLoaderNode";
+import PydanticOutputParserNode from "../nodes/output_parsers/PydanticOutputParserNode";
+import StringOutputParserNode from "../nodes/output_parsers/StringOutputParserNode";
+import ChromaRetrieverNode from "../nodes/retrievers/ChromaRetrieverNode";
+import CharacterTextSplitterNode from "../nodes/text_splitters/CharacterTextSplitterNode";
+import RecursiveTextSplitterNode from "../nodes/text_splitters/RecursiveTextSplitterNode";
+import TokenTextSplitterNode from "../nodes/text_splitters/TokenTextSplitterNode";
+import ArxivToolNode from "../nodes/tools/ArxivToolNode";
+import FileToolNode from "../nodes/tools/FileToolNode";
+import GoogleSearchNode from "../nodes/tools/GoogleSearchNode";
+import JSONParserToolNode from "../nodes/tools/JSONParserToolNode";
+import RequestsGetToolNode from "../nodes/tools/RequestsGetToolNode";
+import RequestsPostToolNode from "../nodes/tools/RequestsPostToolNode";
+import TavilySearchNode from "../nodes/tools/TavilySearchNode";
+import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
+import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
+import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
+import SitemapLoaderNode from "../nodes/document_loaders/SitemapLoaderNode";
+import YoutubeLoaderNode from "../nodes/document_loaders/YoutubeLoaderNode";
+import GitHubLoaderNode from "../nodes/document_loaders/GitHubLoaderNode";
 
 const baseNodeTypes = {
-  StartNode: StartNode,
   ReactAgent: ToolAgentNode,
-  toolAgent: ToolAgentNode,
-  LLMChain: LLMChainNode,
+  StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
+  TextDataLoader: TextLoaderNode,
+  OpenAIEmbeddings: OpenAIEmbeddingsNode,
+  InMemoryCache: InMemoryCacheNode,
+  RedisCache: RedisCacheNode,
+  ConditionalChain: ConditionalChainNode,
+  RouterChain: RouterChainNode,
+  LLMChain: LLMChainNode,
+  MapReduceChain: MapReduceChainNode,
+  SequentialChain: SequentialChainNode,
+  CohereEmbeddings: CohereEmbeddingsNode,
+  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
+  AnthropicClaude: AnthropicClaudeNode,
+  GoogleGemini: GeminiNode,
+  BufferMemory: BufferMemoryNode,
+  ConversationMemory: ConversationMemoryNode,
+  SummaryMemory: SummaryMemoryNode,
+  AgentPrompt: AgentPromptNode,
+  PromptTemplate: PromptTemplateNode,
+  PDFLoader: PDFLoaderNode,
+  WebLoader: WebLoaderNode,
+  PydanticOutputParser: PydanticOutputParserNode,
+  StringOutputParser: StringOutputParserNode,
+  ChromaRetriever: ChromaRetrieverNode,
+  CharacterTextSplitter: CharacterTextSplitterNode,
+  RecursiveTextSplitter: RecursiveTextSplitterNode,
+  TokenTextSplitter: TokenTextSplitterNode,
+  ArxivTool: ArxivToolNode,
+  WriteFileTool: FileToolNode,
+  GoogleSearchTool: GoogleSearchNode,
+  JSONParser: JSONParserToolNode,
+  RequestsGetTool: RequestsGetToolNode,
+  RequestsPostTool: RequestsPostToolNode,
+  TavilySearch: TavilySearchNode,
+  WebBrowserTool: WebBrowserToolNode,
+  WikipediaTool: WikipediaToolNode,
+  WolframAlphaTool: WolframAlphaToolNode,
+  SitemapLoader: SitemapLoaderNode,
+  YoutubeLoader: YoutubeLoaderNode,
+  GitHubLoader: GitHubLoaderNode,
 };
 
 const edgeTypes = {
@@ -124,7 +206,7 @@ function FlowCanvas() {
     (params: Connection | Edge) => {
       setEdges((eds: Edge[]) => addEdge({ ...params, type: "custom" }, eds));
     },
-    [setEdges],
+    [setEdges]
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -148,7 +230,7 @@ function FlowCanvas() {
       });
 
       const nodeMetadata = availableNodes.find(
-        (n: NodeMetadata) => n.name === nodeType.type,
+        (n: NodeMetadata) => n.name === nodeType.type
       );
 
       const newNode: Node = {
@@ -165,7 +247,7 @@ function FlowCanvas() {
       setNodes((nds: Node[]) => nds.concat(newNode));
       setNodeId((id: number) => id + 1);
     },
-    [screenToFlowPosition, nodeId, availableNodes],
+    [screenToFlowPosition, nodeId, availableNodes]
   );
 
   const handleSave = useCallback(async () => {
@@ -264,7 +346,7 @@ function FlowCanvas() {
           {
             variant: "error",
             style: { whiteSpace: "pre-line" },
-          },
+          }
         );
         return;
       }
@@ -289,13 +371,20 @@ function FlowCanvas() {
       console.error("Execution error:", error);
       enqueueSnackbar("Workflow execution failed", { variant: "error" });
     }
-  }, [nodes, edges, validateWorkflow, executeWorkflow, clearExecutionResult, enqueueSnackbar]);
+  }, [
+    nodes,
+    edges,
+    validateWorkflow,
+    executeWorkflow,
+    clearExecutionResult,
+    enqueueSnackbar,
+  ]);
 
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
         !window.confirm(
-          "You have unsaved changes. Are you sure you want to clear the canvas?",
+          "You have unsaved changes. Are you sure you want to clear the canvas?"
         )
       ) {
         return;
