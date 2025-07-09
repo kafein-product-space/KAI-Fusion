@@ -1,229 +1,118 @@
-import React, {
-  useCallback,
-  useRef,
-  useState,
-  useEffect,
-  useMemo,
-} from "react";
+import React, { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import {
   ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
-  useReactFlow,
+  MiniMap,
   Controls,
   Background,
-  MiniMap,
+  useReactFlow,
   ReactFlowProvider,
+  type Node,
+  type Edge,
+  type Connection,
 } from "@xyflow/react";
-// import { useSearchParams } from "react-router"; // Removed for MVP
-import ToolAgentNode from "../nodes/agents/ToolAgentNode";
-import StartNode from "../nodes/other/StartNode";
-import CustomEdge from "../common/CustomEdge";
-import ConditionNode from "../nodes/other/ConditionNode";
-import GenericNode from "../nodes/other/GenericNode";
+import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
-import type { WorkflowData, WorkflowNode, WorkflowEdge } from "~/types/api";
-import WorkflowService from "~/services/workflows";
-import { Eraser } from "lucide-react";
-import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
-import StreamingModal from "../modals/other/StreamingModal";
-import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
-import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
-import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
-import RedisCacheNode from "../nodes/cache/RedisCacheNode";
-import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
-import RouterChainNode from "../nodes/chains/RouterChainNode";
+import StartNode from "../nodes/other/StartNode";
+import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import LLMChainNode from "../nodes/chains/LLMChainNode";
-import MapReduceChainNode from "../nodes/chains/MapReduceChainNode";
-import SequentialChainNode from "../nodes/chains/SequentialChainNode";
-import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
-import HuggingFaceEmbeddingsNode from "../nodes/embeddings/HuggingFaceEmbeddingsNode";
-import AnthropicClaudeNode from "../nodes/llms/ClaudeNode";
-import GeminiNode from "../nodes/llms/GeminiNode";
-import BufferMemoryNode from "../nodes/memory/BufferMemory";
-import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
-import SummaryMemoryNode from "../nodes/memory/SummaryMemoryNode";
-import AgentPromptNode from "../nodes/prompts/AgentPromptNode";
-import PromptTemplateNode from "../nodes/prompts/PromptTemplateNode";
-import PDFLoaderNode from "../nodes/document_loaders/PDFLoaderNode";
-import WebLoaderNode from "../nodes/document_loaders/WebLoaderNode";
-import PydanticOutputParserNode from "../nodes/output_parsers/PydanticOutputParserNode";
-import StringOutputParserNode from "../nodes/output_parsers/StringOutputParserNode";
-import ChromaRetrieverNode from "../nodes/retrievers/ChromaRetrieverNode";
-import CharacterTextSplitterNode from "../nodes/text_splitters/CharacterTextSplitterNode";
-import RecursiveTextSplitterNode from "../nodes/text_splitters/RecursiveTextSplitterNode";
-import TokenTextSplitterNode from "../nodes/text_splitters/TokenTextSplitterNode";
-import ArxivToolNode from "../nodes/tools/ArxivToolNode";
-import FileToolNode from "../nodes/tools/FileToolNode";
-import GoogleSearchNode from "../nodes/tools/GoogleSearchNode";
-import JSONParserToolNode from "../nodes/tools/JSONParserToolNode";
-import RequestsGetToolNode from "../nodes/tools/RequestsGetToolNode";
-import RequestsPostToolNode from "../nodes/tools/RequestsPostToolNode";
-import TavilySearchNode from "../nodes/tools/TavilySearchNode";
-import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
-import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
-import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
-import { useSnackbar } from "notistack";
-import SitemapLoaderNode from "../nodes/document_loaders/SitemapLoaderNode";
-import YoutubeLoaderNode from "../nodes/document_loaders/YoutubeLoaderNode";
-import GitHubLoaderNode from "../nodes/document_loaders/GitHubLoaderNode";
-// Her node type için özel UI component haritası
-const nodeTypeComponentMap: Record<string, any> = {
-  ReactAgent: ToolAgentNode,
-  ConditionNode: ConditionNode,
-  StartNode: StartNode,
-  OpenAIChat: OpenAIChatNode,
-  TextDataLoader: TextLoaderNode,
-  OpenAIEmbeddings: OpenAIEmbeddingsNode,
-  InMemoryCache: InMemoryCacheNode,
-  RedisCache: RedisCacheNode,
-  ConditionalChain: ConditionalChainNode,
-  RouterChain: RouterChainNode,
-  LLMChain: LLMChainNode,
-  MapReduceChain: MapReduceChainNode,
-  SequentialChain: SequentialChainNode,
-  CohereEmbeddings: CohereEmbeddingsNode,
-  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
-  AnthropicClaude: AnthropicClaudeNode,
-  GoogleGemini: GeminiNode,
-  BufferMemory: BufferMemoryNode,
-  ConversationMemory: ConversationMemoryNode,
-  SummaryMemory: SummaryMemoryNode,
-  AgentPrompt: AgentPromptNode,
-  PromptTemplate: PromptTemplateNode,
-  PDFLoader: PDFLoaderNode,
-  WebLoader: WebLoaderNode,
-  PydanticOutputParser: PydanticOutputParserNode,
-  StringOutputParser: StringOutputParserNode,
-  ChromaRetriever: ChromaRetrieverNode,
-  CharacterTextSplitter: CharacterTextSplitterNode,
-  RecursiveTextSplitter: RecursiveTextSplitterNode,
-  TokenTextSplitter: TokenTextSplitterNode,
-  ArxivTool: ArxivToolNode,
-  WriteFileTool: FileToolNode,
-  GoogleSearchTool: GoogleSearchNode,
-  JSONParser: JSONParserToolNode,
-  RequestsGetTool: RequestsGetToolNode,
-  RequestsPostTool: RequestsPostToolNode,
-  TavilySearch: TavilySearchNode,
-  WebBrowserTool: WebBrowserToolNode,
-  WikipediaTool: WikipediaToolNode,
-  WolframAlphaTool: WolframAlphaToolNode,
-  SitemapLoader: SitemapLoaderNode,
-  YoutubeLoader: YoutubeLoaderNode,
-  GitHubLoader: GitHubLoaderNode,
-};
+import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
+import CustomEdge from "../common/CustomEdge";
+import StreamingModal from "../modals/other/StreamingModal";
+import type {
+  WorkflowData,
+  WorkflowNode,
+  WorkflowEdge,
+  NodeMetadata,
+} from "~/types/api";
+import WorkflowService from "~/services/workflows";
+import { Eraser, Save } from "lucide-react";
 
-// Base node/edge types always available
 const baseNodeTypes = {
+  StartNode: StartNode,
   ReactAgent: ToolAgentNode,
   toolAgent: ToolAgentNode,
-  condition: ConditionNode,
-  start: StartNode,
-  OpenAIChat: OpenAIChatNode,
-  TextDataLoader: TextLoaderNode,
-  OpenAIEmbeddings: OpenAIEmbeddingsNode,
-  InMemoryCache: InMemoryCacheNode,
-  RedisCache: RedisCacheNode,
-  ConditionalChain: ConditionalChainNode,
-  RouterChain: RouterChainNode,
   LLMChain: LLMChainNode,
-  MapReduceChain: MapReduceChainNode,
-  SequentialChain: SequentialChainNode,
-  CohereEmbeddings: CohereEmbeddingsNode,
-  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
-  AnthropicClaude: AnthropicClaudeNode,
-  GoogleGemini: GeminiNode,
-  BufferMemory: BufferMemoryNode,
-  ConversationMemory: ConversationMemoryNode,
-  SummaryMemory: SummaryMemoryNode,
-  AgentPrompt: AgentPromptNode,
-  PromptTemplate: PromptTemplateNode,
-  PDFLoader: PDFLoaderNode,
-  WebLoader: WebLoaderNode,
-  PydanticOutputParser: PydanticOutputParserNode,
-  StringOutputParser: StringOutputParserNode,
-  ChromaRetriever: ChromaRetrieverNode,
-  CharacterTextSplitter: CharacterTextSplitterNode,
-  RecursiveTextSplitter: RecursiveTextSplitterNode,
-  TokenTextSplitter: TokenTextSplitterNode,
-  ArxivTool: ArxivToolNode,
-  WriteFileTool: FileToolNode,
-  GoogleSearchTool: GoogleSearchNode,
-  JSONParser: JSONParserToolNode,
-  RequestsGetTool: RequestsGetToolNode,
-  RequestsPostTool: RequestsPostToolNode,
-  TavilySearch: TavilySearchNode,
-  WebBrowserTool: WebBrowserToolNode,
-  WikipediaTool: WikipediaToolNode,
-  WolframAlphaTool: WolframAlphaToolNode,
-  SitemapLoader: SitemapLoaderNode,
-  YoutubeLoader: YoutubeLoaderNode,
-  GitHubLoader: GitHubLoaderNode,
+  OpenAIChat: OpenAIChatNode,
 };
 
 const edgeTypes = {
   custom: CustomEdge,
 };
 
+interface ChatMessage {
+  from: "user" | "bot";
+  text: string;
+}
+
 function FlowCanvas() {
   const { enqueueSnackbar } = useSnackbar();
-  const [nodes, setNodes, onNodesChange] = useNodesState([]);
-  const [edges, setEdges, onEdgesChange] = useEdgesState([]);
-  // const [searchParams] = useSearchParams();
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node[]>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge[]>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [chatMessages, setChatMessages] = useState([
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
     { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
   ]);
   const [isExecuting, setIsExecuting] = useState(false);
+  const [stream, setStream] = useState<ReadableStream | null>(null);
 
   const {
     currentWorkflow,
-    executeWorkflow,
-    validateWorkflow,
     setCurrentWorkflow,
     isLoading,
     error,
+    hasUnsavedChanges,
+    setHasUnsavedChanges,
+    validateWorkflow,
+    executeWorkflow,
+    fetchWorkflows,
+    updateWorkflow,
+    createWorkflow,
     executionResult,
     clearExecutionResult,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
 
-  // Merge backend-provided node names into nodeTypes so React Flow can render them
-  const nodeTypes = useMemo(() => {
-    const map: Record<string, any> = { ...baseNodeTypes };
-    availableNodes.forEach((n) => {
-      map[n.name] = nodeTypeComponentMap[n.name] || GenericNode;
-    });
-    return map;
-  }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
+  useEffect(() => {
+    const loadInitialWorkflow = async () => {
+      try {
+        const fetchedWorkflows = await fetchWorkflows();
+        if (fetchedWorkflows && fetchedWorkflows.length > 0) {
+          setCurrentWorkflow(fetchedWorkflows[0]);
+        }
+      } catch (error) {
+        console.error("Failed to load initial workflow:", error);
+        enqueueSnackbar("Failed to load workflows", { variant: "error" });
+      }
+    };
+    loadInitialWorkflow();
+  }, []);
 
-  // Load workflow data into the canvas
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
-      const flowData = currentWorkflow.flow_data;
-      setNodes(flowData.nodes || []);
-      setEdges(flowData.edges || []);
-      setHasUnsavedChanges(false);
+      const { nodes, edges } = currentWorkflow.flow_data;
+      setNodes(nodes || []);
+      setEdges(edges || []);
+    } else {
+      setNodes([]);
+      setEdges([]);
     }
-  }, [currentWorkflow, setNodes, setEdges]);
+  }, [currentWorkflow]);
 
-  // Track changes for unsaved indicator
   useEffect(() => {
-    if (currentWorkflow && (nodes.length > 0 || edges.length > 0)) {
-      const currentFlowData = {
+    if (currentWorkflow) {
+      const currentFlowData: WorkflowData = {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
       };
-
       const originalFlowData = currentWorkflow.flow_data;
       const hasChanges =
         JSON.stringify(currentFlowData) !== JSON.stringify(originalFlowData);
@@ -232,11 +121,10 @@ function FlowCanvas() {
   }, [nodes, edges, currentWorkflow]);
 
   const onConnect = useCallback(
-    (params: any) => {
-      setEdges((eds) => addEdge({ ...params, type: "custom" }, eds));
-      console.log("onConnect", params);
+    (params: Connection | Edge) => {
+      setEdges((eds: Edge[]) => addEdge({ ...params, type: "custom" }, eds));
     },
-    [setEdges]
+    [setEdges],
   );
 
   const onDragOver = useCallback((event: React.DragEvent) => {
@@ -259,40 +147,73 @@ function FlowCanvas() {
         y: event.clientY,
       });
 
-      // Find the node metadata from available nodes
-      const nodeMetadata = availableNodes.find((n) => n.name === nodeType.type);
+      const nodeMetadata = availableNodes.find(
+        (n: NodeMetadata) => n.name === nodeType.type,
+      );
 
-      const newNode: WorkflowNode = {
+      const newNode: Node = {
         id: `${nodeType.type}-${nodeId}`,
         type: nodeType.type,
         position,
         data: {
           name: nodeType.label,
           ...nodeType.data,
-          // Include metadata for validation and execution
           metadata: nodeMetadata,
         },
       };
 
-      setNodes((nds) => nds.concat(newNode));
-      setNodeId((id) => id + 1);
+      setNodes((nds: Node[]) => nds.concat(newNode));
+      setNodeId((id: number) => id + 1);
     },
-    [screenToFlowPosition, setNodes, nodeId, availableNodes]
+    [screenToFlowPosition, nodeId, availableNodes],
   );
 
-  const handleSave = useCallback(() => {
-    // For MVP we skip persistence – simply mark as saved and notify the user
-    setHasUnsavedChanges(false);
-    enqueueSnackbar(
-      "İş akışı hafızaya alındı, 'Execute' butonu ile çalıştırabilirsiniz.",
-      {
-        variant: "success",
-      }
-    );
-  }, [setHasUnsavedChanges]);
+  const handleSave = useCallback(async () => {
+    const flowData: WorkflowData = {
+      nodes: nodes as WorkflowNode[],
+      edges: edges as WorkflowEdge[],
+    };
 
-  // Streaming execution for saved workflows
-  const [stream, setStream] = useState<ReadableStream | null>(null);
+    if (!currentWorkflow) {
+      const name = prompt("Enter a name for the new workflow:");
+      if (!name) return;
+
+      try {
+        const newWorkflow = await createWorkflow({
+          name,
+          description: "",
+          flow_data: flowData,
+        });
+        setCurrentWorkflow(newWorkflow);
+        enqueueSnackbar(`Workflow "${name}" created and saved!`, {
+          variant: "success",
+        });
+      } catch (error) {
+        enqueueSnackbar("Failed to create workflow.", { variant: "error" });
+      }
+      return;
+    }
+
+    try {
+      await updateWorkflow(currentWorkflow.id, {
+        name: currentWorkflow.name,
+        description: currentWorkflow.description,
+        flow_data: flowData,
+      });
+      enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
+    } catch (error) {
+      console.error("Failed to save workflow:", error);
+      enqueueSnackbar("Failed to save workflow.", { variant: "error" });
+    }
+  }, [
+    currentWorkflow,
+    nodes,
+    edges,
+    createWorkflow,
+    updateWorkflow,
+    enqueueSnackbar,
+    setCurrentWorkflow,
+  ]);
 
   const handleExecuteStream = useCallback(async () => {
     if (nodes.length === 0) {
@@ -305,7 +226,6 @@ function FlowCanvas() {
       edges: edges as WorkflowEdge[],
     };
 
-    // Prepare inputs – ask user for text input for now
     const inputText = prompt("Enter input text for the workflow:");
     if (!inputText) return;
 
@@ -319,7 +239,7 @@ function FlowCanvas() {
       console.error("Streaming execution error", e);
       enqueueSnackbar("Streaming execution failed", { variant: "error" });
     }
-  }, [nodes, edges]);
+  }, [nodes, edges, enqueueSnackbar]);
 
   const closeStreamModal = () => setStream(null);
 
@@ -336,7 +256,6 @@ function FlowCanvas() {
       edges: edges as WorkflowEdge[],
     };
 
-    // Validate workflow first
     try {
       const validation = await validateWorkflow(flowData);
       if (!validation.valid) {
@@ -344,7 +263,8 @@ function FlowCanvas() {
           `Workflow validation failed:\n${validation.errors?.join("\n")}`,
           {
             variant: "error",
-          }
+            style: { whiteSpace: "pre-line" },
+          },
         );
         return;
       }
@@ -354,36 +274,28 @@ function FlowCanvas() {
       return;
     }
 
-    // Get input from user
     const inputText = prompt("Enter input text for the workflow:");
     if (!inputText) return;
 
     try {
       clearExecutionResult();
-      const result = await executeWorkflow({
+      await executeWorkflow({
         flow_data: flowData,
         input_text: inputText,
       });
 
-      // Show result in a modal or alert for now
-      enqueueSnackbar(
-        `Execution completed!\n\nResult: ${JSON.stringify(
-          result.result,
-          null,
-          2
-        )}`
-      );
+      enqueueSnackbar(`Execution completed!`, { variant: "success" });
     } catch (error) {
       console.error("Execution error:", error);
       enqueueSnackbar("Workflow execution failed", { variant: "error" });
     }
-  }, [nodes, edges, validateWorkflow, executeWorkflow, clearExecutionResult]);
+  }, [nodes, edges, validateWorkflow, executeWorkflow, clearExecutionResult, enqueueSnackbar]);
 
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
         !window.confirm(
-          "You have unsaved changes. Are you sure you want to clear the canvas?"
+          "You have unsaved changes. Are you sure you want to clear the canvas?",
         )
       ) {
         return;
@@ -392,18 +304,21 @@ function FlowCanvas() {
     setNodes([]);
     setEdges([]);
     setCurrentWorkflow(null);
-    setHasUnsavedChanges(false);
-  }, [setNodes, setEdges, setCurrentWorkflow, hasUnsavedChanges]);
+  }, [hasUnsavedChanges, setCurrentWorkflow]);
 
   const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
-    setChatMessages((msgs) => [...msgs, { from: "user", text: chatInput }]);
-    const inputText = chatInput;
+    const userMessage = chatInput;
+    setChatMessages((msgs: ChatMessage[]) => [
+      ...msgs,
+      { from: "user", text: userMessage },
+    ]);
     setChatInput("");
     setIsExecuting(true);
+
     try {
       if (nodes.length === 0) {
-        setChatMessages((msgs) => [
+        setChatMessages((msgs: ChatMessage[]) => [
           ...msgs,
           { from: "bot", text: "Lütfen önce canvas'a node ekleyin." },
         ]);
@@ -415,21 +330,20 @@ function FlowCanvas() {
       };
       const result = await executeWorkflow({
         flow_data: flowData,
-        input_text: inputText,
+        input_text: userMessage,
       });
-      setChatMessages((msgs) => [
+
+      const resultText = result?.result
+        ? JSON.stringify(result.result, null, 2)
+        : "No response from workflow.";
+      setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        {
-          from: "bot",
-          text: result?.result
-            ? JSON.stringify(result.result, null, 2)
-            : "Yanıt yok",
-        },
+        { from: "bot", text: resultText },
       ]);
-    } catch (error) {
-      setChatMessages((msgs) => [
+    } catch (error: any) {
+      setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        { from: "bot", text: "Bir hata oluştu." },
+        { from: "bot", text: `An error occurred: ${error.message}` },
       ]);
     } finally {
       setIsExecuting(false);
@@ -443,47 +357,52 @@ function FlowCanvas() {
     setChatInput("");
   };
 
+  const nodeTypes = useMemo(() => ({ ...baseNodeTypes }), []);
+
   return (
     <div className="w-full h-full relative">
-      {/* Toolbar */}
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex gap-2">
+      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex items-center gap-2">
         <button
           onClick={handleSave}
           disabled={isLoading}
-          className={`px-3 py-1 text-sm rounded ${
-            hasUnsavedChanges
-              ? "bg-blue-600 text-white hover:bg-blue-700"
-              : "bg-gray-100 text-gray-600"
-          } disabled:opacity-50`}
+          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+          title="Save Workflow"
         >
-          {isLoading ? "Saving..." : hasUnsavedChanges ? "Save*" : "Saved"}
+          {isLoading ? (
+            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+          ) : (
+            <Save
+              className={`h-5 w-5 ${
+                hasUnsavedChanges ? "text-blue-600" : "text-gray-500"
+              }`}
+            />
+          )}
         </button>
-
-        <button
-          onClick={handleExecuteStream}
-          disabled={nodes.length === 0}
-          className="px-3 py-1 text-sm rounded bg-purple-600 text-white hover:bg-purple-700 disabled:opacity-50"
-        >
-          Stream
-        </button>
-
         <button
           onClick={handleExecute}
           disabled={nodes.length === 0}
-          className="px-3 py-1 text-sm rounded bg-green-600 text-white hover:bg-green-700 disabled:opacity-50"
+          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50"
+          title="Execute Workflow"
         >
-          Execute
+          ▶️
         </button>
-
+        <button
+          onClick={handleExecuteStream}
+          disabled={nodes.length === 0}
+          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50"
+          title="Execute and Stream"
+        >
+          ⚡️
+        </button>
         <button
           onClick={handleClear}
-          className="px-3 py-1 text-sm rounded bg-red-600 text-white hover:bg-red-700"
+          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
+          title="Clear Canvas"
         >
-          Clear
+          <Eraser className="h-5 w-5 text-gray-600" />
         </button>
       </div>
 
-      {/* Workflow Info */}
       {currentWorkflow && (
         <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
           <h3 className="font-medium text-gray-900">{currentWorkflow.name}</h3>
@@ -498,20 +417,18 @@ function FlowCanvas() {
         </div>
       )}
 
-      {/* Error Display */}
       {error && (
         <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
           <div className="text-red-800 text-sm">{error}</div>
         </div>
       )}
 
-      {/* Execution Result */}
       {executionResult && (
         <div className="absolute bottom-4 left-4 z-10 bg-green-50 border border-green-200 rounded-lg p-3 max-w-md">
           <div className="text-green-800 text-sm">
             <strong>Execution Result:</strong>
             <pre className="mt-1 text-xs overflow-auto max-h-32">
-              {JSON.stringify(executionResult, null, 2)}
+              {JSON.stringify(executionResult.result, null, 2)}
             </pre>
           </div>
           <button
@@ -548,7 +465,6 @@ function FlowCanvas() {
 
       {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}
 
-      {/* Chat Floating Button */}
       <button
         className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
         onClick={() => setChatOpen((v) => !v)}
@@ -569,9 +485,8 @@ function FlowCanvas() {
         Chat
       </button>
 
-      {/* Chat Panel */}
       {chatOpen && (
-        <div className="fixed bottom-20 right-4 w-92 h-144 bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+        <div className="fixed bottom-20 right-4 w-96 h-[480px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
           <div className="flex items-center justify-between px-4 py-2 border-b">
             <span className="font-semibold text-gray-700">Chat</span>
             <div className="flex items-center gap-2">
@@ -625,7 +540,7 @@ function FlowCanvas() {
               onClick={handleSendMessage}
               disabled={isExecuting}
             >
-              {isExecuting ? "Çalışıyor..." : "Gönder"}
+              {isExecuting ? "..." : "Send"}
             </button>
           </div>
         </div>
@@ -634,4 +549,10 @@ function FlowCanvas() {
   );
 }
 
-export default FlowCanvas;
+export default function FlowCanvasWrapper() {
+  return (
+    <ReactFlowProvider>
+      <FlowCanvas />
+    </ReactFlowProvider>
+  );
+}
