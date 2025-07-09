@@ -92,13 +92,6 @@ function RedisCacheNode({ data, id }: RedisCacheNodeProps) {
             </p>
           </div>
         </div>
-
-        <Handle
-          type="target"
-          position={Position.Left}
-          id="input"
-          className="w-16 !bg-gray-500"
-        />
         <Handle
           type="source"
           position={Position.Right}

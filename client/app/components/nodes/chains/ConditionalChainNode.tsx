@@ -33,14 +33,13 @@ function ConditionalChainNode({ data, id }: ConditionalChainNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-fuchsia-400 bg-fuchsia-100 hover:bg-fuchsia-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <Link />
         </div>
-
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <p className="font-semibold">
@@ -48,7 +47,7 @@ function ConditionalChainNode({ data, id }: ConditionalChainNodeProps) {
             </p>
           </div>
         </div>
-
+        //default chain
         <Handle
           type="target"
           position={Position.Left}
