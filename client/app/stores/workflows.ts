@@ -1,4 +1,4 @@
-import { create, StateCreator } from 'zustand';
+import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import WorkflowService from '~/services/workflows';
 import type {
@@ -10,7 +10,7 @@ import type {
   WorkflowExecution,
   WorkflowData,
 } from '~/types/api';
-
+import type { StateCreator } from 'zustand'
 interface WorkflowState {
   workflows: Workflow[];
   currentWorkflow: Workflow | null;
