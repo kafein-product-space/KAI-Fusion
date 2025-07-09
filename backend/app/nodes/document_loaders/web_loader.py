@@ -97,7 +97,9 @@ class SitemapLoaderNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "SitemapLoader",
+            "display_name": "Sitemap Loader",
             "description": "Load content from sitemap URLs",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(
@@ -158,7 +160,9 @@ class YoutubeLoaderNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "YoutubeLoader",
+            "display_name": "Youtube Loader",
             "description": "Load transcripts from YouTube videos",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(
@@ -250,7 +254,9 @@ class GitHubLoaderNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "GitHubLoader",
+            "display_name": "GitHub Loader",
             "description": "Load files from GitHub repositories",
+            "category": "Document Loaders",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(

@@ -64,6 +64,9 @@ import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
 import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
 import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
 import { useSnackbar } from "notistack";
+import SitemapLoaderNode from "../nodes/document_loaders/SitemapLoaderNode";
+import YoutubeLoaderNode from "../nodes/document_loaders/YoutubeLoaderNode";
+import GitHubLoaderNode from "../nodes/document_loaders/GitHubLoaderNode";
 // Her node type için özel UI component haritası
 const nodeTypeComponentMap: Record<string, any> = {
   ReactAgent: ToolAgentNode,
@@ -106,6 +109,9 @@ const nodeTypeComponentMap: Record<string, any> = {
   WebBrowserTool: WebBrowserToolNode,
   WikipediaTool: WikipediaToolNode,
   WolframAlphaTool: WolframAlphaToolNode,
+  SitemapLoader: SitemapLoaderNode,
+  YoutubeLoader: YoutubeLoaderNode,
+  GitHubLoader: GitHubLoaderNode,
 };
 
 // Base node/edge types always available
@@ -151,6 +157,9 @@ const baseNodeTypes = {
   WebBrowserTool: WebBrowserToolNode,
   WikipediaTool: WikipediaToolNode,
   WolframAlphaTool: WolframAlphaToolNode,
+  SitemapLoader: SitemapLoaderNode,
+  YoutubeLoader: YoutubeLoaderNode,
+  GitHubLoader: GitHubLoaderNode,
 };
 
 const edgeTypes = {
