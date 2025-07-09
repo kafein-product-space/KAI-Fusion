@@ -37,7 +37,7 @@ function GitHubLoaderNode({ data, id }: GitHubLoaderNodeProps) {
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <svg
             xmlns="http://www.w3.org/2000/svg"
             x="0px"
