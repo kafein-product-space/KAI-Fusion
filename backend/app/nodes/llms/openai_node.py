@@ -13,8 +13,9 @@ class OpenAINode(BaseNode):
         super().__init__()
         self._metadata = {
             "name": "OpenAIChat",
+            "display_name": "OpenAI",
             "description": "OpenAI Chat completion using GPT models",
-            "category": "LLMs",
+            "category": "LLM",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(
