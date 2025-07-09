@@ -1,5 +1,6 @@
 import React from "react";
-import { useReactFlow, BaseEdge, EdgeLabelRenderer, getBezierPath } from "reactflow";
+import { useReactFlow } from "@xyflow/react";
+import { BaseEdge, EdgeLabelRenderer, getBezierPath } from "@xyflow/react";
 import { X } from "lucide-react";
 
 interface CustomEdgeProps {
@@ -10,7 +11,13 @@ interface CustomEdgeProps {
   targetY: number;
 }
 
-function CustomEdge({ id, sourceX, sourceY, targetX, targetY }: CustomEdgeProps) {
+function CustomEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+}: CustomEdgeProps) {
   const { setEdges } = useReactFlow();
   const [edgePath, labelX, labelY] = getBezierPath({
     sourceX,
@@ -41,4 +48,4 @@ function CustomEdge({ id, sourceX, sourceY, targetX, targetY }: CustomEdgeProps)
   );
 }
 
-export default CustomEdge; 
+export default CustomEdge;

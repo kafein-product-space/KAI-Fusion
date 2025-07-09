@@ -5,7 +5,8 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
-import ReactFlow, {
+import {
+  ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
@@ -13,7 +14,8 @@ import ReactFlow, {
   Controls,
   Background,
   MiniMap,
-} from "reactflow";
+  ReactFlowProvider,
+} from "@xyflow/react";
 // import { useSearchParams } from "react-router"; // Removed for MVP
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import StartNode from "../nodes/other/StartNode";
@@ -203,6 +205,13 @@ function FlowCanvas() {
     });
     return map;
   }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
+
+  // Debug: Node type eşleşmelerini göster
+  console.log("Available node types:", Object.keys(nodeTypes));
+  console.log(
+    "Workflow node types:",
+    nodes.map((n) => n.type)
+  );
 
   // Load workflow data into the canvas
   useEffect(() => {
@@ -527,21 +536,23 @@ function FlowCanvas() {
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          edgeTypes={edgeTypes}
-          fitView
-          className="bg-gray-50"
-        >
-          <Controls position="top-right" />
-          <Background gap={20} size={1} />
-          <MiniMap />
-        </ReactFlow>
+        <ReactFlowProvider>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            fitView
+            className="bg-gray-50"
+          >
+            <Controls position="top-right" />
+            <Background gap={20} size={1} />
+            <MiniMap />
+          </ReactFlow>
+        </ReactFlowProvider>
       </div>
 
       {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}

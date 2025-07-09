@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Handle, Position } from "reactflow";
+import { Handle, Position } from "@xyflow/react";
 import { Play } from "lucide-react";
 
 interface StartNodeProps {
