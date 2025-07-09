@@ -206,13 +206,6 @@ function FlowCanvas() {
     return map;
   }, [JSON.stringify(availableNodes.map((n) => n.name).sort())]);
 
-  // Debug: Node type eşleşmelerini göster
-  console.log("Available node types:", Object.keys(nodeTypes));
-  console.log(
-    "Workflow node types:",
-    nodes.map((n) => n.type)
-  );
-
   // Load workflow data into the canvas
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -536,23 +529,21 @@ function FlowCanvas() {
         onDrop={onDrop}
         onDragOver={onDragOver}
       >
-        <ReactFlowProvider>
-          <ReactFlow
-            nodes={nodes}
-            edges={edges}
-            onNodesChange={onNodesChange}
-            onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            fitView
-            className="bg-gray-50"
-          >
-            <Controls position="top-right" />
-            <Background gap={20} size={1} />
-            <MiniMap />
-          </ReactFlow>
-        </ReactFlowProvider>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          fitView
+          className="bg-gray-50"
+        >
+          <Controls position="top-right" />
+          <Background gap={20} size={1} />
+          <MiniMap />
+        </ReactFlow>
       </div>
 
       {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}

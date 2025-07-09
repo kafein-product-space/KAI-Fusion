@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import {
   GitBranch,
   Settings,
