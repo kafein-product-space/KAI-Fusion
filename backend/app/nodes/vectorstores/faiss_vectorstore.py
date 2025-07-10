@@ -10,6 +10,7 @@ class FaissVectorStoreNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "FaissVectorStore",
+            "display_name":"Faiss Vector Store",
             "description": "FAISS vector store for efficient similarity search",
             "category": "Vector Stores",
             "node_type": NodeType.PROCESSOR,

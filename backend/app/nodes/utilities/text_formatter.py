@@ -9,6 +9,7 @@ class TextFormatterNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "TextFormatter",
+            "display_name":"Text Formatter",
             "description": "Format text with various transformations",
             "category": "Utilities",
             "node_type": NodeType.PROVIDER,

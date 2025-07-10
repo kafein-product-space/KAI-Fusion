@@ -11,6 +11,7 @@ class PineconeVectorStoreNode(ProcessorNode):
         super().__init__()
         self._metadata = {
             "name": "PineconeVectorStore",
+            "display_name":"Pinecone Vector Store",
             "description": "Pinecone vector database for storing and retrieving embeddings",
             "category": "Vector Stores",
             "node_type": NodeType.PROCESSOR,

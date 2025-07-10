@@ -33,7 +33,7 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
 
   // Input handle konfigürasyonu
   const leftInputHandles = [
-    { id: "input", label: "", required: true, position: 50 },
+    { id: "input", label: "Prompt", required: true, position: 50 },
   ];
 
   const bottomInputHandles = [
@@ -91,6 +91,20 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
             }}
             title="Input"
           />
+        ))}
+        {leftInputHandles.map((handle) => (
+          <div
+            key={`label-${handle.id}`}
+            className="absolute text-xs text-gray-500 font-medium whitespace-nowrap"
+            style={{
+              top: `${handle.position}%`,
+              left: "-60px", // Handle'ın soluna taşır
+              transform: "translateY(-50%)",
+            }}
+          >
+            {handle.label}
+            {handle.required && <span className="text-red-500 ml-1">*</span>}
+          </div>
         ))}
 
         {/* Bottom Input Handles */}

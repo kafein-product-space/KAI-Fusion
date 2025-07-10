@@ -75,6 +75,13 @@ import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
 import SitemapLoaderNode from "../nodes/document_loaders/SitemapLoaderNode";
 import YoutubeLoaderNode from "../nodes/document_loaders/YoutubeLoaderNode";
 import GitHubLoaderNode from "../nodes/document_loaders/GitHubLoaderNode";
+import ReadFileToolNode from "../nodes/tools/ReadFileToolNode";
+import CalculatorNode from "../nodes/utilities/CalculatorNode";
+import TextFormatterNode from "../nodes/utilities/TextFormatterNode";
+import FaissVectorStoreNode from "../nodes/vector_stores/FaissVectorStoreNode";
+import PineconeVectorStoreNode from "../nodes/vector_stores/PineconeVectorStoreNode";
+import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode";
+import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
 
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
@@ -119,6 +126,13 @@ const baseNodeTypes = {
   SitemapLoader: SitemapLoaderNode,
   YoutubeLoader: YoutubeLoaderNode,
   GitHubLoader: GitHubLoaderNode,
+  ReadFileTool: ReadFileToolNode,
+  Calculator: CalculatorNode,
+  TextFormatter: TextFormatterNode,
+  FaissVectorStore: FaissVectorStoreNode,
+  PineconeVectorStore: PineconeVectorStoreNode,
+  QdrantVectorStore: QdrantVectorStoreNode,
+  WeaviateVectorStore: WeaviateVectorStoreNode,
 };
 
 const edgeTypes = {
