@@ -1,4 +1,4 @@
-# SQLAlchemy models for database tables
+# Models package 
 
 from .base import Base
 from .user import User
