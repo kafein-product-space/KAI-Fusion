@@ -8,11 +8,12 @@ from __future__ import annotations
 import json
 import logging
 import uuid
-from typing import Any, Dict, List, Optional, Type
+from typing import Any, Dict, List, Optional
 from uuid import UUID
+from types import SimpleNamespace
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from fastapi.responses import StreamingResponse, ORJSONResponse
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -22,47 +23,13 @@ from app.core.node_registry import node_registry
 from app.services.dependencies import get_db_session, get_workflow_service_dep, get_execution_service_dep
 from app.services.workflow_service import WorkflowService
 from app.services.execution_service import ExecutionService
-from app.nodes.base import BaseNode
-from app.schemas.workflow import Workflow, WorkflowCreate, WorkflowUpdate, WorkflowExecution, WorkflowExecutionCreate
-
-User = Dict[str, Any]
-
-import os
-
-# Core engine imports
-from app.core.engine_v2 import get_engine
-from app.core.node_registry import node_registry
-from app.core.graph_builder import GraphBuilder
+from app.schemas.workflow import WorkflowCreate, WorkflowUpdate
+from app.models.user import User as UserModel
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-# Check if database is disabled
-DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false").lower() == "true"
-
-# Conditional imports based on database availability
-if not DISABLE_DATABASE:
-    try:
-        from sqlalchemy.ext.asyncio import AsyncSession
-        from app.services.dependencies import get_workflow_service_dep, get_execution_service_dep, get_db_session
-        from app.services.workflow_service import WorkflowService
-        from app.services.execution_service import ExecutionService
-        from app.auth.middleware import get_optional_user
-        from app.db.models import User, WorkflowCreate, WorkflowUpdate, ExecutionCreate
-        DB_AVAILABLE = True
-    except ImportError as e:
-        logger.warning(f"Database imports failed: {e}")
-        DB_AVAILABLE = False
-        DISABLE_DATABASE = True
-else:
-    DB_AVAILABLE = False
-
 # Request/Response Models
-
-class WorkflowExecuteRequest(BaseModel):
-    inputs: Dict[str, Any] = {}
-    async_execution: bool = False
-
 class WorkflowResponse(BaseModel):
     id: str
     name: str
@@ -96,6 +63,10 @@ class ExecutionResult(BaseModel):
 class FlowValidationRequest(BaseModel):
     flow_data: Dict[str, Any]
 
+class WorkflowExecuteRequest(BaseModel):
+    inputs: Dict[str, Any] = {}
+    async_execution: bool = False
+
 class AdhocExecuteRequest(BaseModel):
     workflow_id: Optional[str] = None
     flow_data: Optional[Dict[str, Any]] = None
@@ -103,231 +74,109 @@ class AdhocExecuteRequest(BaseModel):
     session_context: Optional[Dict[str, Any]] = None
     stream: bool = False
 
-# Database-enabled endpoints (only if database is available)
-if DB_AVAILABLE and not DISABLE_DATABASE:
+@router.post(
+    "/",
+    response_model=WorkflowResponse,
+    status_code=status.HTTP_201_CREATED,
+    summary="📝 Create Workflow",
+    description="Create a new workflow with flow data and metadata."
+)
+async def create_workflow(
+    workflow_data: WorkflowCreate,
+    current_user: SimpleNamespace = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    workflow_service: WorkflowService = Depends(get_workflow_service_dep)
+):
+    """Create a new workflow."""
+    # This part needs to be implemented in the service
+    raise HTTPException(status_code=501, detail="Not Implemented")
 
-    @router.post(
-        "/", 
-        response_model=WorkflowResponse,
-        status_code=status.HTTP_201_CREATED,
-        summary="📝 Create Workflow",
-        description="Create a new workflow with flow data and metadata."
-    )
-    async def create_workflow(
-        workflow_data: WorkflowCreate,
-        current_user: User = Depends(get_current_user),
-        session: AsyncSession = Depends(get_db_session),
-        workflow_service: WorkflowService = Depends(get_workflow_service_dep)
-    ):
-        """Create a new workflow."""
-        try:
-            # Create workflow through service
-            workflow = await workflow_service.create_workflow(
-                session, workflow_data, UUID(current_user.id)
-            )
-            
-            return WorkflowResponse(
-                id=str(workflow.id),
-                name=workflow.name,
-                description=workflow.description,
-                is_public=workflow.is_public,
-                flow_data=workflow.flow_data,
-                user_id=str(workflow.user_id),
-                version=workflow.version,
-                created_at=workflow.created_at.isoformat(),
-                updated_at=workflow.updated_at.isoformat()
-            )
-            
-        except Exception as e:
-            logger.error(f"Failed to create workflow: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to create workflow"
-            )
+@router.get(
+    "/",
+    response_model=List[WorkflowResponse],
+    summary="📋 List Workflows",
+    description="List workflows for the current user with optional public workflows."
+)
+async def list_workflows(
+    include_public: bool = False,
+    current_user: SimpleNamespace = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    workflow_service: WorkflowService = Depends(get_workflow_service_dep)
+):
+    """List workflows for the current user."""
+    # This part needs to be implemented in the service
+    raise HTTPException(status_code=501, detail="Not Implemented")
 
-    @router.get(
-        "/", 
-        response_model=List[WorkflowResponse],
-        summary="📋 List Workflows",
-        description="List workflows for the current user with optional public workflows."
-    )
-    async def list_workflows(
-        include_public: bool = False,
-        current_user: User = Depends(get_current_user),
-        session: AsyncSession = Depends(get_db_session),
-        workflow_service: WorkflowService = Depends(get_workflow_service_dep)
-    ):
-        """List workflows for the current user."""
-        try:
-            # Get user workflows
-            workflows = await workflow_service.get_user_workflows(
-                session, UUID(current_user.id), include_public=include_public
-            )
-            
-            return [
-                WorkflowResponse(
-                    id=str(workflow.id),
-                    name=workflow.name,
-                    description=workflow.description,
-                    is_public=workflow.is_public,
-                    flow_data=workflow.flow_data,
-                    user_id=str(workflow.user_id),
-                    version=workflow.version,
-                    created_at=workflow.created_at.isoformat(),
-                    updated_at=workflow.updated_at.isoformat()
-                )
-                for workflow in workflows
-            ]
-            
-        except Exception as e:
-            logger.error(f"Failed to list workflows: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve workflows"
-            )
+@router.get(
+    "/{workflow_id}",
+    response_model=WorkflowResponse,
+    summary="🔍 Get Workflow",
+    description="Get workflow details. Public workflows accessible to everyone, private workflows only to owner."
+)
+async def get_workflow(
+    workflow_id: str,
+    current_user: Optional[SimpleNamespace] = Depends(get_optional_user),
+    session: AsyncSession = Depends(get_db_session),
+    workflow_service: WorkflowService = Depends(get_workflow_service_dep)
+):
+    """Get workflow details with access control."""
+    try:
+        workflow = await workflow_service.get_by_id(session, UUID(workflow_id))
+        if not workflow:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Workflow not found")
 
-    @router.get(
-        "/{workflow_id}", 
-        response_model=WorkflowResponse,
-        summary="🔍 Get Workflow",
-        description="Get workflow details. Public workflows accessible to everyone, private workflows only to owner."
-    )
-    async def get_workflow(
-        workflow_id: str,
-        current_user: Optional[User] = Depends(get_current_user),
-        session: AsyncSession = Depends(get_db_session),
-        workflow_service: WorkflowService = Depends(get_workflow_service_dep)
-    ):
-        """Get workflow details with access control."""
-        try:
-            # Get workflow and check access
-            try:
-                workflow = await workflow_service.get_by_id(session, UUID(workflow_id))
-                # Check if user can access (public or owned)
-                if not workflow.is_public and (not current_user or str(workflow.user_id) != current_user.id):
-                    workflow = None
-            except:
-                workflow = None
-            
-            if not workflow:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Workflow not found"
-                )
-            
-            return WorkflowResponse(
-                id=str(workflow.id),
-                name=workflow.name,
-                description=workflow.description,
-                is_public=workflow.is_public,
-                flow_data=workflow.flow_data,
-                user_id=str(workflow.user_id),
-                version=workflow.version,
-                created_at=workflow.created_at.isoformat(),
-                updated_at=workflow.updated_at.isoformat()
-            )
-            
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid workflow ID format"
-            )
-        except Exception as e:
-            logger.error(f"Failed to get workflow {workflow_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to retrieve workflow"
-            )
+        is_owner = current_user and workflow.user_id == current_user.id
+        if not workflow.is_public and not is_owner:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Access denied")
 
-    @router.put(
-        "/{workflow_id}", 
-        response_model=WorkflowResponse,
-        summary="✏️ Update Workflow",
-        description="Update workflow data and metadata."
-    )
-    async def update_workflow(
-        workflow_id: str,
-        workflow_update: WorkflowUpdate,
-        current_user: User = Depends(get_current_user),
-        session: AsyncSession = Depends(get_db_session),
-        workflow_service: WorkflowService = Depends(get_workflow_service_dep)
-    ):
-        """Update workflow."""
-        try:
-            # Update workflow through service
-            workflow = await workflow_service.update_workflow(
-                session, UUID(workflow_id), workflow_update, UUID(current_user.id)
-            )
-            
-            if not workflow:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Workflow not found or access denied"
-                )
-            
-            return WorkflowResponse(
-                id=str(workflow.id),
-                name=workflow.name,
-                description=workflow.description,
-                is_public=workflow.is_public,
-                flow_data=workflow.flow_data,
-                user_id=str(workflow.user_id),
-                version=workflow.version,
-                created_at=workflow.created_at.isoformat(),
-                updated_at=workflow.updated_at.isoformat()
-            )
-            
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid workflow ID format"
-            )
-        except Exception as e:
-            logger.error(f"Failed to update workflow {workflow_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to update workflow"
-            )
+        return WorkflowResponse(
+            id=str(workflow.id),
+            name=workflow.name,
+            description=workflow.description,
+            is_public=workflow.is_public,
+            flow_data=workflow.flow_data,
+            user_id=str(workflow.user_id),
+            version=workflow.version,
+            created_at=workflow.created_at.isoformat(),
+            updated_at=workflow.updated_at.isoformat()
+        )
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid workflow ID format")
+    except Exception as e:
+        logger.error(f"Failed to get workflow {workflow_id}: {e}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to retrieve workflow")
 
-    @router.delete(
-        "/{workflow_id}",
-        summary="🗑️ Delete Workflow",
-        description="Delete workflow and all associated executions."
-    )
-    async def delete_workflow(
-        workflow_id: str,
-        current_user: User = Depends(get_current_user),
-        session: AsyncSession = Depends(get_db_session),
-        workflow_service: WorkflowService = Depends(get_workflow_service_dep)
-    ):
-        """Delete workflow."""
-        try:
-            # Use the base service delete method
-            success = await workflow_service.delete(
-                session, UUID(workflow_id), UUID(current_user.id)
-            )
-            
-            if not success:
-                raise HTTPException(
-                    status_code=status.HTTP_404_NOT_FOUND,
-                    detail="Workflow not found or access denied"
-                )
-            
-            return {"success": True, "message": "Workflow deleted successfully"}
-            
-        except ValueError:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Invalid workflow ID format"
-            )
-        except Exception as e:
-            logger.error(f"Failed to delete workflow {workflow_id}: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="Failed to delete workflow"
-            )
+@router.put(
+    "/{workflow_id}",
+    response_model=WorkflowResponse,
+    summary="✏️ Update Workflow",
+    description="Update workflow data and metadata."
+)
+async def update_workflow(
+    workflow_id: str,
+    workflow_update: WorkflowUpdate,
+    current_user: SimpleNamespace = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    workflow_service: WorkflowService = Depends(get_workflow_service_dep)
+):
+    """Update workflow."""
+    # This part needs to be implemented in the service
+    raise HTTPException(status_code=501, detail="Not Implemented")
 
-# Always-available endpoints (work with or without database)
+@router.delete(
+    "/{workflow_id}",
+    summary="🗑️ Delete Workflow",
+    description="Delete workflow and all associated executions."
+)
+async def delete_workflow(
+    workflow_id: str,
+    current_user: SimpleNamespace = Depends(get_current_user),
+    session: AsyncSession = Depends(get_db_session),
+    workflow_service: WorkflowService = Depends(get_workflow_service_dep)
+):
+    """Delete workflow."""
+    # This part needs to be implemented in the service
+    raise HTTPException(status_code=501, detail="Not Implemented")
 
 @router.post(
     "/validate",
@@ -423,26 +272,20 @@ async def execute_adhoc_workflow(
         flow_data = req.flow_data
         
         if req.workflow_id and not flow_data:
-            if DB_AVAILABLE and current_user:
-                # TODO: Fetch workflow from database
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="Database access required to execute by workflow_id"
-                )
-            else:
-                raise HTTPException(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    detail="flow_data is required for ad-hoc execution when database is disabled"
-                )
+            # TODO: Fetch workflow from database
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Database access required to execute by workflow_id"
+            )
         
         if not flow_data:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="flow_data is required for execution"
+                detail="flow_data is required for ad-hoc execution"
             )
         
         # Execute using engine
-        engine = get_engine()
+        engine = GraphBuilder(node_registry=node_registry.nodes)
         
         # Build the workflow graph
         user_context = {
@@ -476,7 +319,7 @@ async def execute_adhoc_workflow(
         )
 
 # Database-enabled execution endpoints
-if DB_AVAILABLE and not DISABLE_DATABASE:
+if True: # Always enabled for now
     
     @router.post(
         "/{workflow_id}/execute", 
@@ -487,7 +330,7 @@ if DB_AVAILABLE and not DISABLE_DATABASE:
     async def execute_workflow(
         workflow_id: str,
         execution_data: WorkflowExecuteRequest,
-        current_user: User = Depends(get_current_user),
+        current_user: SimpleNamespace = Depends(get_current_user),
         session: AsyncSession = Depends(get_db_session),
         workflow_service: WorkflowService = Depends(get_workflow_service_dep),
         execution_service: ExecutionService = Depends(get_execution_service_dep)
@@ -543,7 +386,7 @@ if DB_AVAILABLE and not DISABLE_DATABASE:
             # Synchronous execution
             try:
                 # Use unified engine for execution
-                engine = get_engine()
+                engine = GraphBuilder(node_registry=node_registry.nodes)
                 
                 # Build the workflow graph
                 user_context = {
@@ -593,7 +436,7 @@ if DB_AVAILABLE and not DISABLE_DATABASE:
         workflow_id: str,
         limit: int = 10,
         offset: int = 0,
-        current_user: User = Depends(get_current_user),
+        current_user: SimpleNamespace = Depends(get_current_user),
         session: AsyncSession = Depends(get_db_session),
         workflow_service: WorkflowService = Depends(get_workflow_service_dep),
         execution_service: ExecutionService = Depends(get_execution_service_dep)
@@ -665,14 +508,14 @@ class WorkflowRunRequest(BaseModel):
 async def run_workflow(
     workflow_id: str,
     run_request: WorkflowRunRequest,
-    user: User = Depends(get_current_user),
+    user: SimpleNamespace = Depends(get_current_user),
     db: AsyncSession = Depends(get_db_session),
     workflow_service: WorkflowService = Depends(get_workflow_service_dep),
 ):
     """Run a workflow and get a streaming response."""
     try:
         # Use user['id'] which is the standard from Supabase auth
-        workflow = await workflow_service.get_by_id(db, workflow_id, user["id"])
+        workflow = await workflow_service.get_by_id(db, workflow_id, user.id)
         if not workflow:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
@@ -686,7 +529,7 @@ async def run_workflow(
             )
 
         engine = GraphBuilder(node_registry=node_registry.nodes)
-        engine.build_from_flow(workflow.flow_data, user_id=user["id"])
+        engine.build_from_flow(workflow.flow_data, user_id=user.id)
 
         session_id = run_request.session_id or str(uuid.uuid4())
 
@@ -695,7 +538,7 @@ async def run_workflow(
                 stream_gen = await engine.execute(
                     inputs=run_request.input,
                     session_id=session_id,
-                    user_id=user["id"],
+                    user_id=user.id,
                     workflow_id=workflow_id,
                     stream=True,
                 )
@@ -717,20 +560,6 @@ async def run_workflow(
             detail=f"An unexpected error occurred: {e}",
         )
 
-# Stub endpoints for database-disabled mode
-else:
-    @router.get("/", summary="📋 List Workflows (stub)")
-    async def list_workflows_stub():
-        """Return empty workflow list when database is disabled."""
-        return []
-
-    @router.post("/", summary="📝 Create Workflow (stub)")
-    async def create_workflow_stub():
-        """Stub for workflow creation when database is disabled."""
-        raise HTTPException(
-            status_code=status.HTTP_501_NOT_IMPLEMENTED, 
-            detail="Database functionality disabled. Use /execute for ad-hoc workflow execution."
-        )
 
 # Session endpoints – deprecated
 NOT_IMPLEMENTED_MSG = "Ephemeral SessionManager has been removed; use persistent conversation threads (coming soon)."
