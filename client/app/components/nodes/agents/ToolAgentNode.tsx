@@ -1,6 +1,6 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot } from "lucide-react";
+import { Bot, Trash } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
 
 interface ToolAgentNodeProps {
@@ -10,7 +10,7 @@ interface ToolAgentNodeProps {
 
 function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
   const { setNodes } = useReactFlow();
-
+  const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
 
   const handleOpenModal = () => {
@@ -25,6 +25,10 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
           : node
       )
     );
+  };
+  const handleDeleteNode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
 
   // Input handle konfigürasyonu
@@ -44,6 +48,8 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
       <div
         className={`relative flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-300 bg-white hover:bg-gray-50 min-w-[160px] min-h-[80px] shadow-sm`}
         onDoubleClick={handleOpenModal}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         title="Double click to configure"
       >
         {/* Icon ve Title */}
@@ -60,7 +66,15 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
             </p>
           </div>
         </div>
-
+        {isHovered && (
+          <button
+            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white shadow-lg transition-all duration-200 hover:scale-110 flex items-center justify-center z-10"
+            onClick={handleDeleteNode}
+            title="Delete Node"
+          >
+            <Trash size={8} />
+          </button>
+        )}
         {/* Left Input Handle */}
         {leftInputHandles.map((handle) => (
           <Handle
