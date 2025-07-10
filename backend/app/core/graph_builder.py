@@ -4,8 +4,7 @@ from __future__ import annotations
 
 This replaces the previous DynamicChainBuilder implementation and brings
 full LangGraph features: conditional routing, loop/parallel constructs,
-checkpointer support, streaming execution, and credential context
-handling so that nodes can retrieve per-user credentials securely.
+checkpointer support, and streaming execution.
 """
 
 from typing import Dict, Any, List, Optional, Callable, Type, Union, AsyncGenerator
@@ -23,7 +22,6 @@ from langchain_core.runnables import Runnable, RunnableConfig
 from app.core.state import FlowState
 from app.nodes.base import BaseNode
 from app.core.checkpointer import get_postgres_checkpointer
-from app.core.credential_provider import credential_provider
 
 __all__ = ["GraphBuilder", "NodeConnection", "GraphNodeInstance", "ControlFlowType"]
 
@@ -50,8 +48,7 @@ class GraphNodeInstance:
     user_data: Dict[str, Any]
 
 
-class ControlFlowType(str, Enum):
-    SEQUENTIAL = "sequential"
+class ControlFlowType(Enum):
     CONDITIONAL = "conditional"
     LOOP = "loop"
     PARALLEL = "parallel"
@@ -68,6 +65,7 @@ class GraphBuilder:
         self.nodes: Dict[str, GraphNodeInstance] = {}
         self.connections: List[NodeConnection] = []
         self.control_flow_nodes: Dict[str, Dict[str, Any]] = {}
+        self.explicit_start_nodes: set[str] = set()
         self.graph: Optional[CompiledStateGraph] = None
 
     # ---------------------------------------------------------------------
@@ -82,22 +80,21 @@ class GraphBuilder:
         self.nodes.clear()
         self.connections.clear()
         self.control_flow_nodes.clear()
+        self.explicit_start_nodes.clear()
 
-        # Every execution gets its own credential context so that node
-        # instances can resolve credentials via `credential_provider`.
-        context_id = str(uuid.uuid4())
-        if user_id:
-            credential_provider.set_user_context(context_id, user_id)
+        # Identify start nodes before full parsing and filter them out
+        start_node_ids = {n["id"] for n in nodes if n.get("type") == "StartNode"}
+        self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
+        
+        # Filter out start nodes and their edges from further processing
+        nodes = [n for n in nodes if n.get("type") != "StartNode"]
+        edges = [e for e in edges if e.get("source") not in start_node_ids]
 
-        try:
-            self._parse_connections(edges)
-            self._identify_control_flow_nodes(nodes)
-            self._instantiate_nodes(nodes, context_id)
-            self.graph = self._build_langgraph()
-            return self.graph
-        finally:
-            if user_id:
-                credential_provider.clear_user_context(context_id)
+        self._parse_connections(edges)
+        self._identify_control_flow_nodes(nodes)
+        self._instantiate_nodes(nodes)
+        self.graph = self._build_langgraph()
+        return self.graph
 
     async def execute(
         self,
@@ -121,11 +118,10 @@ class GraphBuilder:
         )
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
-        return (
-            self._execute_stream(init_state, config)
-            if stream
-            else await self._execute_sync(init_state, config)
-        )
+        if stream:
+            return self._execute_stream(init_state, config)
+        else:
+            return await self._execute_sync(init_state, config)
 
     # ------------------------------------------------------------------
     # Internal helpers – build phase
@@ -145,40 +141,41 @@ class GraphBuilder:
         return MemorySaver()
 
     def _parse_connections(self, edges: List[Dict[str, Any]]):
+        """Parse edges into internal connection format with handle support."""
         for edge in edges:
-            self.connections.append(
-                NodeConnection(
-                    source_node_id=edge["source"],
-                    source_handle=edge.get("sourceHandle", "output"),
-                    target_node_id=edge["target"],
-                    target_handle=edge.get("targetHandle", "input"),
+            source = edge.get("source", "")
+            target = edge.get("target", "")
+            source_handle = edge.get("sourceHandle", "output")
+            target_handle = edge.get("targetHandle", "input")
+            data_type = edge.get("type", "any")
+
+            if source and target:
+                conn = NodeConnection(
+                    source_node_id=source,
+                    source_handle=source_handle,
+                    target_node_id=target,
+                    target_handle=target_handle,
+                    data_type=data_type,
                 )
-            )
+                self.connections.append(conn)
+                print(f"[DEBUG] Parsed connection: {source}[{source_handle}] -> {target}[{target_handle}]")
 
     def _identify_control_flow_nodes(self, nodes: List[Dict[str, Any]]):
-        """Detect Condition/Loop/Parallel helper nodes by naming convention."""
-        for node in nodes:
-            node_type = node.get("type", "").lower()
-            node_id = node["id"]
-            # Treat dedicated flow-control helper nodes specially, but skip
-            # generic `ConditionalChain` which is a regular processing node.
-            if ("condition" in node_type or "router" in node_type) and node_type != "conditionalchain":
-                self.control_flow_nodes[node_id] = {
-                    "type": ControlFlowType.CONDITIONAL,
-                    "data": node.get("data", {}),
+        """Detect control-flow constructs like conditional, loop, parallel."""
+        for node_def in nodes:
+            node_type = node_def.get("type", "")
+            if node_type in ["ConditionalNode", "LoopNode", "ParallelNode"]:
+                flow_type_map = {
+                    "ConditionalNode": ControlFlowType.CONDITIONAL,
+                    "LoopNode": ControlFlowType.LOOP,
+                    "ParallelNode": ControlFlowType.PARALLEL,
                 }
-            elif "loop" in node_type:
-                self.control_flow_nodes[node_id] = {
-                    "type": ControlFlowType.LOOP,
-                    "data": node.get("data", {}),
-                }
-            elif "parallel" in node_type:
-                self.control_flow_nodes[node_id] = {
-                    "type": ControlFlowType.PARALLEL,
-                    "data": node.get("data", {}),
+                self.control_flow_nodes[node_def["id"]] = {
+                    "type": flow_type_map[node_type],
+                    "data": node_def.get("data", {}),
                 }
 
-    def _instantiate_nodes(self, nodes: List[Dict[str, Any]], context_id: str):
+    def _instantiate_nodes(self, nodes: List[Dict[str, Any]]):
         """Instantiate nodes and build proper connection mappings with source handle support."""
         for node_def in nodes:
             node_id = node_def["id"]
@@ -194,7 +191,6 @@ class GraphBuilder:
 
             instance = node_cls()
             instance.node_id = node_id
-            instance.context_id = context_id
 
             # 🔥 NEW: Build comprehensive connection mapping
             # Format: {target_handle: {"source_node_id": str, "source_handle": str}}
@@ -305,34 +301,34 @@ class GraphBuilder:
         )
 
     def _add_loop_logic(self, graph: StateGraph, node_id: str, cfg: Dict[str, Any]):
-        """Create a simple counter-based loop helper.
-
-        Flow: LOOP_NODE  ─▶ BODY_NODE … ─▶ LOOP_NODE (edge in original JSON)
-              ^                                           |
-              └──────────────────────── < max_iter ? -----┘
-        The JSON must contain at least one outgoing edge from the loop helper
-        designating the *body* node.  After each body execution, control should
-        return to the loop helper (another edge).  This function injects the
-        conditional routing logic so that execution either jumps to the BODY
-        or terminates (END).
-        """
-        max_iter = int(cfg.get("max_iterations", 3))
-
-        # Identify body (first outgoing edge)
+        """Add a loop construct that repeats until a condition is met."""
         outgoing = [c for c in self.connections if c.source_node_id == node_id]
         if not outgoing:
             return
-        body_id = outgoing[0].target_node_id
 
-        def loop_router(state: FlowState) -> str:
-            counter = state.get_variable(f"{node_id}_counter", 0)
-            if counter >= max_iter:
-                return END
-            state.set_variable(f"{node_id}_counter", counter + 1)
-            return body_id
+        max_iterations = cfg.get("max_iterations", 10)
+        loop_condition = cfg.get("loop_condition", "continue")
 
-        graph.add_node(node_id, lambda s: s)  # condition node (no-op)
-        graph.add_conditional_edges(node_id, loop_router, {body_id: body_id, END: END})
+        def should_continue(state: FlowState) -> str:
+            iterations = state.get_variable(f"{node_id}_iterations", 0)
+            if iterations >= max_iterations:
+                return "exit"
+            
+            # Evaluate loop condition
+            if loop_condition == "continue":
+                return outgoing[0].target_node_id
+            else:
+                # Custom condition evaluation
+                return "exit" if self._evaluate_condition(
+                    state.last_output, cfg, "contains"
+                ) else outgoing[0].target_node_id
+
+        graph.add_node(node_id, lambda s: {**s, f"{node_id}_iterations": s.get_variable(f"{node_id}_iterations", 0) + 1})
+        graph.add_conditional_edges(
+            node_id,
+            should_continue,
+            {outgoing[0].target_node_id: outgoing[0].target_node_id, "exit": END},
+        )
 
     def _add_parallel_fanout(self, graph: StateGraph, node_id: str, cfg: Dict[str, Any]):
         """Add a fan-out node that duplicates state to multiple branches."""
@@ -385,17 +381,31 @@ class GraphBuilder:
                 graph.add_edge(source_node, target_node)
 
     def _add_start_end_connections(self, graph: StateGraph):
-        incoming_targets = {c.target_node_id for c in self.connections}
-        start_nodes = [nid for nid in list(self.nodes) + list(self.control_flow_nodes) if nid not in incoming_targets]
-        if not start_nodes:
-            start_nodes = [list(self.nodes.keys())[0]] if self.nodes else []
-        for n in start_nodes:
-            graph.add_edge(START, n)
+        # Use explicitly identified start nodes if available
+        if self.explicit_start_nodes:
+            for n in self.explicit_start_nodes:
+                if n in self.nodes or n in self.control_flow_nodes:
+                    graph.add_edge(START, n)
+            # Fallback for workflows that might not have a StartNode but are valid
+            if not any(n in self.nodes or n in self.control_flow_nodes for n in self.explicit_start_nodes):
+                self._connect_orphan_start_nodes(graph)
+        else:
+            self._connect_orphan_start_nodes(graph)
 
         outgoing_sources = {c.source_node_id for c in self.connections}
         end_nodes = [nid for nid in self.nodes if nid not in outgoing_sources and nid not in self.control_flow_nodes]
         for n in end_nodes:
             graph.add_edge(n, END)
+
+    def _connect_orphan_start_nodes(self, graph: StateGraph):
+        """Connects nodes that have no incoming connections to START."""
+        incoming_targets = {c.target_node_id for c in self.connections}
+        start_nodes = [nid for nid in list(self.nodes) + list(self.control_flow_nodes) if nid not in incoming_targets]
+        if not start_nodes and self.nodes:
+            # If no clear start node, pick the first one as a fallback
+            start_nodes = [list(self.nodes.keys())[0]]
+        for n in start_nodes:
+            graph.add_edge(START, n)
 
     # ------------------------------------------------------------------
     # Internal – Execution helpers

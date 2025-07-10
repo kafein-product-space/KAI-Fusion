@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { ArrowUpToLine, Bot } from "lucide-react";
 import RequestsPostToolModal from "../../modals/tools/RequestsPostToolModal";
 

@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Bot, Link2 } from "lucide-react";
 import WebLoaderConfigModal from "../../modals/document_loaders/WebLoaderConfigModal";
 

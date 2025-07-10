@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Bot, Globe } from "lucide-react";
 import WebBrowserToolConfigModal from "../../modals/tools/WebBrowserToolConfigModal";
 

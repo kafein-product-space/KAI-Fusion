@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Bot } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
 

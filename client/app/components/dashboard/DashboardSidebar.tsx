@@ -34,18 +34,21 @@ const Sidebar = () => {
         <nav className="space-y-2 mb-8">
           {/* Workflows page disabled during MVP (relies on DB) – direct users to Canvas instead */}
           <SidebarLink
-            icon={<Play className="w-6 h-6" />}
-            label="Canvas"
-            active={location.pathname === "/canvas"}
+            icon={<Play className="w-5 h-5" />}
+            label="Workflows"
+            path="/workflows"
+            active={location.pathname === "/workflows"}
           />
           <SidebarLink
             icon={<BarChart2 className="w-6 h-6" />}
             label="Executions"
+            path="/executions"
             active={location.pathname === "/executions"}
           />
           <SidebarLink
             icon={<Key className="w-6 h-6" />}
             label="Credentials"
+            path="/credentials"
             active={location.pathname === "/credentials"}
           />
         </nav>
@@ -58,11 +61,13 @@ const Sidebar = () => {
           <SidebarLink
             icon={<Layers className="w-6 h-6" />}
             label="Templates"
+            path="/templates"
             active={location.pathname === "/templates"}
           />
           <SidebarLink
             icon={<Database className="w-6 h-6" />}
             label="Variables"
+            path="/variables"
             active={location.pathname === "/variables"}
           />
         </div>
@@ -99,23 +104,23 @@ export default Sidebar;
 function SidebarLink({
   icon,
   label,
+  path,
   active,
 }: {
   icon: React.ReactNode;
   label: string;
+  path: string;
   active: boolean;
 }) {
   return (
     <Link
-      to={
-        label.toLowerCase() === "canvas" ? "/canvas" : `/${label.toLowerCase()}`
-      }
-      className={`flex items-center gap-2 p-2 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
+      to={path}
+      className={`flex items-center gap-3 p-3 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
         active ? "bg-[#D9DEE8] font-semibold" : ""
       }`}
     >
       {icon}
-      <span className="text-lg text-[#414244]">{label}</span>
+      <span className="text-sm text-[#414244]">{label}</span>
     </Link>
   );
 }
