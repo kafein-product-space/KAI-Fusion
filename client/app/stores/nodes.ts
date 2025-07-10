@@ -7,7 +7,7 @@ import type {
   CustomNode,
   CustomNodeCreateRequest
 } from '~/types/api';
-
+import type { StateCreator } from 'zustand'
 interface NodeState {
   // State
   nodes: NodeMetadata[];

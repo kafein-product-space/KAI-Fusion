@@ -112,7 +112,7 @@ export default function CredentialsLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-              <DashboardSidebar />
+      <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">
@@ -146,7 +146,7 @@ export default function CredentialsLayout() {
               </div>
 
               <button
-                className="flex items-center gap-2 p-2 rounded-lg hover:bg-[#F5F5F5] transition duration-500 h-10 cursor-pointer"
+                className="flex items-center gap-2 px-4 py-2 bg-[#9664E0] text-white rounded-lg hover:bg-[#8557d4] transition duration-200"
                 onClick={() =>
                   (
                     document.getElementById("my_modal_1") as HTMLDialogElement

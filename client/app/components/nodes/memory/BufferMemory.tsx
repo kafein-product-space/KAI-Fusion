@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import ClaudeConfigModal from "../../modals/llms/ClaudeConfigModal";
 import BufferMemoryConfigModal from "../../modals/memory/BufferMemoryConfigModal";
 import { Archive } from "lucide-react";

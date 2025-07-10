@@ -1,11 +1,11 @@
 import React from "react";
-import { ReactFlowProvider } from "reactflow";
+import { ReactFlowProvider } from "@xyflow/react";
 import Navbar from "../components/common/Navbar";
 import Sidebar from "../components/common/Sidebar";
 import FlowCanvas from "../components/canvas/FlowCanvas";
 import { AuthGuard } from "../components/AuthGuard";
 import ErrorBoundary from "../components/common/ErrorBoundary";
-import "reactflow/dist/style.css";
+import "@xyflow/react/dist/style.css";
 
 export default function App() {
   return (

@@ -1,5 +1,3 @@
-# Models package 
-
 from .base import Base
 from .user import User
 from .user_credential import UserCredential
@@ -24,3 +22,4 @@ __all__ = [
     "LoginActivity",
     "ChatMessage"
 ]
+

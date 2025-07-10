@@ -1,5 +1,5 @@
 import React, { useRef } from "react";
-import { useReactFlow, Handle, Position } from "reactflow";
+import { useReactFlow, Handle, Position } from "@xyflow/react";
 import ClaudeConfigModal from "../../modals/llms/ClaudeConfigModal";
 import SummaryMemoryConfigModal from "../../modals/memory/SummaryMemoryConfigModal";
 import StringOutputParserConfigModal from "../../modals/output_parsers/StringOutputParserConfigModal";

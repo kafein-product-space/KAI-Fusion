@@ -13,5 +13,12 @@ export default defineConfig({
         secure: false,
       },
     },
+   
+  },
+  optimizeDeps: {
+    include: ["@xyflow/react"],
+  },
+  ssr: {
+    noExternal: ['@xyflow/react'],
   },
 });
