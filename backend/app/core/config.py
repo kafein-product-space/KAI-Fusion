@@ -14,40 +14,47 @@ from pydantic import field_validator
 load_dotenv()
 
 class Settings(BaseSettings):
-    """Application configuration parsed from environment variables / .env
+    """Application-wide settings"""
 
-    We set ``extra = 'ignore'`` so that unrelated env-vars (e.g. variables coming
-    from other services or deployment platforms) do **not** cause the
-    application to crash with a validation error. Only the variables we define
-    below will be bound; everything else is silently ignored.
-    """
-
-    # pydantic-settings v2 style configuration
-    model_config = SettingsConfigDict(
-        extra="ignore",         # ignore unknown env vars instead of raising
-        env_file=".env",        # load from .env if present
-        case_sensitive=True,
-    )
-
-    # App Settings
-    APP_NAME: str = "Flowise-FastAPI"
-    VERSION: str = "2.0.0"
-    DEBUG: bool = Field(default=True, description="Enable debug mode")
-    HOST: str = "0.0.0.0"
-    PORT: int = 8000
-    RELOAD: bool = True
-    
-    # API Settings
+    # Core settings
+    APP_NAME: str = "KAI Fusion"
+    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
     API_V1_STR: str = "/api/v1"
-    
-    # Supabase Settings
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_KEY: str = os.getenv("SUPABASE_KEY", "")
-    SUPABASE_SERVICE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_KEY")
-    
-    # OpenAI Settings
+
+    # Database settings
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "flowise")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "flowise")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisepassword")
+    POSTGRES_PORT: int = int(os.getenv("DATABASE_PORT", 5432))
+    POSTGRES_HOST: str = os.getenv("DATABASE_HOST", "localhost")
+    DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "false").lower() in ("true", "1", "t")
+
+    @property
+    def DATABASE_URL(self) -> str:
+        """Construct the synchronous database URL from components."""
+        return (
+            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    @property
+    def ASYNC_DATABASE_URL(self) -> str:
+        """Construct the asynchronous database URL from components."""
+        return (
+            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
+            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
+        )
+
+    # Agent Settings
+    AGENT_NODE_ID: str = "agent"
+
+    # Celery Settings
+    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+
+    # OpenAI API Key
     OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-    
+
     # Anthropic Settings
     ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
     
@@ -59,7 +66,6 @@ class Settings(BaseSettings):
     TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
     
     # Security
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     CREDENTIAL_MASTER_KEY: Optional[str] = os.getenv("CREDENTIAL_MASTER_KEY")
@@ -71,15 +77,6 @@ class Settings(BaseSettings):
         "http://localhost:5173",  # Vite dev server
         "http://localhost:8080"   # Alternative frontend port
     ]
-    
-    # Database Settings
-    DATABASE_URL: str = Field(
-        default="postgresql://agentflow:agentflow@localhost:5432/agentflow_dev",
-        description="Database connection URL"
-    )
-    
-    # Redis Configuration
-    REDIS_URL: Optional[str] = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     
     # Logging Settings
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
@@ -102,19 +99,34 @@ class Settings(BaseSettings):
     RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
     RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
     
-    # Database Configuration
-    DB_USER: Optional[str] = None
-    DB_PASSWORD: Optional[str] = None
-    DB_HOST: Optional[str] = None
-    DB_PORT: Optional[int] = None
-    DB_NAME: Optional[str] = None
-    
     @field_validator('ALLOWED_ORIGINS', mode='before')
     def parse_cors_origins(cls, v):  # noqa: N805 – Pydantic validator signature
         """Parse CORS origins from a comma-separated string to list."""
         if isinstance(v, str):
             return [origin.strip() for origin in v.split(',')]
         return v
+
+    def get_warnings(self) -> List[str]:
+        """Get a list of configuration-related warnings."""
+        warnings = []
+        if self.SECRET_KEY == "your-secret-key-here-change-in-production":
+            warnings.append("SECRET_KEY is not set, using default. THIS IS NOT SAFE FOR PRODUCTION.")
+
+        if not self.OPENAI_API_KEY:
+            warnings.append(
+                "OPENAI_API_KEY is not set. OpenAI-related features will not work."
+            )
+
+        if not self.GOOGLE_API_KEY:
+            warnings.append("Google API key not set. Google Search tools will not work.")
+        
+        if not self.TAVILY_API_KEY:
+            warnings.append("Tavily API key not set. Tavily search tools will not work.")
+        
+        if not self.ANTHROPIC_API_KEY:
+            warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
+
+        return warnings
 
 # Global settings instance
 _settings: Optional[Settings] = None
@@ -161,10 +173,6 @@ def validate_api_keys(settings: Settings) -> List[str]:
     warnings = []
     
     # Critical validations
-    if not settings.SUPABASE_URL or not settings.SUPABASE_KEY:
-        warnings.append("Supabase credentials not set. Authentication and database features will not work.")
-    
-    # Optional API key validations
     if not settings.OPENAI_API_KEY:
         warnings.append("OpenAI API key not set. OpenAI LLM nodes will not work.")
     
@@ -193,7 +201,7 @@ def create_directories(settings: Settings):
         os.makedirs(settings.UPLOAD_DIR)
         logging.info(f"Created upload directory: {settings.UPLOAD_DIR}")
 
-def get_database_url(settings: Settings) -> Optional[str]:
+def get_database_url(settings: Settings) -> str:
     """Get database URL for direct connections"""
     return settings.DATABASE_URL
 
