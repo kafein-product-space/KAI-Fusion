@@ -82,6 +82,7 @@ import FaissVectorStoreNode from "../nodes/vector_stores/FaissVectorStoreNode";
 import PineconeVectorStoreNode from "../nodes/vector_stores/PineconeVectorStoreNode";
 import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode";
 import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
+import { usePasteWorkflow } from "~/hooks/usePasteWorkflow";
 
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
@@ -191,6 +192,7 @@ function FlowCanvas() {
     };
     loadInitialWorkflow();
   }, []);
+  usePasteWorkflow();
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
