@@ -268,6 +268,8 @@ async def execute_adhoc_workflow(
 ):
     """Execute workflow ad-hoc without creating workflow record."""
     try:
+        print(f"🚀 Received workflow execution request")
+        
         # Use either provided flow_data or fetch from workflow_id (if DB available)
         flow_data = req.flow_data
         
@@ -284,38 +286,63 @@ async def execute_adhoc_workflow(
                 detail="flow_data is required for ad-hoc execution"
             )
         
-        # Execute using engine
-        engine = GraphBuilder(node_registry=node_registry.nodes)
+        # Log execution details
+        nodes = flow_data.get("nodes", [])
+        edges = flow_data.get("edges", [])
+        print(f"📊 Executing workflow with {len(nodes)} nodes and {len(edges)} edges")
+        print(f"📥 Input text: {req.input_text}")
         
-        # Build the workflow graph
+        # Use the unified engine for execution
+        from app.core.engine_v2 import get_engine
+        engine = get_engine()
+        
+        # Build the workflow
         user_context = {
             "user_id": getattr(current_user, 'id', None) if current_user else None,
             "workflow_id": req.workflow_id
         }
+        
+        print("🔨 Building workflow...")
         engine.build(flow_data, user_context=user_context)
         
-        # Execute the workflow
+        # Prepare inputs
         inputs = {"input": req.input_text}
         if req.session_context:
             inputs.update(req.session_context)
         
+        print("⚡ Executing workflow...")
+        
+        # Execute the workflow
         result = await engine.execute(
             inputs,
             stream=req.stream,
             user_context=user_context
         )
         
-        return ExecutionResult(
-            success=True,
-            workflow_id=req.workflow_id or "adhoc",
-            results=result if isinstance(result, dict) else {"output": result}
-        )
+        # Handle different result types
+        if req.stream:
+            # For streaming, the result is an async generator
+            print("📡 Returning streaming response")
+            return result
+        else:
+            # For non-streaming, wrap in ExecutionResult format
+            print("✅ Execution completed successfully")
+            return ExecutionResult(
+                success=True,
+                workflow_id=req.workflow_id or "adhoc",
+                results=result if isinstance(result, dict) else {"output": result}
+            )
         
+    except HTTPException:
+        # Re-raise HTTP exceptions as-is
+        raise
     except Exception as e:
-        logger.error(f"Ad-hoc execution failed: {e}")
+        error_msg = f"Ad-hoc execution failed: {str(e)}"
+        print(f"❌ {error_msg}")
+        logger.error(error_msg, exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Execution failed: {str(e)}"
+            detail=error_msg
         )
 
 # Database-enabled execution endpoints

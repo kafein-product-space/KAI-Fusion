@@ -21,7 +21,6 @@ from langchain_core.runnables import Runnable, RunnableConfig
 
 from app.core.state import FlowState
 from app.nodes.base import BaseNode
-from app.core.checkpointer import get_postgres_checkpointer
 
 __all__ = ["GraphBuilder", "NodeConnection", "GraphNodeInstance", "ControlFlowType"]
 
@@ -127,18 +126,9 @@ class GraphBuilder:
     # Internal helpers – build phase
     # ------------------------------------------------------------------
     def _get_checkpointer(self):
-        if os.getenv("DISABLE_DATABASE", "false").lower() == "true":
-            # Use NoOpCheckpointer to avoid msgpack serialization issues in standalone mode
-            from app.core.checkpointer import NoOpCheckpointer
-            return NoOpCheckpointer()
-
-        try:
-            pg_cp = get_postgres_checkpointer()
-            if pg_cp and pg_cp.is_available():
-                return pg_cp
-        except Exception:
-            pass
-        return MemorySaver()
+        """Get the appropriate checkpointer for this graph builder."""
+        from app.core.checkpointer import get_default_checkpointer
+        return get_default_checkpointer()
 
     def _parse_connections(self, edges: List[Dict[str, Any]]):
         """Parse edges into internal connection format with handle support."""
@@ -187,32 +177,36 @@ class GraphBuilder:
 
             node_cls = self.node_registry.get(node_type)
             if not node_cls:
+                print(f"[WARNING] Unknown node type: {node_type}. Available types: {list(self.node_registry.keys())}")
                 raise ValueError(f"Unknown node type: {node_type}")
 
             instance = node_cls()
             instance.node_id = node_id
 
-            # 🔥 NEW: Build comprehensive connection mapping
-            # Format: {target_handle: {"source_node_id": str, "source_handle": str}}
+            # 🔥 ENHANCED: Build comprehensive connection mapping
             input_connections = {}
-            output_connections = {}  # Track what this node outputs to
+            output_connections = {}
             
-            # Find all connections targeting this node
+            # Find all connections targeting this node (inputs)
             for conn in self.connections:
                 if conn.target_node_id == node_id:
                     input_connections[conn.target_handle] = {
                         "source_node_id": conn.source_node_id,
-                        "source_handle": conn.source_handle
+                        "source_handle": conn.source_handle,
+                        "data_type": conn.data_type
                     }
-                    print(f"[DEBUG] Mapping input '{conn.target_handle}' -> source node '{conn.source_node_id}' handle '{conn.source_handle}'")
+                    print(f"[DEBUG] Input mapping: {node_id}.{conn.target_handle} <- {conn.source_node_id}.{conn.source_handle}")
                 
+                # Find all connections from this node (outputs)
                 if conn.source_node_id == node_id:
                     if conn.source_handle not in output_connections:
                         output_connections[conn.source_handle] = []
                     output_connections[conn.source_handle].append({
                         "target_node_id": conn.target_node_id,
-                        "target_handle": conn.target_handle
+                        "target_handle": conn.target_handle,
+                        "data_type": conn.data_type
                     })
+                    print(f"[DEBUG] Output mapping: {node_id}.{conn.source_handle} -> {conn.target_node_id}.{conn.target_handle}")
 
             # 🔥 CRITICAL: Set connection mappings on the node instance
             instance._input_connections = input_connections
@@ -220,6 +214,10 @@ class GraphBuilder:
             
             # Store user configuration from frontend
             instance.user_data = user_data
+            
+            # Log user data for debugging
+            if user_data:
+                print(f"[DEBUG] Node {node_id} user data: {list(user_data.keys())}")
 
             # Create GraphNodeInstance
             self.nodes[node_id] = GraphNodeInstance(
@@ -230,7 +228,7 @@ class GraphBuilder:
                 user_data=user_data,
             )
             
-            print(f"[DEBUG] ✅ Instantiated node '{node_id}' with {len(input_connections)} inputs, {len(output_connections)} outputs")
+            print(f"[DEBUG] ✅ Instantiated node '{node_id}' ({node_type}) with {len(input_connections)} inputs, {len(output_connections)} outputs")
 
     # ------------------------------------------------------------------
     # Internal – Graph building
@@ -254,13 +252,31 @@ class GraphBuilder:
         return graph.compile(checkpointer=self.checkpointer)
 
     def _wrap_node(self, node_id: str, gnode: GraphNodeInstance) -> Callable[[FlowState], Dict[str, Any]]:
+        """Wrapper that merges user data and calls the node function"""
         node_func = gnode.node_instance.to_graph_node()
 
         def wrapper(state: FlowState) -> Dict[str, Any]:  # noqa: D401
-            """Wrapper that injects static vars then calls node_func."""
-            for k, v in gnode.user_data.items():
-                state.set_variable(k, v)
-            return node_func(state)
+            """Enhanced wrapper that provides better context and error handling."""
+            try:
+                print(f"[DEBUG] Executing node: {node_id} ({gnode.type})")
+                
+                # Merge user data into node instance before execution
+                gnode.node_instance.user_data.update(gnode.user_data)
+                
+                # Call the node function
+                result = node_func(state)
+                
+                print(f"[DEBUG] Node {node_id} completed successfully")
+                return result
+                
+            except Exception as e:
+                error_msg = f"Node {node_id} execution failed: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                state.add_error(error_msg)
+                return {
+                    "errors": state.errors,
+                    "last_output": f"ERROR in {node_id}: {str(e)}"
+                }
 
         wrapper.__name__ = f"node_{node_id}"
         return wrapper

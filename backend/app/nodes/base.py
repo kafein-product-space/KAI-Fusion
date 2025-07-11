@@ -111,10 +111,15 @@ class BaseNode(ABC):
         """
         def graph_node_function(state: FlowState) -> Dict[str, Any]:  # noqa: D401
             try:
+                # Merge user configuration into state variables
+                for key, value in self.user_data.items():
+                    state.set_variable(key, value)
+                
                 # Get node metadata for input processing
                 metadata = self.metadata
+                node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
                 
-                # Prepare inputs based on node type
+                # Prepare inputs based on node type and connections
                 if self.metadata.node_type == NodeType.PROVIDER:
                     # Provider nodes create objects from user inputs only
                     inputs = self._extract_user_inputs(state, metadata.inputs)
@@ -124,12 +129,24 @@ class BaseNode(ABC):
                     # Processor nodes need both connected nodes and user inputs
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
                     connected_nodes = self._extract_connected_inputs(state, metadata.inputs)
+                    
+                    # Log connection details for debugging
+                    print(f"[DEBUG] Processor {node_id} - User inputs: {list(user_inputs.keys())}")
+                    print(f"[DEBUG] Processor {node_id} - Connected inputs: {list(connected_nodes.keys())}")
+                    
                     result = self.execute(inputs=user_inputs, connected_nodes=connected_nodes)
                     
                 elif self.metadata.node_type == NodeType.TERMINATOR:
                     # Terminator nodes process previous node output
-                    previous_node = self._get_previous_node_output(state)
+                    connected_inputs = self._extract_connected_inputs(state, metadata.inputs)
                     user_inputs = self._extract_user_inputs(state, metadata.inputs)
+                    
+                    # Get the primary input from connections
+                    previous_node = None
+                    if connected_inputs:
+                        # Get the first connected input as the primary input
+                        previous_node = list(connected_inputs.values())[0]
+                    
                     result = self.execute(previous_node=previous_node, inputs=user_inputs)
                     
                 else:
@@ -137,111 +154,131 @@ class BaseNode(ABC):
                     inputs = self._extract_all_inputs(state, metadata.inputs)
                     result = self.execute(**inputs)
                 
-                # If execute returns a LangChain Runnable **and** this node is NOT a
-                # provider, we run it immediately to obtain a concrete output.
-                # Provider nodes are expected to *return* runnable objects (e.g.
-                # LLMs, Tools) for downstream processors.
-
-                if isinstance(result, Runnable) and self.metadata.node_type != NodeType.PROVIDER:
-                    try:
-                        result = result.invoke(state.variables)
-                    except NotImplementedError:
-                        try:
-                            # Fallback: call the runnable directly if it is callable
-                            call_fn = getattr(result, "__call__", None)
-                            if callable(call_fn):
-                                result = call_fn(state.variables)
-                            else:
-                                result = str(result)
-                        except Exception as inner_exc:
-                            result = f"Runnable execution error: {inner_exc}"
-                    except Exception as inner_exc:
-                        result = f"Runnable execution error: {inner_exc}"
-
-                # Store the result in state
-                node_id = getattr(self, 'node_id', f"{self.__class__.__name__}_{id(self)}")
+                # Handle different result types
+                processed_result = self._process_execution_result(result, state)
                 
-                # For provider nodes, keep the raw result (LLM, Tool, etc.) since
-                # other nodes need to use these objects directly. Only convert to 
-                # string for non-provider nodes or if result is not a Runnable.
-                if self.metadata.node_type == NodeType.PROVIDER:
-                    safe_output = result  # Keep raw LLM/Tool objects
-                else:
-                    # For other node types, ensure JSON-serializable
-                    try:
-                        import json
-                        json.dumps(result)  # type: ignore[arg-type]
-                        safe_output = result  # Already serialisable
-                    except TypeError:
-                        safe_output = str(result)
-
-                # ÖNEMLİ: LangGraph çakışmalarını önlemek için, her düğümün
-                # çıktısını kendine özel, benzersiz bir anahtar altında döndür.
-                # FlowState'e eklediğimiz `{"extra": "allow"}` ayarı buna izin verir.
-
+                # Store the result in state using unique key
                 unique_output_key = f"output_{node_id}"
-
-                # Bu node'un başarıyla çalıştığını kaydet
+                
+                # Update execution tracking
                 updated_executed_nodes = state.executed_nodes.copy()
                 if node_id not in updated_executed_nodes:
                     updated_executed_nodes.append(node_id)
 
                 return {
-                    unique_output_key: safe_output,
+                    unique_output_key: processed_result,
                     "executed_nodes": updated_executed_nodes,
-                    "last_output": str(safe_output)
+                    "last_output": str(processed_result)
                 }
                 
             except Exception as e:
                 # Handle errors gracefully
-                error_msg = f"Error in {self.__class__.__name__}: {str(e)}"
+                error_msg = f"Error in {self.__class__.__name__} ({node_id}): {str(e)}"
+                print(f"[ERROR] {error_msg}")
                 state.add_error(error_msg)
-                return {"errors": state.errors}
+                return {
+                    "errors": state.errors,
+                    "last_output": f"ERROR: {error_msg}"
+                }
         
         return graph_node_function
     
+    def _process_execution_result(self, result: Any, state: FlowState) -> Any:
+        """Process the execution result based on node type"""
+        # For provider nodes, keep the raw result (LLM, Tool, etc.)
+        if self.metadata.node_type == NodeType.PROVIDER:
+            return result
+        
+        # For non-provider nodes, if result is a Runnable, execute it
+        if isinstance(result, Runnable):
+            try:
+                # Try to invoke with current input
+                invoke_input = state.current_input or state.last_output or ""
+                if isinstance(invoke_input, str):
+                    invoke_input = {"input": invoke_input}
+                elif not isinstance(invoke_input, dict):
+                    invoke_input = {"input": str(invoke_input)}
+                
+                executed_result = result.invoke(invoke_input)
+                return executed_result
+            except Exception as e:
+                return f"Runnable execution error: {str(e)}"
+        
+        # For other types, ensure JSON-serializable
+        try:
+            import json
+            json.dumps(result)  # type: ignore[arg-type]
+            return result  # Already serializable
+        except TypeError:
+            return str(result)
+    
     def _extract_user_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
-        """Extract user-provided inputs from state"""
+        """Extract user-provided inputs from state and user_data"""
         inputs = {}
+        
         for input_spec in input_specs:
             if not input_spec.is_connection:
-                # This is a user input, not a connection
-                if input_spec.name in state.variables:
+                # Check user_data first (from frontend form)
+                if input_spec.name in self.user_data:
+                    inputs[input_spec.name] = self.user_data[input_spec.name]
+                # Then check state variables
+                elif input_spec.name in state.variables:
                     inputs[input_spec.name] = state.get_variable(input_spec.name)
+                # Use default if available
                 elif input_spec.default is not None:
                     inputs[input_spec.name] = input_spec.default
+                # Check if required
                 elif input_spec.required:
-                    raise ValueError(f"Required input '{input_spec.name}' not found in state")
+                    # For special input names, try to get from state
+                    if input_spec.name == "input":
+                        inputs[input_spec.name] = state.current_input or ""
+                    else:
+                        raise ValueError(f"Required input '{input_spec.name}' not found")
+        
         return inputs
     
     def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
-        """Extract connected node inputs from state using previous node's unique output key."""
+        """Extract connected node inputs from state using connection mappings"""
         connected = {}
-
-        # Bu düğüme bağlanan önceki düğümün ID'sini bul.
-        # Bu bilgi GraphBuilder tarafından state'e enjekte edilmeli veya
-        # edges'den okunmalıdır. Şimdilik en son çalışan düğümü varsayalım.
-        if not state.executed_nodes:
-            return {}
-
-        last_executed_node_id = state.executed_nodes[-1]
-
-        # Önceki düğümün çıktısını, onun benzersiz anahtarından al.
-        previous_output_key = f"output_{last_executed_node_id}"
-
-        if hasattr(state, previous_output_key):
-            previous_output = getattr(state, previous_output_key)
-
-            # Bu düğümün bağlantı gerektiren tüm girdilerine, önceki düğümün çıktısını ata.
-            for input_spec in input_specs:
-                if input_spec.is_connection:
-                    connected[input_spec.name] = previous_output
-
+        
+        for input_spec in input_specs:
+            if input_spec.is_connection:
+                # Use connection mapping if available
+                if input_spec.name in self._input_connections:
+                    connection_info = self._input_connections[input_spec.name]
+                    source_node_id = connection_info["source_node_id"]
+                    source_handle = connection_info.get("source_handle", "output")
+                    
+                    # Get the output from the source node using unique key
+                    source_output_key = f"output_{source_node_id}"
+                    if hasattr(state, source_output_key):
+                        connected_output = getattr(state, source_output_key)
+                        connected[input_spec.name] = connected_output
+                        print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id}.{source_handle}")
+                    else:
+                        # Fallback: try node_outputs
+                        connected_output = state.get_node_output(source_node_id)
+                        if connected_output is not None:
+                            connected[input_spec.name] = connected_output
+                
+                # Fallback: if no specific connection mapping, use last executed node
+                elif not connected and state.executed_nodes:
+                    last_node_id = state.executed_nodes[-1]
+                    last_output = state.get_node_output(last_node_id)
+                    if last_output is not None:
+                        connected[input_spec.name] = last_output
+        
         return connected
     
     def _get_previous_node_output(self, state: FlowState) -> Any:
         """Get the most recent node output for terminator nodes"""
-        if state.executed_nodes:
+        if self._input_connections:
+            # Use specific connection if available
+            first_connection = list(self._input_connections.values())[0]
+            source_node_id = first_connection["source_node_id"]
+            return state.get_node_output(source_node_id)
+        elif state.executed_nodes:
+            # Fallback to last executed node
             last_node_id = state.executed_nodes[-1]
             return state.get_node_output(last_node_id)
         return None
@@ -272,6 +309,7 @@ class ProviderNode(BaseNode):
     Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
     """
     def __init__(self):
+        super().__init__()
         if not hasattr(self, '_metadata'):
             self._metadata = {}
         if "node_type" not in self._metadata:
@@ -287,6 +325,7 @@ class ProcessorNode(BaseNode):
     Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
     """
     def __init__(self):
+        super().__init__()
         if not hasattr(self, '_metadata'):
             self._metadata = {}
         if "node_type" not in self._metadata:
@@ -301,6 +340,7 @@ class TerminatorNode(BaseNode):
     Genellikle tek bir node'dan girdi alırlar.
     """
     def __init__(self):
+        super().__init__()
         if not hasattr(self, '_metadata'):
             self._metadata = {}
         if "node_type" not in self._metadata:

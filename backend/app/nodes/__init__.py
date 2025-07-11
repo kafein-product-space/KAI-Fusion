@@ -74,7 +74,7 @@ from .cache.in_memory_cache import InMemoryCacheNode
 from .cache.redis_cache import RedisCacheNode
 
 # Test Node
-from .test_node import TestHelloNode
+from .test_node import TestHelloNode, TestProcessorNode
 
 # Public API - what gets imported when doing "from nodes import *"
 __all__ = [
@@ -126,7 +126,7 @@ __all__ = [
     "InMemoryCacheNode", "RedisCacheNode",
     
     # Test
-    "TestHelloNode",
+    "TestHelloNode", "TestProcessorNode",
 ]
 
 # Node registry for dynamic discovery
@@ -208,6 +208,7 @@ NODE_REGISTRY = {
     
     # Test Node
     "test_hello": TestHelloNode,
+    "test_processor": TestProcessorNode,
 }
 
 # Category mapping for UI organization
@@ -228,5 +229,5 @@ NODE_CATEGORIES = {
     "Text Splitters": ["character_splitter", "recursive_splitter", "token_splitter"],
     "Vector Stores": ["pinecone", "qdrant", "faiss", "weaviate"],
     "Cache": ["in_memory_cache", "redis_cache"],
-    "Test": ["test_hello"],
+    "Test": ["test_hello", "test_processor"],
 }

@@ -134,6 +134,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         # Discover nodes once if registry is empty
         if not node_registry.nodes:
+            print("🔍 Discovering nodes...")
             node_registry.discover_nodes()
 
         # Enhanced fallback: if still empty or missing critical nodes, try legacy discovery
@@ -153,9 +154,18 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             print("⚠️  No nodes discovered! Creating minimal fallback registry...")
             self._create_minimal_fallback_registry(node_registry)
 
+        print(f"✅ Engine initialized with {len(node_registry.nodes)} nodes")
+        self._print_available_nodes(node_registry)
+
         # Choose MemorySaver automatically (GraphBuilder handles this)
         self._builder = GraphBuilder(node_registry.nodes)
         self._built: bool = False
+
+    def _print_available_nodes(self, registry):
+        """Print available nodes for debugging"""
+        print("🔧 Available node types:")
+        for node_type in sorted(registry.nodes.keys()):
+            print(f"  - {node_type}")
 
     def _create_minimal_fallback_registry(self, registry):
         """Create a minimal fallback registry with essential nodes."""
@@ -171,31 +181,90 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
     # Validation
     # ------------------------------------------------------------------
     def validate(self, flow_data: JSONType) -> JSONType:  # noqa: D401
+        """Enhanced validation with detailed error reporting"""
         errors: list[str] = []
         warnings: list[str] = []
 
         if not isinstance(flow_data, dict):
             errors.append("flow_data must be a dict")
+            return {"valid": False, "errors": errors, "warnings": warnings}
+
+        nodes = flow_data.get("nodes", [])
+        edges = flow_data.get("edges", [])
+        
+        # Basic structure validation
+        if not nodes:
+            errors.append("Workflow must contain at least one node")
         else:
-            nodes = flow_data.get("nodes", [])
-            edges = flow_data.get("edges", [])
+            # Validate each node
+            node_ids = set()
+            for i, node in enumerate(nodes):
+                if not isinstance(node, dict):
+                    errors.append(f"Node {i} must be an object")
+                    continue
+                
+                node_id = node.get("id")
+                if not node_id:
+                    errors.append(f"Node {i} missing required 'id' field")
+                    continue
+                
+                if node_id in node_ids:
+                    errors.append(f"Duplicate node ID: {node_id}")
+                else:
+                    node_ids.add(node_id)
+                
+                node_type = node.get("type")
+                if not node_type:
+                    errors.append(f"Node {node_id} missing required 'type' field")
+                    continue
+                
+                # Validate node type exists in registry
+                if node_type not in self._builder.node_registry:
+                    errors.append(f"Unknown node type: {node_type}")
+                    # Suggest similar node types
+                    available_types = list(self._builder.node_registry.keys())
+                    similar = [t for t in available_types if node_type.lower() in t.lower()]
+                    if similar:
+                        warnings.append(f"Did you mean one of: {', '.join(similar[:3])}?")
+        
+        # Validate edges
+        if edges:
+            for i, edge in enumerate(edges):
+                if not isinstance(edge, dict):
+                    errors.append(f"Edge {i} must be an object")
+                    continue
+                
+                source = edge.get("source")
+                target = edge.get("target")
+                
+                if not source:
+                    errors.append(f"Edge {i} missing required 'source' field")
+                elif source not in node_ids:
+                    errors.append(f"Edge {i} references unknown source node: {source}")
+                
+                if not target:
+                    errors.append(f"Edge {i} missing required 'target' field")
+                elif target not in node_ids:
+                    errors.append(f"Edge {i} references unknown target node: {target}")
+        else:
+            warnings.append("No edges defined – isolated nodes will run individually")
+
+        # Check for isolated nodes (except StartNode)
+        if edges and nodes:
+            connected_nodes = set()
+            for edge in edges:
+                connected_nodes.add(edge.get("source"))
+                connected_nodes.add(edge.get("target"))
             
-            if not nodes:
-                errors.append("Workflow must contain at least one node")
-            else:
-                # Validate node types exist in registry
-                for node in nodes:
-                    node_type = node.get("type")
-                    if node_type and node_type not in self._builder.node_registry:
-                        errors.append(f"Unknown node type: {node_type}")
-                        # Suggest similar node types
-                        available_types = list(self._builder.node_registry.keys())
-                        similar = [t for t in available_types if node_type.lower() in t.lower()]
-                        if similar:
-                            warnings.append(f"Did you mean one of: {', '.join(similar[:3])}?")
+            isolated_nodes = []
+            for node in nodes:
+                node_id = node.get("id")
+                node_type = node.get("type")
+                if node_id not in connected_nodes and node_type != "StartNode":
+                    isolated_nodes.append(node_id)
             
-            if not edges:
-                warnings.append("No edges defined – isolated nodes will run individually")
+            if isolated_nodes:
+                warnings.append(f"Isolated nodes detected: {', '.join(isolated_nodes)}")
 
         return {"valid": len(errors) == 0, "errors": errors, "warnings": warnings}
 
@@ -203,16 +272,40 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
     # Build
     # ------------------------------------------------------------------
     def build(self, flow_data: JSONType, *, user_context: Optional[JSONType] = None) -> None:  # noqa: D401
+        """Enhanced build with better error handling and logging"""
+        print("🔨 Building workflow...")
+        
         # Enhanced validation before build
         validation_result = self.validate(flow_data)
         if not validation_result["valid"]:
             error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
+            print(f"❌ Build validation failed: {error_msg}")
             raise ValueError(error_msg)
+        
+        # Log warnings if any
+        if validation_result["warnings"]:
+            for warning in validation_result["warnings"]:
+                print(f"⚠️  {warning}")
 
-        # For now we only pass user_id if available
-        user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
-        self._builder.build_from_flow(flow_data, user_id=user_id)
-        self._built = True
+        try:
+            # Log build details
+            nodes = flow_data.get("nodes", [])
+            edges = flow_data.get("edges", [])
+            print(f"📊 Building workflow with {len(nodes)} nodes and {len(edges)} edges")
+            
+            # For now we only pass user_id if available
+            user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
+            if user_id:
+                print(f"👤 Building for user: {user_id}")
+            
+            self._builder.build_from_flow(flow_data, user_id=user_id)
+            self._built = True
+            print("✅ Workflow build completed successfully")
+            
+        except Exception as e:
+            error_msg = f"Workflow build failed: {str(e)}"
+            print(f"❌ {error_msg}")
+            raise ValueError(error_msg) from e
 
     # ------------------------------------------------------------------
     # Execute
@@ -224,6 +317,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         stream: bool = False,
         user_context: Optional[JSONType] = None,
     ) -> ExecutionResult:  # noqa: D401
+        """Enhanced execution with better error handling and logging"""
         if not self._built:
             raise RuntimeError("Workflow must be built before execution. Call build() first.")
 
@@ -231,14 +325,42 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
 
-        # GraphBuilder.execute manages streaming vs sync
-        result = await self._builder.execute(
-            inputs,
-            user_id=user_id,
-            workflow_id=workflow_id,
-            stream=stream,
-        )
-        return result
+        print(f"🚀 Starting workflow execution (stream={stream})")
+        if user_id:
+            print(f"👤 Executing for user: {user_id}")
+        if workflow_id:
+            print(f"🔗 Workflow ID: {workflow_id}")
+        print(f"📥 Inputs: {list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)}")
+
+        try:
+            # GraphBuilder.execute manages streaming vs sync
+            result = await self._builder.execute(
+                inputs,
+                user_id=user_id,
+                workflow_id=workflow_id,
+                stream=stream,
+            )
+            
+            print("✅ Workflow execution completed successfully")
+            return result
+            
+        except Exception as e:
+            error_msg = f"Workflow execution failed: {str(e)}"
+            print(f"❌ {error_msg}")
+            
+            # Return structured error result
+            if stream:
+                async def error_generator():
+                    yield {"type": "error", "error": error_msg, "error_type": type(e).__name__}
+                return error_generator()
+            else:
+                return {
+                    "success": False,
+                    "error": error_msg,
+                    "error_type": type(e).__name__,
+                    "user_id": user_id,
+                    "workflow_id": workflow_id
+                }
 
 
 # ------------------------------------------------------------------
