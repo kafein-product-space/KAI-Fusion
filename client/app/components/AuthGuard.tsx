@@ -1,22 +1,22 @@
-import React, { useEffect } from 'react';
-import { Navigate, useLocation } from 'react-router';
-import { useAuth } from '~/stores/auth';
+import React, { useEffect } from "react";
+import { useAuthStore } from '~/stores/auth';
+import { Navigate, useLocation } from "react-router";
 
 interface AuthGuardProps {
   children: React.ReactNode;
   fallback?: string;
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({ 
-  children, 
-  fallback = '/signin' 
+export const AuthGuard: React.FC<AuthGuardProps> = ({
+  children,
+  fallback = "/signin",
 }) => {
   // During development we skip all auth logic so pages render without login.
   if (import.meta.env.DEV) {
     return <>{children}</>;
   }
 
-  const { isAuthenticated, validateSession, isLoading } = useAuth();
+  const { isAuthenticated, validateSession, isLoading } = useAuthStore();
   const location = useLocation();
 
   useEffect(() => {
@@ -37,7 +37,9 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
 
   // Redirect to signin if not authenticated
   if (!isAuthenticated) {
-    return <Navigate to={fallback} state={{ from: location.pathname }} replace />;
+    return (
+      <Navigate to={fallback} state={{ from: location.pathname }} replace />
+    );
   }
 
   return <>{children}</>;
@@ -48,16 +50,16 @@ interface PublicOnlyProps {
   redirectTo?: string;
 }
 
-export const PublicOnly: React.FC<PublicOnlyProps> = ({ 
-  children, 
-  redirectTo = '/home' 
+export const PublicOnly: React.FC<PublicOnlyProps> = ({
+  children,
+  redirectTo = "/home",
 }) => {
   // Skip auth checks entirely in development
   if (import.meta.env.DEV) {
     return <>{children}</>;
   }
 
-  const { isAuthenticated, validateSession, isLoading } = useAuth();
+  const { isAuthenticated, validateSession, isLoading } = useAuthStore();
 
   useEffect(() => {
     // Validate session to check if user is authenticated
@@ -81,4 +83,4 @@ export const PublicOnly: React.FC<PublicOnlyProps> = ({
   return <>{children}</>;
 };
 
-export default AuthGuard; 
+export default AuthGuard;

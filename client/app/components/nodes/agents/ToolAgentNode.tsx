@@ -33,7 +33,7 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
 
   // Input handle konfigürasyonu
   const leftInputHandles = [
-    { id: "input", label: "Prompt", required: true, position: 50 },
+    { id: "input", label: "input", required: true, position: 50 },
   ];
 
   const bottomInputHandles = [

@@ -22,7 +22,7 @@ import {
 import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
-import StartNode from "../nodes/other/StartNode";
+import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import LLMChainNode from "../nodes/chains/LLMChainNode";
 import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
@@ -557,7 +557,7 @@ function FlowCanvas() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
-          nodeTypes={nodeTypes}
+          nodeTypes={nodeTypes as any}
           edgeTypes={edgeTypes}
           fitView
           className="bg-gray-50"
