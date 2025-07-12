@@ -5,12 +5,12 @@
 from .base import BaseNode, ProviderNode, ProcessorNode, TerminatorNode
 
 # LLM Nodes
-from .llms.openai_node import OpenAINode
+from .llms.openai_node import OpenAINode, OpenAIChatNode
 from .llms.gemini import GeminiNode
 from .llms.anthropic_claude import ClaudeNode
 
 # Agent Nodes
-from .agents.react_agent import ReactAgentNode
+from .agents.react_agent import ReactAgentNode, ToolAgentNode
 
 # Chain Nodes
 from .chains.conditional_chain import ConditionalChainNode, RouterChainNode
@@ -20,6 +20,7 @@ from .chains.map_reduce_chain import MapReduceChainNode
 
 # Document Loaders
 from .document_loaders.pdf_loader import PDFLoaderNode
+from .document_loaders.text_loader import TextDataLoaderNode, TextLoaderNode
 from .document_loaders.web_loader import WebLoaderNode, SitemapLoaderNode, YoutubeLoaderNode, GitHubLoaderNode
 
 # Embeddings
@@ -76,22 +77,32 @@ from .cache.redis_cache import RedisCacheNode
 # Test Node
 from .test_node import TestHelloNode, TestProcessorNode
 
+# Other Nodes
+from .other.condition_node import ConditionNode
+from .other.generic_node import GenericNode
+
+# ================================================================
+# DEPRECATED: Legacy node registry systems - kept for compatibility
+# New code should use the metadata-based node discovery system
+# in app.core.node_registry instead of these static mappings
+# ================================================================
+
 # Public API - what gets imported when doing "from nodes import *"
 __all__ = [
     # Base
     "BaseNode", "ProviderNode", "ProcessorNode", "TerminatorNode",
     
     # LLM
-    "OpenAINode", "GeminiNode", "ClaudeNode",
+    "OpenAINode", "OpenAIChatNode", "GeminiNode", "ClaudeNode",
     
     # Agents
-    "ReactAgentNode",
+    "ReactAgentNode", "ToolAgentNode",
     
     # Chains
     "ConditionalChainNode", "RouterChainNode", "SequentialChainNode", "LLMChainNode", "MapReduceChainNode",
     
     # Document Loaders
-    "PDFLoaderNode", "WebLoaderNode", "SitemapLoaderNode", "YoutubeLoaderNode", "GitHubLoaderNode",
+    "PDFLoaderNode", "TextDataLoaderNode", "TextLoaderNode", "WebLoaderNode", "SitemapLoaderNode", "YoutubeLoaderNode", "GitHubLoaderNode",
     
     # Embeddings
     "OpenAIEmbeddingsNode", "HuggingFaceEmbeddingsNode", "CohereEmbeddingsNode",
@@ -127,107 +138,7 @@ __all__ = [
     
     # Test
     "TestHelloNode", "TestProcessorNode",
+    
+    # Other
+    "ConditionNode", "GenericNode",
 ]
-
-# Node registry for dynamic discovery
-NODE_REGISTRY = {
-    # LLM Nodes
-    "openai": OpenAINode,
-    "gemini": GeminiNode,
-    "claude": ClaudeNode,
-    
-    # Agent Nodes
-    "react_agent": ReactAgentNode,
-    
-    # Chain Nodes
-    "conditional_chain": ConditionalChainNode,
-    "router_chain": RouterChainNode,
-    "sequential_chain": SequentialChainNode,
-    "llm_chain": LLMChainNode,
-    "map_reduce_chain": MapReduceChainNode,
-    
-    # Document Loaders
-    "pdf_loader": PDFLoaderNode,
-    "web_loader": WebLoaderNode,
-    "sitemap_loader": SitemapLoaderNode,
-    "youtube_loader": YoutubeLoaderNode,
-    "github_loader": GitHubLoaderNode,
-    
-    # Embeddings
-    "openai_embeddings": OpenAIEmbeddingsNode,
-    "huggingface_embeddings": HuggingFaceEmbeddingsNode,
-    "cohere_embeddings": CohereEmbeddingsNode,
-    
-    # Memory Nodes
-    "conversation_memory": ConversationMemoryNode,
-    "buffer_memory": BufferMemoryNode,
-    "summary_memory": SummaryMemoryNode,
-    
-    # Output Parsers
-    "pydantic_output_parser": PydanticOutputParserNode,
-    "string_output_parser": StringOutputParserNode,
-    
-    # Prompt Nodes
-    "prompt_template": PromptTemplateNode,
-    "agent_prompt": AgentPromptNode,
-    
-    # Retriever Nodes
-    "chroma_retriever": ChromaRetrieverNode,
-    
-    # Tool Nodes
-    "google_search": GoogleSearchToolNode,
-    "tavily_search": TavilySearchNode,
-    "wikipedia": WikipediaToolNode,
-    "json_parser": JSONParserToolNode,
-    "web_browser": WebBrowserToolNode,
-    "arxiv": ArxivToolNode,
-    "wolfram_alpha": WolframAlphaToolNode,
-    "requests_get": RequestsGetToolNode,
-    "requests_post": RequestsPostToolNode,
-    "write_file": WriteFileToolNode,
-    "read_file": ReadFileToolNode,
-    
-    # Utility Nodes
-    "calculator": CalculatorNode,
-    "text_formatter": TextFormatterNode,
-    
-    # Text Splitter Nodes
-    "character_splitter": CharacterTextSplitterNode,
-    "recursive_splitter": RecursiveTextSplitterNode,
-    "token_splitter": TokenTextSplitterNode,
-    
-    # Vector Store Nodes
-    "pinecone": PineconeVectorStoreNode,
-    "qdrant": QdrantVectorStoreNode,
-    "faiss": FaissVectorStoreNode,
-    "weaviate": WeaviateVectorStoreNode,
-    
-    # Cache Nodes
-    "in_memory_cache": InMemoryCacheNode,
-    "redis_cache": RedisCacheNode,
-    
-    # Test Node
-    "test_hello": TestHelloNode,
-    "test_processor": TestProcessorNode,
-}
-
-# Category mapping for UI organization
-NODE_CATEGORIES = {
-    "LLM": ["openai", "gemini", "claude"],
-    "Agents": ["react_agent"],
-    "Chains": ["conditional_chain", "router_chain", "sequential_chain", "llm_chain", "map_reduce_chain"],
-    "Document Loaders": ["pdf_loader", "web_loader", "sitemap_loader", "youtube_loader", "github_loader"],
-    "Embeddings": ["openai_embeddings", "huggingface_embeddings", "cohere_embeddings"],
-    "Memory": ["conversation_memory", "buffer_memory", "summary_memory"],
-    "Output Parsers": ["pydantic_output_parser", "string_output_parser"],
-    "Prompts": ["prompt_template", "agent_prompt"],
-    "Retrievers": ["chroma_retriever"],
-    "Tools": ["google_search", "tavily_search", "wikipedia", "json_parser", "calculator", 
-             "web_browser", "arxiv", "wolfram_alpha", "requests_get", "requests_post", 
-             "write_file", "read_file"],
-    "Utilities": ["text_formatter"],
-    "Text Splitters": ["character_splitter", "recursive_splitter", "token_splitter"],
-    "Vector Stores": ["pinecone", "qdrant", "faiss", "weaviate"],
-    "Cache": ["in_memory_cache", "redis_cache"],
-    "Test": ["test_hello", "test_processor"],
-}

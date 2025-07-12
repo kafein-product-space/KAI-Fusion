@@ -132,48 +132,30 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         from app.core.node_registry import node_registry  # local import to avoid cycles
         from app.core.graph_builder import GraphBuilder
 
-        # Discover nodes once if registry is empty
+        # Single, standardized node discovery
         if not node_registry.nodes:
             print("🔍 Discovering nodes...")
             node_registry.discover_nodes()
 
-        # Enhanced fallback: if still empty or missing critical nodes, try legacy discovery
-        if not node_registry.nodes or len(node_registry.nodes) < 5:  # Arbitrary threshold
-            try:
-                from app.core.node_discovery import get_registry as _legacy_get_registry
-
-                print("🔄 Using legacy node discovery as fallback...")
-                legacy_nodes = _legacy_get_registry()
-                node_registry.nodes.update(legacy_nodes)
-                print(f"✅ Added {len(legacy_nodes)} nodes from legacy discovery")
-            except Exception as _exc:  # noqa: BLE001
-                print(f"⚠️  Legacy node discovery failed: {_exc}")
-
-        # Final fallback: ensure we have at least some basic nodes
+        # Ensure we have nodes
         if not node_registry.nodes:
             print("⚠️  No nodes discovered! Creating minimal fallback registry...")
             self._create_minimal_fallback_registry(node_registry)
 
         print(f"✅ Engine initialized with {len(node_registry.nodes)} nodes")
-        self._print_available_nodes(node_registry)
-
+        
         # Choose MemorySaver automatically (GraphBuilder handles this)
         self._builder = GraphBuilder(node_registry.nodes)
         self._built: bool = False
-
-    def _print_available_nodes(self, registry):
-        """Print available nodes for debugging"""
-        print("🔧 Available node types:")
-        for node_type in sorted(registry.nodes.keys()):
-            print(f"  - {node_type}")
 
     def _create_minimal_fallback_registry(self, registry):
         """Create a minimal fallback registry with essential nodes."""
         try:
             # Try to import and register core nodes manually
-            from app.nodes.test_node import TestHelloNode
+            from app.nodes.test_node import TestHelloNode, TestProcessorNode
             registry.register_node(TestHelloNode)
-            print("✅ Registered fallback node: TestHello")
+            registry.register_node(TestProcessorNode)
+            print("✅ Registered fallback nodes: TestHello, TestProcessor")
         except Exception as e:
             print(f"⚠️  Could not register fallback nodes: {e}")
 

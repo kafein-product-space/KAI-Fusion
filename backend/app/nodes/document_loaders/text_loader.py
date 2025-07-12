@@ -28,4 +28,7 @@ class TextDataLoaderNode(ProviderNode):
 
     def execute(self, text: str, **kwargs):
         # Basitçe text'i bir dict olarak döndürüyoruz (örnek)
-        return {"document": {"content": text}} 
+        return {"document": {"content": text}}
+
+# Add alias for frontend compatibility
+TextLoaderNode = TextDataLoaderNode 

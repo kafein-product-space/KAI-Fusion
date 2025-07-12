@@ -82,6 +82,8 @@ import FaissVectorStoreNode from "../nodes/vector_stores/FaissVectorStoreNode";
 import PineconeVectorStoreNode from "../nodes/vector_stores/PineconeVectorStoreNode";
 import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode";
 import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
+import TestHelloNode from "../nodes/test/TestHelloNode";
+import TestProcessorNode from "../nodes/test/TestProcessorNode";
 import { usePasteWorkflow } from "~/hooks/usePasteWorkflow";
 
 const baseNodeTypes = {
@@ -134,6 +136,8 @@ const baseNodeTypes = {
   PineconeVectorStore: PineconeVectorStoreNode,
   QdrantVectorStore: QdrantVectorStoreNode,
   WeaviateVectorStore: WeaviateVectorStoreNode,
+  TestHello: TestHelloNode,
+  TestProcessor: TestProcessorNode,
 };
 
 const edgeTypes = {
@@ -143,6 +147,8 @@ const edgeTypes = {
 interface ChatMessage {
   from: "user" | "bot";
   text: string;
+  timestamp?: string;
+  session_id?: string;
 }
 
 function FlowCanvas() {
@@ -154,11 +160,18 @@ function FlowCanvas() {
   const [nodeId, setNodeId] = useState(1);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [chatSessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+    { 
+      from: "bot", 
+      text: "🤖 Merhaba! Ben ReAct Agent'ınızım. Size nasıl yardımcı olabilirim? Sürekli konuşabiliriz, her şeyi hatırlayacağım!",
+      timestamp: new Date().toISOString(),
+      session_id: ""
+    },
   ]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [stream, setStream] = useState<ReadableStream | null>(null);
+  const [conversationMode, setConversationMode] = useState(false);
 
   const {
     currentWorkflow,
@@ -414,9 +427,17 @@ function FlowCanvas() {
   const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
     const userMessage = chatInput;
+    const timestamp = new Date().toISOString();
+    
+    // Add user message to chat
     setChatMessages((msgs: ChatMessage[]) => [
       ...msgs,
-      { from: "user", text: userMessage },
+      { 
+        from: "user", 
+        text: userMessage, 
+        timestamp,
+        session_id: chatSessionId 
+      },
     ]);
     setChatInput("");
     setIsExecuting(true);
@@ -425,30 +446,83 @@ function FlowCanvas() {
       if (nodes.length === 0) {
         setChatMessages((msgs: ChatMessage[]) => [
           ...msgs,
-          { from: "bot", text: "Lütfen önce canvas'a node ekleyin." },
+          { 
+            from: "bot", 
+            text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın.",
+            timestamp: new Date().toISOString(),
+            session_id: chatSessionId
+          },
         ]);
         return;
       }
+
+      // Check if we have a ReAct Agent in the workflow
+      const hasReactAgent = nodes.some(node => 
+        node.type === 'ReactAgent' || node.type === 'ToolAgentNode'
+      );
+
+      if (!hasReactAgent && conversationMode) {
+        setChatMessages((msgs: ChatMessage[]) => [
+          ...msgs,
+          { 
+            from: "bot", 
+            text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin.",
+            timestamp: new Date().toISOString(),
+            session_id: chatSessionId
+          },
+        ]);
+        return;
+      }
+
       const flowData: WorkflowData = {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
       };
+
+      // Enhanced execution with session context
       const result = await executeWorkflow({
         flow_data: flowData,
         input_text: userMessage,
+        session_context: {
+          session_id: chatSessionId,
+          conversation_mode: conversationMode,
+          timestamp: timestamp
+        }
       });
 
-      const resultText = result?.result
-        ? JSON.stringify(result.result, null, 2)
-        : "No response from workflow.";
+      // Extract response from result
+      let responseText = "";
+      if (result?.result) {
+        if (typeof result.result === 'string') {
+          responseText = result.result;
+        } else if (result.result.output) {
+          responseText = result.result.output;
+        } else {
+          responseText = JSON.stringify(result.result, null, 2);
+        }
+      } else {
+        responseText = "🤖 I received your message but couldn't generate a response.";
+      }
+
       setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        { from: "bot", text: resultText },
+        { 
+          from: "bot", 
+          text: responseText,
+          timestamp: new Date().toISOString(),
+          session_id: chatSessionId
+        },
       ]);
+
     } catch (error: any) {
       setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        { from: "bot", text: `An error occurred: ${error.message}` },
+        { 
+          from: "bot", 
+          text: `❌ Error: ${error.message}`,
+          timestamp: new Date().toISOString(),
+          session_id: chatSessionId
+        },
       ]);
     } finally {
       setIsExecuting(false);
@@ -457,9 +531,29 @@ function FlowCanvas() {
 
   const handleClearChat = () => {
     setChatMessages([
-      { from: "bot", text: "Merhaba! Size nasıl yardımcı olabilirim?" },
+      { 
+        from: "bot", 
+        text: "🤖 Yeni session başlatıldı! Ben ReAct Agent'ınızım. Size nasıl yardımcı olabilirim?",
+        timestamp: new Date().toISOString(),
+        session_id: ""
+      },
     ]);
     setChatInput("");
+  };
+
+  const toggleConversationMode = () => {
+    setConversationMode(!conversationMode);
+    setChatMessages(prev => [
+      ...prev,
+      {
+        from: "bot",
+        text: conversationMode 
+          ? "📴 Sürekli konuşma modu kapatıldı. Her mesaj bağımsız işlenecek."
+          : "💬 Sürekli konuşma modu açıldı! Artık konuşma geçmişini hatırlayacağım.",
+        timestamp: new Date().toISOString(),
+        session_id: chatSessionId
+      }
+    ]);
   };
 
   const nodeTypes = useMemo(() => ({ ...baseNodeTypes }), []);
@@ -591,13 +685,25 @@ function FlowCanvas() {
       </button>
 
       {chatOpen && (
-        <div className="fixed bottom-20 right-4 w-96 h-[480px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+        <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
           <div className="flex items-center justify-between px-4 py-2 border-b">
-            <span className="font-semibold text-gray-700">Chat</span>
             <div className="flex items-center gap-2">
+              <span className="font-semibold text-gray-700">ReAct Chat</span>
+              <span className={`w-2 h-2 rounded-full ${conversationMode ? 'bg-green-500' : 'bg-gray-400'}`} 
+                    title={conversationMode ? 'Continuous mode ON' : 'Continuous mode OFF'}></span>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={toggleConversationMode}
+                className={`px-2 py-1 text-xs rounded ${conversationMode ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
+                title="Toggle continuous conversation"
+              >
+                {conversationMode ? '🔄' : '📄'}
+              </button>
               <button
                 onClick={handleClearChat}
                 className="text-red-400 hover:text-red-700"
+                title="Clear chat history"
               >
                 <Eraser className="w-5 h-5" />
               </button>
@@ -609,7 +715,7 @@ function FlowCanvas() {
               </button>
             </div>
           </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          <div className="flex-1 overflow-y-auto p-4 space-y-3">
             {chatMessages.map((msg, i) => (
               <div
                 key={i}
@@ -617,17 +723,31 @@ function FlowCanvas() {
                   msg.from === "user" ? "text-right" : "text-left"
                 }`}
               >
-                <span
-                  className={`inline-block px-3 py-2 rounded-lg ${
-                    msg.from === "user"
-                      ? "bg-blue-100 text-blue-800"
-                      : "bg-gray-100 text-gray-700"
-                  }`}
-                >
-                  {msg.text}
-                </span>
+                <div className={`inline-block max-w-[80%] ${msg.from === "user" ? "text-right" : "text-left"}`}>
+                  <span
+                    className={`inline-block px-3 py-2 rounded-lg whitespace-pre-wrap ${
+                      msg.from === "user"
+                        ? "bg-blue-500 text-white"
+                        : "bg-gray-100 text-gray-800"
+                    }`}
+                  >
+                    {msg.text}
+                  </span>
+                  {msg.timestamp && (
+                    <div className={`text-xs text-gray-400 mt-1 ${msg.from === "user" ? "text-right" : "text-left"}`}>
+                      {new Date(msg.timestamp).toLocaleTimeString()}
+                    </div>
+                  )}
+                </div>
               </div>
             ))}
+            {isExecuting && (
+              <div className="text-left">
+                <span className="inline-block px-3 py-2 rounded-lg bg-gray-100 text-gray-700">
+                  <span className="animate-pulse">🤖 Thinking...</span>
+                </span>
+              </div>
+            )}
           </div>
           <div className="p-2 border-t flex gap-2">
             <input

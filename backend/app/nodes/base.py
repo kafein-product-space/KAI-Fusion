@@ -52,6 +52,7 @@ class BaseNode(ABC):
     # Class-level attribute declarations for linter
     node_id: Optional[str]
     context_id: Optional[str]
+    session_id: Optional[str]
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
     user_data: Dict[str, Any]
@@ -59,6 +60,7 @@ class BaseNode(ABC):
     def __init__(self):
         self.node_id = None  # Will be set by GraphBuilder
         self.context_id = None  # Credential context for provider
+        self.session_id = None  # Session ID for conversation continuity
         # 🔥 NEW: Connection mappings set by GraphBuilder
         self._input_connections = {}
         self._output_connections = {}

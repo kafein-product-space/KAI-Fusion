@@ -37,9 +37,9 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
   ];
 
   const bottomInputHandles = [
-    { id: "chat_model", label: "Chat Model", required: true, position: 20 },
+    { id: "llm", label: "LLM", required: true, position: 20 },
     { id: "memory", label: "Memory", required: false, position: 50 },
-    { id: "tool", label: "Tool", required: false, position: 80 },
+    { id: "tools", label: "Tools", required: false, position: 80 },
   ];
 
   return (

@@ -70,4 +70,7 @@ class OpenAINode(BaseNode):
         )
         
         print(f"[DEBUG] OpenAI LLM created successfully with model: {llm.model_name}")
-        return llm 
+        return llm
+
+# Add alias for frontend compatibility
+OpenAIChatNode = OpenAINode 

@@ -22,12 +22,14 @@ class NodeRegistry:
                 # Skip base/abstract-like classes that don't define required metadata
                 return
 
-            self.nodes[metadata.name] = node_class
-            self.node_configs[metadata.name] = metadata
-            # Also register by class name (for convenience) if different
-            if metadata.name != node_class.__name__:
-                self.nodes[node_class.__name__] = node_class
-            print(f"✅ Registered node: {metadata.name}")
+            # Only register by metadata name for consistency
+            if metadata.name not in self.nodes:
+                self.nodes[metadata.name] = node_class
+                self.node_configs[metadata.name] = metadata
+                print(f"✅ Registered node: {metadata.name}")
+            else:
+                # Node already registered, skip silently
+                pass
         except Exception as e:  # noqa: BLE001
             # Skip nodes that cannot be instantiated (likely abstract bases)
             print(f"⚠️  Skipping node {node_class.__name__}: {e}")

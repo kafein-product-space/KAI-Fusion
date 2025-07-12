@@ -253,8 +253,7 @@ class GraphBuilder:
 
     def _wrap_node(self, node_id: str, gnode: GraphNodeInstance) -> Callable[[FlowState], Dict[str, Any]]:
         """Wrapper that merges user data and calls the node function"""
-        node_func = gnode.node_instance.to_graph_node()
-
+        
         def wrapper(state: FlowState) -> Dict[str, Any]:  # noqa: D401
             """Enhanced wrapper that provides better context and error handling."""
             try:
@@ -263,23 +262,126 @@ class GraphBuilder:
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
                 
-                # Call the node function
-                result = node_func(state)
+                # 🔥 ENHANCED: Pass session information to ReAct Agents
+                if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
+                    session_id = state.session_id or f"session_{node_id}"
+                    gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id for {node_id}: {session_id}")
                 
-                print(f"[DEBUG] Node {node_id} completed successfully")
-                return result
+                # 🔥 SPECIAL HANDLING for ProcessorNodes (ReactAgent)
+                if gnode.node_instance.metadata.node_type.value == "processor":
+                    # For ProcessorNodes, we need to pass actual node instances, not their outputs
+                    user_inputs = self._extract_user_inputs_for_processor(gnode, state)
+                    connected_nodes = self._extract_connected_node_instances(gnode, state)
+                    
+                    print(f"[DEBUG] Processor {node_id} - User inputs: {list(user_inputs.keys())}")
+                    print(f"[DEBUG] Processor {node_id} - Connected nodes: {list(connected_nodes.keys())}")
+                    
+                    # Call execute directly with connected node instances
+                    result = gnode.node_instance.execute(user_inputs, connected_nodes)
+                    
+                    # Process the result
+                    processed_result = self._process_processor_result(result, state, node_id)
+                    
+                    # Update execution tracking
+                    updated_executed_nodes = state.executed_nodes.copy()
+                    if node_id not in updated_executed_nodes:
+                        updated_executed_nodes.append(node_id)
+
+                    return {
+                        f"output_{node_id}": processed_result,
+                        "executed_nodes": updated_executed_nodes,
+                        "last_output": str(processed_result)
+                    }
+                else:
+                    # For other node types, use the standard graph node function
+                    node_func = gnode.node_instance.to_graph_node()
+                    result = node_func(state)
+                    print(f"[DEBUG] Node {node_id} completed successfully")
+                    return result
                 
             except Exception as e:
                 error_msg = f"Node {node_id} execution failed: {str(e)}"
                 print(f"[ERROR] {error_msg}")
-                state.add_error(error_msg)
+                if hasattr(state, 'add_error'):
+                    state.add_error(error_msg)
                 return {
-                    "errors": state.errors,
+                    "errors": getattr(state, 'errors', [error_msg]),
                     "last_output": f"ERROR in {node_id}: {str(e)}"
                 }
 
         wrapper.__name__ = f"node_{node_id}"
         return wrapper
+
+    def _extract_user_inputs_for_processor(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
+        """Extract user inputs for processor nodes"""
+        inputs = {}
+        
+        for input_spec in gnode.node_instance.metadata.inputs:
+            if not input_spec.is_connection:
+                # Check user_data first (from frontend form)
+                if input_spec.name in gnode.node_instance.user_data:
+                    inputs[input_spec.name] = gnode.node_instance.user_data[input_spec.name]
+                # Then check state variables
+                elif input_spec.name in state.variables:
+                    inputs[input_spec.name] = state.get_variable(input_spec.name)
+                # Use default if available
+                elif input_spec.default is not None:
+                    inputs[input_spec.name] = input_spec.default
+                # Check if required
+                elif input_spec.required:
+                    # For special input names, try to get from state
+                    if input_spec.name == "input":
+                        inputs[input_spec.name] = state.current_input or ""
+                    else:
+                        raise ValueError(f"Required input '{input_spec.name}' not found")
+        
+        return inputs
+
+    def _extract_connected_node_instances(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
+        """Extract connected node instances for processor nodes"""
+        connected = {}
+        
+        for input_spec in gnode.node_instance.metadata.inputs:
+            if input_spec.is_connection:
+                # Use connection mapping if available
+                if input_spec.name in gnode.node_instance._input_connections:
+                    connection_info = gnode.node_instance._input_connections[input_spec.name]
+                    source_node_id = connection_info["source_node_id"]
+                    
+                    # Get the actual node instance from our nodes registry
+                    if source_node_id in self.nodes:
+                        source_node_instance = self.nodes[source_node_id].node_instance
+                        
+                        # For provider nodes, we need to execute them to get the instance
+                        if source_node_instance.metadata.node_type.value == "provider":
+                            try:
+                                # Execute the provider node to get the actual instance
+                                provider_inputs = self._extract_user_inputs_for_processor(self.nodes[source_node_id], state)
+                                node_instance = source_node_instance.execute(**provider_inputs)
+                                connected[input_spec.name] = node_instance
+                                print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id} instance: {type(node_instance).__name__}")
+                            except Exception as e:
+                                print(f"[ERROR] Failed to get instance from {source_node_id}: {e}")
+                        else:
+                            connected[input_spec.name] = source_node_instance
+                            print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id} instance: {type(source_node_instance).__name__}")
+        
+        return connected
+
+    def _process_processor_result(self, result: Any, state: FlowState, node_id: str) -> Any:
+        """Process the result from a processor node"""
+        # For processor nodes, if result is a Runnable, keep it as is for later execution
+        if isinstance(result, Runnable):
+            return result
+        
+        # For other types, ensure JSON-serializable
+        try:
+            import json
+            json.dumps(result)  # type: ignore[arg-type]
+            return result  # Already serializable
+        except TypeError:
+            return str(result)
 
     # ---------------- Control flow helpers -----------------
     def _add_control_flow_edges(self, graph: StateGraph):
