@@ -23,14 +23,14 @@ function StartNode({ data, id, onExecute }: StartNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`w-20 h-20 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={() => onExecute?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Çift tıklayarak çalıştır"
       >
         <div className=" rounded-2xl">
-          <Play size={20} />
+          <Play size={25} />
         </div>
         {isHovered && (
           <button

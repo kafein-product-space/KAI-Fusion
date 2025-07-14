@@ -37,7 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <body className="h-full">
         <SnackbarProvider
           maxSnack={3}
-          anchorOrigin={{ vertical: "top", horizontal: "right" }}
+          anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         >
           <ReactFlowProvider>{children}</ReactFlowProvider>
           <ScrollRestoration />
