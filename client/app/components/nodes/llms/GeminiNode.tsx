@@ -30,7 +30,15 @@ function GeminiNode({ data, id }: GeminiNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            data.validationStatus === "success"
+              ? "border-green-500"
+              : data.validationStatus === "error"
+              ? "border-red-500"
+              : "border-gray-400"
+          }
+          bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >

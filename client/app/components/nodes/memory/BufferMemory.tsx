@@ -36,7 +36,15 @@ function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex w-20 h-20 rounded-full items-center gap-3 px-4 py-4 justify-center border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100`}
+        className={`flex w-20 h-20 rounded-full items-center gap-3 px-4 py-4 justify-center border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            data.validationStatus === "success"
+              ? "border-green-500"
+              : data.validationStatus === "error"
+              ? "border-red-500"
+              : "border-gray-400"
+          }
+          bg-gray-100`}
         onDoubleClick={handleOpenModal}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

@@ -178,6 +178,9 @@ function FlowCanvas() {
   const [stream, setStream] = useState<ReadableStream | null>(null);
   const [conversationMode, setConversationMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [validationStatus, setValidationStatus] = useState<
+    null | "success" | "error"
+  >(null);
 
   const {
     currentWorkflow,
@@ -364,6 +367,7 @@ function FlowCanvas() {
       try {
         const validation = await validateWorkflow(flowData);
         if (!validation.valid) {
+          setValidationStatus("error");
           enqueueSnackbar(
             `Workflow validation failed:\n${validation.errors?.join("\n")}`,
             {
@@ -371,10 +375,15 @@ function FlowCanvas() {
               style: { whiteSpace: "pre-line" },
             }
           );
+          setTimeout(() => setValidationStatus(null), 3000);
           return;
+        } else {
+          setValidationStatus("success");
+          setTimeout(() => setValidationStatus(null), 3000);
         }
       } catch (error) {
-        console.error("Validation error:", error);
+        setValidationStatus("error");
+        setTimeout(() => setValidationStatus(null), 3000);
         enqueueSnackbar("Workflow doğrulama hatası oluştu.", {
           variant: "error",
         });
@@ -414,15 +423,19 @@ function FlowCanvas() {
     ]
   );
 
-  // Pass the execution handler to StartNode
+  // Pass the execution handler and validationStatus to StartNode and all nodeTypes
   const nodeTypes = useMemo(
     () => ({
       ...baseNodeTypes,
       StartNode: (props: any) => (
-        <StartNode {...props} onExecute={handleStartNodeExecute} />
+        <StartNode
+          {...props}
+          onExecute={handleStartNodeExecute}
+          validationStatus={validationStatus}
+        />
       ),
     }),
-    [handleStartNodeExecute]
+    [handleStartNodeExecute, validationStatus]
   );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -577,7 +590,6 @@ function FlowCanvas() {
         workflowName={workflowName}
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
-        onSidebarOpen={() => setIsSidebarOpen(true)}
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}
@@ -666,7 +678,13 @@ function FlowCanvas() {
             onDragOver={onDragOver}
           >
             <ReactFlow
-              nodes={nodes}
+              nodes={nodes.map((node) => ({
+                ...node,
+                data: {
+                  ...node.data,
+                  validationStatus,
+                },
+              }))}
               edges={edges}
               onNodesChange={onNodesChange}
               onEdgesChange={onEdgesChange}

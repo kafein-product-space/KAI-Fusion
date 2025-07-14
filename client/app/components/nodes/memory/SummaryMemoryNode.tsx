@@ -31,7 +31,15 @@ function SummaryMemoryNode({ data, id }: SummaryMemoryNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-green-400 bg-green-100 hover:bg-green-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            data.validationStatus === "success"
+              ? "border-green-500"
+              : data.validationStatus === "error"
+              ? "border-red-500"
+              : "border-green-400"
+          }
+          bg-green-100 hover:bg-green-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >

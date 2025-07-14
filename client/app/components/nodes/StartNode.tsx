@@ -7,9 +7,10 @@ interface StartNodeProps {
   data: any;
   id: string;
   onExecute?: (id: string) => void;
+  validationStatus?: "success" | "error" | null;
 }
 
-function StartNode({ data, id, onExecute }: StartNodeProps) {
+function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
   const { setNodes } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   // modalRef ve modal ile ilgili kodlar kaldırıldı
@@ -23,7 +24,15 @@ function StartNode({ data, id, onExecute }: StartNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            validationStatus === "success"
+              ? "border-green-500"
+              : validationStatus === "error"
+              ? "border-red-500"
+              : "border-gray-400"
+          }
+          bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={() => onExecute?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

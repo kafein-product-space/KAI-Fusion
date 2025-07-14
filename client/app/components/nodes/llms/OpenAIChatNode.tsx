@@ -36,7 +36,15 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`w-20 h-20 rounded-full flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`w-20 h-20 rounded-full flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            data.validationStatus === "success"
+              ? "border-green-500"
+              : data.validationStatus === "error"
+              ? "border-red-500"
+              : "border-gray-400"
+          }
+          bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={handleOpenModal}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

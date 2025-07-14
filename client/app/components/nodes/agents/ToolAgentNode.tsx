@@ -46,7 +46,15 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`relative flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-300 bg-white hover:bg-gray-50 min-w-[160px] min-h-[80px] shadow-sm`}
+        className={`relative flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 text-gray-700 font-medium cursor-pointer transition-all
+          ${
+            data.validationStatus === "success"
+              ? "border-green-500"
+              : data.validationStatus === "error"
+              ? "border-red-500"
+              : "border-gray-300"
+          }
+          bg-white hover:bg-gray-50 min-w-[160px] min-h-[80px] shadow-sm`}
         onDoubleClick={handleOpenModal}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
