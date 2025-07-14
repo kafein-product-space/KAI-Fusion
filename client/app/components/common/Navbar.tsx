@@ -1,4 +1,12 @@
-import { ArrowLeft, Save, Settings, Menu } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Settings,
+  Menu,
+  FileUp,
+  Download,
+  Trash,
+} from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
@@ -172,9 +180,10 @@ const Navbar: React.FC<NavbarProps> = ({
                 >
                   {/* Load */}
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded"
+                    className="w-full font-medium text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={() => fileInputRef.current?.click()}
                   >
+                    <FileUp className="w-5 h-5" />
                     Load
                   </button>
                   <input
@@ -186,14 +195,15 @@ const Navbar: React.FC<NavbarProps> = ({
                   />
                   {/* Export */}
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded"
+                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={handleExport}
                   >
+                    <Download className="w-5 h-5" />
                     Export
                   </button>
                   {/* Delete */}
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-red-100 text-red-600 rounded"
+                    className="w-full text-left px-3 py-2 hover:bg-red-100 text-red-600 rounded  flex gap-3 justify-start items-center"
                     onClick={() => {
                       setIsDropdownOpen(false);
                       setTimeout(
@@ -202,6 +212,7 @@ const Navbar: React.FC<NavbarProps> = ({
                       );
                     }}
                   >
+                    <Trash className="w-5 h-5" />
                     Delete
                   </button>
                 </div>
