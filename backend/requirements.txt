@@ -36,12 +36,12 @@ sqlalchemy[asyncio]>=2.0.23
 asyncpg>=0.29.0  # PostgreSQL async driver
 psycopg2-binary>=2.9.9  # PostgreSQL sync driver (for migrations)
 alembic>=1.13.0  # Database migrations
-SQLAlchemy
-psycopg2-binary
-asyncpg
 
 # Security & Encryption
 cryptography>=41.0.0
+passlib==1.7.4
+bcrypt==3.1.7
+python-jose>=3.3.0
 
 # Async Task Queue
 celery[redis]>=5.3.0

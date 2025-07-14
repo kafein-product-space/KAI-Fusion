@@ -10,9 +10,22 @@ class UserCreate(BaseModel):
     password: str
     full_name: Optional[str] = None
 
+class UserSignUpData(BaseModel):
+    email: EmailStr
+    name: str
+    credential: str
+    tempToken: Optional[str] = None
+
+class SignUpRequest(BaseModel):
+    user: UserSignUpData
+
 class UserUpdate(BaseModel):
     full_name: Optional[str] = None
     email: Optional[EmailStr] = None
+
+class UserUpdateProfile(BaseModel):
+    full_name: Optional[str] = None
+    password: Optional[str] = None
 
 class UserResponse(BaseModel):
     id: uuid.UUID
@@ -21,6 +34,14 @@ class UserResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class TokenResponse(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str = "bearer"
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
 
 # --- LoginMethod Schemas ---
 class LoginMethodBase(BaseModel):

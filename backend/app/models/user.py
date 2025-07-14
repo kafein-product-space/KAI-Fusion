@@ -11,7 +11,6 @@ class User(Base):
     email = Column(String(255), unique=True, nullable=False, index=True)
     full_name = Column(String(255))
     password_hash = Column(String(255), nullable=False)
-    name = Column(String)
     role = Column(String)
     credential = Column(Text)
     temp_token = Column(Text)
@@ -25,4 +24,5 @@ class User(Base):
     # Relationships
     credentials = relationship("UserCredential", back_populates="user")
     workflows = relationship("Workflow", back_populates="user")
-    executions = relationship("WorkflowExecution", back_populates="user") 
+    executions = relationship("WorkflowExecution", back_populates="user")
+    organization_associations = relationship("OrganizationUser", back_populates="user", foreign_keys="[OrganizationUser.user_id]") 
