@@ -12,6 +12,7 @@ class NodeType(str, Enum):
     PROVIDER = "provider"    # Bir LangChain nesnesi SAĞLAR (LLM, Tool, Prompt)
     PROCESSOR = "processor"  # Birden fazla nesneyi İŞLER (Agent gibi)
     TERMINATOR = "terminator" # Bir zincirin sonunu DÖNÜŞTÜRÜR (Output Parser gibi)
+    MEMORY = "memory"        # Konuşma hafızası SAĞLAR
 
 # 2. Metadata için Pydantic modelleri, standartları zorunlu kılar.
 class NodeInput(BaseModel):
@@ -161,7 +162,7 @@ class BaseNode(ABC):
                 
                 # Store the result in state using unique key
                 unique_output_key = f"output_{node_id}"
-                
+
                 # Update execution tracking
                 updated_executed_nodes = state.executed_nodes.copy()
                 if node_id not in updated_executed_nodes:
@@ -242,9 +243,9 @@ class BaseNode(ABC):
     def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
         """Extract connected node inputs from state using connection mappings"""
         connected = {}
-        
-        for input_spec in input_specs:
-            if input_spec.is_connection:
+
+            for input_spec in input_specs:
+                if input_spec.is_connection:
                 # Use connection mapping if available
                 if input_spec.name in self._input_connections:
                     connection_info = self._input_connections[input_spec.name]
@@ -269,7 +270,7 @@ class BaseNode(ABC):
                     last_output = state.get_node_output(last_node_id)
                     if last_output is not None:
                         connected[input_spec.name] = last_output
-        
+
         return connected
     
     def _get_previous_node_output(self, state: FlowState) -> Any:

@@ -51,7 +51,8 @@ class NodeRegistry:
     
     def discover_nodes(self):
         """Discover and register all nodes in the nodes directory"""
-        nodes_dir = Path("app/nodes").resolve()
+        current_dir = Path(__file__).parent
+        nodes_dir = (current_dir.parent / "nodes").resolve()
         
         if not nodes_dir.exists():
             print(f"⚠️ Nodes directory not found: {nodes_dir}")
@@ -67,23 +68,13 @@ class NodeRegistry:
                     # Convert file path to module path
                     file_path = Path(root) / file
                     
-                    # Calculate relative path from project root
+                    app_root = nodes_dir.parent
                     try:
-                        relative_path = file_path.relative_to(Path.cwd())
-                        module_path = str(relative_path).replace('/', '.').replace('\\', '.')[:-3]
+                        relative_parts = file_path.relative_to(app_root).with_suffix('').parts
+                        module_path = '.'.join(['app'] + list(relative_parts))
                     except ValueError:
-                        # If relative_to fails, construct module path manually
-                        parts = file_path.parts
-                        # Find 'app' in the path and build module path from there
-                        try:
-                            app_index = parts.index('app')
-                            module_parts = parts[app_index:]
-                            if module_parts[-1].endswith('.py'):
-                                module_parts = module_parts[:-1] + (module_parts[-1][:-3],)
-                            module_path = '.'.join(module_parts)
-                        except ValueError:
-                            print(f"⚠️ Could not determine module path for {file_path}")
-                            continue
+                        print(f"⚠️ Could not determine module path for {file_path}")
+                        continue
                     
                     try:
                         # Import the module
