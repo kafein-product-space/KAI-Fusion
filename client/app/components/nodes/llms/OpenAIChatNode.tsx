@@ -70,7 +70,7 @@ function OpenAIChatNode({ data, id }: OpenAIChatNodeProps) {
             transform: "translateY(-50%)",
           }}
         >
-          OpenAI Chat
+          {data?.displayName || data?.name || "OpenAI Chat"}
         </div>
 
         <Handle

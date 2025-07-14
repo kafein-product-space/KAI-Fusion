@@ -6,26 +6,14 @@ import StartNodeConfigModal from "../modals/StartNodeConfigModal";
 interface StartNodeProps {
   data: any;
   id: string;
+  onExecute?: () => void;
 }
 
-function StartNode({ data, id }: StartNodeProps) {
+function StartNode({ data, id, onExecute }: StartNodeProps) {
   const { setNodes } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
-  const modalRef = useRef<HTMLDialogElement>(null);
+  // modalRef ve modal ile ilgili kodlar kaldırıldı
 
-  const handleOpenModal = () => {
-    modalRef.current?.showModal();
-  };
-
-  const handleConfigSave = (newConfig: any) => {
-    setNodes((nodes: any[]) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, ...newConfig } }
-          : node
-      )
-    );
-  };
   const handleDeleteNode = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
@@ -36,10 +24,10 @@ function StartNode({ data, id }: StartNodeProps) {
       {/* Ana node kutusu */}
       <div
         className={`w-20 h-20 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
-        onDoubleClick={handleOpenModal}
+        onDoubleClick={onExecute}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        title="Çift tıklayarak konfigüre edin"
+        title="Çift tıklayarak çalıştır"
       >
         <div className=" rounded-2xl">
           <Play size={20} />
@@ -74,14 +62,6 @@ function StartNode({ data, id }: StartNodeProps) {
           }}
         />
       </div>
-
-      {/* DaisyUI dialog modal */}
-      <StartNodeConfigModal
-        ref={modalRef}
-        nodeData={data}
-        onSave={handleConfigSave}
-        nodeId={id}
-      />
     </>
   );
 }

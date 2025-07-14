@@ -13,9 +13,7 @@ export default function App() {
       <ErrorBoundary>
         <ReactFlowProvider>
           <div className="w-full h-screen flex flex-col">
-            <Navbar />
             <div className="flex-1 flex">
-              <Sidebar />
               <FlowCanvas />
             </div>
           </div>

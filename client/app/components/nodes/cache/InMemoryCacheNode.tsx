@@ -1,19 +1,18 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot, MemoryStick } from "lucide-react";
-import InMemoryCacheConfigModal from "../../modals/cache/InMemoryCacheModal";
+import { Trash } from "lucide-react";
+import InMemoryCacheConfigModal from "~/components/modals/cache/InMemoryCacheModal";
+import { MemoryStick } from "lucide-react";
 
 interface InMemoryCacheNodeProps {
-  nodeType: any;
   data: any;
   id: string;
 }
 
 function InMemoryCacheNode({ data, id }: InMemoryCacheNodeProps) {
   const { setNodes } = useReactFlow();
-
+  const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
-  const deleteRef = useRef<HTMLDialogElement>(null);
 
   const handleOpenModal = () => {
     modalRef.current?.showModal();
@@ -27,39 +26,53 @@ function InMemoryCacheNode({ data, id }: InMemoryCacheNodeProps) {
           : node
       )
     );
-    console.log(newConfig);
   };
-
-  const handleDeleteMenuOpen = () => {
-    deleteRef.current?.showModal();
+  const handleDeleteNode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
 
   return (
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-red-700 font-medium cursor-pointer transition-all border-red-400 bg-red-100 hover:bg-red-200`}
+        className={`w-20 h-20 rounded-full flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={handleOpenModal}
-        onClick={handleDeleteMenuOpen}
+        onMouseEnter={() => setIsHovered(true)}
+        onMouseLeave={() => setIsHovered(false)}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-white p-1 rounded-2xl">
+        <div className=" rounded-2xl">
           <MemoryStick />
         </div>
-
-        <div className="flex-1">
-          <div className="flex items-center gap-2">
-            <p className="font-semibold">
-              {data?.displayName || data?.name || "InMemory Cache"}
-            </p>
-          </div>
+        {isHovered && (
+          <button
+            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white shadow-lg transition-all duration-200 hover:scale-110 flex items-center justify-center z-10"
+            onClick={handleDeleteNode}
+            title="Delete Node"
+          >
+            <Trash size={8} />
+          </button>
+        )}
+        <div
+          className="absolute text-xs text-gray-600 font-medium pointer-events-none whitespace-nowrap"
+          style={{
+            bottom: "-30%",
+            transform: "translateY(-50%)",
+          }}
+        >
+          {data?.displayName || data?.name || "InMemory Cache"}
         </div>
 
         <Handle
           type="source"
-          position={Position.Right}
+          position={Position.Top}
           id="output"
-          className="w-3 h-3 bg-gray-500"
+          className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
+          style={{
+            width: 10,
+            height: 10,
+          }}
         />
       </div>
 

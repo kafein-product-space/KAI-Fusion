@@ -32,7 +32,11 @@ const ErrorNodes = ({
   </div>
 );
 
-function Sidebar() {
+interface SidebarProps {
+  onClose?: () => void;
+}
+
+function Sidebar({ onClose }: SidebarProps) {
   const {
     nodes,
     categories,
@@ -90,6 +94,7 @@ function Sidebar() {
     info: nodeMetadata.description,
   });
 
+  // Doğru: Sadece filteredNodes kullanılmalı
   const nodesToDisplay = filteredNodes.map(convertToNodeType);
 
   // Group nodes by category
@@ -103,7 +108,16 @@ function Sidebar() {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="w-100 bg-gray-50 border-r border-gray-200 overflow-y-auto h-[calc(100vh-4rem)]">
+    <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-gray-50 border-r border-gray-200 overflow-y-auto z-30 shadow-lg animate-slide-in animate-slide-in rounded-2xl">
+      {onClose && (
+        <button
+          className="absolute top-2 right-2 z-40 bg-white w-10 h-10 rounded-full flex items-center justify-center shadow hover:bg-gray-100"
+          onClick={onClose}
+          title="Close Sidebar"
+        >
+          ×
+        </button>
+      )}
       {/* Header */}
       <div className="p-4">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>

@@ -36,7 +36,7 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 import WorkflowService from "~/services/workflows";
-import { Eraser, Save } from "lucide-react";
+import { Eraser, Save, Menu } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
@@ -84,7 +84,8 @@ import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode"
 import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
 import TestHelloNode from "../nodes/test/TestHelloNode";
 import TestProcessorNode from "../nodes/test/TestProcessorNode";
-import { usePasteWorkflow } from "~/hooks/usePasteWorkflow";
+import Navbar from "../common/Navbar";
+import Sidebar from "../common/Sidebar";
 
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
@@ -160,18 +161,21 @@ function FlowCanvas() {
   const [nodeId, setNodeId] = useState(1);
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
-  const [chatSessionId] = useState(() => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`);
+  const [chatSessionId] = useState(
+    () => `session_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+  );
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { 
-      from: "bot", 
+    {
+      from: "bot",
       text: "🤖 Merhaba! Ben ReAct Agent'ınızım. Size nasıl yardımcı olabilirim? Sürekli konuşabiliriz, her şeyi hatırlayacağım!",
       timestamp: new Date().toISOString(),
-      session_id: ""
+      session_id: "",
     },
   ]);
   const [isExecuting, setIsExecuting] = useState(false);
   const [stream, setStream] = useState<ReadableStream | null>(null);
   const [conversationMode, setConversationMode] = useState(false);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const {
     currentWorkflow,
@@ -191,6 +195,10 @@ function FlowCanvas() {
 
   const { nodes: availableNodes } = useNodes();
 
+  const [workflowName, setWorkflowName] = useState(
+    currentWorkflow?.name || "isimsiz dosya"
+  );
+
   useEffect(() => {
     const loadInitialWorkflow = async () => {
       try {
@@ -205,7 +213,12 @@ function FlowCanvas() {
     };
     loadInitialWorkflow();
   }, []);
-  usePasteWorkflow();
+
+  useEffect(() => {
+    if (currentWorkflow?.name) {
+      setWorkflowName(currentWorkflow.name);
+    }
+  }, [currentWorkflow?.name]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -285,18 +298,20 @@ function FlowCanvas() {
       edges: edges as WorkflowEdge[],
     };
 
-    if (!currentWorkflow) {
-      const name = prompt("Enter a name for the new workflow:");
-      if (!name) return;
+    if (!workflowName || workflowName.trim() === "") {
+      enqueueSnackbar("Lütfen bir dosya adı girin.", { variant: "warning" });
+      return;
+    }
 
+    if (!currentWorkflow) {
       try {
         const newWorkflow = await createWorkflow({
-          name,
+          name: workflowName,
           description: "",
           flow_data: flowData,
         });
         setCurrentWorkflow(newWorkflow);
-        enqueueSnackbar(`Workflow "${name}" created and saved!`, {
+        enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
       } catch (error) {
@@ -307,7 +322,7 @@ function FlowCanvas() {
 
     try {
       await updateWorkflow(currentWorkflow.id, {
-        name: currentWorkflow.name,
+        name: workflowName,
         description: currentWorkflow.description,
         flow_data: flowData,
       });
@@ -324,91 +339,76 @@ function FlowCanvas() {
     updateWorkflow,
     enqueueSnackbar,
     setCurrentWorkflow,
+    workflowName,
   ]);
 
-  const handleExecuteStream = useCallback(async () => {
-    if (nodes.length === 0) {
-      enqueueSnackbar("Lütfen bir node ekleyin", { variant: "error" });
-      return;
-    }
+  // StartNode execution handler
+  const handleStartNodeExecute = useCallback(
+    async (nodeId: string) => {
+      enqueueSnackbar("Workflow çalıştırılıyor...", { variant: "info" });
+      const node = nodes.find((n) => n.id === nodeId);
+      if (!node) return;
 
-    const flowData: WorkflowData = {
-      nodes: nodes as WorkflowNode[],
-      edges: edges as WorkflowEdge[],
-    };
+      const flowData: WorkflowData = {
+        nodes: nodes as WorkflowNode[],
+        edges: edges as WorkflowEdge[],
+      };
 
-    const inputText = prompt("Enter input text for the workflow:");
-    if (!inputText) return;
-
-    try {
-      const streamResponse = await WorkflowService.executeWorkflowStream({
-        flow_data: flowData,
-        input_text: inputText,
-      });
-      setStream(streamResponse);
-    } catch (e) {
-      console.error("Streaming execution error", e);
-      enqueueSnackbar("Streaming execution failed", { variant: "error" });
-    }
-  }, [nodes, edges, enqueueSnackbar]);
-
-  const closeStreamModal = () => setStream(null);
-
-  const handleExecute = useCallback(async () => {
-    if (nodes.length === 0) {
-      enqueueSnackbar("Please add some nodes to execute the workflow", {
-        variant: "error",
-      });
-      return;
-    }
-
-    const flowData: WorkflowData = {
-      nodes: nodes as WorkflowNode[],
-      edges: edges as WorkflowEdge[],
-    };
-
-    try {
-      const validation = await validateWorkflow(flowData);
-      if (!validation.valid) {
-        enqueueSnackbar(
-          `Workflow validation failed:\n${validation.errors?.join("\n")}`,
-          {
-            variant: "error",
-            style: { whiteSpace: "pre-line" },
-          }
-        );
+      try {
+        const validation = await validateWorkflow(flowData);
+        if (!validation.valid) {
+          enqueueSnackbar(
+            `Workflow validation failed:\n${validation.errors?.join("\n")}`,
+            {
+              variant: "error",
+              style: { whiteSpace: "pre-line" },
+            }
+          );
+          return;
+        }
+      } catch (error) {
+        console.error("Validation error:", error);
+        enqueueSnackbar("Failed to validate workflow", { variant: "error" });
         return;
       }
-    } catch (error) {
-      console.error("Validation error:", error);
-      enqueueSnackbar("Failed to validate workflow", { variant: "error" });
-      return;
-    }
 
-    const inputText = prompt("Enter input text for the workflow:");
-    if (!inputText) return;
+      const inputText = prompt("Enter input text for the workflow:");
+      if (!inputText) return;
 
-    try {
-      clearExecutionResult();
-      await executeWorkflow({
-        flow_data: flowData,
-        input_text: inputText,
-      });
+      try {
+        clearExecutionResult();
+        await executeWorkflow({
+          flow_data: flowData,
+          input_text: inputText,
+        });
 
-      enqueueSnackbar(`Execution completed!`, { variant: "success" });
-    } catch (error) {
-      console.error("Execution error:", error);
-      enqueueSnackbar("Workflow execution failed", { variant: "error" });
-    }
-  }, [
-    nodes,
-    edges,
-    validateWorkflow,
-    executeWorkflow,
-    clearExecutionResult,
-    enqueueSnackbar,
-  ]);
+        enqueueSnackbar(`Execution completed!`, { variant: "success" });
+      } catch (error) {
+        console.error("Execution error:", error);
+        enqueueSnackbar("Workflow execution failed", { variant: "error" });
+        return;
+      }
+    },
+    [
+      nodes,
+      edges,
+      validateWorkflow,
+      executeWorkflow,
+      clearExecutionResult,
+      enqueueSnackbar,
+    ]
+  );
 
+  // Pass the execution handler to StartNode
+  const nodeTypes = useMemo(
+    () => ({
+      ...baseNodeTypes,
+      StartNode: (props: any) => (
+        <StartNode {...props} onExecute={handleStartNodeExecute} />
+      ),
+    }),
+    [handleStartNodeExecute]
+  );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
@@ -428,15 +428,15 @@ function FlowCanvas() {
     if (chatInput.trim() === "") return;
     const userMessage = chatInput;
     const timestamp = new Date().toISOString();
-    
+
     // Add user message to chat
     setChatMessages((msgs: ChatMessage[]) => [
       ...msgs,
-      { 
-        from: "user", 
-        text: userMessage, 
+      {
+        from: "user",
+        text: userMessage,
         timestamp,
-        session_id: chatSessionId 
+        session_id: chatSessionId,
       },
     ]);
     setChatInput("");
@@ -446,29 +446,29 @@ function FlowCanvas() {
       if (nodes.length === 0) {
         setChatMessages((msgs: ChatMessage[]) => [
           ...msgs,
-          { 
-            from: "bot", 
+          {
+            from: "bot",
             text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın.",
             timestamp: new Date().toISOString(),
-            session_id: chatSessionId
+            session_id: chatSessionId,
           },
         ]);
         return;
       }
 
       // Check if we have a ReAct Agent in the workflow
-      const hasReactAgent = nodes.some(node => 
-        node.type === 'ReactAgent' || node.type === 'ToolAgentNode'
+      const hasReactAgent = nodes.some(
+        (node) => node.type === "ReactAgent" || node.type === "ToolAgentNode"
       );
 
       if (!hasReactAgent && conversationMode) {
         setChatMessages((msgs: ChatMessage[]) => [
           ...msgs,
-          { 
-            from: "bot", 
+          {
+            from: "bot",
             text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin.",
             timestamp: new Date().toISOString(),
-            session_id: chatSessionId
+            session_id: chatSessionId,
           },
         ]);
         return;
@@ -486,14 +486,14 @@ function FlowCanvas() {
         session_context: {
           session_id: chatSessionId,
           conversation_mode: conversationMode,
-          timestamp: timestamp
-        }
+          timestamp: timestamp,
+        },
       });
 
       // Extract response from result
       let responseText = "";
       if (result?.result) {
-        if (typeof result.result === 'string') {
+        if (typeof result.result === "string") {
           responseText = result.result;
         } else if (result.result.output) {
           responseText = result.result.output;
@@ -501,27 +501,27 @@ function FlowCanvas() {
           responseText = JSON.stringify(result.result, null, 2);
         }
       } else {
-        responseText = "🤖 I received your message but couldn't generate a response.";
+        responseText =
+          "🤖 I received your message but couldn't generate a response.";
       }
 
       setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        { 
-          from: "bot", 
+        {
+          from: "bot",
           text: responseText,
           timestamp: new Date().toISOString(),
-          session_id: chatSessionId
+          session_id: chatSessionId,
         },
       ]);
-
     } catch (error: any) {
       setChatMessages((msgs: ChatMessage[]) => [
         ...msgs,
-        { 
-          from: "bot", 
+        {
+          from: "bot",
           text: `❌ Error: ${error.message}`,
           timestamp: new Date().toISOString(),
-          session_id: chatSessionId
+          session_id: chatSessionId,
         },
       ]);
     } finally {
@@ -531,11 +531,11 @@ function FlowCanvas() {
 
   const handleClearChat = () => {
     setChatMessages([
-      { 
-        from: "bot", 
+      {
+        from: "bot",
         text: "🤖 Yeni session başlatıldı! Ben ReAct Agent'ınızım. Size nasıl yardımcı olabilirim?",
         timestamp: new Date().toISOString(),
-        session_id: ""
+        session_id: "",
       },
     ]);
     setChatInput("");
@@ -543,234 +543,261 @@ function FlowCanvas() {
 
   const toggleConversationMode = () => {
     setConversationMode(!conversationMode);
-    setChatMessages(prev => [
+    setChatMessages((prev) => [
       ...prev,
       {
         from: "bot",
-        text: conversationMode 
+        text: conversationMode
           ? "📴 Sürekli konuşma modu kapatıldı. Her mesaj bağımsız işlenecek."
           : "💬 Sürekli konuşma modu açıldı! Artık konuşma geçmişini hatırlayacağım.",
         timestamp: new Date().toISOString(),
-        session_id: chatSessionId
-      }
+        session_id: chatSessionId,
+      },
     ]);
   };
 
-  const nodeTypes = useMemo(() => ({ ...baseNodeTypes }), []);
-
   return (
-    <div className="w-full h-full relative">
-      <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex items-center gap-2">
-        <button
-          onClick={handleSave}
-          disabled={isLoading}
-          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Save Workflow"
-        >
-          {isLoading ? (
-            <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-          ) : (
-            <Save
-              className={`h-5 w-5 ${
-                hasUnsavedChanges ? "text-blue-600" : "text-gray-500"
-              }`}
-            />
-          )}
-        </button>
-        <button
-          onClick={handleExecute}
-          disabled={nodes.length === 0}
-          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50"
-          title="Execute Workflow"
-        >
-          ▶️
-        </button>
-        <button
-          onClick={handleExecuteStream}
-          disabled={nodes.length === 0}
-          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50"
-          title="Execute and Stream"
-        >
-          ⚡️
-        </button>
-        <button
-          onClick={handleClear}
-          className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
-          title="Clear Canvas"
-        >
-          <Eraser className="h-5 w-5 text-gray-600" />
-        </button>
-      </div>
-
-      {currentWorkflow && (
-        <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
-          <h3 className="font-medium text-gray-900">{currentWorkflow.name}</h3>
-          {currentWorkflow.description && (
-            <p className="text-sm text-gray-600 mt-1">
-              {currentWorkflow.description}
-            </p>
-          )}
-          <div className="text-xs text-gray-500 mt-2">
-            {nodes.length} nodes, {edges.length} connections
-          </div>
-        </div>
-      )}
-
-      {error && (
-        <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-          <div className="text-red-800 text-sm">{error}</div>
-        </div>
-      )}
-
-      {executionResult && (
-        <div className="absolute bottom-4 left-4 z-10 bg-green-50 border border-green-200 rounded-lg p-3 max-w-md">
-          <div className="text-green-800 text-sm">
-            <strong>Execution Result:</strong>
-            <pre className="mt-1 text-xs overflow-auto max-h-32">
-              {JSON.stringify(executionResult.result, null, 2)}
-            </pre>
-          </div>
+    <>
+      <Navbar
+        workflowName={workflowName}
+        setWorkflowName={setWorkflowName}
+        onSave={handleSave}
+        onSidebarOpen={() => setIsSidebarOpen(true)}
+      />
+      <div className="w-full h-full relative pt-16 flex">
+        {/* Sidebar açma butonu */}
+        {!isSidebarOpen && (
           <button
-            onClick={clearExecutionResult}
-            className="mt-2 text-xs text-green-600 hover:text-green-800"
+            className="fixed top-20 left-2 z-30 bg-white border rounded-full p-2 shadow hover:bg-gray-100"
+            onClick={() => setIsSidebarOpen(true)}
+            title="Open Sidebar"
           >
-            Close
+            <Menu className="w-6 h-6" />
           </button>
-        </div>
-      )}
-
-      <div
-        ref={reactFlowWrapper}
-        className="w-full h-full"
-        onDrop={onDrop}
-        onDragOver={onDragOver}
-      >
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes as any}
-          edgeTypes={edgeTypes}
-          fitView
-          className="bg-gray-50"
-        >
-          <Controls position="top-right" />
-          <Background gap={20} size={1} />
-          <MiniMap />
-        </ReactFlow>
-      </div>
-
-      {stream && <StreamingModal stream={stream} onClose={closeStreamModal} />}
-
-      <button
-        className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
-        onClick={() => setChatOpen((v) => !v)}
-      >
-        <svg
-          className="w-5 h-5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-          />
-        </svg>
-        Chat
-      </button>
-
-      {chatOpen && (
-        <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
-          <div className="flex items-center justify-between px-4 py-2 border-b">
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-gray-700">ReAct Chat</span>
-              <span className={`w-2 h-2 rounded-full ${conversationMode ? 'bg-green-500' : 'bg-gray-400'}`} 
-                    title={conversationMode ? 'Continuous mode ON' : 'Continuous mode OFF'}></span>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={toggleConversationMode}
-                className={`px-2 py-1 text-xs rounded ${conversationMode ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}
-                title="Toggle continuous conversation"
-              >
-                {conversationMode ? '🔄' : '📄'}
-              </button>
-              <button
-                onClick={handleClearChat}
-                className="text-red-400 hover:text-red-700"
-                title="Clear chat history"
-              >
-                <Eraser className="w-5 h-5" />
-              </button>
-              <button
-                onClick={() => setChatOpen(false)}
-                className="text-gray-400 hover:text-gray-700"
-              >
-                ✕
-              </button>
-            </div>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {chatMessages.map((msg, i) => (
-              <div
-                key={i}
-                className={`text-sm ${
-                  msg.from === "user" ? "text-right" : "text-left"
-                }`}
-              >
-                <div className={`inline-block max-w-[80%] ${msg.from === "user" ? "text-right" : "text-left"}`}>
-                  <span
-                    className={`inline-block px-3 py-2 rounded-lg whitespace-pre-wrap ${
-                      msg.from === "user"
-                        ? "bg-blue-500 text-white"
-                        : "bg-gray-100 text-gray-800"
-                    }`}
-                  >
-                    {msg.text}
-                  </span>
-                  {msg.timestamp && (
-                    <div className={`text-xs text-gray-400 mt-1 ${msg.from === "user" ? "text-right" : "text-left"}`}>
-                      {new Date(msg.timestamp).toLocaleTimeString()}
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))}
-            {isExecuting && (
-              <div className="text-left">
-                <span className="inline-block px-3 py-2 rounded-lg bg-gray-100 text-gray-700">
-                  <span className="animate-pulse">🤖 Thinking...</span>
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="p-2 border-t flex gap-2">
-            <input
-              className="flex-1 border rounded px-2 py-1 focus:outline-none"
-              placeholder="Mesaj yaz..."
-              value={chatInput}
-              onChange={(e) => setChatInput(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isExecuting) handleSendMessage();
-              }}
-              disabled={isExecuting}
-            />
+        )}
+        {/* Sidebar modal */}
+        {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
+        {/* Canvas alanı */}
+        <div className="flex-1">
+          <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex items-center gap-2">
             <button
-              className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
-              onClick={handleSendMessage}
-              disabled={isExecuting}
+              onClick={handleSave}
+              disabled={isLoading}
+              className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Save Workflow"
             >
-              {isExecuting ? "..." : "Send"}
+              {isLoading ? (
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
+              ) : (
+                <Save
+                  className={`h-5 w-5 ${
+                    hasUnsavedChanges ? "text-blue-600" : "text-gray-500"
+                  }`}
+                />
+              )}
+            </button>
+            <button
+              onClick={handleClear}
+              className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
+              title="Clear Canvas"
+            >
+              <Eraser className="h-5 w-5 text-gray-600" />
             </button>
           </div>
+
+          {currentWorkflow && (
+            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
+              <h3 className="font-medium text-gray-900">
+                {currentWorkflow.name}
+              </h3>
+              {currentWorkflow.description && (
+                <p className="text-sm text-gray-600 mt-1">
+                  {currentWorkflow.description}
+                </p>
+              )}
+              <div className="text-xs text-gray-500 mt-2">
+                {nodes.length} nodes, {edges.length} connections
+              </div>
+            </div>
+          )}
+
+          {error && (
+            <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
+              <div className="text-red-800 text-sm">{error}</div>
+            </div>
+          )}
+
+          {executionResult && (
+            <div className="absolute bottom-4 left-4 z-10 bg-green-50 border border-green-200 rounded-lg p-3 max-w-md">
+              <div className="text-green-800 text-sm">
+                <strong>Execution Result:</strong>
+                <pre className="mt-1 text-xs overflow-auto max-h-32">
+                  {JSON.stringify(executionResult.result, null, 2)}
+                </pre>
+              </div>
+              <button
+                onClick={clearExecutionResult}
+                className="mt-2 text-xs text-green-600 hover:text-green-800"
+              >
+                Close
+              </button>
+            </div>
+          )}
+
+          <div
+            ref={reactFlowWrapper}
+            className="w-full h-full"
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+          >
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              onNodesChange={onNodesChange}
+              onEdgesChange={onEdgesChange}
+              onConnect={onConnect}
+              nodeTypes={nodeTypes as any}
+              edgeTypes={edgeTypes}
+              fitView
+              className="bg-gray-50"
+            >
+              <Controls position="top-right" />
+              <Background gap={20} size={1} />
+              <MiniMap />
+            </ReactFlow>
+          </div>
+
+          <button
+            className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
+            onClick={() => setChatOpen((v) => !v)}
+          >
+            <svg
+              className="w-5 h-5"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+              />
+            </svg>
+            Chat
+          </button>
+
+          {chatOpen && (
+            <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
+              <div className="flex items-center justify-between px-4 py-2 border-b">
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold text-gray-700">
+                    ReAct Chat
+                  </span>
+                  <span
+                    className={`w-2 h-2 rounded-full ${
+                      conversationMode ? "bg-green-500" : "bg-gray-400"
+                    }`}
+                    title={
+                      conversationMode
+                        ? "Continuous mode ON"
+                        : "Continuous mode OFF"
+                    }
+                  ></span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={toggleConversationMode}
+                    className={`px-2 py-1 text-xs rounded ${
+                      conversationMode
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-100 text-gray-600"
+                    }`}
+                    title="Toggle continuous conversation"
+                  >
+                    {conversationMode ? "🔄" : "📄"}
+                  </button>
+                  <button
+                    onClick={handleClearChat}
+                    className="text-red-400 hover:text-red-700"
+                    title="Clear chat history"
+                  >
+                    <Eraser className="w-5 h-5" />
+                  </button>
+                  <button
+                    onClick={() => setChatOpen(false)}
+                    className="text-gray-400 hover:text-gray-700"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                {chatMessages.map((msg, i) => (
+                  <div
+                    key={i}
+                    className={`text-sm ${
+                      msg.from === "user" ? "text-right" : "text-left"
+                    }`}
+                  >
+                    <div
+                      className={`inline-block max-w-[80%] ${
+                        msg.from === "user" ? "text-right" : "text-left"
+                      }`}
+                    >
+                      <span
+                        className={`inline-block px-3 py-2 rounded-lg whitespace-pre-wrap ${
+                          msg.from === "user"
+                            ? "bg-blue-500 text-white"
+                            : "bg-gray-100 text-gray-800"
+                        }`}
+                      >
+                        {msg.text}
+                      </span>
+                      {msg.timestamp && (
+                        <div
+                          className={`text-xs text-gray-400 mt-1 ${
+                            msg.from === "user" ? "text-right" : "text-left"
+                          }`}
+                        >
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isExecuting && (
+                  <div className="text-left">
+                    <span className="inline-block px-3 py-2 rounded-lg bg-gray-100 text-gray-700">
+                      <span className="animate-pulse">🤖 Thinking...</span>
+                    </span>
+                  </div>
+                )}
+              </div>
+              <div className="p-2 border-t flex gap-2">
+                <input
+                  className="flex-1 border rounded px-2 py-1 focus:outline-none"
+                  placeholder="Mesaj yaz..."
+                  value={chatInput}
+                  onChange={(e) => setChatInput(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && !isExecuting) handleSendMessage();
+                  }}
+                  disabled={isExecuting}
+                />
+                <button
+                  className="bg-blue-600 text-white px-4 py-1 rounded hover:bg-blue-700"
+                  onClick={handleSendMessage}
+                  disabled={isExecuting}
+                >
+                  {isExecuting ? "..." : "Send"}
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
+      </div>
+    </>
   );
 }
 
