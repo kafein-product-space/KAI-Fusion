@@ -108,16 +108,7 @@ function Sidebar({ onClose }: SidebarProps) {
   }, {} as Record<string, any[]>);
 
   return (
-    <div className="fixed top-16 left-0 h-[calc(100vh-4rem)] w-80 bg-gray-50 border-r border-gray-200 overflow-y-auto z-30 shadow-lg animate-slide-in animate-slide-in rounded-2xl">
-      {onClose && (
-        <button
-          className="absolute top-2 right-2 z-40 bg-white w-10 h-10 rounded-full flex items-center justify-center shadow hover:bg-gray-100"
-          onClick={onClose}
-          title="Close Sidebar"
-        >
-          ×
-        </button>
-      )}
+    <div className="fixed top-36 h-[calc(100vh-12rem)] w-100 bg-white border-r border-gray-200 overflow-y-auto z-30 shadow-2xl animate-slide-in rounded-2xl">
       {/* Header */}
       <div className="p-4">
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>

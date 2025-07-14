@@ -36,7 +36,7 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 import WorkflowService from "~/services/workflows";
-import { Eraser, Save, Menu } from "lucide-react";
+import { Eraser, Save, Menu, Plus, X, Minus } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
@@ -593,15 +593,24 @@ function FlowCanvas() {
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}
-        {!isSidebarOpen && (
+        {!isSidebarOpen ? (
           <button
-            className="fixed top-20 left-2 z-30 bg-white border rounded-full p-2 shadow hover:bg-gray-100"
+            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white border rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
             onClick={() => setIsSidebarOpen(true)}
             title="Open Sidebar"
           >
-            <Menu className="w-6 h-6" />
+            <Plus className="w-6 h-6" />
+          </button>
+        ) : (
+          <button
+            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white border rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
+            onClick={() => setIsSidebarOpen(false)}
+            title="Close Sidebar"
+          >
+            <Minus className="w-6 h-6" />
           </button>
         )}
+
         {/* Sidebar modal */}
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
         {/* Canvas alanı */}
