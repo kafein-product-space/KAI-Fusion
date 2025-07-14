@@ -6,7 +6,7 @@ import StartNodeConfigModal from "../modals/StartNodeConfigModal";
 interface StartNodeProps {
   data: any;
   id: string;
-  onExecute?: () => void;
+  onExecute?: (id: string) => void;
 }
 
 function StartNode({ data, id, onExecute }: StartNodeProps) {
@@ -24,7 +24,7 @@ function StartNode({ data, id, onExecute }: StartNodeProps) {
       {/* Ana node kutusu */}
       <div
         className={`w-20 h-20 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 px-4 py-4  border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
-        onDoubleClick={onExecute}
+        onDoubleClick={() => onExecute?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Çift tıklayarak çalıştır"

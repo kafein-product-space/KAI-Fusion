@@ -348,8 +348,13 @@ function FlowCanvas() {
   const handleStartNodeExecute = useCallback(
     async (nodeId: string) => {
       enqueueSnackbar("Workflow çalıştırılıyor...", { variant: "info" });
+
       const node = nodes.find((n) => n.id === nodeId);
-      if (!node) return;
+      console.log("Çift tıklanan nodeId:", nodeId, nodes);
+      if (!node) {
+        enqueueSnackbar("Start node bulunamadı.", { variant: "warning" });
+        return;
+      }
 
       const flowData: WorkflowData = {
         nodes: nodes as WorkflowNode[],
@@ -370,18 +375,25 @@ function FlowCanvas() {
         }
       } catch (error) {
         console.error("Validation error:", error);
-        enqueueSnackbar("Failed to validate workflow", { variant: "error" });
+        enqueueSnackbar("Workflow doğrulama hatası oluştu.", {
+          variant: "error",
+        });
         return;
       }
 
-      const inputText = prompt("Enter input text for the workflow:");
-      if (!inputText) return;
+      // prompt yerine chatInput'u kullan
+      if (!chatInput || chatInput.trim() === "") {
+        enqueueSnackbar("Lütfen önce chat kutusuna bir input girin.", {
+          variant: "warning",
+        });
+        return;
+      }
 
       try {
         clearExecutionResult();
         await executeWorkflow({
           flow_data: flowData,
-          input_text: inputText,
+          input_text: chatInput,
         });
 
         enqueueSnackbar(`Execution completed!`, { variant: "success" });
@@ -398,6 +410,7 @@ function FlowCanvas() {
       executeWorkflow,
       clearExecutionResult,
       enqueueSnackbar,
+      chatInput,
     ]
   );
 
