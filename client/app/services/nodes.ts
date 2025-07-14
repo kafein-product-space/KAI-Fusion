@@ -13,7 +13,8 @@ export class NodeService {
    */
   static async getNodes(): Promise<NodeMetadata[]> {
     try {
-      return await apiClient.get<NodeMetadata[]>(API_ENDPOINTS.NODES.LIST);
+      const response = await apiClient.get<NodeMetadata[]>(API_ENDPOINTS.NODES.LIST);
+      return response;
     } catch (error) {
       console.error('Failed to fetch nodes:', error);
       throw error;

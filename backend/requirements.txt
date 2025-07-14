@@ -39,8 +39,9 @@ alembic>=1.13.0  # Database migrations
 
 # Security & Encryption
 cryptography>=41.0.0
-passlib[bcrypt]>=1.7.4
-python-jose[cryptography]>=3.3.0
+passlib==1.7.4
+bcrypt==3.1.7
+python-jose>=3.3.0
 
 # Async Task Queue
 celery[redis]>=5.3.0

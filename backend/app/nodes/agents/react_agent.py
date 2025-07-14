@@ -240,12 +240,12 @@ Please provide a helpful response:"""
 
             # Create executor
             if tools_list:
-        executor = AgentExecutor(
-            agent=agent,
+                executor = AgentExecutor(
+                    agent=agent,
                     tools=tools_list,
-            verbose=self.user_data.get("verbose", True),
+                    verbose=self.user_data.get("verbose", True),
                     handle_parsing_errors=True,
-            memory=memory,
+                    memory=memory,
                     max_iterations=max_iterations,
                     return_intermediate_steps=False,
                 )
