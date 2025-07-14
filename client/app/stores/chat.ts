@@ -2,7 +2,8 @@ import { create } from 'zustand';
 
 interface Chat {
   id: string | number;
-  // Diğer alanlar eklenebilir
+  message: string;
+  sender: 'user' | 'bot';
 }
 
 interface ChatStore {

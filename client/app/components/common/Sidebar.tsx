@@ -94,8 +94,8 @@ function Sidebar({ onClose }: SidebarProps) {
     info: nodeMetadata.description,
   });
 
-  // Doğru: Sadece filteredNodes kullanılmalı
-  const nodesToDisplay = filteredNodes.map(convertToNodeType);
+  // If filteredNodes is not an array, default to an empty array
+  const nodesToDisplay = (filteredNodes || []).map(convertToNodeType);
 
   // Group nodes by category
   const nodesByCategory = nodesToDisplay.reduce((acc, node) => {

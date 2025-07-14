@@ -244,33 +244,24 @@ class BaseNode(ABC):
         """Extract connected node inputs from state using connection mappings"""
         connected = {}
 
-            for input_spec in input_specs:
-                if input_spec.is_connection:
+        for input_spec in input_specs:
+            if input_spec.is_connection:
                 # Use connection mapping if available
                 if input_spec.name in self._input_connections:
                     connection_info = self._input_connections[input_spec.name]
-                    source_node_id = connection_info["source_node_id"]
-                    source_handle = connection_info.get("source_handle", "output")
+                    source_node_id = connection_info.get("node_id")
+                    output_key = f"output_{source_node_id}"
                     
-                    # Get the output from the source node using unique key
-                    source_output_key = f"output_{source_node_id}"
-                    if hasattr(state, source_output_key):
-                        connected_output = getattr(state, source_output_key)
-                        connected[input_spec.name] = connected_output
-                        print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id}.{source_handle}")
-                    else:
-                        # Fallback: try node_outputs
-                        connected_output = state.get_node_output(source_node_id)
-                        if connected_output is not None:
-                            connected[input_spec.name] = connected_output
-                
-                # Fallback: if no specific connection mapping, use last executed node
-                elif not connected and state.executed_nodes:
-                    last_node_id = state.executed_nodes[-1]
-                    last_output = state.get_node_output(last_node_id)
-                    if last_output is not None:
-                        connected[input_spec.name] = last_output
-
+                    if output_key in state.variables:
+                        connected[input_spec.name] = state.get_variable(output_key)
+                    elif input_spec.required:
+                        raise ValueError(
+                            f"Required connected input '{input_spec.name}' "
+                            f"from node '{source_node_id}' not found in state."
+                        )
+                elif input_spec.required:
+                    raise ValueError(f"Connection info for required input '{input_spec.name}' not found.")
+        
         return connected
     
     def _get_previous_node_output(self, state: FlowState) -> Any:

@@ -2,7 +2,7 @@
 import json
 import logging
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, AsyncGenerator
 
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
@@ -13,10 +13,12 @@ from app.core.engine_v2 import get_engine
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+
 class AdhocExecuteRequest(BaseModel):
     flow_data: Dict[str, Any]
     input_text: str = "Hello"
     session_id: Optional[str] = None
+
 
 @router.post("/execute")
 async def execute_adhoc_workflow(req: AdhocExecuteRequest):
@@ -41,16 +43,14 @@ async def execute_adhoc_workflow(req: AdhocExecuteRequest):
 
     async def event_generator():
         try:
-            # Ensure the result is an async generator before iterating
-            from typing import AsyncGenerator
             if not isinstance(result_stream, AsyncGenerator):
                 raise TypeError("Expected an async generator from the engine for streaming.")
 
             async for chunk in result_stream:
-                yield f"data: {json.dumps(chunk)}\n\n"
+                yield f"data: {json.dumps(chunk)}\\n\\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
                 error_data = {"event": "error", "data": str(e)}
-                yield f"data: {json.dumps(error_data)}\n\n"
+            yield f"data: {json.dumps(error_data)}\\n\\n"
 
         return StreamingResponse(event_generator(), media_type="text/event-stream")

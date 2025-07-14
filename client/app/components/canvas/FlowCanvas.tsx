@@ -42,7 +42,6 @@ import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
 import RedisCacheNode from "../nodes/cache/RedisCacheNode";
 import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
-import RouterChainNode from "../nodes/chains/RouterChainNode";
 import MapReduceChainNode from "../nodes/chains/MapReduceChainNode";
 import SequentialChainNode from "../nodes/chains/SequentialChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
@@ -72,9 +71,6 @@ import TavilySearchNode from "../nodes/tools/TavilySearchNode";
 import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
 import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
 import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
-import SitemapLoaderNode from "../nodes/document_loaders/SitemapLoaderNode";
-import YoutubeLoaderNode from "../nodes/document_loaders/YoutubeLoaderNode";
-import GitHubLoaderNode from "../nodes/document_loaders/GitHubLoaderNode";
 import ReadFileToolNode from "../nodes/tools/ReadFileToolNode";
 import CalculatorNode from "../nodes/utilities/CalculatorNode";
 import TextFormatterNode from "../nodes/utilities/TextFormatterNode";
@@ -82,8 +78,6 @@ import FaissVectorStoreNode from "../nodes/vector_stores/FaissVectorStoreNode";
 import PineconeVectorStoreNode from "../nodes/vector_stores/PineconeVectorStoreNode";
 import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode";
 import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
-import TestHelloNode from "../nodes/test/TestHelloNode";
-import TestProcessorNode from "../nodes/test/TestProcessorNode";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
@@ -97,7 +91,6 @@ const baseNodeTypes = {
   InMemoryCache: InMemoryCacheNode,
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
-  RouterChain: RouterChainNode,
   LLMChain: LLMChainNode,
   MapReduceChain: MapReduceChainNode,
   SequentialChain: SequentialChainNode,
@@ -128,9 +121,6 @@ const baseNodeTypes = {
   WebBrowserTool: WebBrowserToolNode,
   WikipediaTool: WikipediaToolNode,
   WolframAlphaTool: WolframAlphaToolNode,
-  SitemapLoader: SitemapLoaderNode,
-  YoutubeLoader: YoutubeLoaderNode,
-  GitHubLoader: GitHubLoaderNode,
   ReadFileTool: ReadFileToolNode,
   Calculator: CalculatorNode,
   TextFormatter: TextFormatterNode,
@@ -138,8 +128,6 @@ const baseNodeTypes = {
   PineconeVectorStore: PineconeVectorStoreNode,
   QdrantVectorStore: QdrantVectorStoreNode,
   WeaviateVectorStore: WeaviateVectorStoreNode,
-  TestHello: TestHelloNode,
-  TestProcessor: TestProcessorNode,
   EndNode: EndNode,
 };
 
