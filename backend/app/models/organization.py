@@ -45,7 +45,7 @@ class OrganizationUser(Base):
     
     # Relationships
     organization = relationship("Organization", back_populates="organization_users")
-    user = relationship("User")
+    user = relationship("User", back_populates="organization_associations", foreign_keys=[user_id])
     role = relationship("Role", back_populates="organization_users")
     creator = relationship("User", foreign_keys=[created_by])
     updater = relationship("User", foreign_keys=[updated_by]) 
