@@ -86,6 +86,7 @@ import TestHelloNode from "../nodes/test/TestHelloNode";
 import TestProcessorNode from "../nodes/test/TestProcessorNode";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
+import EndNode from "../nodes/special/EndNode";
 
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
@@ -139,6 +140,7 @@ const baseNodeTypes = {
   WeaviateVectorStore: WeaviateVectorStoreNode,
   TestHello: TestHelloNode,
   TestProcessor: TestProcessorNode,
+  EndNode: EndNode,
 };
 
 const edgeTypes = {
