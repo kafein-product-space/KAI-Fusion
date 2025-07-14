@@ -81,14 +81,26 @@ class GraphBuilder:
         self.control_flow_nodes.clear()
         self.explicit_start_nodes.clear()
 
-        # Identify start nodes before full parsing and filter them out
-        start_node_ids = {n["id"] for n in nodes if n.get("type") == "StartNode"}
-        self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
-        
-        # Filter out start nodes and their edges from further processing
-        nodes = [n for n in nodes if n.get("type") != "StartNode"]
-        edges = [e for e in edges if e.get("source") not in start_node_ids]
+        # --- NEW: Enforce StartNode and EndNode ---
+        start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
+        end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
 
+        if not start_nodes:
+            raise ValueError("Workflow must contain at least one StartNode.")
+        if not end_nodes:
+            raise ValueError("Workflow must contain at least one EndNode.")
+            
+        start_node_ids = {n["id"] for n in start_nodes}
+        end_node_ids = {n["id"] for n in end_nodes}
+
+        # Identify nodes connected FROM StartNode
+        self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
+
+        # Filter out StartNode and EndNode and their edges from further processing
+        nodes = [n for n in nodes if n.get("type") not in ["StartNode", "EndNode"]]
+        edges = [e for e in edges if e.get("source") not in start_node_ids]
+        # We keep edges pointing TO EndNode to identify the final nodes of the graph
+        
         self._parse_connections(edges)
         self._identify_control_flow_nodes(nodes)
         self._instantiate_nodes(nodes)
@@ -493,37 +505,52 @@ class GraphBuilder:
         
         # Add edges, ensuring proper dependency order
         for target_node, source_nodes in target_groups.items():
+            # NEW: Filter out connections to EndNode, as they are handled separately
+            if self.nodes.get(target_node) and self.nodes[target_node].type == 'EndNode':
+                continue
+
             print(f"[DEBUG] Target {target_node} depends on: {source_nodes}")
             for source_node in source_nodes:
                 print(f"[DEBUG]   {source_node} -> {target_node}")
                 graph.add_edge(source_node, target_node)
 
     def _add_start_end_connections(self, graph: StateGraph):
-        # Use explicitly identified start nodes if available
-        if self.explicit_start_nodes:
-            for n in self.explicit_start_nodes:
-                if n in self.nodes or n in self.control_flow_nodes:
-                    graph.add_edge(START, n)
-            # Fallback for workflows that might not have a StartNode but are valid
-            if not any(n in self.nodes or n in self.control_flow_nodes for n in self.explicit_start_nodes):
-                self._connect_orphan_start_nodes(graph)
-        else:
-            self._connect_orphan_start_nodes(graph)
+        """
+        Connects START to the nodes linked from StartNode,
+        and connects nodes linked to EndNode to END.
+        This method replaces the old auto-detection logic.
+        """
+        print("[DEBUG] Connecting START and END nodes based on explicit connections.")
+        
+        # 1. Connect START to the nodes that follow StartNode
+        if not self.explicit_start_nodes:
+            raise ValueError("StartNode is not connected to any other node.")
+            
+        for start_target_id in self.explicit_start_nodes:
+            if start_target_id in self.nodes or start_target_id in self.control_flow_nodes:
+                print(f"[DEBUG]   START -> {start_target_id}")
+                graph.add_edge(START, start_target_id)
+            else:
+                print(f"[WARNING] StartNode is connected to a non-existent node: {start_target_id}")
 
-        outgoing_sources = {c.source_node_id for c in self.connections}
-        end_nodes = [nid for nid in self.nodes if nid not in outgoing_sources and nid not in self.control_flow_nodes]
-        for n in end_nodes:
-            graph.add_edge(n, END)
+        # 2. Connect nodes that lead into an EndNode to the graph's END
+        end_connections = [c for c in self.connections if self.nodes.get(c.target_node_id) and self.nodes[c.target_node_id].type == 'EndNode']
+        
+        if not end_connections:
+            raise ValueError("At least one node must be connected to an EndNode.")
+
+        end_source_ids = {conn.source_node_id for conn in end_connections}
+        for end_source_id in end_source_ids:
+            if end_source_id in self.nodes or end_source_id in self.control_flow_nodes:
+                print(f"[DEBUG]   {end_source_id} -> END")
+                graph.add_edge(end_source_id, END)
+            else:
+                print(f"[WARNING] A non-existent node is connected to EndNode: {end_source_id}")
 
     def _connect_orphan_start_nodes(self, graph: StateGraph):
-        """Connects nodes that have no incoming connections to START."""
-        incoming_targets = {c.target_node_id for c in self.connections}
-        start_nodes = [nid for nid in list(self.nodes) + list(self.control_flow_nodes) if nid not in incoming_targets]
-        if not start_nodes and self.nodes:
-            # If no clear start node, pick the first one as a fallback
-            start_nodes = [list(self.nodes.keys())[0]]
-        for n in start_nodes:
-            graph.add_edge(START, n)
+        # This method is now obsolete and will not be called.
+        # Kept for reference, can be deleted later.
+        pass
 
     # ------------------------------------------------------------------
     # Internal – Execution helpers
