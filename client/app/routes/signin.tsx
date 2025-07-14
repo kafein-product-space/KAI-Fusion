@@ -13,22 +13,25 @@ const Signin = () => {
   const { signIn, isAuthenticated, isLoading, error, clearError } = useAuth();
   const location = useLocation();
   const [showPassword, setShowPassword] = useState(false);
-  
+
   // Get the redirect path from location state
-  const from = location.state?.from || '/home';
+  const from = location.state?.from || "/";
 
   // Clear any existing errors when component mounts
   useEffect(() => {
     clearError();
   }, [clearError]);
 
-  const handleSubmit = async (values: SignInFormValues, { setSubmitting }: any) => {
+  const handleSubmit = async (
+    values: SignInFormValues,
+    { setSubmitting }: any
+  ) => {
     try {
       await signIn(values);
       // Navigation will be handled by the auth guard
     } catch (err) {
       // Error is handled by the store
-      console.error('Sign in failed:', err);
+      console.error("Sign in failed:", err);
     } finally {
       setSubmitting(false);
     }
@@ -48,7 +51,7 @@ const Signin = () => {
             <h1 className="text-3xl font-semibold font-inter text-gray-900 text-start">
               Sign In
             </h1>
-            {from !== '/home' && (
+            {from !== "/home" && (
               <p className="text-sm text-gray-600 mt-2">
                 Please sign in to continue to your requested page
               </p>
@@ -127,7 +130,7 @@ const Signin = () => {
                       onClick={() => setShowPassword(!showPassword)}
                       className="text-sm text-purple-600 hover:text-purple-700 transition-colors duration-200"
                     >
-                      {showPassword ? 'Hide' : 'Show'}
+                      {showPassword ? "Hide" : "Show"}
                     </button>
                   </div>
                   <input
@@ -181,7 +184,7 @@ const Signin = () => {
 
                 {/* Social Login Buttons */}
                 <div className="space-y-3">
-                  <button 
+                  <button
                     type="button"
                     disabled={isLoading || isSubmitting}
                     className="w-full py-3 px-4 border border-gray-300 rounded-md bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center justify-center disabled:bg-gray-100 disabled:cursor-not-allowed"
@@ -207,7 +210,7 @@ const Signin = () => {
                     Sign In With Google
                   </button>
 
-                  <button 
+                  <button
                     type="button"
                     disabled={isLoading || isSubmitting}
                     className="w-full py-3 px-4 border border-gray-300 rounded-md bg-white text-gray-700 font-medium hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 flex items-center justify-center disabled:bg-gray-100 disabled:cursor-not-allowed"

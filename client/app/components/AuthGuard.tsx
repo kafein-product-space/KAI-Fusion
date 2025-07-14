@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { useAuthStore } from '~/stores/auth';
+import { useAuthStore } from "~/stores/auth";
 import { Navigate, useLocation } from "react-router";
 
 interface AuthGuardProps {
@@ -16,15 +16,8 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
     return <>{children}</>;
   }
 
-  const { isAuthenticated, validateSession, isLoading } = useAuthStore();
+  const { isAuthenticated, isLoading } = useAuthStore();
   const location = useLocation();
-
-  useEffect(() => {
-    // Validate session on mount and when location changes
-    if (!isAuthenticated) {
-      validateSession();
-    }
-  }, [isAuthenticated, validateSession, location.pathname]);
 
   // Show loading state while validating session
   if (isLoading) {
@@ -59,12 +52,7 @@ export const PublicOnly: React.FC<PublicOnlyProps> = ({
     return <>{children}</>;
   }
 
-  const { isAuthenticated, validateSession, isLoading } = useAuthStore();
-
-  useEffect(() => {
-    // Validate session to check if user is authenticated
-    validateSession();
-  }, [validateSession]);
+  const { isAuthenticated, isLoading } = useAuthStore();
 
   // Show loading state while validating session
   if (isLoading) {
