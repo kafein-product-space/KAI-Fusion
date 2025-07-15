@@ -161,15 +161,22 @@ export class WorkflowService {
       let buffer = '';
 
       try {
+        console.log('🔄 Starting to read streaming response...');
         while (true) {
           const { done, value } = await reader.read();
-          if (done) break;
+          if (done) {
+            console.log('✅ Streaming completed, done=true');
+            break;
+          }
 
-          buffer += decoder.decode(value, { stream: true });
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('📦 Raw chunk received:', chunk);
+          buffer += chunk;
           const lines = buffer.split('\n');
           buffer = lines.pop() || '';
 
           for (const line of lines) {
+            console.log('📄 Processing line:', line);
             if (line.startsWith('data: ')) {
               try {
                 const jsonData = JSON.parse(line.slice(6));
@@ -186,7 +193,7 @@ export class WorkflowService {
                   };
                 }
               } catch (e) {
-                console.warn('Failed to parse streaming chunk:', line);
+                console.warn('❌ Failed to parse streaming chunk:', line, e);
               }
             } else if (line.trim()) {
               console.log('📄 Non-data line:', line);
