@@ -26,3 +26,4 @@ class User(Base):
     workflows = relationship("Workflow", back_populates="user")
     executions = relationship("WorkflowExecution", back_populates="user")
     organization_associations = relationship("OrganizationUser", back_populates="user", foreign_keys="[OrganizationUser.user_id]") 
+    api_keys = relationship("APIKey", back_populates="user") 

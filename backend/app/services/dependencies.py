@@ -11,6 +11,7 @@ from app.services.workflow_service import WorkflowService
 from app.services.execution_service import ExecutionService
 from app.services.credential_service import CredentialService
 from app.services.task_service import TaskService
+from app.services.api_key_service import APIKeyService
 
 
 @lru_cache
@@ -31,4 +32,8 @@ def get_credential_service_dep() -> CredentialService:
 
 @lru_cache
 def get_task_service_dep() -> TaskService:
-    return TaskService() 
+    return TaskService()
+
+@lru_cache
+def get_api_key_service() -> APIKeyService:
+    return APIKeyService() 
