@@ -22,8 +22,12 @@ from app.core.database import create_tables, get_db_session
 from app.api.workflows import router as workflows_router
 from app.api.executions import router as executions_router
 from app.api.nodes import router as nodes_router
+<<<<<<< HEAD
 from app.api.credentials import router as credentials_router
 from app.api.users import router as users_router
+=======
+from app.api.auth import router as auth_router
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +100,7 @@ app.add_middleware(
 # Include API routers
 
 # Core routers (always available)
+app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
 app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
 app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])

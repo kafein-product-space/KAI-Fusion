@@ -8,6 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import { useAuth } from "~/stores/auth";
 
 // Types
 interface StatData {
@@ -33,6 +34,7 @@ interface ChartData {
 }
 
 export default function DashboardLayout() {
+  const { user, isAuthenticated, isLoading } = useAuth();
   const [selectedStat, setSelectedStat] = useState<keyof StatData>("prodexec");
   const [selectedPeriod, setSelectedPeriod] = useState("7days");
 
@@ -92,11 +94,24 @@ export default function DashboardLayout() {
       <main className="flex-1 p-10 m-10">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex flex-col items-start gap-4 justify-between mb-6">
-            <h1 className="text-4xl font-medium text-start">Overview</h1>
-            <p className="text-gray-600">
-              Get an overview of your activity, recent executions, and system
-              health at a glance.
-            </p>
+            <div className="flex items-center justify-between w-full">
+              <div>
+                <h1 className="text-4xl font-medium text-start">Overview</h1>
+                <p className="text-gray-600">
+                  Get an overview of your activity, recent executions, and
+                  system health at a glance.
+                </p>
+              </div>
+              {isAuthenticated && user && (
+                <div className="text-right">
+                  <p className="text-sm text-gray-600">Welcome back,</p>
+                  <p className="text-lg font-semibold text-gray-900">
+                    {user.full_name || "User"}
+                  </p>
+                  <p className="text-sm text-gray-500">{user.email}</p>
+                </div>
+              )}
+            </div>
 
             <select
               className="border border-gray-300 rounded-lg px-3 py-1 text-sm w-64 h-8"

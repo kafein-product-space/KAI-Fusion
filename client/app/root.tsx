@@ -6,11 +6,13 @@ import {
   Scripts,
   ScrollRestoration,
 } from "react-router";
+import { useEffect } from "react";
 
 import type { Route } from "./+types/root";
 import "./app.css";
 import { SnackbarProvider } from "notistack";
 import { ReactFlowProvider } from "@xyflow/react";
+import { useAuth } from "./stores/auth";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -49,6 +51,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
+  const { initialize } = useAuth();
+
+  useEffect(() => {
+    // Initialize auth state when app loads
+    initialize();
+  }, [initialize]);
+
   return <Outlet />;
 }
 

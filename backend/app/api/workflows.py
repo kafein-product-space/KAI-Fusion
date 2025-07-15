@@ -228,8 +228,14 @@ async def execute_adhoc_workflow(req: AdhocExecuteRequest):
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
+<<<<<<< HEAD
             yield f"data: {json.dumps(error_data)}\n\n"
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
 
 
+=======
+            yield f"data: {json.dumps(error_data)}\\n\\n"
+
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2

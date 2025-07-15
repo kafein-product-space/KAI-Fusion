@@ -10,13 +10,24 @@ import {
 } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
+import { useAuth } from "~/stores/auth";
 
 const Sidebar = () => {
+  const { user, signOut } = useAuth();
   const location = useLocation();
   const router = useNavigate();
 
-  const handleLogOut = () => {
-    router("/signin");
+  // Close dropdown when clicking outside
+
+  const handleLogOut = async () => {
+    try {
+      await signOut();
+      router("/signin");
+    } catch (error) {
+      console.error("Logout failed:", error);
+      // Even if logout fails, redirect to signin
+      router("/signin");
+    }
   };
 
   return (
@@ -76,7 +87,7 @@ const Sidebar = () => {
           <button className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-gray-100">
             <div className="flex items-center gap-2 avatar">
               <User className="w-5 h-5" />
-              <span className="text-sm">username</span>
+              <span className="text-sm">{user?.full_name || "User"}</span>
             </div>
 
             <div className="text-sm">☰</div>

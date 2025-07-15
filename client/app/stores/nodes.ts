@@ -49,6 +49,8 @@ export const useNodeStore = create<NodeState>()(
       
       try {
         const nodes = await NodeService.getNodes();
+
+        
         set({ 
           nodes,
           filteredNodes: nodes,
@@ -56,6 +58,7 @@ export const useNodeStore = create<NodeState>()(
           error: null
         });
       } catch (error: any) {
+
         set({ 
           nodes: [],
           filteredNodes: [],

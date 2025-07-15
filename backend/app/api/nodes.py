@@ -16,11 +16,16 @@ async def get_all_nodes():
     This endpoint provides the frontend with all necessary information
     to render nodes and their configuration modals dynamically.
     """
+<<<<<<< HEAD
     nodes_data = []
+=======
+    nodes_list = []
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2
     for name, node_class in node_registry.nodes.items():
         try:
             instance = node_class()
             metadata = instance.metadata.dict()
+<<<<<<< HEAD
             metadata['id'] = name  # Ensure each node has an ID
             nodes_data.append(metadata)
         except Exception as e:
@@ -28,16 +33,31 @@ async def get_all_nodes():
             # Skip failing nodes in production
             continue
     return nodes_data
+=======
+            # Add the node name to the metadata
+            metadata["name"] = name
+            nodes_list.append(metadata)
+        except Exception as e:
+            logger.error(f"Failed to get metadata for node {name}: {e}", exc_info=True)
+            # Optionally skip failing nodes in production
+            # continue
+    return nodes_list
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2
 
 @router.get("/categories")
 async def get_node_categories():
     """
+<<<<<<< HEAD
     Get all unique node categories.
+=======
+    Retrieve all available node categories.
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2
     """
     categories = set()
     for name, node_class in node_registry.nodes.items():
         try:
             instance = node_class()
+<<<<<<< HEAD
             if hasattr(instance.metadata, 'category') and instance.metadata.category:
                 categories.add(instance.metadata.category)
         except Exception as e:
@@ -213,3 +233,22 @@ async def search_nodes(query: str):
     # Sort by relevance
     results.sort(key=lambda x: x["relevance_score"], reverse=True)
     return results[:10]  # Return top 10 results 
+=======
+            metadata_dict = instance.metadata.dict()
+            category = metadata_dict.get("category", "Other")
+            categories.add(category)
+        except Exception as e:
+            logger.error(f"Failed to get category for node {name}: {e}", exc_info=True)
+    
+    # Convert to list of category objects
+    categories_list = [
+        {
+            "name": category,
+            "display_name": category.replace("_", " ").title(),
+            "description": f"Nodes in the {category} category"
+        }
+        for category in sorted(categories)
+    ]
+    
+    return categories_list 
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2

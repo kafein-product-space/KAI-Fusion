@@ -94,7 +94,14 @@ function Sidebar({ onClose }: SidebarProps) {
     info: nodeMetadata.description,
   });
 
+<<<<<<< HEAD
   const nodesToDisplay = Array.isArray(filteredNodes) ? filteredNodes.map(convertToNodeType) : [];
+=======
+  // Ensure filteredNodes is an array before mapping
+  const nodesToDisplay = Array.isArray(filteredNodes)
+    ? filteredNodes.map(convertToNodeType)
+    : [];
+>>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2
 
   // Group nodes by category
   const nodesByCategory = nodesToDisplay.reduce((acc, node) => {

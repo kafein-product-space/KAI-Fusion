@@ -28,6 +28,7 @@ class Organization(Base):
     
     # Relationships
     admin_user = relationship("User")
+    
     organization_users = relationship("OrganizationUser", back_populates="organization")
     login_methods = relationship("LoginMethod", back_populates="organization")
 
@@ -46,6 +47,7 @@ class OrganizationUser(Base):
     # Relationships
     organization = relationship("Organization", back_populates="organization_users")
     user = relationship("User", back_populates="organization_associations", foreign_keys=[user_id])
+    
     role = relationship("Role", back_populates="organization_users")
     creator = relationship("User", foreign_keys=[created_by])
     updater = relationship("User", foreign_keys=[updated_by]) 
