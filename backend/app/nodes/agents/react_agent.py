@@ -143,12 +143,23 @@ class ReactAgentNode(ProcessorNode):
         # Handle memory with session persistence
         memory = None
         session_id = getattr(self, 'session_id', 'default_session')
+        print(f"🔍 ReactAgent session_id: {session_id}")
+        print(f"🔍 Enable memory: {enable_memory}")
+        print(f"🔍 Memory node: {memory_node}")
+        print(f"🔍 Memory node type: {type(memory_node)}")
         
         if enable_memory:
             if memory_node and isinstance(memory_node, BaseMemory):
-                # Use connected memory
+                # Use connected memory - but ensure it's session-aware
                 memory = memory_node
                 print(f"💭 Using connected memory: {type(memory).__name__}")
+                
+                # Debug memory content
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    print(f"💭 Connected memory has {len(memory.chat_memory.messages)} messages")
+                    for i, msg in enumerate(memory.chat_memory.messages):
+                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
+                
             else:
                 # Use persistent session memory
                 if session_id not in self._session_memories:
@@ -161,6 +172,12 @@ class ReactAgentNode(ProcessorNode):
                     print(f"💭 Created new session memory for: {session_id}")
                 memory = self._session_memories[session_id]
                 print(f"💭 Using persistent session memory: {session_id}")
+                
+                # Debug session memory content
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    print(f"💭 Session memory has {len(memory.chat_memory.messages)} messages")
+                    for i, msg in enumerate(memory.chat_memory.messages):
+                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
 
         # Create enhanced prompt template
         if tools_list:
@@ -214,16 +231,38 @@ Assistant: I'll help you with that. Let me provide a helpful response:"""
                     # Get chat history from memory safely
                     chat_history = ""
                     if memory:
-                        # Try different memory types
-                        if hasattr(memory, 'buffer'):
-                            chat_history = getattr(memory, 'buffer', "")
+                        print(f"🔧 Getting chat history from memory type: {type(memory)}")
+                        
+                        # Try different memory access methods
+                        if hasattr(memory, 'buffer') and memory.buffer:
+                            chat_history = memory.buffer
+                            print(f"🔧 Got buffer: {chat_history[:100]}...")
                         elif hasattr(memory, 'chat_memory'):
-                            chat_memory = getattr(memory, 'chat_memory', None)
+                            chat_memory = memory.chat_memory
                             if chat_memory and hasattr(chat_memory, 'messages'):
-                                messages = getattr(chat_memory, 'messages', [])
-                                chat_history = "\n".join([f"{getattr(msg, 'type', 'message')}: {getattr(msg, 'content', str(msg))}" for msg in messages])
+                                messages = chat_memory.messages
+                                print(f"🔧 Found {len(messages)} messages in chat_memory")
+                                
+                                # Format messages for prompt
+                                formatted_messages = []
+                                for msg in messages:
+                                    msg_type = getattr(msg, 'type', 'unknown')
+                                    msg_content = getattr(msg, 'content', str(msg))
+                                    if msg_type == 'human':
+                                        formatted_messages.append(f"User: {msg_content}")
+                                    elif msg_type == 'ai':
+                                        formatted_messages.append(f"Assistant: {msg_content}")
+                                    else:
+                                        formatted_messages.append(f"{msg_type}: {msg_content}")
+                                
+                                chat_history = "\n".join(formatted_messages)
+                                print(f"🔧 Formatted chat history: {chat_history}")
+                        else:
+                            print(f"🔧 Memory has no accessible history format")
                     
-                    print(f"🔧 Chat history length: {len(chat_history)}")
+                    print(f"🔧 Final chat history length: {len(chat_history)}")
+                    if chat_history:
+                        print(f"🔧 Chat history preview: {chat_history[:200]}...")
                     
                     formatted_prompt = prompt.format(
                         chat_history=chat_history,
