@@ -485,17 +485,27 @@ function FlowCanvas() {
     setChatInput("");
     setIsExecuting(true);
 
+    // Add a placeholder bot message for streaming updates
+    const botMessageIndex = Date.now();
+    setChatMessages((msgs: ChatMessage[]) => [
+      ...msgs,
+      {
+        from: "bot",
+        text: "🤖 Thinking...",
+        timestamp: new Date().toISOString(),
+        session_id: chatSessionId,
+      },
+    ]);
+
     try {
       if (nodes.length === 0) {
-        setChatMessages((msgs: ChatMessage[]) => [
-          ...msgs,
-          {
-            from: "bot",
-            text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın.",
-            timestamp: new Date().toISOString(),
-            session_id: chatSessionId,
-          },
-        ]);
+        setChatMessages((msgs: ChatMessage[]) => 
+          msgs.map((msg, i) => 
+            i === msgs.length - 1 
+              ? { ...msg, text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın." }
+              : msg
+          )
+        );
         return;
       }
 
@@ -505,15 +515,13 @@ function FlowCanvas() {
       );
 
       if (!hasReactAgent && conversationMode) {
-        setChatMessages((msgs: ChatMessage[]) => [
-          ...msgs,
-          {
-            from: "bot",
-            text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin.",
-            timestamp: new Date().toISOString(),
-            session_id: chatSessionId,
-          },
-        ]);
+        setChatMessages((msgs: ChatMessage[]) => 
+          msgs.map((msg, i) => 
+            i === msgs.length - 1 
+              ? { ...msg, text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin." }
+              : msg
+          )
+        );
         return;
       }
 
@@ -522,9 +530,8 @@ function FlowCanvas() {
         edges: edges as WorkflowEdge[],
       };
 
-
-      // Enhanced execution with session context
-      const result = await executeWorkflow({
+      // Use streaming execution
+      const streamData = {
         flow_data: flowData,
         input_text: userMessage,
         session_context: {
@@ -532,42 +539,124 @@ function FlowCanvas() {
           conversation_mode: conversationMode,
           timestamp: timestamp,
         },
+      };
+
+      console.log('🔄 Starting streaming execution with data:', streamData);
+
+      // Get streaming response
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/api/v1/workflows/execute`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
+        },
+        body: JSON.stringify({
+          flow_data: streamData.flow_data,
+          input_text: streamData.input_text || "Hello",
+          session_id: streamData.session_context?.session_id
+        }),
       });
 
-      // Extract response from result
-      let responseText = "";
-      if (result?.result) {
-        if (typeof result.result === "string") {
-          responseText = result.result;
-        } else if (result.result.output) {
-          responseText = result.result.output;
-        } else {
-          responseText = JSON.stringify(result.result, null, 2);
-        }
-      } else {
-        responseText =
-          "🤖 I received your message but couldn't generate a response.";
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
-      setChatMessages((msgs: ChatMessage[]) => [
-        ...msgs,
-        {
-          from: "bot",
-          text: responseText,
-          timestamp: new Date().toISOString(),
-          session_id: chatSessionId,
-        },
-      ]);
+      if (!response.body) {
+        throw new Error('No response body for streaming');
+      }
+
+      // Parse streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let currentBotMessage = "🤖 Thinking...";
+
+      try {
+        console.log('🔄 Starting to read streaming response...');
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            console.log('✅ Streaming completed, done=true');
+            break;
+          }
+
+          const chunk = decoder.decode(value, { stream: true });
+          console.log('📦 Raw chunk received:', chunk);
+          buffer += chunk;
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            console.log('📄 Processing line:', line);
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonData = JSON.parse(line.slice(6));
+                console.log('📡 Streaming chunk:', jsonData);
+                
+                // Handle different types of streaming updates
+                if (jsonData.type === 'node_start') {
+                  currentBotMessage = `🔄 Processing ${jsonData.node_name}...`;
+                } else if (jsonData.type === 'node_complete') {
+                  currentBotMessage = `✅ Completed ${jsonData.node_name}`;
+                } else if (jsonData.type === 'token' && jsonData.token) {
+                  // For token-by-token streaming (if supported)
+                  if (currentBotMessage === "🤖 Thinking..." || currentBotMessage.startsWith('🔄') || currentBotMessage.startsWith('✅')) {
+                    currentBotMessage = jsonData.token;
+                  } else {
+                    currentBotMessage += jsonData.token;
+                  }
+                } else if (jsonData.type === 'partial' && jsonData.content) {
+                  // For partial response updates
+                  currentBotMessage = jsonData.content;
+                } else if (jsonData.type === 'complete') {
+                  console.log('🎯 Complete chunk found:', jsonData);
+                  let finalResponse = "";
+                  if (jsonData.result) {
+                    if (typeof jsonData.result === "string") {
+                      finalResponse = jsonData.result;
+                    } else if (jsonData.result.output) {
+                      finalResponse = jsonData.result.output;
+                    } else {
+                      finalResponse = JSON.stringify(jsonData.result, null, 2);
+                    }
+                  } else {
+                    finalResponse = "🤖 I received your message but couldn't generate a response.";
+                  }
+                  currentBotMessage = finalResponse;
+                }
+
+                // Update the last bot message in real-time
+                setChatMessages((msgs: ChatMessage[]) => 
+                  msgs.map((msg, i) => 
+                    i === msgs.length - 1 && msg.from === "bot"
+                      ? { ...msg, text: currentBotMessage }
+                      : msg
+                  )
+                );
+
+              } catch (e) {
+                console.warn('❌ Failed to parse streaming chunk:', line, e);
+              }
+            } else if (line.trim()) {
+              console.log('📄 Non-data line:', line);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      console.log('🏁 Final message:', currentBotMessage);
+
     } catch (error: any) {
-      setChatMessages((msgs: ChatMessage[]) => [
-        ...msgs,
-        {
-          from: "bot",
-          text: `❌ Error: ${error.message}`,
-          timestamp: new Date().toISOString(),
-          session_id: chatSessionId,
-        },
-      ]);
+      console.error('Streaming execution error:', error);
+      setChatMessages((msgs: ChatMessage[]) => 
+        msgs.map((msg, i) => 
+          i === msgs.length - 1 && msg.from === "bot"
+            ? { ...msg, text: `❌ Error: ${error.message}` }
+            : msg
+        )
+      );
     } finally {
       setIsExecuting(false);
     }

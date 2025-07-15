@@ -26,20 +26,6 @@ interface AuthState {
   setIsAuthenticated: (auth: boolean) => void;
 }
 
-<<<<<<< HEAD
-export const useAuthStore = create<AuthState>((set) => ({
-  user: null,
-  isAuthenticated: false,
-  isLoading: false,
-  setUser: (user) => set({ user }),
-  setIsAuthenticated: (auth) => set({ isAuthenticated: auth }),
-  logout: () => set({ user: null, isAuthenticated: false }),
-  validateSession: () => set({ isLoading: true }),
-}));
-
-// Export hook alias for backward compatibility
-export const useAuth = useAuthStore;
-=======
 export const useAuthStore = create<AuthState>()(
   subscribeWithSelector((set, get) => ({
     // Initial state
@@ -208,4 +194,3 @@ export const useAuth = () => {
 };
 
 export default useAuthStore;
->>>>>>> b7f0f94f418c074327c8a1ab142a8efe670759f2

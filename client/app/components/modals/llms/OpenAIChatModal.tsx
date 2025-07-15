@@ -74,9 +74,9 @@ const OpenAIChatNodeModal = forwardRef<
       dialogRef.current?.close();
       alert(`✅ ${result.message}`);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error("Validation error:", error);
-      alert(`❌ ${error.message || "Credential validation failed. Please check your API key."}`);
+      alert(`❌ ${error?.message || "Credential validation failed. Please check your API key."}`);
     }
   };
 
