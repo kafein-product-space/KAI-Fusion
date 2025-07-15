@@ -3,7 +3,7 @@ import { useReactFlow, Handle, Position } from "@xyflow/react";
 import ClaudeConfigModal from "../../modals/llms/ClaudeConfigModal";
 import SummaryMemoryConfigModal from "../../modals/memory/SummaryMemoryConfigModal";
 import StringOutputParserConfigModal from "../../modals/output_parsers/StringOutputParserConfigModal";
-import { Database, ServerCog, Text } from "lucide-react";
+import { ServerCog } from "lucide-react";
 import FaissVectorStoreConfigModal from "~/components/modals/vector_stores/FaissVectorStoreConfigModal";
 import WeaviateVectorStoreModal from "~/components/modals/vector_stores/WeaviateVectorStoreModal";
 

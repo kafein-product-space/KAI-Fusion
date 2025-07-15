@@ -65,6 +65,7 @@ class GraphBuilder:
         self.connections: List[NodeConnection] = []
         self.control_flow_nodes: Dict[str, Dict[str, Any]] = {}
         self.explicit_start_nodes: set[str] = set()
+        self.end_nodes_for_connections: Dict[str, Dict[str, Any]] = {}
         self.graph: Optional[CompiledStateGraph] = None
 
     # ---------------------------------------------------------------------
@@ -80,6 +81,7 @@ class GraphBuilder:
         self.connections.clear()
         self.control_flow_nodes.clear()
         self.explicit_start_nodes.clear()
+        self.end_nodes_for_connections.clear()
 
         # --- NEW: Enforce StartNode and EndNode ---
         start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
@@ -87,8 +89,39 @@ class GraphBuilder:
 
         if not start_nodes:
             raise ValueError("Workflow must contain at least one StartNode.")
+        
+        # Create virtual EndNode if none exists for better UX
         if not end_nodes:
-            raise ValueError("Workflow must contain at least one EndNode.")
+            print("⚠️  No EndNode found. Creating virtual EndNode for workflow completion.")
+            virtual_end_node = {
+                "id": "virtual-end-node",
+                "type": "EndNode",
+                "position": {"x": 0, "y": 0},
+                "data": {
+                    "name": "EndNode",
+                    "description": "Virtual end node for workflow completion",
+                    "metadata": {"name": "EndNode", "node_type": "terminator"}
+                }
+            }
+            nodes.append(virtual_end_node)
+            end_nodes = [virtual_end_node]
+            
+            # Find the last nodes in the workflow to connect to virtual EndNode
+            all_targets = {e["target"] for e in edges}
+            all_sources = {e["source"] for e in edges}
+            last_nodes = all_sources - all_targets - start_node_ids
+            
+            # Connect last nodes to virtual EndNode
+            for node_id in last_nodes:
+                virtual_edge = {
+                    "id": f"virtual-{node_id}-to-end",
+                    "source": node_id,
+                    "target": "virtual-end-node",
+                    "sourceHandle": "output",
+                    "targetHandle": "input"
+                }
+                edges.append(virtual_edge)
+                print(f"🔗 Auto-connected {node_id} -> virtual-end-node")
             
         start_node_ids = {n["id"] for n in start_nodes}
         end_node_ids = {n["id"] for n in end_nodes}
@@ -96,14 +129,20 @@ class GraphBuilder:
         # Identify nodes connected FROM StartNode
         self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
 
-        # Filter out StartNode and EndNode and their edges from further processing
-        nodes = [n for n in nodes if n.get("type") not in ["StartNode", "EndNode"]]
+        # Filter out StartNode for processing, but keep EndNodes for connection tracking
+        nodes = [n for n in nodes if n.get("type") != "StartNode"]
         edges = [e for e in edges if e.get("source") not in start_node_ids]
-        # We keep edges pointing TO EndNode to identify the final nodes of the graph
+        
+        # Separate EndNodes from regular nodes - we need them for connection tracking
+        end_nodes_for_processing = [n for n in nodes if n.get("type") == "EndNode"]
+        regular_nodes = [n for n in nodes if n.get("type") != "EndNode"]
         
         self._parse_connections(edges)
-        self._identify_control_flow_nodes(nodes)
-        self._instantiate_nodes(nodes)
+        self._identify_control_flow_nodes(regular_nodes)
+        self._instantiate_nodes(regular_nodes)
+        
+        # Store EndNodes separately for connection tracking
+        self.end_nodes_for_connections = {n["id"]: n for n in end_nodes_for_processing}
         self.graph = self._build_langgraph()
         return self.graph
 
@@ -300,11 +339,24 @@ class GraphBuilder:
                     if node_id not in updated_executed_nodes:
                         updated_executed_nodes.append(node_id)
 
-                    return {
+                    # Extract the actual output for last_output
+                    if isinstance(processed_result, dict) and "output" in processed_result:
+                        last_output = processed_result["output"]
+                    else:
+                        last_output = str(processed_result)
+                    
+                    # Update the state directly
+                    state.last_output = last_output
+                    state.executed_nodes = updated_executed_nodes
+                    
+                    result_dict = {
                         f"output_{node_id}": processed_result,
                         "executed_nodes": updated_executed_nodes,
-                        "last_output": str(processed_result)
+                        "last_output": last_output
                     }
+                    print(f"[DEBUG] Node {node_id} returning state update: {result_dict}")
+                    print(f"[DEBUG] State after update - last_output: '{state.last_output}'")
+                    return result_dict
                 else:
                     # For other node types, use the standard graph node function
                     node_func = gnode.node_instance.to_graph_node()
@@ -383,9 +435,17 @@ class GraphBuilder:
 
     def _process_processor_result(self, result: Any, state: FlowState, node_id: str) -> Any:
         """Process the result from a processor node"""
-        # For processor nodes, if result is a Runnable, keep it as is for later execution
+        # For processor nodes, if result is a Runnable, execute it with the user input
         if isinstance(result, Runnable):
-            return result
+            try:
+                print(f"[DEBUG] Executing Runnable for {node_id} with input: {state.current_input}")
+                # Execute the Runnable with the user input
+                executed_result = result.invoke(state.current_input)
+                print(f"[DEBUG] Runnable execution result: {executed_result}")
+                return executed_result
+            except Exception as e:
+                print(f"[ERROR] Failed to execute Runnable for {node_id}: {e}")
+                return {"error": str(e)}
         
         # For other types, ensure JSON-serializable
         try:
@@ -506,7 +566,7 @@ class GraphBuilder:
         # Add edges, ensuring proper dependency order
         for target_node, source_nodes in target_groups.items():
             # NEW: Filter out connections to EndNode, as they are handled separately
-            if self.nodes.get(target_node) and self.nodes[target_node].type == 'EndNode':
+            if target_node in self.end_nodes_for_connections:
                 continue
 
             print(f"[DEBUG] Target {target_node} depends on: {source_nodes}")
@@ -530,22 +590,35 @@ class GraphBuilder:
             if start_target_id in self.nodes or start_target_id in self.control_flow_nodes:
                 print(f"[DEBUG]   START -> {start_target_id}")
                 graph.add_edge(START, start_target_id)
+            elif start_target_id in self.end_nodes_for_connections:
+                # Special case: StartNode connects directly to EndNode
+                print(f"[DEBUG]   START -> END (via {start_target_id})")
+                graph.add_edge(START, END)
             else:
                 print(f"[WARNING] StartNode is connected to a non-existent node: {start_target_id}")
 
         # 2. Connect nodes that lead into an EndNode to the graph's END
-        end_connections = [c for c in self.connections if self.nodes.get(c.target_node_id) and self.nodes[c.target_node_id].type == 'EndNode']
+        end_connections = [c for c in self.connections if c.target_node_id in getattr(self, 'end_nodes_for_connections', {})]
         
         if not end_connections:
-            raise ValueError("At least one node must be connected to an EndNode.")
-
-        end_source_ids = {conn.source_node_id for conn in end_connections}
-        for end_source_id in end_source_ids:
-            if end_source_id in self.nodes or end_source_id in self.control_flow_nodes:
-                print(f"[DEBUG]   {end_source_id} -> END")
-                graph.add_edge(end_source_id, END)
-            else:
-                print(f"[WARNING] A non-existent node is connected to EndNode: {end_source_id}")
+            print("⚠️  No nodes connected to EndNode. Connecting all terminal nodes to END.")
+            # Find terminal nodes (nodes that don't have outgoing connections to other regular nodes)
+            all_targets = {c.target_node_id for c in self.connections if c.target_node_id in self.nodes}
+            all_sources = {c.source_node_id for c in self.connections if c.source_node_id in self.nodes}
+            terminal_nodes = all_sources - all_targets
+            
+            for terminal_node in terminal_nodes:
+                if terminal_node in self.nodes:
+                    print(f"[DEBUG]   {terminal_node} -> END (terminal node)")
+                    graph.add_edge(terminal_node, END)
+        else:
+            end_source_ids = {conn.source_node_id for conn in end_connections}
+            for end_source_id in end_source_ids:
+                if end_source_id in self.nodes or end_source_id in self.control_flow_nodes:
+                    print(f"[DEBUG]   {end_source_id} -> END")
+                    graph.add_edge(end_source_id, END)
+                else:
+                    print(f"[WARNING] A non-existent node is connected to EndNode: {end_source_id}")
 
     def _connect_orphan_start_nodes(self, graph: StateGraph):
         # This method is now obsolete and will not be called.
@@ -559,12 +632,32 @@ class GraphBuilder:
         try:
             # Prefer async interface if implemented
             result_state = await self.graph.ainvoke(init_state, config=config)  # type: ignore[arg-type]
+            # Convert FlowState to serializable format
+            try:
+                if hasattr(result_state, 'model_dump'):
+                    state_dict = result_state.model_dump()
+                else:
+                    state_dict = {
+                        "last_output": getattr(result_state, "last_output", ""),
+                        "executed_nodes": getattr(result_state, "executed_nodes", []),
+                        "node_outputs": getattr(result_state, "node_outputs", {}),
+                        "session_id": getattr(result_state, "session_id", init_state.session_id)
+                    }
+            except Exception:
+                # Fallback for non-serializable states
+                state_dict = {
+                    "last_output": str(result_state),
+                    "executed_nodes": [],
+                    "node_outputs": {},
+                    "session_id": init_state.session_id
+                }
+            
             return {
                 "success": True,
-                "result": getattr(result_state, "last_output", str(result_state)),
-                "state": getattr(result_state, "model_dump", lambda: result_state)(),
-                "executed_nodes": getattr(result_state, "executed_nodes", []),
-                "session_id": getattr(result_state, "session_id", init_state.session_id),
+                "result": state_dict.get("last_output", ""),
+                "state": state_dict,
+                "executed_nodes": state_dict.get("executed_nodes", []),
+                "session_id": state_dict.get("session_id", init_state.session_id),
             }
         except NotImplementedError:
             # Fallback to sync invoke in thread pool to avoid blocking
@@ -573,35 +666,126 @@ class GraphBuilder:
             result_state = await loop.run_in_executor(
                 None, functools.partial(self.graph.invoke, init_state, config=config)  # type: ignore[arg-type]
             )
+            # Convert FlowState to serializable format
+            try:
+                if hasattr(result_state, 'model_dump'):
+                    state_dict = result_state.model_dump()
+                else:
+                    state_dict = {
+                        "last_output": getattr(result_state, "last_output", ""),
+                        "executed_nodes": getattr(result_state, "executed_nodes", []),
+                        "node_outputs": getattr(result_state, "node_outputs", {}),
+                        "session_id": getattr(result_state, "session_id", init_state.session_id)
+                    }
+            except Exception:
+                # Fallback for non-serializable states
+                state_dict = {
+                    "last_output": str(result_state),
+                    "executed_nodes": [],
+                    "node_outputs": {},
+                    "session_id": init_state.session_id
+                }
+            
             return {
                 "success": True,
-                "result": getattr(result_state, "last_output", str(result_state)),
-                "state": getattr(result_state, "model_dump", lambda: result_state)(),
-                "executed_nodes": getattr(result_state, "executed_nodes", []),
-                "session_id": getattr(result_state, "session_id", init_state.session_id),
+                "result": state_dict.get("last_output", ""),
+                "state": state_dict,
+                "executed_nodes": state_dict.get("executed_nodes", []),
+                "session_id": state_dict.get("session_id", init_state.session_id),
             }
         except Exception as e:
             return {"success": False, "error": str(e), "error_type": type(e).__name__, "session_id": init_state.session_id}
+
+    def _make_serializable(self, obj):
+        """Convert any object to a JSON-serializable format."""
+        from datetime import datetime, date
+        import uuid
+        
+        if obj is None or isinstance(obj, (bool, int, float, str)):
+            return obj
+        elif isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        elif isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_serializable(item) for item in obj]
+        elif isinstance(obj, dict):
+            return {k: self._make_serializable(v) for k, v in obj.items()}
+        elif hasattr(obj, 'model_dump'):
+            try:
+                return obj.model_dump()
+            except Exception:
+                return str(obj)
+        else:
+            return str(obj)
 
     async def _execute_stream(self, init_state: FlowState, config: RunnableConfig):
         try:
             yield {"type": "start", "session_id": init_state.session_id, "message": "Starting workflow execution"}
             async for ev in self.graph.astream_events(init_state, config=config):  # type: ignore[arg-type]
+                # Make entire event serializable before processing
+                ev = self._make_serializable(ev)
+                
                 ev_type = ev.get("event", "")
                 if ev_type == "on_chain_start":
-                    yield {"type": "node_start", "node_id": ev.get("name", "unknown"), "metadata": ev.get("data", {})}
+                    metadata = ev.get("data", {})
+                    yield {"type": "node_start", "node_id": ev.get("name", "unknown"), "metadata": metadata}
                 elif ev_type == "on_chain_end":
-                    yield {"type": "node_end", "node_id": ev.get("name", "unknown"), "output": ev.get("data", {}).get("output")}
+                    output_data = ev.get("data", {}).get("output", {})
+                    yield {"type": "node_end", "node_id": ev.get("name", "unknown"), "output": output_data}
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
                     yield {"type": "error", "error": str(ev.get("data", {}).get("error", "Unknown error"))}
             final_state = await self.graph.aget_state(config)  # type: ignore[arg-type]
-            yield {
+            print(f"[DEBUG] Final state: {final_state}")
+            print(f"[DEBUG] Final state values: {getattr(final_state, 'values', 'No values')}")
+            
+            # Convert FlowState to serializable format using helper
+            if hasattr(final_state, 'values') and final_state.values:
+                state_values = final_state.values
+                print(f"[DEBUG] State values type: {type(state_values)}")
+                print(f"[DEBUG] State values keys: {list(state_values.keys()) if isinstance(state_values, dict) else 'Not a dict'}")
+                
+                # Handle both dict and object access patterns
+                if isinstance(state_values, dict):
+                    last_output = state_values.get("last_output", "")
+                    executed_nodes = state_values.get("executed_nodes", [])
+                    node_outputs = state_values.get("node_outputs", {})
+                    session_id = state_values.get("session_id", init_state.session_id)
+                else:
+                    last_output = getattr(state_values, "last_output", "")
+                    executed_nodes = getattr(state_values, "executed_nodes", [])
+                    node_outputs = getattr(state_values, "node_outputs", {})
+                    session_id = getattr(state_values, "session_id", init_state.session_id)
+                
+                print(f"[DEBUG] Extracted last_output: '{last_output}'")
+                print(f"[DEBUG] Extracted executed_nodes: {executed_nodes}")
+                print(f"[DEBUG] Extracted node_outputs: {node_outputs}")
+                
+                serializable_result = self._make_serializable({
+                    "last_output": last_output,
+                    "executed_nodes": executed_nodes,
+                    "node_outputs": node_outputs,
+                    "session_id": session_id
+                })
+            else:
+                print("[DEBUG] No final state values found")
+                serializable_result = {
+                    "last_output": "",
+                    "executed_nodes": [],
+                    "node_outputs": {},
+                    "session_id": init_state.session_id
+                }
+            
+            complete_event = {
                 "type": "complete",
-                "result": getattr(final_state.values, "last_output", ""),
-                "executed_nodes": getattr(final_state.values, "executed_nodes", []),
-                "session_id": init_state.session_id,
+                "result": serializable_result.get("last_output", ""),
+                "executed_nodes": serializable_result.get("executed_nodes", []),
+                "node_outputs": serializable_result.get("node_outputs", {}),
+                "session_id": serializable_result.get("session_id", init_state.session_id),
             }
+            print(f"🎯 Sending complete event: {complete_event}")
+            yield complete_event
         except Exception as e:
             yield {"type": "error", "error": str(e), "error_type": type(e).__name__} 

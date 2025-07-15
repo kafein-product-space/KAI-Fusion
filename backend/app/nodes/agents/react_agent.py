@@ -220,19 +220,20 @@ Please provide a helpful response:"""
                     
                     formatted_prompt = prompt.format(
                         chat_history=chat_history,
-                        input=agent_input["input"]
+                        input=input_text
                     )
                     response = llm_node.invoke(formatted_prompt)
+                    simple_output = response.content if hasattr(response, 'content') else str(response)
                     
                     # Update memory if available
                     if memory:
                         memory.save_context(
-                            {"input": agent_input["input"]}, 
-                            {"output": response.content if hasattr(response, 'content') else str(response)}
+                            {"input": input_text}, 
+                            {"output": simple_output}
                         )
                     
                     return {
-                        "output": response.content if hasattr(response, 'content') else str(response)
+                        "output": simple_output
                     }
                 
                 agent = RunnableLambda(simple_agent_func)
@@ -240,12 +241,12 @@ Please provide a helpful response:"""
 
             # Create executor
             if tools_list:
-        executor = AgentExecutor(
-            agent=agent,
+                executor = AgentExecutor(
+                    agent=agent,
                     tools=tools_list,
-            verbose=self.user_data.get("verbose", True),
+                    verbose=self.user_data.get("verbose", True),
                     handle_parsing_errors=True,
-            memory=memory,
+                    memory=memory,
                     max_iterations=max_iterations,
                     return_intermediate_steps=False,
                 )
@@ -254,18 +255,27 @@ Please provide a helpful response:"""
                 executor = agent
 
             # Create wrapper function that maintains conversation context
-            def conversation_wrapper(_input: str) -> Dict[str, Any]:
+            def conversation_wrapper(_input) -> Dict[str, Any]:
                 """Wrapper that handles conversation flow and memory management"""
                 try:
-                    print(f"💬 Processing input: {_input[:100]}...")
+                    print(f"💬 conversation_wrapper called with input type: {type(_input)}")
+                    print(f"💬 conversation_wrapper input: {_input}")
+                    
+                    # Extract the actual input text
+                    if isinstance(_input, dict):
+                        input_text = _input.get("input", str(_input))
+                    else:
+                        input_text = str(_input)
+                        
+                    print(f"💬 Processing input: {input_text[:100]}...")
                     
                     if tools_list:
                         # Use agent executor for tools
-                        result = executor.invoke({"input": _input})
+                        result = executor.invoke({"input": input_text})
                         output = result.get("output", str(result))
                     else:
-                        # Use simple agent
-                        result = executor.invoke({"input": _input})
+                        # Use simple agent  
+                        result = executor.invoke({"input": input_text})
                         output = result.get("output", str(result))
                     
                     print(f"✅ Agent response generated: {len(output)} characters")

@@ -94,8 +94,7 @@ function Sidebar({ onClose }: SidebarProps) {
     info: nodeMetadata.description,
   });
 
-  // If filteredNodes is not an array, default to an empty array
-  const nodesToDisplay = (filteredNodes || []).map(convertToNodeType);
+  const nodesToDisplay = Array.isArray(filteredNodes) ? filteredNodes.map(convertToNodeType) : [];
 
   // Group nodes by category
   const nodesByCategory = nodesToDisplay.reduce((acc, node) => {

@@ -1,4 +1,4 @@
-import axios, { type AxiosInstance, AxiosError, type AxiosResponse } from 'axios';
+import axios, { type AxiosInstance, type AxiosResponse, type AxiosError } from 'axios';
 import { config, API_ENDPOINTS } from './config';
 
 // API Response types

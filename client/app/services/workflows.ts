@@ -77,9 +77,16 @@ export class WorkflowService {
    */
   static async executeWorkflow(data: WorkflowExecuteRequest): Promise<WorkflowExecutionResult> {
     try {
+      // Transform data to match backend AdhocExecuteRequest format
+      const backendPayload = {
+        flow_data: data.flow_data,
+        input_text: data.input_text || "Hello",
+        session_id: data.session_context?.session_id
+      };
+      
       return await apiClient.post<WorkflowExecutionResult>(
         API_ENDPOINTS.WORKFLOWS.EXECUTE, 
-        data
+        backendPayload
       );
     } catch (error) {
       console.error('Failed to execute workflow:', error);
@@ -114,6 +121,94 @@ export class WorkflowService {
       return response.body;
     } catch (error) {
       console.error('Failed to execute workflow stream:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Execute a workflow with streaming response and return final result
+   */
+  static async executeWorkflowStreaming(data: WorkflowExecuteRequest): Promise<WorkflowExecutionResult> {
+    try {
+      // Transform data to match backend AdhocExecuteRequest format
+      const backendPayload = {
+        flow_data: data.flow_data,
+        input_text: data.input_text || "Hello",
+        session_id: data.session_context?.session_id
+      };
+
+      const response = await fetch(`${apiClient.getBaseURL()}${API_ENDPOINTS.WORKFLOWS.EXECUTE}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiClient.getAccessToken()}`,
+        },
+        body: JSON.stringify(backendPayload),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      if (!response.body) {
+        throw new Error('No response body for streaming');
+      }
+
+      // Parse streaming response
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let finalResult: WorkflowExecutionResult | null = null;
+      let buffer = '';
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              try {
+                const jsonData = JSON.parse(line.slice(6));
+                console.log('📡 Streaming chunk:', jsonData);
+                
+                if (jsonData.type === 'complete') {
+                  console.log('🎯 Complete chunk found:', jsonData);
+                  finalResult = {
+                    success: true,
+                    result: jsonData.result,
+                    execution_id: jsonData.session_id,
+                    executed_nodes: jsonData.executed_nodes,
+                    session_id: jsonData.session_id
+                  };
+                }
+              } catch (e) {
+                console.warn('Failed to parse streaming chunk:', line);
+              }
+            } else if (line.trim()) {
+              console.log('📄 Non-data line:', line);
+            }
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      const result = finalResult || {
+        success: false,
+        result: "No result received from workflow execution",
+        execution_id: backendPayload.session_id,
+        executed_nodes: [],
+        session_id: backendPayload.session_id
+      };
+      
+      console.log('🏁 Final result:', result);
+      return result;
+    } catch (error) {
+      console.error('Failed to execute workflow streaming:', error);
       throw error;
     }
   }

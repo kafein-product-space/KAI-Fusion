@@ -16,13 +16,200 @@ async def get_all_nodes():
     This endpoint provides the frontend with all necessary information
     to render nodes and their configuration modals dynamically.
     """
-    nodes_data: Dict[str, Any] = {}
+    nodes_data = []
     for name, node_class in node_registry.nodes.items():
         try:
             instance = node_class()
-            nodes_data[name] = instance.metadata.dict()
+            metadata = instance.metadata.dict()
+            metadata['id'] = name  # Ensure each node has an ID
+            nodes_data.append(metadata)
         except Exception as e:
             logger.error(f"Failed to get metadata for node {name}: {e}", exc_info=True)
-            # Optionally skip failing nodes in production
-            # continue
-    return nodes_data 
+            # Skip failing nodes in production
+            continue
+    return nodes_data
+
+@router.get("/categories")
+async def get_node_categories():
+    """
+    Get all unique node categories.
+    """
+    categories = set()
+    for name, node_class in node_registry.nodes.items():
+        try:
+            instance = node_class()
+            if hasattr(instance.metadata, 'category') and instance.metadata.category:
+                categories.add(instance.metadata.category)
+        except Exception as e:
+            logger.error(f"Failed to get category for node {name}: {e}")
+            continue
+    
+    return list(sorted(categories))
+
+@router.get("/{node_type}")
+async def get_node_details(node_type: str):
+    """
+    Get detailed information about a specific node type including
+    configuration schema, examples, and usage instructions.
+    """
+    node_class = node_registry.get_node(node_type)
+    if not node_class:
+        raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
+    
+    try:
+        instance = node_class()
+        metadata = instance.metadata.dict()
+        
+        # Add detailed configuration schema
+        detailed_info = {
+            **metadata,
+            "configuration_schema": {
+                "properties": {},
+                "required": []
+            },
+            "examples": [],
+            "usage_tips": [],
+            "compatible_nodes": []
+        }
+        
+        # Add configuration schema based on inputs
+        for input_config in metadata.get("inputs", []):
+            detailed_info["configuration_schema"]["properties"][input_config.get("name", "")] = {
+                "type": input_config.get("type", "string"),
+                "description": input_config.get("description", ""),
+                "required": input_config.get("required", False),
+                "default": input_config.get("default_value")
+            }
+            
+            if input_config.get("required", False):
+                detailed_info["configuration_schema"]["required"].append(input_config.get("name", ""))
+        
+        # Add usage examples based on node type
+        if node_type == "OpenAIChat":
+            detailed_info["examples"] = [
+                {
+                    "name": "Basic Chat",
+                    "config": {
+                        "model": "gpt-3.5-turbo",
+                        "temperature": 0.7,
+                        "max_tokens": 150
+                    }
+                },
+                {
+                    "name": "Creative Writing",
+                    "config": {
+                        "model": "gpt-4",
+                        "temperature": 0.9,
+                        "max_tokens": 500
+                    }
+                }
+            ]
+            detailed_info["usage_tips"] = [
+                "Lower temperature (0.1-0.3) for factual responses",
+                "Higher temperature (0.7-0.9) for creative content",
+                "Use system prompts to set behavior"
+            ]
+        
+        return detailed_info
+        
+    except Exception as e:
+        logger.error(f"Failed to get details for node {node_type}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve node details: {str(e)}")
+
+@router.post("/validate-config")
+async def validate_node_config(node_type: str, config: Dict[str, Any]):
+    """
+    Validate a node configuration without executing it.
+    Useful for real-time validation in the canvas editor.
+    """
+    node_class = node_registry.get_node(node_type)
+    if not node_class:
+        raise HTTPException(status_code=404, detail=f"Node type '{node_type}' not found")
+    
+    try:
+        # Try to create instance with config
+        instance = node_class()
+        instance.user_data = config
+        
+        # Basic validation
+        validation_result = {
+            "valid": True,
+            "errors": [],
+            "warnings": []
+        }
+        
+        # Check required fields
+        metadata = instance.metadata
+        for input_config in metadata.inputs:
+            if input_config.required and input_config.name not in config:
+                validation_result["valid"] = False
+                validation_result["errors"].append(f"Required field '{input_config.name}' is missing")
+        
+        # Add warnings for recommended fields
+        if node_type == "OpenAIChat" and "model" not in config:
+            validation_result["warnings"].append("Model not specified, will use default")
+        
+        return validation_result
+        
+    except Exception as e:
+        return {
+            "valid": False,
+            "errors": [str(e)],
+            "warnings": []
+        }
+
+@router.get("/registry/stats")
+async def get_registry_statistics():
+    """
+    Get statistics about the node registry.
+    """
+    nodes_by_category = {}
+    total_nodes = len(node_registry.nodes)
+    
+    for name, node_class in node_registry.nodes.items():
+        try:
+            instance = node_class()
+            category = instance.metadata.category
+            if category not in nodes_by_category:
+                nodes_by_category[category] = 0
+            nodes_by_category[category] += 1
+        except Exception:
+            continue
+    
+    return {
+        "total_nodes": total_nodes,
+        "categories": len(nodes_by_category),
+        "nodes_by_category": nodes_by_category,
+        "most_popular_category": max(nodes_by_category, key=nodes_by_category.get) if nodes_by_category else None
+    }
+
+@router.get("/search/{query}")
+async def search_nodes(query: str):
+    """
+    Search nodes by name, description, or category.
+    """
+    results = []
+    query_lower = query.lower()
+    
+    for name, node_class in node_registry.nodes.items():
+        try:
+            instance = node_class()
+            metadata = instance.metadata.dict()
+            
+            # Search in name, description, category
+            searchable_text = f"{metadata.get('name', '')} {metadata.get('description', '')} {metadata.get('category', '')}".lower()
+            
+            if query_lower in searchable_text:
+                results.append({
+                    "node_type": name,
+                    "name": metadata.get("name", ""),
+                    "description": metadata.get("description", ""),
+                    "category": metadata.get("category", ""),
+                    "relevance_score": searchable_text.count(query_lower)
+                })
+        except Exception:
+            continue
+    
+    # Sort by relevance
+    results.sort(key=lambda x: x["relevance_score"], reverse=True)
+    return results[:10]  # Return top 10 results 

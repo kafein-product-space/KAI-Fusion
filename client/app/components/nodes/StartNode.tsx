@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot, Play, Trash, X } from "lucide-react";
+import { Play, Trash } from "lucide-react";
 import StartNodeConfigModal from "../modals/StartNodeConfigModal";
 
 interface StartNodeProps {
@@ -15,6 +15,10 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
   const [isHovered, setIsHovered] = useState(false);
   // modalRef ve modal ile ilgili kodlar kaldırıldı
 
+  // Get onExecute from data if not provided as prop
+  const executeHandler = onExecute || data?.onExecute;
+  const validationState = validationStatus || data?.validationStatus;
+
   const handleDeleteNode = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
@@ -26,14 +30,14 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
       <div
         className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 border-2 text-gray-700 font-medium cursor-pointer transition-all
           ${
-            validationStatus === "success"
+            validationState === "success"
               ? "border-green-500"
-              : validationStatus === "error"
+              : validationState === "error"
               ? "border-red-500"
               : "border-gray-400"
           }
           bg-gray-100 hover:bg-gray-200`}
-        onDoubleClick={() => onExecute?.(id)}
+        onDoubleClick={() => executeHandler?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Çift tıklayarak çalıştır"

@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot, Calculator } from "lucide-react";
+import { Calculator } from "lucide-react";
 import WolframAlphaToolConfigModal from "../../modals/tools/WolframAlphaToolConfigModal";
 
 interface WolframAlphaToolNodeProps {

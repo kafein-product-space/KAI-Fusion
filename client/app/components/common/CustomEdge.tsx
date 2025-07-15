@@ -118,7 +118,7 @@ function CustomAnimatedEdge({
       </EdgeLabelRenderer>
 
       {/* CSS animation styles */}
-      <style jsx>{`
+      <style>{`
         @keyframes dash {
           to {
             stroke-dashoffset: -15;

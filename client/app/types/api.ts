@@ -85,11 +85,15 @@ export interface WorkflowExecuteRequest {
 
 export interface WorkflowExecutionResult {
   result: any;
-  execution_order: string[];
-  status: 'completed' | 'failed' | 'running';
-  node_count: number;
+  execution_order?: string[];
+  status?: 'completed' | 'failed' | 'running';
+  node_count?: number;
   error?: string;
   error_type?: string;
+  success?: boolean;
+  execution_id?: string;
+  executed_nodes?: string[];
+  session_id?: string;
 }
 
 export interface WorkflowExecution {

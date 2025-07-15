@@ -1,12 +1,4 @@
-import {
-  ArrowLeft,
-  Save,
-  Settings,
-  Menu,
-  FileUp,
-  Download,
-  Trash,
-} from "lucide-react";
+import { ArrowLeft, Save, Settings, FileUp, Download, Trash,  } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";

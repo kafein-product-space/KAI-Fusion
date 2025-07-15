@@ -19,3 +19,6 @@ export const useAuthStore = create<AuthState>((set) => ({
   logout: () => set({ user: null, isAuthenticated: false }),
   validateSession: () => set({ isLoading: true }),
 }));
+
+// Export hook alias for backward compatibility
+export const useAuth = useAuthStore;

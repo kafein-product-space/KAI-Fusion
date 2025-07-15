@@ -53,7 +53,7 @@ def create_checkpointer(
         print("✅ PostgreSQL checkpointer initialized successfully")
         return checkpointer
                 
-            except Exception as e:
+    except Exception as e:
         if not database_disabled:  # Only warn if database was expected to work
             warnings.warn(f"Could not create PostgreSQL checkpointer: {e}")
         

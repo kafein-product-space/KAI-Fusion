@@ -4,7 +4,7 @@ import ClaudeConfigModal from "../../modals/llms/ClaudeConfigModal";
 import BufferMemoryConfigModal from "../../modals/memory/BufferMemoryConfigModal";
 import AgentPromptConfigModal from "../../modals/prompts/AgentPromptConfigModal";
 import ArxivToolConfigModal from "../../modals/tools/ArxivToolConfigModal";
-import { Calculator, FileTextIcon } from "lucide-react";
+import { Calculator } from "lucide-react";
 import CalculatorConfigModal from "~/components/modals/utilities/CalculatorConfigModal";
 
 interface CalculatorNodeProps {

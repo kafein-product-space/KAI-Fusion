@@ -36,7 +36,7 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 import WorkflowService from "~/services/workflows";
-import { Eraser, Save, Menu, Plus, X, Minus } from "lucide-react";
+import { Eraser, Save, Plus, Minus } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
@@ -82,6 +82,7 @@ import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
 
+// Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
   StartNode: StartNode,
@@ -217,7 +218,23 @@ function FlowCanvas() {
     if (currentWorkflow?.flow_data) {
       const { nodes, edges } = currentWorkflow.flow_data;
       setNodes(nodes || []);
-      setEdges(edges || []);
+      
+      // Clean up invalid edges that reference non-existent nodes
+      if (edges && nodes) {
+        const nodeIds = new Set(nodes.map(n => n.id));
+        const validEdges = edges.filter(edge => 
+          nodeIds.has(edge.source) && nodeIds.has(edge.target)
+        );
+        
+        // Log if any edges were cleaned up
+        if (validEdges.length !== edges.length) {
+          console.log(`🧹 Cleaned up ${edges.length - validEdges.length} invalid edges`);
+        }
+        
+        setEdges(validEdges);
+      } else {
+        setEdges(edges || []);
+      }
     } else {
       setNodes([]);
       setEdges([]);
@@ -236,6 +253,27 @@ function FlowCanvas() {
       setHasUnsavedChanges(hasChanges);
     }
   }, [nodes, edges, currentWorkflow]);
+
+  // Clean up edges when nodes are deleted
+  useEffect(() => {
+    if (nodes.length > 0 && edges.length > 0) {
+      const nodeIds = new Set(nodes.map(n => n.id));
+      const validEdges = edges.filter(edge => 
+        nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      );
+      
+      if (validEdges.length !== edges.length) {
+        console.log(`🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`);
+        // Use callback to prevent infinite loop
+        setEdges(prevEdges => {
+          if (prevEdges.length !== validEdges.length) {
+            return validEdges;
+          }
+          return prevEdges;
+        });
+      }
+    }
+  }, [nodes]); // Only depend on nodes to prevent infinite loop
 
   const onConnect = useCallback(
     (params: Connection | Edge) => {
@@ -352,6 +390,7 @@ function FlowCanvas() {
         edges: edges as WorkflowEdge[],
       };
 
+
       try {
         const validation = await validateWorkflow(flowData);
         if (!validation.valid) {
@@ -411,20 +450,8 @@ function FlowCanvas() {
     ]
   );
 
-  // Pass the execution handler and validationStatus to StartNode and all nodeTypes
-  const nodeTypes = useMemo(
-    () => ({
-      ...baseNodeTypes,
-      StartNode: (props: any) => (
-        <StartNode
-          {...props}
-          onExecute={handleStartNodeExecute}
-          validationStatus={validationStatus}
-        />
-      ),
-    }),
-    [handleStartNodeExecute, validationStatus]
-  );
+  // Use stable nodeTypes - pass handlers via node data instead
+  const nodeTypes = baseNodeTypes;
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
@@ -494,6 +521,7 @@ function FlowCanvas() {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
       };
+
 
       // Enhanced execution with session context
       const result = await executeWorkflow({
@@ -679,7 +707,10 @@ function FlowCanvas() {
                 ...node,
                 data: {
                   ...node.data,
-                  validationStatus,
+                  ...(node.type === 'StartNode' && {
+                    onExecute: handleStartNodeExecute,
+                    validationStatus: validationStatus,
+                  }),
                 },
               }))}
               edges={edges}

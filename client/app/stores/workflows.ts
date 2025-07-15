@@ -117,7 +117,8 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   executeWorkflow: async (data: WorkflowExecuteRequest) => {
     set({ isExecuting: true, error: null, executionResult: null });
     try {
-      const result = await WorkflowService.executeWorkflow(data);
+      // Handle streaming execution
+      const result = await WorkflowService.executeWorkflowStreaming(data);
       set({ executionResult: result, isExecuting: false });
       return result;
     } catch (error: any) {

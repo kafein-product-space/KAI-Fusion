@@ -20,8 +20,10 @@ from app.core.database import create_tables, get_db_session
 
 # API routers imports
 from app.api.workflows import router as workflows_router
-# from app.api.executions import router as executions_router # This seems to be missing
+from app.api.executions import router as executions_router
 from app.api.nodes import router as nodes_router
+from app.api.credentials import router as credentials_router
+from app.api.users import router as users_router
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +98,9 @@ app.add_middleware(
 # Core routers (always available)
 app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
 app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
-# app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
+app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
+app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
+app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
 
 
 # Health checks and info endpoints
