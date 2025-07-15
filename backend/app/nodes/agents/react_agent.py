@@ -191,9 +191,8 @@ Thought:"""
 
 {{chat_history}}
 
-Question: {{input}}
-
-Please provide a helpful response:"""
+User: {{input}}
+Assistant: I'll help you with that. Let me provide a helpful response:"""
 
         try:
             prompt = PromptTemplate.from_template(prompt_template)
@@ -206,6 +205,12 @@ Please provide a helpful response:"""
             else:
                 # Create simple conversational agent without tools
                 def simple_agent_func(agent_input):
+                    print(f"🔧 simple_agent_func called with: {agent_input}")
+                    
+                    # Extract the actual user input
+                    current_input = agent_input.get("input", "") if isinstance(agent_input, dict) else str(agent_input)
+                    print(f"🔧 Extracted current_input: '{current_input}'")
+                    
                     # Get chat history from memory safely
                     chat_history = ""
                     if memory:
@@ -218,17 +223,24 @@ Please provide a helpful response:"""
                                 messages = getattr(chat_memory, 'messages', [])
                                 chat_history = "\n".join([f"{getattr(msg, 'type', 'message')}: {getattr(msg, 'content', str(msg))}" for msg in messages])
                     
+                    print(f"🔧 Chat history length: {len(chat_history)}")
+                    
                     formatted_prompt = prompt.format(
                         chat_history=chat_history,
-                        input=input_text
+                        input=current_input
                     )
+                    print(f"🔧 Formatted prompt: '{formatted_prompt[:200]}...'")
+                    
                     response = llm_node.invoke(formatted_prompt)
                     simple_output = response.content if hasattr(response, 'content') else str(response)
                     
+                    print(f"🔧 LLM response: '{simple_output[:100]}...'")
+                    
                     # Update memory if available
                     if memory:
+                        print(f"🔧 Saving to memory: input='{current_input}', output='{simple_output[:50]}...'")
                         memory.save_context(
-                            {"input": input_text}, 
+                            {"input": current_input}, 
                             {"output": simple_output}
                         )
                     
@@ -261,24 +273,25 @@ Please provide a helpful response:"""
                     print(f"💬 conversation_wrapper called with input type: {type(_input)}")
                     print(f"💬 conversation_wrapper input: {_input}")
                     
-                    # Extract the actual input text
+                    # Extract the actual input text from runtime input (this is what user types)
                     if isinstance(_input, dict):
-                        input_text = _input.get("input", str(_input))
+                        runtime_input = _input.get("input", str(_input))
                     else:
-                        input_text = str(_input)
+                        runtime_input = str(_input)
                         
-                    print(f"💬 Processing input: {input_text[:100]}...")
+                    print(f"💬 Processing runtime input: '{runtime_input[:100]}...'")
                     
                     if tools_list:
-                        # Use agent executor for tools
-                        result = executor.invoke({"input": input_text})
+                        # Use agent executor for tools with runtime input
+                        result = executor.invoke({"input": runtime_input})
                         output = result.get("output", str(result))
                     else:
-                        # Use simple agent  
-                        result = executor.invoke({"input": input_text})
+                        # Use simple agent with runtime input
+                        result = executor.invoke({"input": runtime_input})
                         output = result.get("output", str(result))
                     
                     print(f"✅ Agent response generated: {len(output)} characters")
+                    print(f"🎯 Final output: '{output[:100]}...'")
                     
                     return {
                         "output": output,
