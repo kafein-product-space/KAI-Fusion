@@ -1,7 +1,4 @@
-import React from "react";
 import { ReactFlowProvider } from "@xyflow/react";
-import Navbar from "../components/common/Navbar";
-import Sidebar from "../components/common/Sidebar";
 import FlowCanvas from "../components/canvas/FlowCanvas";
 import { AuthGuard } from "../components/AuthGuard";
 import ErrorBoundary from "../components/common/ErrorBoundary";
