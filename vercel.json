@@ -2,7 +2,7 @@
   "version": 2,
   "builds": [
     {
-      "src": "api/index.py",
+      "src": "backend/app/main.py",
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "50mb",
@@ -14,14 +14,14 @@
       "use": "@vercel/static-build",
       "config": {
         "buildCommand": "cd client && npm ci && npm run build",
-        "distDir": "client/build/client"
+        "distDir": "build/client"
       }
     }
   ],
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/api/index.py"
+      "dest": "/backend/app/main.py"
     },
     {
       "src": "/(.*)",
