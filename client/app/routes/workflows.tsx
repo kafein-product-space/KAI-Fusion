@@ -226,7 +226,7 @@ export default function WorkflowsLayout() {
                               {workflow.name}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {workflow.flow_data.nodes.length} nodes
+                              {workflow.flow_data?.nodes?.length || 0} nodes
                             </div>
                           </div>
                         </div>

@@ -44,29 +44,39 @@ const OpenAIChatNodeModal = forwardRef<
 
   const handleSave = async () => {
     try {
-      // Test endpoint'e göndermek için API çağrısı
+      // Validate credentials via proper credentials API
+      const validationPayload = {
+        type: "openai",
+        api_key: config.api_key,
+        model_name: config.model_name
+      };
+
       const response = await fetch(
-        "http://localhost:8001/api/v1/test/test-openai-config",
+        "http://localhost:8001/api/v1/credentials/validate",
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
           },
-          body: JSON.stringify(config),
+          body: JSON.stringify(validationPayload),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Test başarısız oldu");
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Credential validation failed");
       }
 
-      // Başarılı olursa local state'i güncelle
+      const result = await response.json();
+      
+      // Save configuration on successful validation
       onSave(config);
       dialogRef.current?.close();
-      alert("Test başarılı! Backend loglarını kontrol edin.");
-    } catch (error) {
-      console.error("Test hatası:", error);
-      alert("Test başarısız oldu. Lütfen tekrar deneyin.");
+      alert(`✅ ${result.message}`);
+      
+    } catch (error: any) {
+      console.error("Validation error:", error);
+      alert(`❌ ${error?.message || "Credential validation failed. Please check your API key."}`);
     }
   };
 

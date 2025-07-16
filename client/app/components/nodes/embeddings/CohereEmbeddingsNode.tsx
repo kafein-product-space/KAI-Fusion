@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot, Link } from "lucide-react";
+import { Link } from "lucide-react";
 import CohereEmbeddingsConfigModal from "../../modals/embeddings/CohereEmbeddingsConfigModal";
 
 interface CohereEmbeddingsNodeProps {

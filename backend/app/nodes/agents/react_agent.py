@@ -143,12 +143,23 @@ class ReactAgentNode(ProcessorNode):
         # Handle memory with session persistence
         memory = None
         session_id = getattr(self, 'session_id', 'default_session')
+        print(f"🔍 ReactAgent session_id: {session_id}")
+        print(f"🔍 Enable memory: {enable_memory}")
+        print(f"🔍 Memory node: {memory_node}")
+        print(f"🔍 Memory node type: {type(memory_node)}")
         
         if enable_memory:
             if memory_node and isinstance(memory_node, BaseMemory):
-                # Use connected memory
+                # Use connected memory - but ensure it's session-aware
                 memory = memory_node
                 print(f"💭 Using connected memory: {type(memory).__name__}")
+                
+                # Debug memory content
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    print(f"💭 Connected memory has {len(memory.chat_memory.messages)} messages")
+                    for i, msg in enumerate(memory.chat_memory.messages):
+                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
+                
             else:
                 # Use persistent session memory
                 if session_id not in self._session_memories:
@@ -161,6 +172,12 @@ class ReactAgentNode(ProcessorNode):
                     print(f"💭 Created new session memory for: {session_id}")
                 memory = self._session_memories[session_id]
                 print(f"💭 Using persistent session memory: {session_id}")
+                
+                # Debug session memory content
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    print(f"💭 Session memory has {len(memory.chat_memory.messages)} messages")
+                    for i, msg in enumerate(memory.chat_memory.messages):
+                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
 
         # Create enhanced prompt template
         if tools_list:
@@ -191,9 +208,8 @@ Thought:"""
 
 {{chat_history}}
 
-Question: {{input}}
-
-Please provide a helpful response:"""
+User: {{input}}
+Assistant: I'll help you with that. Let me provide a helpful response:"""
 
         try:
             prompt = PromptTemplate.from_template(prompt_template)
@@ -206,33 +222,69 @@ Please provide a helpful response:"""
             else:
                 # Create simple conversational agent without tools
                 def simple_agent_func(agent_input):
+                    print(f"🔧 simple_agent_func called with: {agent_input}")
+                    
+                    # Extract the actual user input
+                    current_input = agent_input.get("input", "") if isinstance(agent_input, dict) else str(agent_input)
+                    print(f"🔧 Extracted current_input: '{current_input}'")
+                    
                     # Get chat history from memory safely
                     chat_history = ""
                     if memory:
-                        # Try different memory types
-                        if hasattr(memory, 'buffer'):
-                            chat_history = getattr(memory, 'buffer', "")
+                        print(f"🔧 Getting chat history from memory type: {type(memory)}")
+                        
+                        # Try different memory access methods
+                        if hasattr(memory, 'buffer') and memory.buffer:
+                            chat_history = memory.buffer
+                            print(f"🔧 Got buffer: {chat_history[:100]}...")
                         elif hasattr(memory, 'chat_memory'):
-                            chat_memory = getattr(memory, 'chat_memory', None)
+                            chat_memory = memory.chat_memory
                             if chat_memory and hasattr(chat_memory, 'messages'):
-                                messages = getattr(chat_memory, 'messages', [])
-                                chat_history = "\n".join([f"{getattr(msg, 'type', 'message')}: {getattr(msg, 'content', str(msg))}" for msg in messages])
+                                messages = chat_memory.messages
+                                print(f"🔧 Found {len(messages)} messages in chat_memory")
+                                
+                                # Format messages for prompt
+                                formatted_messages = []
+                                for msg in messages:
+                                    msg_type = getattr(msg, 'type', 'unknown')
+                                    msg_content = getattr(msg, 'content', str(msg))
+                                    if msg_type == 'human':
+                                        formatted_messages.append(f"User: {msg_content}")
+                                    elif msg_type == 'ai':
+                                        formatted_messages.append(f"Assistant: {msg_content}")
+                                    else:
+                                        formatted_messages.append(f"{msg_type}: {msg_content}")
+                                
+                                chat_history = "\n".join(formatted_messages)
+                                print(f"🔧 Formatted chat history: {chat_history}")
+                        else:
+                            print(f"🔧 Memory has no accessible history format")
+                    
+                    print(f"🔧 Final chat history length: {len(chat_history)}")
+                    if chat_history:
+                        print(f"🔧 Chat history preview: {chat_history[:200]}...")
                     
                     formatted_prompt = prompt.format(
                         chat_history=chat_history,
-                        input=agent_input["input"]
+                        input=current_input
                     )
+                    print(f"🔧 Formatted prompt: '{formatted_prompt[:200]}...'")
+                    
                     response = llm_node.invoke(formatted_prompt)
+                    simple_output = response.content if hasattr(response, 'content') else str(response)
+                    
+                    print(f"🔧 LLM response: '{simple_output[:100]}...'")
                     
                     # Update memory if available
                     if memory:
+                        print(f"🔧 Saving to memory: input='{current_input}', output='{simple_output[:50]}...'")
                         memory.save_context(
-                            {"input": agent_input["input"]}, 
-                            {"output": response.content if hasattr(response, 'content') else str(response)}
+                            {"input": current_input}, 
+                            {"output": simple_output}
                         )
                     
                     return {
-                        "output": response.content if hasattr(response, 'content') else str(response)
+                        "output": simple_output
                     }
                 
                 agent = RunnableLambda(simple_agent_func)
@@ -254,21 +306,31 @@ Please provide a helpful response:"""
                 executor = agent
 
             # Create wrapper function that maintains conversation context
-            def conversation_wrapper(_input: str) -> Dict[str, Any]:
+            def conversation_wrapper(_input) -> Dict[str, Any]:
                 """Wrapper that handles conversation flow and memory management"""
                 try:
-                    print(f"💬 Processing input: {_input[:100]}...")
+                    print(f"💬 conversation_wrapper called with input type: {type(_input)}")
+                    print(f"💬 conversation_wrapper input: {_input}")
+                    
+                    # Extract the actual input text from runtime input (this is what user types)
+                    if isinstance(_input, dict):
+                        runtime_input = _input.get("input", str(_input))
+                    else:
+                        runtime_input = str(_input)
+                        
+                    print(f"💬 Processing runtime input: '{runtime_input[:100]}...'")
                     
                     if tools_list:
-                        # Use agent executor for tools
-                        result = executor.invoke({"input": _input})
+                        # Use agent executor for tools with runtime input
+                        result = executor.invoke({"input": runtime_input})
                         output = result.get("output", str(result))
                     else:
-                        # Use simple agent
-                        result = executor.invoke({"input": _input})
+                        # Use simple agent with runtime input
+                        result = executor.invoke({"input": runtime_input})
                         output = result.get("output", str(result))
                     
                     print(f"✅ Agent response generated: {len(output)} characters")
+                    print(f"🎯 Final output: '{output[:100]}...'")
                     
                     return {
                         "output": output,

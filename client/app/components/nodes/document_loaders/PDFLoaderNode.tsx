@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot } from "lucide-react";
+
 import PDFLoaderConfigModal from "../../modals/document_loaders/PDFLoaderConfigModal";
 
 interface PDFLoaderNodeProps {

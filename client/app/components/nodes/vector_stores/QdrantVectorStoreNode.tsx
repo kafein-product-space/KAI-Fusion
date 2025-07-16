@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 
-import { Cloud, Database, Text } from "lucide-react";
+import { Cloud } from "lucide-react";
 import PineconeConfigModal from "~/components/modals/vector_stores/PineconeConfigModal";
 import QdrantConfigModal from "~/components/modals/vector_stores/QdrantConfigModal";
 

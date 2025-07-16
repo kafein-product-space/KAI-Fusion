@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Bot, Trash, X } from "lucide-react";
+import { Trash } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
 import OpenAIChatNodeModal from "../../modals/llms/OpenAIChatModal";
 

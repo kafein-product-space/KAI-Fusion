@@ -1,14 +1,6 @@
 import React, { useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import {
-  GitBranch,
-  Settings,
-  CheckCircle,
-  AlertCircle,
-  Trash2,
-  Info,
-  Split,
-} from "lucide-react";
+import { CheckCircle, AlertCircle, Trash2, Info, Split,  } from "lucide-react";
 import ConditionConfigModal from "../../modals/other/ConditionConfigModal";
 
 interface ConditionNodeProps {

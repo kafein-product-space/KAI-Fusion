@@ -1,5 +1,5 @@
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { MoreVertical, Pencil, Plus, Search, Trash, X } from "lucide-react";
+import { Pencil, Plus, Search, Trash } from "lucide-react";
 import React, { useState } from "react";
 import { Link } from "react-router";
 
