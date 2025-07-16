@@ -17,7 +17,8 @@
     "test:a11y": "jest --testPathPattern=accessibility",
     "preview": "vite preview",
     "clean": "rm -rf dist build node_modules/.cache",
-    "vercel-build": "react-router build"
+    "vercel-build": "npm run build"
+    
   },
   "dependencies": {
     "@codemirror/highlight": "^0.19.8",

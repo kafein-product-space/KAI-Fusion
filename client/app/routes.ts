@@ -5,7 +5,7 @@ export default [
   index("routes/home.tsx"),
   route("workflows", "routes/workflows.tsx"),
   route("workflows/:id", "routes/canvas.tsx"),
-  route("canvas", "routes/canvas.tsx"),
+  
   route("executions", "routes/executions.tsx"),
   route("credentials", "routes/credentials.tsx"),
   route("variables", "routes/variables.tsx"),

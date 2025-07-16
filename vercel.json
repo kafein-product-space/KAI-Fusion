@@ -5,14 +5,16 @@
       "src": "api/index.py",
       "use": "@vercel/python",
       "config": {
-        "maxLambdaSize": "50mb"
+        "maxLambdaSize": "50mb",
+        "runtime": "python3.9"
       }
     },
     {
-      "src": "client/package.json",
+      "src": "client",
       "use": "@vercel/static-build",
       "config": {
-        "distDir": "build/client"
+        "buildCommand": "npm run vercel-build",
+        "distDir": "dist"
       }
     }
   ],
@@ -23,7 +25,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/build/client/$1"
+      "dest": "client/dist/$1"
     }
   ],
   "env": {
@@ -47,12 +49,5 @@
     "DATABASE_SSL": "true",
     "LOG_LEVEL": "INFO",
     "ENVIRONMENT": "production"
-  },
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.11",
-      "memory": 1024,
-      "maxDuration": 30
-    }
   }
 }
