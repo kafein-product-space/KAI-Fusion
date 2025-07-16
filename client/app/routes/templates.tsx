@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import { AuthGuard } from "../components/AuthGuard";
 
 interface TemplateFormValues {
   name: string;
@@ -20,7 +21,7 @@ interface Template {
   updated: string;
 }
 
-export default function TemplatesLayout() {
+function TemplatesLayout() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [templates, setTemplates] = useState<Template[]>([
@@ -129,7 +130,7 @@ export default function TemplatesLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-              <DashboardSidebar />
+      <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">
@@ -467,5 +468,13 @@ export default function TemplatesLayout() {
         </div>
       </dialog>
     </div>
+  );
+}
+
+export default function ProtectedTemplatesLayout() {
+  return (
+    <AuthGuard>
+      <TemplatesLayout />
+    </AuthGuard>
   );
 }

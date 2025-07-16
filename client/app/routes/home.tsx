@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { AuthGuard } from "../components/AuthGuard";
 import {
   LineChart,
   Line,
@@ -33,7 +34,7 @@ interface ChartData {
   value: number;
 }
 
-export default function DashboardLayout() {
+function DashboardLayout() {
   const { user, isAuthenticated, isLoading } = useAuth();
   const [selectedStat, setSelectedStat] = useState<keyof StatData>("prodexec");
   const [selectedPeriod, setSelectedPeriod] = useState("7days");
@@ -170,5 +171,13 @@ export default function DashboardLayout() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ProtectedDashboardLayout() {
+  return (
+    <AuthGuard>
+      <DashboardLayout />
+    </AuthGuard>
   );
 }

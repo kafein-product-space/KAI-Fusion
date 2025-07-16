@@ -27,7 +27,7 @@ const Register = () => {
 
   const handleSubmit = async (
     values: RegisterFormValues,
-    { setSubmitting }: any
+    { setSubmitting, setStatus }: any
   ) => {
     try {
       await signUp({
@@ -38,8 +38,20 @@ const Register = () => {
         },
       });
       // Navigation will be handled by the auth guard
-    } catch (err) {
-      // Error is handled by the store
+    } catch (err: any) {
+      console.log("err", err);
+      // Show specific error if user already exists
+      if (
+        err?.response?.data?.detail === "User already exists" ||
+        err?.message?.includes("User already exists")
+      ) {
+        setStatus({
+          registerError:
+            "Bu e-posta ile zaten bir hesap var. Lütfen giriş yapın.",
+        });
+      } else {
+        setStatus({ registerError: err?.message || "Kayıt başarısız oldu." });
+      }
       console.error("Sign up failed:", err);
     } finally {
       setSubmitting(false);
@@ -68,9 +80,15 @@ const Register = () => {
           </div>
 
           {/* Error Message */}
-          {error && (
+          {(error ||
+            (status &&
+              (status as { registerError?: string }).registerError)) && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-600 text-sm">{error}</p>
+              <p className="text-red-600 text-sm">
+                {(status &&
+                  (status as { registerError?: string }).registerError) ||
+                  error}
+              </p>
             </div>
           )}
 
@@ -81,6 +99,7 @@ const Register = () => {
               password: "",
               confirmPassword: "",
             }}
+            initialStatus={{}}
             validate={(values: RegisterFormValues) => {
               const errors: { [key: string]: string } = {};
 
@@ -113,6 +132,8 @@ const Register = () => {
               return errors;
             }}
             onSubmit={handleSubmit}
+            validateOnBlur
+            validateOnChange
           >
             {({
               values,
@@ -122,6 +143,16 @@ const Register = () => {
               handleBlur,
               handleSubmit,
               isSubmitting,
+              status,
+            }: {
+              values: RegisterFormValues;
+              errors: any;
+              touched: any;
+              handleChange: any;
+              handleBlur: any;
+              handleSubmit: any;
+              isSubmitting: boolean;
+              status?: { registerError?: string };
             }) => (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Full Name Field */}

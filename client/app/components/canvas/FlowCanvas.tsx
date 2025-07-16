@@ -136,6 +136,10 @@ const edgeTypes = {
   custom: CustomEdge,
 };
 
+interface FlowCanvasProps {
+  workflowId?: string;
+}
+
 interface ChatMessage {
   from: "user" | "bot";
   text: string;
@@ -143,7 +147,7 @@ interface ChatMessage {
   session_id?: string;
 }
 
-function FlowCanvas() {
+function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { enqueueSnackbar } = useSnackbar();
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
@@ -185,6 +189,7 @@ function FlowCanvas() {
     createWorkflow,
     executionResult,
     clearExecutionResult,
+    fetchWorkflow,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -194,19 +199,26 @@ function FlowCanvas() {
   );
 
   useEffect(() => {
-    const loadInitialWorkflow = async () => {
+    const loadWorkflow = async () => {
       try {
-        const fetchedWorkflows = await fetchWorkflows();
-        if (fetchedWorkflows && fetchedWorkflows.length > 0) {
-          setCurrentWorkflow(fetchedWorkflows[0]);
+        if (workflowId) {
+          // Tekil workflow'u doğrudan fetch et
+          await fetchWorkflow(workflowId);
+        } else {
+          const fetchedWorkflows = await fetchWorkflows();
+          if (fetchedWorkflows && fetchedWorkflows.length > 0) {
+            setCurrentWorkflow(fetchedWorkflows[0]);
+          }
         }
       } catch (error) {
-        console.error("Failed to load initial workflow:", error);
-        enqueueSnackbar("Failed to load workflows", { variant: "error" });
+        setCurrentWorkflow(null);
+        enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
+          variant: "error",
+        });
       }
     };
-    loadInitialWorkflow();
-  }, []);
+    loadWorkflow();
+  }, [workflowId]);
 
   useEffect(() => {
     if (currentWorkflow?.name) {
@@ -968,10 +980,15 @@ function FlowCanvas() {
   );
 }
 
-export default function FlowCanvasWrapper() {
+interface FlowCanvasWrapperProps {
+  workflowId?: string;
+}
+
+function FlowCanvasWrapper({ workflowId }: FlowCanvasWrapperProps) {
   return (
     <ReactFlowProvider>
-      <FlowCanvas />
+      <FlowCanvas workflowId={workflowId} />
     </ReactFlowProvider>
   );
 }
+export default FlowCanvasWrapper;

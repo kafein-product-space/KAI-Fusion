@@ -1,10 +1,11 @@
 // DashboardLayout.jsx
 import { Check, MoreVertical, Search, Trash, X } from "lucide-react";
 import React, { useState } from "react";
+import { AuthGuard } from "../components/AuthGuard";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 
-export default function ExecutionsLayout() {
+function ExecutionsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [executions, setExecutions] = useState([
     {
@@ -30,7 +31,7 @@ export default function ExecutionsLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-              <DashboardSidebar />
+      <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">
@@ -145,5 +146,13 @@ export default function ExecutionsLayout() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ProtectedExecutionsLayout() {
+  return (
+    <AuthGuard>
+      <ExecutionsLayout />
+    </AuthGuard>
   );
 }

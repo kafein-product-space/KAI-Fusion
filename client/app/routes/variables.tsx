@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import { AuthGuard } from "../components/AuthGuard";
 
 interface VariableFormValues {
   name: string;
@@ -20,7 +21,7 @@ interface Variable {
   created: string;
 }
 
-export default function VariablesLayout() {
+function VariablesLayout() {
   const [searchQuery, setSearchQuery] = useState("");
 
   const [variables, setVariables] = useState<Variable[]>([
@@ -118,7 +119,7 @@ export default function VariablesLayout() {
 
   return (
     <div className="flex h-screen w-screen">
-              <DashboardSidebar />
+      <DashboardSidebar />
 
       {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-white">
@@ -451,5 +452,13 @@ export default function VariablesLayout() {
         </div>
       </dialog>
     </div>
+  );
+}
+
+export default function ProtectedVariablesLayout() {
+  return (
+    <AuthGuard>
+      <VariablesLayout />
+    </AuthGuard>
   );
 }

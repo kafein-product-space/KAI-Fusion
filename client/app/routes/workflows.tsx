@@ -80,7 +80,7 @@ const EmptyState = () => (
   </div>
 );
 
-export default function WorkflowsLayout() {
+function WorkflowsLayout() {
   const {
     workflows,
     isLoading,
@@ -215,21 +215,14 @@ export default function WorkflowsLayout() {
                 </thead>
                 <tbody>
                   {filteredWorkflows.map((workflow) => (
-                    <tr
-                      key={workflow.id}
-                      className="border-b border-gray-300 hover:bg-gray-50"
-                    >
+                    <tr key={workflow.id}>
                       <td className="p-6">
-                        <div className="flex items-center">
-                          <div>
-                            <div className="font-medium text-gray-900">
-                              {workflow.name}
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              {workflow.flow_data?.nodes?.length || 0} nodes
-                            </div>
-                          </div>
-                        </div>
+                        <Link
+                          to={`/workflows/${workflow.id}`}
+                          className="text-purple-600 hover:underline"
+                        >
+                          {workflow.name}
+                        </Link>
                       </td>
                       <td className="p-6">
                         <div className="text-sm text-gray-900">
@@ -343,5 +336,13 @@ export default function WorkflowsLayout() {
         </div>
       </main>
     </div>
+  );
+}
+
+export default function ProtectedWorkflowsLayout() {
+  return (
+    <AuthGuard>
+      <WorkflowsLayout />
+    </AuthGuard>
   );
 }
