@@ -45,7 +45,7 @@ interface PublicOnlyProps {
 
 export const PublicOnly: React.FC<PublicOnlyProps> = ({
   children,
-  redirectTo = "/home",
+  redirectTo = "/",
 }) => {
   // Skip auth checks entirely in development
   if (import.meta.env.DEV) {

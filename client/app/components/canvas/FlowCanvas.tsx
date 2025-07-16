@@ -218,19 +218,21 @@ function FlowCanvas() {
     if (currentWorkflow?.flow_data) {
       const { nodes, edges } = currentWorkflow.flow_data;
       setNodes(nodes || []);
-      
+
       // Clean up invalid edges that reference non-existent nodes
       if (edges && nodes) {
-        const nodeIds = new Set(nodes.map(n => n.id));
-        const validEdges = edges.filter(edge => 
-          nodeIds.has(edge.source) && nodeIds.has(edge.target)
+        const nodeIds = new Set(nodes.map((n) => n.id));
+        const validEdges = edges.filter(
+          (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
-        
+
         // Log if any edges were cleaned up
         if (validEdges.length !== edges.length) {
-          console.log(`🧹 Cleaned up ${edges.length - validEdges.length} invalid edges`);
+          console.log(
+            `🧹 Cleaned up ${edges.length - validEdges.length} invalid edges`
+          );
         }
-        
+
         setEdges(validEdges);
       } else {
         setEdges(edges || []);
@@ -257,15 +259,17 @@ function FlowCanvas() {
   // Clean up edges when nodes are deleted
   useEffect(() => {
     if (nodes.length > 0 && edges.length > 0) {
-      const nodeIds = new Set(nodes.map(n => n.id));
-      const validEdges = edges.filter(edge => 
-        nodeIds.has(edge.source) && nodeIds.has(edge.target)
+      const nodeIds = new Set(nodes.map((n) => n.id));
+      const validEdges = edges.filter(
+        (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
       );
-      
+
       if (validEdges.length !== edges.length) {
-        console.log(`🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`);
+        console.log(
+          `🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`
+        );
         // Use callback to prevent infinite loop
-        setEdges(prevEdges => {
+        setEdges((prevEdges) => {
           if (prevEdges.length !== validEdges.length) {
             return validEdges;
           }
@@ -390,7 +394,6 @@ function FlowCanvas() {
         edges: edges as WorkflowEdge[],
       };
 
-
       try {
         const validation = await validateWorkflow(flowData);
         if (!validation.valid) {
@@ -499,10 +502,13 @@ function FlowCanvas() {
 
     try {
       if (nodes.length === 0) {
-        setChatMessages((msgs: ChatMessage[]) => 
-          msgs.map((msg, i) => 
-            i === msgs.length - 1 
-              ? { ...msg, text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın." }
+        setChatMessages((msgs: ChatMessage[]) =>
+          msgs.map((msg, i) =>
+            i === msgs.length - 1
+              ? {
+                  ...msg,
+                  text: "🔗 Lütfen önce canvas'a ReAct Agent, OpenAI LLM ve Buffer Memory node'larını ekleyip bağlayın.",
+                }
               : msg
           )
         );
@@ -515,10 +521,13 @@ function FlowCanvas() {
       );
 
       if (!hasReactAgent && conversationMode) {
-        setChatMessages((msgs: ChatMessage[]) => 
-          msgs.map((msg, i) => 
-            i === msgs.length - 1 
-              ? { ...msg, text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin." }
+        setChatMessages((msgs: ChatMessage[]) =>
+          msgs.map((msg, i) =>
+            i === msgs.length - 1
+              ? {
+                  ...msg,
+                  text: "⚠️ Sürekli konuşma modu için ReAct Agent gereklidir. Lütfen workflow'unuza bir ReAct Agent ekleyin.",
+                }
               : msg
           )
         );
@@ -541,75 +550,84 @@ function FlowCanvas() {
         },
       };
 
-      console.log('🔄 Starting streaming execution with data:', streamData);
+      console.log("🔄 Starting streaming execution with data:", streamData);
 
       // Get streaming response
-      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8001'}/api/v1/workflows/execute`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('access_token')}`,
-        },
-        body: JSON.stringify({
-          flow_data: streamData.flow_data,
-          input_text: streamData.input_text || "Hello",
-          session_id: streamData.session_context?.session_id
-        }),
-      });
+      const response = await fetch(
+        `${
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"
+        }/api/v1/workflows/execute`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+          },
+          body: JSON.stringify({
+            flow_data: streamData.flow_data,
+            input_text: streamData.input_text || "Hello",
+            session_id: streamData.session_context?.session_id,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
       }
 
       if (!response.body) {
-        throw new Error('No response body for streaming');
+        throw new Error("No response body for streaming");
       }
 
       // Parse streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = '';
+      let buffer = "";
       let currentBotMessage = "🤖 Thinking...";
 
       try {
-        console.log('🔄 Starting to read streaming response...');
+        console.log("🔄 Starting to read streaming response...");
         while (true) {
           const { done, value } = await reader.read();
           if (done) {
-            console.log('✅ Streaming completed, done=true');
+            console.log("✅ Streaming completed, done=true");
             break;
           }
 
           const chunk = decoder.decode(value, { stream: true });
-          console.log('📦 Raw chunk received:', chunk);
+          console.log("📦 Raw chunk received:", chunk);
           buffer += chunk;
-          const lines = buffer.split('\n');
-          buffer = lines.pop() || '';
+          const lines = buffer.split("\n");
+          buffer = lines.pop() || "";
 
           for (const line of lines) {
-            console.log('📄 Processing line:', line);
-            if (line.startsWith('data: ')) {
+            console.log("📄 Processing line:", line);
+            if (line.startsWith("data: ")) {
               try {
                 const jsonData = JSON.parse(line.slice(6));
-                console.log('📡 Streaming chunk:', jsonData);
-                
+                console.log("📡 Streaming chunk:", jsonData);
+
                 // Handle different types of streaming updates
-                if (jsonData.type === 'node_start') {
+                if (jsonData.type === "node_start") {
                   currentBotMessage = `🔄 Processing ${jsonData.node_name}...`;
-                } else if (jsonData.type === 'node_complete') {
+                } else if (jsonData.type === "node_complete") {
                   currentBotMessage = `✅ Completed ${jsonData.node_name}`;
-                } else if (jsonData.type === 'token' && jsonData.token) {
+                } else if (jsonData.type === "token" && jsonData.token) {
                   // For token-by-token streaming (if supported)
-                  if (currentBotMessage === "🤖 Thinking..." || currentBotMessage.startsWith('🔄') || currentBotMessage.startsWith('✅')) {
+                  if (
+                    currentBotMessage === "🤖 Thinking..." ||
+                    currentBotMessage.startsWith("🔄") ||
+                    currentBotMessage.startsWith("✅")
+                  ) {
                     currentBotMessage = jsonData.token;
                   } else {
                     currentBotMessage += jsonData.token;
                   }
-                } else if (jsonData.type === 'partial' && jsonData.content) {
+                } else if (jsonData.type === "partial" && jsonData.content) {
                   // For partial response updates
                   currentBotMessage = jsonData.content;
-                } else if (jsonData.type === 'complete') {
-                  console.log('🎯 Complete chunk found:', jsonData);
+                } else if (jsonData.type === "complete") {
+                  console.log("🎯 Complete chunk found:", jsonData);
                   let finalResponse = "";
                   if (jsonData.result) {
                     if (typeof jsonData.result === "string") {
@@ -620,25 +638,25 @@ function FlowCanvas() {
                       finalResponse = JSON.stringify(jsonData.result, null, 2);
                     }
                   } else {
-                    finalResponse = "🤖 I received your message but couldn't generate a response.";
+                    finalResponse =
+                      "🤖 I received your message but couldn't generate a response.";
                   }
                   currentBotMessage = finalResponse;
                 }
 
                 // Update the last bot message in real-time
-                setChatMessages((msgs: ChatMessage[]) => 
-                  msgs.map((msg, i) => 
+                setChatMessages((msgs: ChatMessage[]) =>
+                  msgs.map((msg, i) =>
                     i === msgs.length - 1 && msg.from === "bot"
                       ? { ...msg, text: currentBotMessage }
                       : msg
                   )
                 );
-
               } catch (e) {
-                console.warn('❌ Failed to parse streaming chunk:', line, e);
+                console.warn("❌ Failed to parse streaming chunk:", line, e);
               }
             } else if (line.trim()) {
-              console.log('📄 Non-data line:', line);
+              console.log("📄 Non-data line:", line);
             }
           }
         }
@@ -646,12 +664,11 @@ function FlowCanvas() {
         reader.releaseLock();
       }
 
-      console.log('🏁 Final message:', currentBotMessage);
-
+      console.log("🏁 Final message:", currentBotMessage);
     } catch (error: any) {
-      console.error('Streaming execution error:', error);
-      setChatMessages((msgs: ChatMessage[]) => 
-        msgs.map((msg, i) => 
+      console.error("Streaming execution error:", error);
+      setChatMessages((msgs: ChatMessage[]) =>
+        msgs.map((msg, i) =>
           i === msgs.length - 1 && msg.from === "bot"
             ? { ...msg, text: `❌ Error: ${error.message}` }
             : msg
@@ -747,7 +764,7 @@ function FlowCanvas() {
           </div>
 
           {currentWorkflow && (
-            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs">
+            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs mt-19">
               <h3 className="font-medium text-gray-900">
                 {currentWorkflow.name}
               </h3>
@@ -796,7 +813,7 @@ function FlowCanvas() {
                 ...node,
                 data: {
                   ...node.data,
-                  ...(node.type === 'StartNode' && {
+                  ...(node.type === "StartNode" && {
                     onExecute: handleStartNodeExecute,
                     validationStatus: validationStatus,
                   }),

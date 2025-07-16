@@ -20,7 +20,9 @@ const Register = () => {
 
   // Clear any existing errors when component mounts
   useEffect(() => {
-    clearError();
+    return () => {
+      clearError();
+    };
   }, [clearError]);
 
   const handleSubmit = async (

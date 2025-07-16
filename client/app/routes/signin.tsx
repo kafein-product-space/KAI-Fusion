@@ -51,7 +51,7 @@ const Signin = () => {
             <h1 className="text-3xl font-semibold font-inter text-gray-900 text-start">
               Sign In
             </h1>
-            {from !== "/home" && (
+            {from !== "/" && (
               <p className="text-sm text-gray-600 mt-2">
                 Please sign in to continue to your requested page
               </p>
