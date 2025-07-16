@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useCallback } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Bot, Trash } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
@@ -8,28 +8,38 @@ interface ToolAgentNodeProps {
   id: string;
 }
 
-function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
+const ToolAgentNode = React.memo(function ToolAgentNode({
+  data,
+  id,
+}: ToolAgentNodeProps) {
   const { setNodes } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
 
-  const handleOpenModal = () => {
+  const handleOpenModal = useCallback(() => {
     modalRef.current?.showModal();
-  };
+  }, []);
 
-  const handleConfigSave = (newConfig: any) => {
-    setNodes((nodes: any[]) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, ...newConfig } }
-          : node
-      )
-    );
-  };
-  const handleDeleteNode = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNodes((nodes) => nodes.filter((node) => node.id !== id));
-  };
+  const handleConfigSave = useCallback(
+    (newConfig: any) => {
+      setNodes((nodes: any[]) =>
+        nodes.map((node) =>
+          node.id === id
+            ? { ...node, data: { ...node.data, ...newConfig } }
+            : node
+        )
+      );
+    },
+    [id, setNodes]
+  );
+
+  const handleDeleteNode = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setNodes((nodes) => nodes.filter((node) => node.id !== id));
+    },
+    [id, setNodes]
+  );
 
   // Input handle konfigürasyonu
   const leftInputHandles = [
@@ -169,6 +179,7 @@ function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
       />
     </>
   );
-}
+});
+ToolAgentNode.displayName = "ToolAgentNode";
 
 export default ToolAgentNode;

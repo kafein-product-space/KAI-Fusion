@@ -1,4 +1,11 @@
-import { ArrowLeft, Save, Settings, FileUp, Download, Trash,  } from "lucide-react";
+import {
+  ArrowLeft,
+  Save,
+  Settings,
+  FileUp,
+  Download,
+  Trash,
+} from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
@@ -27,13 +34,9 @@ const Navbar: React.FC<NavbarProps> = ({
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isShareVisible, setIsShareVisible] = useState(false);
-  const [copied, setCopied] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
-
   // Dışarı tıklayınca dropdown'u kapat
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -42,7 +45,6 @@ const Navbar: React.FC<NavbarProps> = ({
         !dropdownRef.current.contains(event.target as Node)
       ) {
         setIsDropdownOpen(false);
-        setIsShareVisible(false);
       }
     }
     if (isDropdownOpen) {
@@ -89,7 +91,6 @@ const Navbar: React.FC<NavbarProps> = ({
     };
     reader.readAsText(file);
     setIsDropdownOpen(false);
-    setIsShareVisible(false);
     e.target.value = "";
   };
 
@@ -112,7 +113,6 @@ const Navbar: React.FC<NavbarProps> = ({
     downloadAnchorNode.click();
     downloadAnchorNode.remove();
     setIsDropdownOpen(false);
-    setIsShareVisible(false);
   };
 
   // Delete handler
@@ -128,7 +128,6 @@ const Navbar: React.FC<NavbarProps> = ({
       enqueueSnackbar("Workflow silinemedi!", { variant: "error" });
     }
     deleteDialogRef.current?.close();
-    setIsShareVisible(false);
   };
 
   return (

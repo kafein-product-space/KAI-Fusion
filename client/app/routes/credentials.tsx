@@ -4,8 +4,9 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import { AuthGuard } from "../components/AuthGuard";
 
-export default function CredentialsLayout() {
+function CredentialsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   interface Api {
     id: number;
@@ -411,5 +412,13 @@ export default function CredentialsLayout() {
         </div>
       </dialog>
     </div>
+  );
+}
+
+export default function ProtectedCredentialsLayout() {
+  return (
+    <AuthGuard>
+      <CredentialsLayout />
+    </AuthGuard>
   );
 }

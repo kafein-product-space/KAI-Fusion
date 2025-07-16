@@ -7,7 +7,7 @@ for the Agent-Flow V2 service layer.
 from functools import lru_cache
 from app.core.database import get_db_session
 from app.services.user_service import UserService
-from app.services.workflow_service import WorkflowService
+from app.services.workflow_service import WorkflowService, WorkflowTemplateService
 from app.services.execution_service import ExecutionService
 from app.services.credential_service import CredentialService
 from app.services.task_service import TaskService
@@ -21,6 +21,10 @@ def get_user_service_dep() -> UserService:
 @lru_cache
 def get_workflow_service_dep() -> WorkflowService:
     return WorkflowService()
+
+@lru_cache
+def get_workflow_template_service_dep() -> WorkflowTemplateService:
+    return WorkflowTemplateService()
 
 @lru_cache
 def get_execution_service_dep() -> ExecutionService:
