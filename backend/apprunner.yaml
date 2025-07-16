@@ -1,18 +1,20 @@
 version: 1.0
-runtime: docker
+runtime: python3.11
 build:
   commands:
     build:
-      - echo "Building KAI-Fusion backend for AWS App Runner"
-      - docker build -t kai-fusion-backend .
+      - echo "Installing Python dependencies for KAI-Fusion backend"
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
 run:
+  runtime-version: 3.11.7
   command: python start.py
   network:
     port: 8000
     env: PORT
   env:
     - name: PYTHONPATH
-      value: /app
+      value: /root
     - name: PYTHONUNBUFFERED
       value: "1"
     - name: ENVIRONMENT
