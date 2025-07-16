@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database settings
+    CREATE_DATABASE: bool = os.getenv("CREATE_DATABASE", "false").lower() in ("true", "1", "t")
     POSTGRES_DB: str = os.getenv("POSTGRES_DB", "flowise")
     POSTGRES_USER: str = os.getenv("POSTGRES_USER", "flowise")
     POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisepassword")

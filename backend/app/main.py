@@ -50,12 +50,15 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to initialize engine: {e}")
     
-    # Initialize database
-    try:
-        await create_tables()
-        logger.info("✅ Database tables created or already exist.")
-    except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+    # Initialize database only if CREATE_DATABASE is enabled
+    if settings.CREATE_DATABASE:
+        try:
+            await create_tables()
+            logger.info("✅ Database tables created or already exist.")
+        except Exception as e:
+            logger.error(f"❌ Database initialization failed: {e}")
+    else:
+        logger.info("ℹ️ Database creation/validation skipped (CREATE_DATABASE=false or not set)")
     
     logger.info("✅ Backend initialization complete - KAI Fusion Ready!")
     
@@ -122,8 +125,11 @@ async def health_check():
         except Exception:
             engine_healthy = False
         
-        # Database health (optional)
-        db_healthy = "unknown"
+        # Database health (conditional based on CREATE_DATABASE setting)
+        if settings.CREATE_DATABASE:
+            db_healthy = "enabled"
+        else:
+            db_healthy = "disabled (CREATE_DATABASE=false)"
         
         return {
             "status": "healthy" if (nodes_healthy and engine_healthy) else "degraded",
@@ -141,7 +147,7 @@ async def health_check():
                 },
                 "database": {
                     "status": db_healthy,
-                    "enabled": True
+                    "enabled": settings.CREATE_DATABASE
                 }
             }
         }
@@ -177,7 +183,7 @@ async def get_info():
                 "total_nodes": len(node_registry.nodes),
                 "node_types": list(set(node.__name__ for node in node_registry.nodes.values())),
                 "api_endpoints": 25,  # Approximate count
-                "database_enabled": True
+                "database_enabled": settings.CREATE_DATABASE
             },
             "engine": {
                 "type": "LangGraph Unified Engine",
@@ -228,7 +234,7 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
         "info": "/api/v1/info",
-        "database_enabled": True
+        "database_enabled": get_settings().CREATE_DATABASE
     }
 
 if __name__ == "__main__":
