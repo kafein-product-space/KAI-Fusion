@@ -1,0 +1,36 @@
+version: 1.0
+runtime: docker
+build:
+  commands:
+    build:
+      - echo "Building KAI-Fusion backend for AWS App Runner"
+      - docker build -t kai-fusion-backend .
+run:
+  runtime-version: latest
+  command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  network:
+    port: 8000
+    env: PORT
+  env:
+    - name: PYTHONPATH
+      value: /app
+    - name: PYTHONUNBUFFERED
+      value: "1"
+    - name: ENVIRONMENT
+      value: production
+    - name: LOG_LEVEL
+      value: INFO
+    - name: CREATE_DATABASE
+      value: "false"
+    - name: DATABASE_SSL
+      value: "true"
+    - name: DB_POOL_SIZE
+      value: "5"
+    - name: DB_MAX_OVERFLOW
+      value: "2"
+    - name: DB_POOL_TIMEOUT
+      value: "5"
+    - name: DB_POOL_RECYCLE
+      value: "1800"
+    - name: DB_POOL_PRE_PING
+      value: "true"
