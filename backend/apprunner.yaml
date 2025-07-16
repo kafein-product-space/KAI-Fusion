@@ -6,7 +6,6 @@ build:
       - echo "Building KAI-Fusion backend for AWS App Runner"
       - docker build -t kai-fusion-backend .
 run:
-  runtime-version: latest
   command: python start.py
   network:
     port: 8000
