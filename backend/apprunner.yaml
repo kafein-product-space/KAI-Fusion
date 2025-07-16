@@ -8,7 +8,7 @@ build:
       - pip3 install -r requirements-prod.txt
 run:
   runtime-version: 3.11.7
-  command: python3 start.py
+  command: python3 -c "import sys; sys.path.insert(0, '.'); from app.main import app; import uvicorn; uvicorn.run(app, host='0.0.0.0', port=8000)"
   network:
     port: 8000
     env: PORT
