@@ -3,15 +3,10 @@
   "builds": [
     {
       "src": "api/index.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/cron-health-check.py",
-      "use": "@vercel/python"
-    },
-    {
-      "src": "api/cron-cleanup.py",
-      "use": "@vercel/python"
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     },
     {
       "src": "client/package.json",
@@ -28,17 +23,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "/client/build/client/index.html"
-    }
-  ],
-  "crons": [
-    {
-      "path": "/api/cron-health-check",
-      "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron-cleanup",
-      "schedule": "0 * * * *"
+      "dest": "/client/build/client/$1"
     }
   ],
   "env": {
@@ -65,13 +50,9 @@
   },
   "functions": {
     "api/index.py": {
-      "runtime": "python3.11"
-    },
-    "api/cron-health-check.py": {
-      "runtime": "python3.11"
-    },
-    "api/cron-cleanup.py": {
-      "runtime": "python3.11"
+      "runtime": "python3.11",
+      "memory": 1024,
+      "maxDuration": 30
     }
   }
 }

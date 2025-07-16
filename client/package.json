@@ -16,7 +16,8 @@
     "test:watch": "vitest --watch",
     "test:a11y": "jest --testPathPattern=accessibility",
     "preview": "vite preview",
-    "clean": "rm -rf dist build node_modules/.cache"
+    "clean": "rm -rf dist build node_modules/.cache",
+    "vercel-build": "react-router build"
   },
   "dependencies": {
     "@codemirror/highlight": "^0.19.8",
