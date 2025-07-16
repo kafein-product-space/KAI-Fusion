@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Formik } from "formik";
+import type { FormikHelpers } from "formik";
 import { Link, Navigate, useLocation } from "react-router";
 import { useAuth } from "~/stores/auth";
 import { PublicOnly } from "~/components/AuthGuard";
@@ -14,6 +15,7 @@ interface RegisterFormValues {
 const Register = () => {
   const { signUp, isAuthenticated, isLoading, error, clearError } = useAuth();
   const location = useLocation();
+  const [status, setStatus] = useState<{ registerError?: string } | null>(null);
 
   // Get the redirect path from location state
   const from = location.state?.from || "/";
@@ -22,12 +24,13 @@ const Register = () => {
   useEffect(() => {
     return () => {
       clearError();
+      setStatus(null);
     };
   }, [clearError]);
 
   const handleSubmit = async (
     values: RegisterFormValues,
-    { setSubmitting, setStatus }: any
+    { setSubmitting, setStatus }: FormikHelpers<RegisterFormValues>
   ) => {
     try {
       await signUp({
@@ -37,6 +40,7 @@ const Register = () => {
           credential: values.password,
         },
       });
+      setStatus(null);
       // Navigation will be handled by the auth guard
     } catch (err: any) {
       console.log("err", err);
@@ -80,14 +84,10 @@ const Register = () => {
           </div>
 
           {/* Error Message */}
-          {(error ||
-            (status &&
-              (status as { registerError?: string }).registerError)) && (
+          {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
               <p className="text-red-600 text-sm">
-                {(status &&
-                  (status as { registerError?: string }).registerError) ||
-                  error}
+                {error}
               </p>
             </div>
           )}

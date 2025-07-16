@@ -1,22 +1,75 @@
 import { create } from 'zustand';
-
-interface UserCredential {
-  id: string | number;
-  // Diğer alanlar eklenebilir
-}
+import {
+  getUserCredentials,
+  createUserCredential,
+  updateUserCredential,
+  deleteUserCredential,
+} from '~/services/userCredentialService';
+import type { UserCredential, CredentialCreateRequest } from '~/types/api';
 
 interface UserCredentialStore {
   userCredentials: UserCredential[];
-  setUserCredentials: (userCredentials: UserCredential[]) => void;
-  addUserCredential: (userCredential: UserCredential) => void;
-  updateUserCredential: (userCredential: UserCredential) => void;
-  removeUserCredential: (id: string | number) => void;
+  isLoading: boolean;
+  error: string | null;
+  fetchCredentials: () => Promise<void>;
+  addCredential: (data: CredentialCreateRequest) => Promise<void>;
+  updateCredential: (id: string, data: Partial<CredentialCreateRequest>) => Promise<void>;
+  removeCredential: (id: string) => Promise<void>;
 }
 
-export const useUserCredentialStore = create<UserCredentialStore>((set) => ({
+export const useUserCredentialStore = create<UserCredentialStore>((set, get) => ({
   userCredentials: [],
-  setUserCredentials: (userCredentials) => set({ userCredentials }),
-  addUserCredential: (userCredential) => set((state) => ({ userCredentials: [...state.userCredentials, userCredential] })),
-  updateUserCredential: (userCredential) => set((state) => ({ userCredentials: state.userCredentials.map((u) => (u.id === userCredential.id ? userCredential : u)) })),
-  removeUserCredential: (id) => set((state) => ({ userCredentials: state.userCredentials.filter((u) => u.id !== id) })),
+  isLoading: false,
+  error: null,
+
+  fetchCredentials: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const creds = await getUserCredentials();
+      set({ userCredentials: creds, isLoading: false });
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to fetch credentials', isLoading: false });
+    }
+  },
+
+  addCredential: async (data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const created = await createUserCredential(data);
+      set((state) => ({
+        userCredentials: [...state.userCredentials, created],
+        isLoading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to add credential', isLoading: false });
+    }
+  },
+
+  updateCredential: async (id, data) => {
+    set({ isLoading: true, error: null });
+    try {
+      const updated = await updateUserCredential(id, data);
+      set((state) => ({
+        userCredentials: state.userCredentials.map((u) =>
+          u.id === updated.id ? updated : u
+        ),
+        isLoading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to update credential', isLoading: false });
+    }
+  },
+
+  removeCredential: async (id) => {
+    set({ isLoading: true, error: null });
+    try {
+      await deleteUserCredential(id);
+      set((state) => ({
+        userCredentials: state.userCredentials.filter((u) => u.id !== id),
+        isLoading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to delete credential', isLoading: false });
+    }
+  },
 })); 

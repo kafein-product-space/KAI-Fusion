@@ -1,10 +1,12 @@
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Pencil, Plus, Search, Trash } from "lucide-react";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { AuthGuard } from "../components/AuthGuard";
+import { useUserCredentialStore } from "../stores/userCredential";
+import type { CredentialCreateRequest } from "../types/api";
 
 function CredentialsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -20,22 +22,20 @@ function CredentialsLayout() {
 
   const [selectedApi, setSelectedApi] = useState<Api | null>(null);
 
-  const [credentials, setCredentials] = useState([
-    {
-      id: 1,
-      name: "OpenAI API",
-      logo: "https://www.svgrepo.com/show/306500/openai.svg",
-      updated: "June 26th, 2025",
-      created: "June 26th, 2025",
-    },
-    {
-      id: 2,
-      name: "GitHub API",
-      logo: "https://cdn-icons-png.flaticon.com/512/25/25231.png",
-      updated: "June 30th, 2025",
-      created: "June 30th, 2025",
-    },
-  ]);
+  const {
+    userCredentials,
+    fetchCredentials,
+    addCredential,
+    updateCredential,
+    removeCredential,
+    isLoading,
+    error,
+  } = useUserCredentialStore();
+
+  useEffect(() => {
+    fetchCredentials();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [apiKeys] = useState([
     {
@@ -55,36 +55,23 @@ function CredentialsLayout() {
     },
   ]);
 
-  const handleCredentialSubmit = (values: CredentialFormValues) => {
+  const handleCredentialSubmit = async (values: CredentialFormValues) => {
     if (selectedApi) {
-      const newCredential = {
-        id: credentials.length + 1,
+      const payload: CredentialCreateRequest = {
         name: values.name,
-        logo: selectedApi.logo,
-        updated: new Date().toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
-        created: new Date().toLocaleDateString("en-US", {
-          year: "numeric",
-          month: "long",
-          day: "numeric",
-        }),
+        data: { api_key: values.apiKey },
       };
-
-      setCredentials([...credentials, newCredential]);
-
-      // Modal'ı kapat
-      const modal = document.getElementById(
-        "modalCreateCredential"
-      ) as HTMLDialogElement;
-      modal?.close();
-
-      // Seçili API'yi temizle
-      setSelectedApi(null);
-
-      console.log("Credential saved:", { ...values, api: selectedApi });
+      try {
+        await addCredential(payload);
+        // Modal'ı kapat
+        const modal = document.getElementById(
+          "modalCreateCredential"
+        ) as HTMLDialogElement;
+        modal?.close();
+        setSelectedApi(null);
+      } catch (e) {
+        // handle error
+      }
     }
   };
 
@@ -106,9 +93,12 @@ function CredentialsLayout() {
     return errors;
   };
 
-  const handleDelete = (id: number) => {
-    console.log(id);
-    setCredentials(credentials.filter((credential) => credential.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await removeCredential(id);
+    } catch (e) {
+      // handle error
+    }
   };
 
   return (
@@ -161,7 +151,11 @@ function CredentialsLayout() {
           </div>
 
           {/* Table */}
-          {credentials.length === 0 ? (
+          {isLoading ? (
+            <p>Loading...</p>
+          ) : error ? (
+            <p className="text-red-500">{error}</p>
+          ) : userCredentials.length === 0 ? (
             <p>No credentials found</p>
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-300">
@@ -176,7 +170,7 @@ function CredentialsLayout() {
                   </tr>
                 </thead>
                 <tbody>
-                  {credentials
+                  {userCredentials
                     .filter((credential) =>
                       credential.name
                         .toLowerCase()
@@ -188,15 +182,11 @@ function CredentialsLayout() {
                         className="border-b border-gray-300"
                       >
                         <td className="p-6 flex items-center gap-4">
-                          <img
-                            src={credential.logo}
-                            className="w-8 h-8"
-                            alt=""
-                          />
+                          {/* Optionally add logo if available */}
                           {credential.name}
                         </td>
-                        <td className="p-3">{credential.created}</td>
-                        <td className="p-3">{credential.updated}</td>
+                        <td className="p-3">{credential.created_at}</td>
+                        <td className="p-3">{credential.updated_at}</td>
                         <td></td>
 
                         <td className="p-6">

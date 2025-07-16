@@ -32,6 +32,13 @@ export const API_ENDPOINTS = {
     REFRESH: '/auth/refresh',
     ME: '/auth/me',
   },
+  CREDENTIALS: {
+    LIST: '/credentials', // GET: listele
+    CREATE: '/credentials', // POST: oluştur
+    GET: (id: string) => `/credentials/${id}`,
+    UPDATE: (id: string) => `/credentials/${id}`,
+    DELETE: (id: string) => `/credentials/${id}`,
+  },
   // Workflows
   WORKFLOWS: {
     LIST: '/workflows',
