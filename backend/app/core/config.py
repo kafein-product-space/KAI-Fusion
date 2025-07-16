@@ -23,28 +23,34 @@ class Settings(BaseSettings):
 
     # Database settings
     CREATE_DATABASE: bool = os.getenv("CREATE_DATABASE", "false").lower() in ("true", "1", "t")
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "flowise")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "flowise")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisepassword")
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres.xjwosoxtrzysncbjrwlt:flowisekafein1!@aws-0-eu-north-1.pooler.supabase.com:5432/postgres")
+    
+    # PostgreSQL settings for Supabase
+    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
+    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
+    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisekafein1!")
     POSTGRES_PORT: int = int(os.getenv("DATABASE_PORT", 5432))
-    POSTGRES_HOST: str = os.getenv("DATABASE_HOST", "localhost")
-    DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "false").lower() in ("true", "1", "t")
-
-    @property
-    def DATABASE_URL(self) -> str:
-        """Construct the synchronous database URL from components."""
-        return (
-            f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+    POSTGRES_HOST: str = os.getenv("DATABASE_HOST", "aws-0-eu-north-1.pooler.supabase.com")
+    DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() in ("true", "1", "t")
+    
+    # Connection pooling settings for Supabase/Vercel (optimized for serverless)
+    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
+    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "2"))
+    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "5"))
+    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "1800"))
+    DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() in ("true", "1", "t")
+    
+    # Supabase specific settings
+    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
+    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
+    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
-        """Construct the asynchronous database URL from components."""
-        return (
-            f"postgresql+asyncpg://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@"
-            f"{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
-        )
+        """Construct the asynchronous database URL from DATABASE_URL."""
+        if self.DATABASE_URL.startswith("postgresql://"):
+            return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+        return self.DATABASE_URL
 
     # Agent Settings
     AGENT_NODE_ID: str = "agent"
@@ -77,7 +83,9 @@ class Settings(BaseSettings):
         "http://localhost:3000", 
         "http://localhost:3001",
         "http://localhost:5173",  # Vite dev server
-        "http://localhost:8080"   # Alternative frontend port
+        "http://localhost:8080",  # Alternative frontend port
+        "https://*.vercel.app",   # Vercel deployments
+        "https://*.supabase.co"   # Supabase dashboard
     ]
     
     # Logging Settings
