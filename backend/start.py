@@ -52,17 +52,33 @@ def main():
     
     try:
         # Import and run the FastAPI app
-        uvicorn.run(
-            "app.main:app",
-            host="0.0.0.0",
-            port=8001,
-            reload=True,
-            log_level="info",
-            access_log=False,
-            reload_dirs=[str(backend_dir / "app")],
-            reload_includes=["*.py"],
-            reload_excludes=["*.pyc", "__pycache__"]
-        )
+        # Production vs Development configuration
+        is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
+        port = int(os.getenv("PORT", "8001"))
+        
+        if is_production:
+            # Production configuration
+            uvicorn.run(
+                "app.main:app",
+                host="0.0.0.0",
+                port=port,
+                reload=False,
+                log_level="info",
+                access_log=True
+            )
+        else:
+            # Development configuration
+            uvicorn.run(
+                "app.main:app",
+                host="0.0.0.0",
+                port=port,
+                reload=True,
+                log_level="info",
+                access_log=False,
+                reload_dirs=[str(backend_dir / "app")],
+                reload_includes=["*.py"],
+                reload_excludes=["*.pyc", "__pycache__"]
+            )
     except KeyboardInterrupt:
         print("\n🛑 Backend stopped by user")
     except Exception as e:
