@@ -26,8 +26,8 @@ if create_db:
 else:
     os.environ["DISABLE_DATABASE"] = "true"
     print("💾 Database functionality disabled (CREATE_DATABASE=false)")
-# Use local SQLite file for development if DATABASE_URL not provided
-os.environ.setdefault("DATABASE_URL", "sqlite:///./dev.db")
+# Use Supabase PostgreSQL for development if DATABASE_URL not provided
+os.environ.setdefault("DATABASE_URL", "postgresql://postgres.xjwosoxtrzysncbjrwlt:flowisekafein1!@aws-0-eu-north-1.pooler.supabase.com:5432/postgres")
 
 # Add the backend directory to Python path
 backend_dir = Path(__file__).parent
