@@ -13,7 +13,9 @@ const getConfig = (): Config => {
     (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
   
   return {
-    API_BASE_URL: 'http://localhost:8001',
+    API_BASE_URL: isDevelopment 
+      ? 'http://localhost:8001' 
+      : 'https://mwrkgmxbth.us-east-1.awsapprunner.com',
     API_VERSION: '/api/v1',
     APP_NAME: 'KAI-Fusion',
     ENVIRONMENT: isDevelopment ? 'development' : 'production',
