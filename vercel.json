@@ -1,0 +1,58 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/cron-health-check.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "api/cron-cleanup.py",
+      "use": "@vercel/python"
+    },
+    {
+      "src": "client/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "build/client"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "/api/index.py"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/client/build/client/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/cron-health-check",
+      "schedule": "*/5 * * * *"
+    },
+    {
+      "path": "/api/cron-cleanup",
+      "schedule": "0 * * * *"
+    }
+  ],
+  "env": {
+    "PYTHONPATH": "/var/task"
+  },
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.11"
+    },
+    "api/cron-health-check.py": {
+      "runtime": "python3.11"
+    },
+    "api/cron-cleanup.py": {
+      "runtime": "python3.11"
+    }
+  }
+}
