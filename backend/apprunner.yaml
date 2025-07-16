@@ -8,11 +8,13 @@ build:
       - pip3 install -r requirements-prod.txt
 run:
   runtime-version: 3.11.7
-  command: python3 test_app.py
+  command: python start.py
   network:
     port: 8000
     env: PORT
   env:
+    - name: PORT
+      value: "8000"
     - name: PYTHONPATH
       value: /root
     - name: PYTHONUNBUFFERED
@@ -22,7 +24,7 @@ run:
     - name: LOG_LEVEL
       value: INFO
     - name: CREATE_DATABASE
-      value: "false"
+      value: "true"
     - name: DATABASE_SSL
       value: "true"
     - name: DB_POOL_SIZE
