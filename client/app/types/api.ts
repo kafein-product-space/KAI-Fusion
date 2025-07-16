@@ -162,21 +162,31 @@ export interface CustomNodeCreateRequest {
 }
 
 // Credentials types (for future implementation)
-export interface Credential {
+export interface UserCredential {
   id: string;
   name: string;
-  type: string;
-  provider: string;
-  user_id: string;
+  service_type: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface UserCredentialCreate {
+  name: string;
+  service_type: string;
+  secret: Record<string, any>;
+}
+
+export interface CredentialDetailResponse {
+  id: string;
+  name: string;
+  service_type: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface CredentialCreateRequest {
   name: string;
-  type: string;
-  provider: string;
-  credentials: Record<string, any>;
+  data: Record<string, any>;
 }
 
 // Variables types (for future implementation)
