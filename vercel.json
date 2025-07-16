@@ -6,15 +6,15 @@
       "use": "@vercel/python",
       "config": {
         "maxLambdaSize": "50mb",
-        "runtime": "python3.9"
+        "runtime": "python3.11"
       }
     },
     {
-      "src": "client",
+      "src": "client/package.json",
       "use": "@vercel/static-build",
       "config": {
-        "buildCommand": "npm run vercel-build",
-        "distDir": "dist"
+        "buildCommand": "cd client && npm ci && npm run build",
+        "distDir": "client/dist"
       }
     }
   ],
@@ -25,7 +25,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "client/dist/$1"
+      "dest": "/client/dist/$1"
     }
   ],
   "env": {
