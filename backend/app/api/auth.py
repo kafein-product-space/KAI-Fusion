@@ -2,153 +2,79 @@
 
 import logging
 from datetime import datetime, timedelta
-from typing import Any, Dict, Optional
+from typing import Optional
 from fastapi import APIRouter, HTTPException, Depends, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, EmailStr
+from sqlalchemy.ext.asyncio import AsyncSession
 import jwt
-from passlib.context import CryptContext
 
 from app.core.config import get_settings
+from app.core.database import get_db_session
+from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
+from app.services.user_service import UserService
+from app.services.dependencies import get_user_service_dep
+from app.auth.dependencies import get_current_user
+from app.models.user import User
+from app.schemas.auth import (
+    SignUpRequest, 
+    UserSignUpData,
+    TokenResponse, 
+    UserResponse, 
+    RefreshTokenRequest,
+    UserUpdateProfile
+)
+from pydantic import BaseModel, EmailStr
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer()
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 settings = get_settings()
 
-# Mock user database (replace with real database in production)
-MOCK_USERS = {
-    "admin@example.com": {
-        "id": "1",
-        "email": "admin@example.com",
-        "full_name": "Admin User",
-        "role": "admin",
-        "hashed_password": pwd_context.hash("admin123"),
-        "is_active": True,
-        "created_at": datetime.utcnow().isoformat()
-    },
-    "user@example.com": {
-        "id": "2", 
-        "email": "user@example.com",
-        "full_name": "Regular User",
-        "role": "user",
-        "hashed_password": pwd_context.hash("user123"),
-        "is_active": True,
-        "created_at": datetime.utcnow().isoformat()
-    }
-}
-
 # Request/Response Models
-class SignUpRequest(BaseModel):
-    user: Dict[str, Any]  # Flexible format to match frontend
-
 class SignInRequest(BaseModel):
     email: EmailStr
     password: str
-
-class TokenResponse(BaseModel):
-    access_token: str
-    refresh_token: str
-    token_type: str
-
-class UserResponse(BaseModel):
-    id: str
-    email: str
-    full_name: str
-    role: str
-    is_active: bool
-    created_at: str
 
 class AuthResponse(BaseModel):
     user: UserResponse
     access_token: str
     refresh_token: str
-    token_type: str
+    token_type: str = "bearer"
 
-class RefreshTokenRequest(BaseModel):
-    refresh_token: str
-
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
-    """Create JWT access token"""
-    to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=30)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
-    return encoded_jwt
-
-def create_refresh_token(data: dict):
-    """Create JWT refresh token"""
-    to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(days=7)
-    to_encode.update({"exp": expire})
-    encoded_jwt = jwt.encode(to_encode, settings.SECRET_KEY, algorithm="HS256")
-    return encoded_jwt
-
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify password against hash"""
-    return pwd_context.verify(plain_password, hashed_password)
-
-def get_user_by_email(email: str) -> Optional[Dict]:
-    """Get user by email from mock database"""
-    return MOCK_USERS.get(email)
-
-def authenticate_user(email: str, password: str) -> Optional[Dict]:
-    """Authenticate user with email and password"""
-    user = get_user_by_email(email)
-    if not user:
-        return None
-    if not verify_password(password, user["hashed_password"]):
-        return None
-    return user
+def create_user_response(user: User) -> UserResponse:
+    """Convert User model to UserResponse schema"""
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        full_name=user.full_name or ""
+    )
 
 @router.post("/signup", response_model=AuthResponse)
-async def signup(request: SignUpRequest):
+async def signup(
+    request: SignUpRequest,
+    db: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service_dep)
+):
     """Register a new user"""
     try:
         user_data = request.user
-        email = user_data.get("email")
-        name = user_data.get("name", "")
-        password = user_data.get("credential", "defaultpass")  # Using credential as password
         
-        if not email:
+        if not user_data.email:
             raise HTTPException(status_code=400, detail="Email is required")
         
         # Check if user already exists
-        if email in MOCK_USERS:
+        existing_user = await user_service.get_by_email(db, user_data.email)
+        if existing_user:
             raise HTTPException(status_code=400, detail="User already exists")
         
         # Create new user
-        user_id = str(len(MOCK_USERS) + 1)
-        hashed_password = pwd_context.hash(password)
-        
-        new_user = {
-            "id": user_id,
-            "email": email,
-            "full_name": name,
-            "role": "user",
-            "hashed_password": hashed_password,
-            "is_active": True,
-            "created_at": datetime.utcnow().isoformat()
-        }
-        
-        MOCK_USERS[email] = new_user
+        new_user = await user_service.create_user(db, user_data)
         
         # Generate tokens
-        access_token = create_access_token({"sub": email, "user_id": user_id})
-        refresh_token = create_refresh_token({"sub": email, "user_id": user_id})
+        access_token = create_access_token({"sub": new_user.email, "user_id": str(new_user.id)})
+        refresh_token = create_refresh_token({"sub": new_user.email, "user_id": str(new_user.id)})
         
-        user_response = UserResponse(
-            id=user_id,
-            email=email,
-            full_name=name,
-            role="user",
-            is_active=True,
-            created_at=new_user["created_at"]
-        )
+        user_response = create_user_response(new_user)
         
         return AuthResponse(
             user=user_response,
@@ -157,38 +83,37 @@ async def signup(request: SignUpRequest):
             token_type="bearer"
         )
         
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Signup error: {e}")
         raise HTTPException(status_code=500, detail="Registration failed")
 
 @router.post("/signin", response_model=AuthResponse)
-async def signin(request: SignInRequest):
+async def signin(
+    request: SignInRequest,
+    db: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service_dep)
+):
     """Authenticate user and return tokens"""
-    user = authenticate_user(request.email, request.password)
+    user = await user_service.authenticate_user(db, request.email, request.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password"
         )
     
-    if not user["is_active"]:
+    if user.status != "active":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Account is inactive"
         )
     
     # Generate tokens
-    access_token = create_access_token({"sub": user["email"], "user_id": user["id"]})
-    refresh_token = create_refresh_token({"sub": user["email"], "user_id": user["id"]})
+    access_token = create_access_token({"sub": user.email, "user_id": str(user.id)})
+    refresh_token = create_refresh_token({"sub": user.email, "user_id": str(user.id)})
     
-    user_response = UserResponse(
-        id=user["id"],
-        email=user["email"],
-        full_name=user["full_name"],
-        role=user["role"],
-        is_active=user["is_active"],
-        created_at=user["created_at"]
-    )
+    user_response = create_user_response(user)
     
     return AuthResponse(
         user=user_response,
@@ -203,10 +128,14 @@ async def signout():
     return {"message": "Successfully signed out"}
 
 @router.post("/refresh", response_model=TokenResponse)
-async def refresh_token(request: RefreshTokenRequest):
+async def refresh_token(
+    request: RefreshTokenRequest,
+    db: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service_dep)
+):
     """Refresh access token using refresh token"""
     try:
-        payload = jwt.decode(request.refresh_token, settings.SECRET_KEY, algorithms=["HS256"])
+        payload = jwt.decode(request.refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         email: str = payload.get("sub")
         user_id: str = payload.get("user_id")
         
@@ -217,8 +146,8 @@ async def refresh_token(request: RefreshTokenRequest):
             )
         
         # Verify user still exists and is active
-        user = get_user_by_email(email)
-        if not user or not user["is_active"]:
+        user = await user_service.get_by_email(db, email)
+        if not user or user.status != "active":
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="User not found or inactive"
@@ -246,62 +175,58 @@ async def refresh_token(request: RefreshTokenRequest):
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(credentials: HTTPAuthorizationCredentials = Depends(security)):
+async def get_current_user_profile(current_user: User = Depends(get_current_user)):
     """Get current user profile"""
-    try:
-        token = credentials.credentials
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=["HS256"])
-        email: str = payload.get("sub")
-        
-        if email is None:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Invalid token"
-            )
-        
-        user = get_user_by_email(email)
-        if not user:
-            raise HTTPException(
-                status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="User not found"
-            )
-        
-        return UserResponse(
-            id=user["id"],
-            email=user["email"],
-            full_name=user["full_name"],
-            role=user["role"],
-            is_active=user["is_active"],
-            created_at=user["created_at"]
-        )
-        
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token expired"
-        )
-    except jwt.JWTError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token"
-        )
+    return create_user_response(current_user)
 
-# Test endpoints for development
+@router.put("/me", response_model=UserResponse)
+async def update_current_user_profile(
+    user_update: UserUpdateProfile,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service_dep)
+):
+    """Update current user profile"""
+    try:
+        updated_user = await user_service.update_user(db, current_user, user_update)
+        return create_user_response(updated_user)
+    except Exception as e:
+        logger.error(f"Profile update error: {e}")
+        raise HTTPException(status_code=500, detail="Profile update failed")
+
+# Development/Testing endpoints
 @router.get("/test/users")
-async def list_test_users():
-    """List all test users (development only)"""
-    return {
-        "users": [
-            {
-                "email": email,
-                "full_name": user["full_name"],
-                "role": user["role"],
-                "is_active": user["is_active"]
+async def list_test_users(
+    db: AsyncSession = Depends(get_db_session),
+    user_service: UserService = Depends(get_user_service_dep)
+):
+    """List all users (development only)"""
+    try:
+        users = await user_service.get_all(db, limit=50)
+        user_list = []
+        for user in users:
+            user_list.append({
+                "id": str(user.id),
+                "email": user.email,
+                "full_name": user.full_name,
+                "status": user.status,
+                "role": user.role,
+                "created_at": user.created_at.isoformat() if user.created_at else None,
+                "last_login": user.last_login.isoformat() if user.last_login else None
+            })
+        
+        return {
+            "message": "Database integration active",
+            "total_users": len(user_list),
+            "users": user_list,
+            "endpoints": {
+                "signup": "POST /auth/signup",
+                "signin": "POST /auth/signin", 
+                "me": "GET /auth/me",
+                "refresh": "POST /auth/refresh",
+                "update_profile": "PUT /auth/me"
             }
-            for email, user in MOCK_USERS.items()
-        ],
-        "credentials": {
-            "admin": {"email": "admin@example.com", "password": "admin123"},
-            "user": {"email": "user@example.com", "password": "user123"}
         }
-    }
+    except Exception as e:
+        logger.error(f"Error fetching users: {e}")
+        raise HTTPException(status_code=500, detail="Could not fetch users")
