@@ -60,27 +60,74 @@ export interface Workflow {
   user_id: string;
   created_at: string;
   updated_at: string;
-  is_active: boolean;
+  is_public: boolean;
+  version?: number;
 }
 
 export interface WorkflowCreateRequest {
   name: string;
   description?: string;
   flow_data: WorkflowData;
+  is_public?: boolean;
 }
 
 export interface WorkflowUpdateRequest {
   name?: string;
   description?: string;
   flow_data?: WorkflowData;
-  is_active?: boolean;
+  is_public?: boolean;
 }
 
-export interface WorkflowExecuteRequest {
-  workflow_id?: string;
-  flow_data?: WorkflowData;
-  input_text: string;
-  session_context?: Record<string, any>;
+export interface WorkflowStats {
+  total_workflows: number;
+  user_id: string;
+}
+
+export interface WorkflowVisibilityUpdate {
+  is_public: boolean;
+}
+
+export interface WorkflowDuplicateRequest {
+  new_name?: string;
+}
+
+export interface WorkflowTemplate {
+  id: string;
+  name: string;
+  description?: string;
+  category?: string;
+  flow_data: WorkflowData;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface WorkflowTemplateCreate {
+  name: string;
+  description?: string;
+  category?: string;
+  flow_data: WorkflowData;
+}
+
+export interface WorkflowTemplateResponse extends WorkflowTemplate {}
+
+export interface WorkflowValidationResult {
+  valid: boolean;
+  errors: string[];
+  warnings: string[];
+  node_count: number;
+  edge_count: number;
+}
+
+export interface WorkflowPublicSearchParams {
+  skip?: number;
+  limit?: number;
+  search?: string;
+}
+
+export interface WorkflowSearchParams {
+  q: string;
+  skip?: number;
+  limit?: number;
 }
 
 export interface WorkflowExecutionResult {

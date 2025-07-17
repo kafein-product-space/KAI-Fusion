@@ -218,7 +218,7 @@ function WorkflowsLayout() {
                     <tr key={workflow.id}>
                       <td className="p-6">
                         <Link
-                          to={`/workflows/${workflow.id}`}
+                          to={`/canvas/${workflow.id}`}
                           className="text-purple-600 hover:underline"
                         >
                           {workflow.name}
@@ -232,12 +232,12 @@ function WorkflowsLayout() {
                       <td className="p-6">
                         <span
                           className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                            workflow.is_active
-                              ? "bg-green-100 text-green-800"
+                            workflow.is_public
+                              ? "bg-blue-100 text-blue-800"
                               : "bg-gray-100 text-gray-800"
                           }`}
                         >
-                          {workflow.is_active ? "Active" : "Inactive"}
+                          {workflow.is_public ? "Public" : "Private"}
                         </span>
                       </td>
                       <td className="p-6">

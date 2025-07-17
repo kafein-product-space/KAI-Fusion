@@ -199,6 +199,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   );
 
   useEffect(() => {
+    console.log("wokflowId", workflowId);
     const loadWorkflow = async () => {
       try {
         if (workflowId) {

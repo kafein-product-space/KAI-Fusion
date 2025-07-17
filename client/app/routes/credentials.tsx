@@ -101,6 +101,14 @@ function CredentialsLayout() {
     }
   };
 
+  const handleUpdate = async (id: string, data: CredentialFormValues) => {
+    try {
+      await updateCredential(id, data);
+    } catch (e) {
+      // handle error
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen">
       <DashboardSidebar />
@@ -194,6 +202,13 @@ function CredentialsLayout() {
                             <button
                               className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
                               title="Edit variable"
+                              onClick={() =>
+                                (
+                                  document.getElementById(
+                                    `editModal-${credential.id}`
+                                  ) as HTMLDialogElement
+                                )?.showModal()
+                              }
                             >
                               <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
                             </button>
@@ -211,6 +226,38 @@ function CredentialsLayout() {
                               <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
                             </button>
                           </div>
+                          <dialog
+                            id={`updateModal-${credential.id}`}
+                            className="modal"
+                          >
+                            <div className="modal-box">
+                              <h3 className="font-bold text-lg">
+                                Update Credential
+                              </h3>
+                              <p className="py-4">
+                                Update{" "}
+                                <strong className="font-mono">
+                                  {credential.name}
+                                </strong>
+                                ?
+                                <br />
+                                <span className="text-red-600 text-sm">
+                                  This action cannot be undone.
+                                </span>
+                              </p>
+                              <div className="modal-action">
+                                <form
+                                  method="dialog"
+                                  className="flex items-center gap-2"
+                                >
+                                  <button className="btn">Cancel</button>
+                                  <button className="btn bg-red-500 hover:bg-red-600 text-white">
+                                    Update
+                                  </button>
+                                </form>
+                              </div>
+                            </div>
+                          </dialog>
 
                           {/* Delete Modal for each variable */}
                           <dialog

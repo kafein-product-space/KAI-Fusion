@@ -6,7 +6,8 @@ import "@xyflow/react/dist/style.css";
 import { useParams } from "react-router";
 
 export default function App() {
-  const { id } = useParams(); // id burada!
+  const { id } = useParams();
+  console.log("id", id);
 
   return (
     <AuthGuard>

@@ -5,57 +5,68 @@ import type {
   Workflow,
   WorkflowCreateRequest,
   WorkflowUpdateRequest,
-  WorkflowExecuteRequest,
-  WorkflowExecutionResult,
-  WorkflowExecution,
   WorkflowData,
+  WorkflowTemplate,
+  WorkflowTemplateCreate,
+  WorkflowTemplateResponse,
+  WorkflowStats,
 } from '~/types/api';
 import type { StateCreator } from 'zustand'
 interface WorkflowState {
   workflows: Workflow[];
+  publicWorkflows: Workflow[];
+  templates: WorkflowTemplateResponse[];
+  categories: string[];
+  stats: WorkflowStats | null;
   currentWorkflow: Workflow | null;
-  executions: WorkflowExecution[];
   isLoading: boolean;
-  isExecuting: boolean;
   error: string | null;
-  executionResult: WorkflowExecutionResult | null;
   hasUnsavedChanges: boolean;
-  fetchWorkflows: () => Promise<Workflow[]>;
+  // Actions
+  fetchWorkflows: () => Promise<void>;
+  fetchPublicWorkflows: () => Promise<void>;
   fetchWorkflow: (id: string) => Promise<void>;
   createWorkflow: (data: WorkflowCreateRequest) => Promise<Workflow>;
   updateWorkflow: (id: string, data: WorkflowUpdateRequest) => Promise<void>;
   deleteWorkflow: (id: string) => Promise<void>;
-  executeWorkflow: (
-    data: WorkflowExecuteRequest,
-  ) => Promise<WorkflowExecutionResult>;
-  validateWorkflow: (
-    flowData: WorkflowData,
-  ) => Promise<{ valid: boolean; errors?: string[] }>;
-  fetchExecutions: (workflowId: string) => Promise<void>;
+  duplicateWorkflow: (id: string, new_name?: string) => Promise<Workflow>;
+  updateWorkflowVisibility: (id: string, is_public: boolean) => Promise<void>;
+  fetchTemplates: () => Promise<void>;
+  fetchCategories: () => Promise<void>;
+  createTemplate: (data: WorkflowTemplateCreate) => Promise<WorkflowTemplateResponse>;
+  createTemplateFromWorkflow: (workflow_id: string, template_name: string, template_description?: string, category?: string) => Promise<WorkflowTemplateResponse>;
+  fetchStats: () => Promise<void>;
   setCurrentWorkflow: (workflow: Workflow | null) => void;
   setHasUnsavedChanges: (hasChanges: boolean) => void;
   clearError: () => void;
-  clearExecutionResult: () => void;
 }
 
 const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   workflows: [],
+  publicWorkflows: [],
+  templates: [],
+  categories: [],
+  stats: null,
   currentWorkflow: null,
-  executions: [],
   isLoading: false,
-  isExecuting: false,
   error: null,
-  executionResult: null,
   hasUnsavedChanges: false,
   fetchWorkflows: async () => {
     set({ isLoading: true, error: null });
     try {
       const workflows = await WorkflowService.getWorkflows();
       set({ workflows, isLoading: false });
-      return workflows;
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
-      throw error;
+    }
+  },
+  fetchPublicWorkflows: async () => {
+    set({ isLoading: true, error: null });
+    try {
+      const publicWorkflows = await WorkflowService.getPublicWorkflows();
+      set({ publicWorkflows, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
     }
   },
   fetchWorkflow: async (id: string) => {
@@ -65,20 +76,16 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
       set({ currentWorkflow: workflow, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
-      throw error;
     }
   },
   createWorkflow: async (data: WorkflowCreateRequest) => {
-    set({ isExecuting: true });
+    set({ isLoading: true });
     try {
       const newWorkflow = await WorkflowService.createWorkflow(data);
-      set((state: WorkflowState) => ({
-        workflows: [...state.workflows, newWorkflow],
-        isExecuting: false,
-      }));
+      set((state) => ({ workflows: [...state.workflows, newWorkflow], isLoading: false }));
       return newWorkflow;
     } catch (error: any) {
-      set({ error: error.message, isExecuting: false });
+      set({ error: error.message, isLoading: false });
       throw error;
     }
   },
@@ -86,14 +93,9 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true });
     try {
       const updatedWorkflow = await WorkflowService.updateWorkflow(id, data);
-      set((state: WorkflowState) => ({
-        workflows: state.workflows.map((w: Workflow) =>
-          w.id === id ? updatedWorkflow : w,
-        ),
-        currentWorkflow:
-          state.currentWorkflow?.id === id
-            ? updatedWorkflow
-            : state.currentWorkflow,
+      set((state) => ({
+        workflows: state.workflows.map((w) => (w.id === id ? updatedWorkflow : w)),
+        currentWorkflow: state.currentWorkflow?.id === id ? updatedWorkflow : state.currentWorkflow,
         isLoading: false,
       }));
     } catch (error: any) {
@@ -105,38 +107,80 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true });
     try {
       await WorkflowService.deleteWorkflow(id);
-      set((state: WorkflowState) => ({
-        workflows: state.workflows.filter((w: Workflow) => w.id !== id),
-        isLoading: false,
-      }));
+      set((state) => ({ workflows: state.workflows.filter((w) => w.id !== id), isLoading: false }));
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
       throw error;
     }
   },
-  executeWorkflow: async (data: WorkflowExecuteRequest) => {
-    set({ isExecuting: true, error: null, executionResult: null });
-    try {
-      // Handle streaming execution
-      const result = await WorkflowService.executeWorkflowStreaming(data);
-      set({ executionResult: result, isExecuting: false });
-      return result;
-    } catch (error: any) {
-      set({ error: error.message, isExecuting: false });
-      throw error;
-    }
-  },
-  validateWorkflow: async (flowData: WorkflowData) => {
-    return await WorkflowService.validateWorkflow(flowData);
-  },
-  fetchExecutions: async (workflowId: string) => {
+  duplicateWorkflow: async (id: string, new_name?: string) => {
     set({ isLoading: true });
     try {
-      const executions = await WorkflowService.getWorkflowExecutions(workflowId);
-      set({ executions, isLoading: false });
+      const duplicated = await WorkflowService.duplicateWorkflow(id, new_name);
+      set((state) => ({ workflows: [...state.workflows, duplicated], isLoading: false }));
+      return duplicated;
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
       throw error;
+    }
+  },
+  updateWorkflowVisibility: async (id: string, is_public: boolean) => {
+    set({ isLoading: true });
+    try {
+      await WorkflowService.updateWorkflowVisibility(id, is_public);
+      set({ isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+  fetchTemplates: async () => {
+    set({ isLoading: true });
+    try {
+      const templates = await WorkflowService.getWorkflowTemplates();
+      set({ templates, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+  fetchCategories: async () => {
+    set({ isLoading: true });
+    try {
+      const { categories } = await WorkflowService.getTemplateCategories();
+      set({ categories, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+  createTemplate: async (data: WorkflowTemplateCreate) => {
+    set({ isLoading: true });
+    try {
+      const template = await WorkflowService.createWorkflowTemplate(data);
+      set((state) => ({ templates: [...state.templates, template], isLoading: false }));
+      return template;
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+  createTemplateFromWorkflow: async (workflow_id: string, template_name: string, template_description?: string, category?: string) => {
+    set({ isLoading: true });
+    try {
+      const template = await WorkflowService.createTemplateFromWorkflow(workflow_id, template_name, template_description, category);
+      set((state) => ({ templates: [...state.templates, template], isLoading: false }));
+      return template;
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+  fetchStats: async () => {
+    set({ isLoading: true });
+    try {
+      const stats = await WorkflowService.getWorkflowStats();
+      set({ stats, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
     }
   },
   setCurrentWorkflow: (workflow: Workflow | null) => {
@@ -146,7 +190,6 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ hasUnsavedChanges: hasChanges });
   },
   clearError: () => set({ error: null }),
-  clearExecutionResult: () => set({ executionResult: null }),
 });
 
 export const useWorkflows = create<WorkflowState>()(
