@@ -19,12 +19,10 @@ from app.models.workflow import Workflow, WorkflowTemplate
 from app.schemas.workflow import (
     WorkflowCreate, 
     WorkflowUpdate, 
-    WorkflowResponse,
-    WorkflowTemplateCreate,
-    WorkflowTemplateResponse
+    WorkflowResponse
 )
-from app.services.workflow_service import WorkflowService, WorkflowTemplateService
-from app.services.dependencies import get_workflow_service_dep, get_workflow_template_service_dep
+from app.services.workflow_service import WorkflowService
+from app.services.dependencies import get_workflow_service_dep
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -279,15 +277,15 @@ async def duplicate_workflow(
     """
     try:
         user_id = current_user.id  # Cache user ID
-        duplicated = await workflow_service.duplicate_workflow(
+        new_workflow = await workflow_service.duplicate_workflow(
             db, workflow_id, user_id, new_name
         )
         
-        if not duplicated:
+        if not new_workflow:
             raise HTTPException(status_code=404, detail="Workflow not found or not accessible")
         
-        logger.info(f"Duplicated workflow {workflow_id} to {duplicated.id} for user {user_id}")
-        return WorkflowResponse.model_validate(duplicated)
+        logger.info(f"Duplicated workflow {workflow_id} to {new_workflow.id} for user {user_id}")
+        return WorkflowResponse.model_validate(new_workflow)
     except HTTPException:
         raise
     except Exception as e:
@@ -336,126 +334,15 @@ async def get_workflow_stats(
     Get workflow statistics for the current user.
     """
     try:
-        user_id = current_user.id  # Cache user ID
-        total_count = await workflow_service.count_user_workflows(db, user_id)
+        stats = await workflow_service.get_user_workflow_stats(db, current_user.id)
         return {
-            "total_workflows": total_count,
-            "user_id": str(user_id)
+            "total_workflows": stats["total"],
+            "public_workflows": stats["public"],
+            "private_workflows": stats["private"]
         }
     except Exception as e:
-        logger.error(f"Error fetching workflow stats: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch workflow statistics")
-
-
-# Template endpoints
-@router.get("/templates/", response_model=List[WorkflowTemplateResponse])
-async def get_workflow_templates(
-    db: AsyncSession = Depends(get_db_session),
-    template_service: WorkflowTemplateService = Depends(get_workflow_template_service_dep),
-    current_user: Optional[User] = Depends(get_optional_user),
-    skip: int = 0,
-    limit: int = 100,
-    category: Optional[str] = None,
-    search: Optional[str] = None
-):
-    """Get list of workflow templates"""
-    try:
-        if search:
-            templates = await template_service.search_templates(
-                db, search, skip=skip, limit=limit
-            )
-        elif category:
-            templates = await template_service.get_templates_by_category(
-                db, category, skip=skip, limit=limit
-            )
-        else:
-            query = (
-                select(WorkflowTemplate)
-                .order_by(WorkflowTemplate.created_at.desc())
-                .offset(skip)
-                .limit(limit)
-            )
-            result = await db.execute(query)
-            templates = result.scalars().all()
-        
-        return [WorkflowTemplateResponse.model_validate(template) for template in templates]
-    except Exception as e:
-        logger.error(f"Error fetching workflow templates: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch workflow templates")
-
-
-@router.get("/templates/categories/")
-async def get_template_categories(
-    db: AsyncSession = Depends(get_db_session),
-    template_service: WorkflowTemplateService = Depends(get_workflow_template_service_dep),
-    current_user: Optional[User] = Depends(get_optional_user)
-):
-    """Get list of template categories"""
-    try:
-        categories = await template_service.get_categories(db)
-        return {"categories": categories}
-    except Exception as e:
-        logger.error(f"Error fetching template categories: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to fetch template categories")
-
-
-@router.post("/templates/", response_model=WorkflowTemplateResponse)
-async def create_workflow_template(
-    template_data: WorkflowTemplateCreate,
-    db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user)
-):
-    """Create a new workflow template"""
-    try:
-        template = WorkflowTemplate(
-            name=template_data.name,
-            description=template_data.description,
-            category=template_data.category,
-            flow_data=template_data.flow_data
-        )
-        
-        db.add(template)
-        await db.commit()
-        await db.refresh(template)
-        
-        user_id = current_user.id  # Cache user ID  
-        logger.info(f"Created workflow template {template.id} by user {user_id}")
-        return WorkflowTemplateResponse.model_validate(template)
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error creating workflow template: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create workflow template")
-
-
-@router.post("/{workflow_id}/create-template", response_model=WorkflowTemplateResponse)
-async def create_template_from_workflow(
-    workflow_id: uuid.UUID,
-    template_name: str,
-    db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-    template_service: WorkflowTemplateService = Depends(get_workflow_template_service_dep),
-    template_description: Optional[str] = None,
-    category: str = "User Created"
-):
-    """
-    Create a template from an existing workflow.
-    """
-    try:
-        template = await template_service.create_from_workflow(
-            db, workflow_id, template_name, template_description, category
-        )
-        
-        if not template:
-            raise HTTPException(status_code=404, detail="Workflow not found or not accessible")
-        
-        logger.info(f"Created template {template.id} from workflow {workflow_id}")
-        return WorkflowTemplateResponse.model_validate(template)
-    except HTTPException:
-        raise
-    except Exception as e:
-        await db.rollback()
-        logger.error(f"Error creating template from workflow {workflow_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to create template from workflow")
+        logger.error(f"Error getting workflow stats for user {current_user.id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Failed to get workflow stats")
 
 
 class AdhocExecuteRequest(BaseModel):

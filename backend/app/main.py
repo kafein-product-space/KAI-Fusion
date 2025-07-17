@@ -26,6 +26,7 @@ from app.api.credentials import router as credentials_router
 from app.api.users import router as users_router  
 from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
+from app.api.workflow_templates import router as workflow_templates_router
 
 logger = logging.getLogger(__name__)
 
@@ -108,6 +109,7 @@ app.include_router(api_key_router, prefix="/api/v1/apikey", tags=["API Keys"])
 app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(users_router, prefix="/api/v1/users", tags=["Users"])
+app.include_router(workflow_templates_router, prefix="/api/v1/workflow-templates", tags=["Workflow Templates"])
 
 
 # Health checks and info endpoints

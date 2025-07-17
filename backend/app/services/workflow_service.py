@@ -170,7 +170,12 @@ class WorkflowTemplateService(BaseService[WorkflowTemplate]):
     def __init__(self):
         super().__init__(WorkflowTemplate)
 
-    async def get_templates_by_category(
+    async def get_by_id(self, db: AsyncSession, id: uuid.UUID) -> Optional[WorkflowTemplate]:
+        """Get a template by its ID."""
+        result = await db.execute(select(self.model).filter_by(id=id))
+        return result.scalars().first()
+
+    async def get_by_category(
         self, 
         db: AsyncSession, 
         category: str, 
@@ -191,7 +196,7 @@ class WorkflowTemplateService(BaseService[WorkflowTemplate]):
         result = await db.execute(query)
         return result.scalars().all()
 
-    async def search_templates(
+    async def search(
         self, 
         db: AsyncSession, 
         search_term: str, 
@@ -217,42 +222,10 @@ class WorkflowTemplateService(BaseService[WorkflowTemplate]):
         result = await db.execute(query)
         return result.scalars().all()
 
-    async def get_categories(self, db: AsyncSession) -> List[str]:
+    async def get_distinct_categories(self, db: AsyncSession) -> List[str]:
         """
         Get all unique template categories.
         """
         query = select(self.model.category).distinct()
         result = await db.execute(query)
-        return [category for category in result.scalars().all() if category]
-
-    async def create_from_workflow(
-        self, 
-        db: AsyncSession, 
-        workflow_id: uuid.UUID, 
-        template_name: str,
-        template_description: Optional[str] = None,
-        category: str = 'User Created'
-    ) -> Optional[WorkflowTemplate]:
-        """
-        Create a template from an existing workflow.
-        """
-        # Get the workflow (must be public or accessible)
-        workflow_service = WorkflowService()
-        workflow = await workflow_service.get_accessible_workflow(db, workflow_id)
-        
-        if not workflow:
-            return None
-        
-        # Create template
-        template = WorkflowTemplate(
-            name=template_name,
-            description=template_description or workflow.description,
-            category=category,
-            flow_data=workflow.flow_data
-        )
-        
-        db.add(template)
-        await db.commit()
-        await db.refresh(template)
-        
-        return template 
+        return [category for category in result.scalars().all() if category] 
