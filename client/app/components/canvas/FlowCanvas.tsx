@@ -568,7 +568,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Get streaming response
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
         }/api/v1/workflows/execute`,
         {
           method: "POST",
