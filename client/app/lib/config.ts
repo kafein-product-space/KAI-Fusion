@@ -14,7 +14,7 @@ const getConfig = (): Config => {
   
   return {
     API_BASE_URL: isDevelopment 
-      ? 'http://localhost:8000' 
+      ? 'http://localhost:8001' 
       : 'https://mwrkgmxbth.us-east-1.awsapprunner.com',
     API_VERSION: '/api/v1',
     APP_NAME: 'KAI-Fusion',
