@@ -41,6 +41,12 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/credentials/${id}`,
     DELETE: (id: string) => `/credentials/${id}`,
   },
+  API_KEYS: {
+    LIST: '/api-keys', // GET: listele
+    CREATE: '/api-keys', // POST: oluştur
+    UPDATE: (id: string) => `/api-keys/${id}`,
+    DELETE: (id: string) => `/api-keys/${id}`,
+  },
   // Workflows
   WORKFLOWS: {
     LIST: '/workflows',

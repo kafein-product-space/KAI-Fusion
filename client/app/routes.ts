@@ -15,7 +15,7 @@ export default [
   // Canvas 
  
   route("canvas", "routes/canvas.tsx"),
-  route("canvas/:id", "routes/canvas.tsx"),
+ 
   
   
 

@@ -30,7 +30,4 @@ class WorkflowTemplate(Base):
     description = Column(Text)
     category = Column(String(100), default='General')
     flow_data = Column(JSONB, nullable=False)
-    created_at = Column(TIMESTAMP(timezone=True), default=func.now())
-    author_id = Column(UUID(as_uuid=True), ForeignKey('users.id', ondelete='CASCADE'), nullable=True, index=True)
-    
-    author = relationship("User")
+    created_at = Column(TIMESTAMP(timezone=True), default=func.now()) 

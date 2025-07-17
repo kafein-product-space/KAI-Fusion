@@ -13,6 +13,16 @@ class ChatMessageBase(BaseModel):
 class ChatMessageCreate(ChatMessageBase):
     chatflow_id: uuid.UUID
 
+# Schema for updating a chat message
+class ChatMessageUpdate(BaseModel):
+    role: Optional[str] = None
+    content: Optional[str] = None
+    source_documents: Optional[str] = None
+
+# Schema for user input in an interaction
+class ChatMessageInput(BaseModel):
+    content: str
+
 # Schema for API responses
 class ChatMessageResponse(ChatMessageBase):
     id: uuid.UUID

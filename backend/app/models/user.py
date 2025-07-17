@@ -20,15 +20,10 @@ class User(Base):
     last_login = Column(TIMESTAMP(timezone=True))
     created_at = Column(TIMESTAMP(timezone=True), default=func.now())
     updated_at = Column(TIMESTAMP(timezone=True), default=func.now(), onupdate=func.now())
-    is_active = Column(Boolean, default=True)
     
     # Relationships
-    api_keys = relationship("APIKey", back_populates="user", cascade="all, delete-orphan")
-    workflows = relationship("Workflow", back_populates="user", cascade="all, delete-orphan")
+    credentials = relationship("UserCredential", back_populates="user")
+    workflows = relationship("Workflow", back_populates="user")
     executions = relationship("WorkflowExecution", back_populates="user")
-    workflow_templates = relationship("WorkflowTemplate", back_populates="author")
-    credentials = relationship("UserCredential", back_populates="user", cascade="all, delete-orphan")
-    organization_associations = relationship("OrganizationUser", back_populates="user", foreign_keys="OrganizationUser.user_id")
-
-    def __repr__(self):
-        return f"<User(id={self.id}, email='{self.email}')>" 
+    organization_associations = relationship("OrganizationUser", back_populates="user", foreign_keys="[OrganizationUser.user_id]") 
+    api_keys = relationship("APIKey", back_populates="user") 

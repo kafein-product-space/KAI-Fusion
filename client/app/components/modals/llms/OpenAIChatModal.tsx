@@ -1,4 +1,6 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef } from "react";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import { useSnackbar } from "notistack";
 
 interface OpenAIChatConfig {
   model_name?: string;
@@ -20,63 +22,56 @@ const OpenAIChatNodeModal = forwardRef<
 >(({ nodeData, onSave, nodeId }, ref) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   useImperativeHandle(ref, () => dialogRef.current!);
+  const { enqueueSnackbar } = useSnackbar();
 
-  const [config, setConfig] = useState<OpenAIChatConfig>({
+  const initialValues: OpenAIChatConfig = {
     model_name: nodeData?.model_name || "gpt-3.5-turbo",
     temperature: nodeData?.temperature ?? 0.7,
     max_tokens: nodeData?.max_tokens ?? 500,
     credential_name: nodeData?.credential_name || "",
     api_key: nodeData?.api_key || "",
-  });
-
-  const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
-  ) => {
-    const { name, value } = e.target;
-    setConfig((prev) => ({
-      ...prev,
-      [name]:
-        name === "temperature" || name === "max_tokens"
-          ? parseFloat(value)
-          : value,
-    }));
   };
 
-  const handleSave = async () => {
+  const validate = (values: OpenAIChatConfig) => {
+    const errors: Record<string, string> = {};
+    if (!values.api_key) {
+      errors.api_key = "API Key is required";
+    }
+    if (!values.credential_name) {
+      errors.credential_name = "Credential name is required";
+    }
+    if (!values.model_name) {
+      errors.model_name = "Model is required";
+    }
+    if (
+      values.temperature !== undefined &&
+      (values.temperature < 0 || values.temperature > 2)
+    ) {
+      errors.temperature = "Temperature must be between 0 and 2";
+    }
+    if (
+      values.max_tokens !== undefined &&
+      (values.max_tokens < 1 || values.max_tokens > 32000)
+    ) {
+      errors.max_tokens = "Max tokens must be between 1 and 32000";
+    }
+    return errors;
+  };
+
+  const handleSubmit = async (
+    values: OpenAIChatConfig,
+    { setSubmitting }: any
+  ) => {
     try {
-      // Validate credentials via proper credentials API
-      const validationPayload = {
-        type: "openai",
-        api_key: config.api_key,
-        model_name: config.model_name
-      };
-
-      const response = await fetch(
-        "http://localhost:8001/api/v1/credentials/validate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(validationPayload),
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Credential validation failed");
-      }
-
-      const result = await response.json();
-      
-      // Save configuration on successful validation
-      onSave(config);
+      onSave(values);
       dialogRef.current?.close();
-      alert(`✅ ${result.message}`);
-      
+      enqueueSnackbar("Ayarlar kaydedildi", { variant: "success" });
     } catch (error: any) {
-      console.error("Validation error:", error);
-      alert(`❌ ${error?.message || "Credential validation failed. Please check your API key."}`);
+      enqueueSnackbar(error?.message || "Ayarlar kaydedilemedi.", {
+        variant: "error",
+      });
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -84,79 +79,110 @@ const OpenAIChatNodeModal = forwardRef<
     <dialog ref={dialogRef} className="modal">
       <div className="modal-box">
         <h3 className="font-bold text-lg">OpenAI Chat Ayarları</h3>
+        <Formik
+          initialValues={initialValues}
+          validate={validate}
+          onSubmit={handleSubmit}
+        >
+          {({ isSubmitting }) => (
+            <Form className="flex flex-col gap-4">
+              <div className="form-control flex flex-col gap-2">
+                <label className="label">Model</label>
+                <Field
+                  as="select"
+                  name="model_name"
+                  className="select select-bordered w-full"
+                >
+                  <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
+                  <option value="gpt-4">gpt-4</option>
+                  <option value="gpt-4o">gpt-4o</option>
+                </Field>
+                <ErrorMessage
+                  name="model_name"
+                  component="div"
+                  className="text-red-500 text-xs"
+                />
+              </div>
 
-        <div className="form-control flex flex-col gap-2">
-          <label className="label">Model</label>
-          <select
-            name="model_name"
-            className="select select-bordered w-full"
-            value={config.model_name}
-            onChange={handleChange}
-          >
-            <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-            <option value="gpt-4">gpt-4</option>
-            <option value="gpt-4o">gpt-4o</option>
-          </select>
-        </div>
+              <div className="form-control flex flex-col gap-2">
+                <label className="label">Temperature (0 - 2)</label>
+                <Field
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="2"
+                  name="temperature"
+                  className="input input-bordered w-full"
+                />
+                <ErrorMessage
+                  name="temperature"
+                  component="div"
+                  className="text-red-500 text-xs"
+                />
+              </div>
 
-        <div className="form-control flex flex-col gap-2">
-          <label className="label">Temperature (0 - 2)</label>
-          <input
-            type="number"
-            step="0.1"
-            min="0"
-            max="2"
-            name="temperature"
-            value={config.temperature}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-          />
-        </div>
+              <div className="form-control flex flex-col gap-2">
+                <label className="label">Max Tokens</label>
+                <Field
+                  type="number"
+                  name="max_tokens"
+                  className="input input-bordered w-full"
+                />
+                <ErrorMessage
+                  name="max_tokens"
+                  component="div"
+                  className="text-red-500 text-xs"
+                />
+              </div>
 
-        <div className="form-control flex flex-col gap-2">
-          <label className="label">Max Tokens</label>
-          <input
-            type="number"
-            name="max_tokens"
-            value={config.max_tokens}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-          />
-        </div>
+              <div className="form-control flex flex-col gap-2">
+                <label className="label">Credential Name</label>
+                <Field
+                  type="text"
+                  name="credential_name"
+                  className="input input-bordered w-full"
+                />
+                <ErrorMessage
+                  name="credential_name"
+                  component="div"
+                  className="text-red-500 text-xs"
+                />
+              </div>
 
-        <div className="form-control flex flex-col gap-2">
-          <label className="label">Credential Name</label>
-          <input
-            type="text"
-            name="credential_name"
-            value={config.credential_name}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-          />
-        </div>
+              <div className="form-control flex flex-col gap-2">
+                <label className="label">API Key</label>
+                <Field
+                  type="password"
+                  name="api_key"
+                  className="input input-bordered w-full"
+                />
+                <ErrorMessage
+                  name="api_key"
+                  component="div"
+                  className="text-red-500 text-xs"
+                />
+              </div>
 
-        <div className="form-control flex flex-col gap-2">
-          <label className="label">API Key</label>
-          <input
-            type="password"
-            name="api_key"
-            value={config.api_key}
-            onChange={handleChange}
-            className="input input-bordered w-full"
-          />
-        </div>
-
-        <div className="modal-action flex gap-2">
-          <button
-            className="btn btn-outline"
-            onClick={() => dialogRef.current?.close()}
-          >
-            İptal
-          </button>
-          <button className="btn btn-primary" onClick={handleSave}>
-            Kaydet
-          </button>
-        </div>
+              <div className="modal-action flex gap-2">
+                <button
+                  className="btn btn-outline"
+                  type="button"
+                  onClick={() => dialogRef.current?.close()}
+                  disabled={isSubmitting}
+                >
+                  İptal
+                </button>
+                <button
+                  className="btn btn-primary"
+                  type="submit"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? "Kaydediliyor..." : "Kaydet"}
+                </button>
+              </div>
+            </Form>
+          )}
+        </Formik>
       </div>
     </dialog>
   );

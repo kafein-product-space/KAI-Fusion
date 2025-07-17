@@ -1,0 +1,31 @@
+version: '3'
+services:
+  datafocusbe:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: datafocusbe:latest
+    ports:
+      - 0.0.0.0:${RISK_SERVER_PORT}:3030
+    environment:
+      RISK_SERVER_PORT: ${RISK_SERVER_PORT}
+      RISK_DATABASE_URL: ${RISK_DATABASE_URL}
+      RISK_DATABASE_USERNAME: ${RISK_DATABASE_USERNAME}
+      RISK_DATABASE_PASSWORD: ${RISK_DATABASE_PASSWORD}
+      REPORT_SERVICE: ${REPORT_SERVICE:-0}
+      RISK_KAFKA_SERVER: ${RISK_KAFKA_SERVER}
+      KAFKA_REPORT_REQUEST: ${KAFKA_REPORT_REQUEST}
+      KAFKA_REPORT_STATUS: ${KAFKA_REPORT_STATUS}
+      AUTH_TOK: ${AUTH_TOK}
+    command: uvicorn main:app --host 0.0.0.0 --port 3030
+    volumes:
+      - ./:/app
+    networks:
+      - risk-network
+    stdin_open: true
+    restart: always
+    tty: true
+
+networks:
+  risk-network:
+    driver: bridge

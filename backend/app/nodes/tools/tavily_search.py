@@ -8,7 +8,7 @@ class TavilySearchNode(ProviderNode):
         super().__init__()
         self._metadatas = {
             "name": "TavilySearch",
-            "display_name": "In Memory Cache",
+            "display_name": "Tavily Search",
 
             "description": "Provides a tool that uses the Tavily search API.",
             "category": "Tools",

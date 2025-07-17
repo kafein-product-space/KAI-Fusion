@@ -568,13 +568,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Get streaming response
       const response = await fetch(
         `${
-          import.meta.env.VITE_API_BASE_URL || "http://localhost:8001"
+          import.meta.env.VITE_API_BASE_URL || "http://localhost:8000"
         }/api/v1/workflows/execute`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${localStorage.getItem(
+              "auth_access_token"
+            )}`,
           },
           body: JSON.stringify({
             flow_data: streamData.flow_data,
@@ -725,6 +727,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         workflowName={workflowName}
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
+        currentWorkflow={currentWorkflow}
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}
