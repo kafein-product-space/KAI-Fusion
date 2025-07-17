@@ -16,6 +16,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { AuthGuard } from "~/components/AuthGuard";
 import type { Workflow } from "~/types/api";
+import { timeAgo } from "~/lib/dateFormatter";
 
 // Loading Component
 const LoadingSpinner = () => (
@@ -201,8 +202,8 @@ function WorkflowsLayout() {
           ) : workflows.length === 0 ? (
             <EmptyState />
           ) : (
-            <div className="relative rounded-xl border border-gray-300">
-              <table className="w-full text-sm p-2 overflow-hidden">
+            <div className="relative rounded-xl border border-gray-300 ">
+              <table className="table w-full text-sm p-2 ">
                 <thead className="bg-[#F5F5F5] text-left text-md border-b border-gray-300">
                   <tr>
                     <th className="p-6 font-normal text-base">Name</th>
@@ -216,14 +217,7 @@ function WorkflowsLayout() {
                 <tbody>
                   {filteredWorkflows.map((workflow) => (
                     <tr key={workflow.id}>
-                      <td className="p-6">
-                        <Link
-                          to={`/canvas/${workflow.id}`}
-                          className="text-purple-600 hover:underline"
-                        >
-                          {workflow.name}
-                        </Link>
-                      </td>
+                      <td className="p-6">{workflow.name}</td>
                       <td className="p-6">
                         <div className="text-sm text-gray-900">
                           {workflow.description || "No description"}
@@ -242,17 +236,17 @@ function WorkflowsLayout() {
                       </td>
                       <td className="p-6">
                         <div className="text-sm text-gray-900">
-                          {formatDate(workflow.created_at)}
+                          {timeAgo(workflow.created_at)}
                         </div>
                       </td>
                       <td className="p-6">
                         <div className="text-sm text-gray-900">
-                          {formatDate(workflow.updated_at)}
+                          {timeAgo(workflow.updated_at)}
                         </div>
                       </td>
-                      <td className="p-6 relative">
+                      <td className="p-6 ">
                         {/* DaisyUI Dropdown */}
-                        <div className="relative dropdown">
+                        <div className="relative dropdown flex justify-center items-center">
                           <div
                             tabIndex={0}
                             role="button"

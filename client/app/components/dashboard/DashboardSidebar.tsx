@@ -36,9 +36,7 @@ const Sidebar = () => {
       <div>
         {/* Logo */}
         <div className="font-bold text-xl mb-8">
-          <Link to="/">
-            <img src="/logo.png" alt="Logo" />
-          </Link>
+          <Link to="/">LOGO</Link>
         </div>
 
         {/* Ana Linkler */}
@@ -85,8 +83,7 @@ const Sidebar = () => {
 
         <div className="relative dropdown w-full">
           <button className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-gray-100">
-            <div className="flex items-center gap-2 avatar">
-              <User className="w-5 h-5" />
+            <div className="flex items-center gap-2 ">
               <span className="text-sm">{user?.full_name || "User"}</span>
             </div>
 

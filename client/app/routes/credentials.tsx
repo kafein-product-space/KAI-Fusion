@@ -7,6 +7,8 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { AuthGuard } from "../components/AuthGuard";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
+import { timeAgo } from "~/lib/dateFormatter";
+import LoadingSpinner from "~/components/common/LoadingSpinner";
 
 function CredentialsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,6 +62,10 @@ function CredentialsLayout() {
       const payload: CredentialCreateRequest = {
         name: values.name,
         data: { api_key: values.apiKey },
+        service_type:
+          selectedApi.name === "OpenAI API"
+            ? "openai"
+            : selectedApi.name?.toLowerCase().replace(/ api$/, ""),
       };
       try {
         await addCredential(payload);
@@ -160,7 +166,9 @@ function CredentialsLayout() {
 
           {/* Table */}
           {isLoading ? (
-            <p>Loading...</p>
+            <div className="flex items-center justify-center ">
+              <LoadingSpinner text="Loading Credentials" />
+            </div>
           ) : error ? (
             <p className="text-red-500">{error}</p>
           ) : userCredentials.length === 0 ? (
@@ -193,8 +201,12 @@ function CredentialsLayout() {
                           {/* Optionally add logo if available */}
                           {credential.name}
                         </td>
-                        <td className="p-3">{credential.created_at}</td>
-                        <td className="p-3">{credential.updated_at}</td>
+                        <td className="p-3">
+                          {timeAgo(credential.created_at)}
+                        </td>
+                        <td className="p-3">
+                          {timeAgo(credential.updated_at)}
+                        </td>
                         <td></td>
 
                         <td className="p-6">

@@ -725,6 +725,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         workflowName={workflowName}
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
+        currentWorkflow={currentWorkflow}
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}

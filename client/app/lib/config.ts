@@ -14,7 +14,7 @@ const getConfig = (): Config => {
   
   return {
     API_BASE_URL: isDevelopment 
-      ? 'http://localhost:8001' 
+      ? 'http://localhost:8000' 
       : 'https://mwrkgmxbth.us-east-1.awsapprunner.com',
     API_VERSION: '/api/v1',
     APP_NAME: 'KAI-Fusion',
@@ -40,6 +40,12 @@ export const API_ENDPOINTS = {
     GET: (id: string) => `/credentials/${id}`,
     UPDATE: (id: string) => `/credentials/${id}`,
     DELETE: (id: string) => `/credentials/${id}`,
+  },
+  API_KEYS: {
+    LIST: '/api-keys', // GET: listele
+    CREATE: '/api-keys', // POST: oluştur
+    UPDATE: (id: string) => `/api-keys/${id}`,
+    DELETE: (id: string) => `/api-keys/${id}`,
   },
   // Workflows
   WORKFLOWS: {

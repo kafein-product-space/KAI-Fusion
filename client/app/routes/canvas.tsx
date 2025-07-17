@@ -3,11 +3,12 @@ import FlowCanvas from "../components/canvas/FlowCanvas";
 import { AuthGuard } from "../components/AuthGuard";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import "@xyflow/react/dist/style.css";
-import { useParams } from "react-router";
+import { useLocation } from "react-router";
 
 export default function App() {
-  const { id } = useParams();
-  console.log("id", id);
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const workflowId = searchParams.get("workflow");
 
   return (
     <AuthGuard>
@@ -15,7 +16,7 @@ export default function App() {
         <ReactFlowProvider>
           <div className="w-full h-screen flex flex-col">
             <div className="flex-1 flex">
-              <FlowCanvas workflowId={id} />
+              <FlowCanvas workflowId={workflowId || undefined} />
             </div>
           </div>
         </ReactFlowProvider>

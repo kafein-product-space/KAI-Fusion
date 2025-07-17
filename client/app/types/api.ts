@@ -215,6 +215,8 @@ export interface UserCredential {
   service_type: string;
   created_at: string;
   updated_at: string;
+  data?: Record<string, any>; // opsiyonel
+  secret?: Record<string, any>; // opsiyonel
 }
 
 export interface UserCredentialCreate {
@@ -234,6 +236,7 @@ export interface CredentialDetailResponse {
 export interface CredentialCreateRequest {
   name: string;
   data: Record<string, any>;
+  service_type?: string;
 }
 
 // Variables types (for future implementation)
@@ -312,4 +315,28 @@ export interface ApiInfo {
     registered_nodes: number;
     active_sessions: number;
   };
+}
+
+// API Key types
+export interface ApiKey {
+  id: string;
+  key_name: string;
+  created_at: string;
+  last_used_at?: string;
+}
+
+export interface ApiKeyCreateRequest {
+  key_name: string;
+}
+
+export interface ApiKeyUpdateRequest {
+  key_name?: string;
+}
+
+export interface ApiKeyCreateResponse {
+  id: string;
+  key_name: string;
+  created_at: string;
+  last_used_at?: string;
+  key: string; // Sadece oluşturulurken döner
 } 
