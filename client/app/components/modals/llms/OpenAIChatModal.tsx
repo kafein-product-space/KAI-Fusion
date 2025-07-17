@@ -63,38 +63,13 @@ const OpenAIChatNodeModal = forwardRef<
     { setSubmitting }: any
   ) => {
     try {
-      const validationPayload = {
-        type: "openai",
-        api_key: values.api_key,
-        model_name: values.model_name,
-      };
-      const response = await fetch(
-        "http://localhost:8000/api/v1/credentials/validate",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${localStorage.getItem("token")}`,
-          },
-          body: JSON.stringify(validationPayload),
-        }
-      );
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Credential validation failed");
-      }
-      const result = await response.json();
       onSave(values);
       dialogRef.current?.close();
-      enqueueSnackbar(result.message || "API Key başarıyla doğrulandı", {
-        variant: "success",
-      });
+      enqueueSnackbar("Ayarlar kaydedildi", { variant: "success" });
     } catch (error: any) {
-      enqueueSnackbar(
-        error?.message ||
-          "Credential validation failed. Please check your API key.",
-        { variant: "error" }
-      );
+      enqueueSnackbar(error?.message || "Ayarlar kaydedilemedi.", {
+        variant: "error",
+      });
     } finally {
       setSubmitting(false);
     }
