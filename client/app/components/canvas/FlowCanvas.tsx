@@ -574,7 +574,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("access_token")}`,
+            Authorization: `Bearer ${localStorage.getItem(
+              "auth_access_token"
+            )}`,
           },
           body: JSON.stringify({
             flow_data: streamData.flow_data,
