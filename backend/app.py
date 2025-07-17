@@ -5,9 +5,13 @@ import sys
 import uvicorn
 from pathlib import Path
 
-# Add the backend directory to Python path
-backend_dir = Path(__file__).parent
-sys.path.insert(0, str(backend_dir))
+# Get the backend directory path
+backend_dir = Path(__file__).parent.absolute()
+parent_dir = backend_dir.parent
+
+# Add parent directory to sys.path so we can import backend.app.main
+if str(parent_dir) not in sys.path:
+    sys.path.insert(0, str(parent_dir))
 
 def main():
     print("📍 Backend will be available at: http://localhost:8001")
@@ -24,7 +28,7 @@ def main():
         if is_production:
             # Production configuration
             uvicorn.run(
-                "app.main:app",
+                "backend.app.main:app",
                 host="0.0.0.0",
                 port=port,
                 reload=False,
@@ -34,7 +38,7 @@ def main():
         else:
             # Development configuration
             uvicorn.run(
-                "app.main:app",
+                "backend.app.main:app",
                 host="0.0.0.0",
                 port=port,
                 reload=True,
