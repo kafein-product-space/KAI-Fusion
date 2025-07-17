@@ -47,9 +47,17 @@ class WorkflowTemplateBase(BaseModel):
 class WorkflowTemplateCreate(WorkflowTemplateBase):
     pass
 
+# Schema for updating a template
+class WorkflowTemplateUpdate(BaseModel):
+    name: Optional[str] = None
+    description: Optional[str] = None
+    category: Optional[str] = None
+    flow_data: Optional[Dict[str, Any]] = None
+
 # Schema for API responses for templates
 class WorkflowTemplateResponse(WorkflowTemplateBase):
     id: uuid.UUID
+    author_id: Optional[uuid.UUID] = None
     created_at: datetime
 
     class Config:
