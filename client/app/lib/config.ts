@@ -69,6 +69,14 @@ export const API_ENDPOINTS = {
     CUSTOM: '/nodes/custom',
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
   },
+  CHAT: {
+    LIST: '/chat', // Tüm chatleri getir
+    CREATE: '/chat', // Yeni chat başlat
+    GET: (chatflow_id: string) => `/chat/${chatflow_id}`,
+    INTERACT: (chatflow_id: string) => `/chat/${chatflow_id}/interact`,
+    UPDATE: (chat_message_id: string) => `/chat/${chat_message_id}`,
+    DELETE: (chat_message_id: string) => `/chat/${chat_message_id}`,
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;
