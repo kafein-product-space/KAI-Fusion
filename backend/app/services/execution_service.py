@@ -4,11 +4,24 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from app.models.execution import WorkflowExecution
 from app.services.base import BaseService
+from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 
 
 class ExecutionService(BaseService[WorkflowExecution]):
     def __init__(self):
         super().__init__(WorkflowExecution)
+
+    async def create_execution(
+        self,
+        db: AsyncSession,
+        *,
+        execution_in: WorkflowExecutionCreate,
+    ) -> WorkflowExecution:
+        """
+        Create a new workflow execution.
+        """
+        execution = await self.create(db, obj_in=execution_in)
+        return execution
 
     async def get_workflow_executions(
         self,
@@ -29,4 +42,36 @@ class ExecutionService(BaseService[WorkflowExecution]):
             .limit(limit)
         )
         result = await db.execute(query)
-        return result.scalars().all() 
+        return result.scalars().all()
+
+    async def update_execution(
+        self,
+        db: AsyncSession,
+        execution_id: uuid.UUID,
+        execution_in: WorkflowExecutionUpdate,
+    ) -> WorkflowExecution:
+        """
+        Update a workflow execution.
+        """
+        execution = await self.get(db, execution_id)
+        if not execution:
+            raise Exception("Execution not found") # Replace with a proper HTTPException
+
+        execution = await self.update(db, db_obj=execution, obj_in=execution_in)
+        return execution
+
+    async def get_execution(
+        self,
+        db: AsyncSession,
+        execution_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> WorkflowExecution:
+        """
+        Get a specific execution by ID.
+        """
+        query = (
+            select(self.model)
+            .filter_by(id=execution_id, user_id=user_id)
+        )
+        result = await db.execute(query)
+        return result.scalars().first() 
