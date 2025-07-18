@@ -15,10 +15,6 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
   const [isHovered, setIsHovered] = useState(false);
   // modalRef ve modal ile ilgili kodlar kaldırıldı
 
-  // Get onExecute from data if not provided as prop
-  const executeHandler = onExecute || data?.onExecute;
-  const validationState = validationStatus || data?.validationStatus;
-
   const handleDeleteNode = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
@@ -28,16 +24,9 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center justify-center gap-3 border-2 text-gray-700 font-medium cursor-pointer transition-all
-          ${
-            validationState === "success"
-              ? "border-green-500"
-              : validationState === "error"
-              ? "border-red-500"
-              : "border-gray-400"
-          }
+        className={`w-18 h-18 rounded-tl-2xl rounded-bl-2xl flex items-center  justify-center gap-3 border-2 border-gray-400 text-gray-700 font-medium cursor-pointer transition-all
+         
           bg-gray-100 hover:bg-gray-200`}
-        onDoubleClick={() => executeHandler?.(id)}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Çift tıklayarak çalıştır"

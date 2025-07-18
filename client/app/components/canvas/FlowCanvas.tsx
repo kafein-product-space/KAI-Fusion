@@ -533,22 +533,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             </button>
           </div>
 
-          {currentWorkflow && (
-            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs mt-19">
-              <h3 className="font-medium text-gray-900">
-                {currentWorkflow.name}
-              </h3>
-              {currentWorkflow.description && (
-                <p className="text-sm text-gray-600 mt-1">
-                  {currentWorkflow.description}
-                </p>
-              )}
-              <div className="text-xs text-gray-500 mt-2">
-                {nodes.length} nodes, {edges.length} connections
-              </div>
-            </div>
-          )}
-
           {error && (
             <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
               <div className="text-red-800 text-sm">{error}</div>
