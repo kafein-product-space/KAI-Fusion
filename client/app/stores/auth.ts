@@ -81,7 +81,7 @@ export const useAuthStore = create<AuthState>()(
       } catch (error: any) {
         set({ 
           isLoading: false,
-          error: error.message || 'Failed to sign up'
+          error: error.response?.data?.detail || error.message || 'Failed to sign up'
         });
         throw error;
       }
@@ -106,19 +106,20 @@ export const useAuthStore = create<AuthState>()(
       } catch (error: any) {
         set({ 
           isLoading: false,
-          error: error.message || 'Failed to sign in'
+          error: error.response?.data?.detail || error.message || 'Failed to sign in'
         });
         throw error;
       }
     },
 
     signOut: async () => {
-      set({ isLoading: true });
+      set({ isLoading: true, error: null });
       
       try {
         await AuthService.signOut();
       } catch (error) {
         // Even if the API call fails, we should still clear local state
+        
         console.error('Sign out API call failed:', error);
       }
       

@@ -54,9 +54,8 @@ export default function App() {
   const { initialize } = useAuth();
 
   useEffect(() => {
-    // Initialize auth state when app loads
     initialize();
-  }, [initialize]);
+  }, []);
 
   return <Outlet />;
 }

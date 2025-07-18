@@ -172,7 +172,16 @@ function CredentialsLayout() {
           ) : error ? (
             <p className="text-red-500">{error}</p>
           ) : userCredentials.length === 0 ? (
-            <p>No credentials found</p>
+            <div className="flex flex-col items-center justify-center gap-4">
+              <div className="flex items-center justify-center">
+                <img
+                  src="/emptycredentials.svg"
+                  alt="emptycredentials"
+                  className="w-36 h-36"
+                />
+              </div>
+              <div className="text-lg font-light">No Credentials Yet</div>
+            </div>
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-300">
               <table className="w-full text-sm p-2">
