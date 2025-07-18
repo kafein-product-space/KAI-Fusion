@@ -6,6 +6,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
+import LoadingSpinner from "~/components/common/LoadingSpinner";
 
 function ExecutionsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -74,7 +75,11 @@ function ExecutionsLayout() {
           </div>
           <div>
             {error && <div className="p-4 text-red-500">{error}</div>}
-            {executions.length === 0 ? (
+            {loading ? (
+              <div className="flex items-center justify-center ">
+                <LoadingSpinner text="Loading Executions" />
+              </div>
+            ) : executions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4">
                 <div className="flex items-center justify-center">
                   <img
