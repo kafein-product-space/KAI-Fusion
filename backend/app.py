@@ -14,16 +14,16 @@ if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
 def main():
-    print("📍 Backend will be available at: http://localhost:8001")
-    print("📋 API Documentation: http://localhost:8001/docs")
-    print("🔗 Frontend should connect to: http://localhost:8001/api/v1")
+    print("📍 Backend will be available at: http://localhost:8000")
+    print("📋 API Documentation: http://localhost:8000/docs")
+    print("🔗 Frontend should connect to: http://localhost:8000/api/v1")
    
     
     try:
         # Import and run the FastAPI app
         # Production vs Development configuration
         is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        port = int(os.getenv("PORT", "8001"))
+        port = int(os.getenv("PORT", "8000"))
         
         if is_production:
             # Production configuration
