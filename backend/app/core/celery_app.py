@@ -3,6 +3,7 @@ from celery.signals import task_prerun, task_postrun, task_failure
 from app.core.config import get_settings
 from typing import Optional, Any
 import os
+from .constants import REDIS_URL
 import logging
 
 # Configure logging
@@ -13,7 +14,7 @@ def create_celery_app() -> Celery:
     """Create and configure Celery app"""
     
     # Redis connection URLs
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+    redis_url = REDIS_URL
     
     # Create Celery instance
     celery_app = Celery(

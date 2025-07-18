@@ -5,6 +5,7 @@ from typing import Dict, Any, Union, Optional
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+from .constants import CREDENTIAL_MASTER_KEY
 
 class CredentialEncryption:
     """
@@ -19,7 +20,7 @@ class CredentialEncryption:
         if master_key:
             self.master_key = master_key
         else:
-            self.master_key = os.getenv("CREDENTIAL_MASTER_KEY")
+            self.master_key = CREDENTIAL_MASTER_KEY
             
         if not self.master_key:
             # Generate a new key if none exists (for development)

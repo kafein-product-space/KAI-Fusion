@@ -1,9 +1,9 @@
 
 
-import os
 import sys
 import uvicorn
 from pathlib import Path
+from app.core.constants import ENVIRONMENT, PORT
 
 # Get the backend directory path
 backend_dir = Path(__file__).parent.absolute()
@@ -22,8 +22,8 @@ def main():
     try:
         # Import and run the FastAPI app
         # Production vs Development configuration
-        is_production = os.getenv("ENVIRONMENT", "development").lower() == "production"
-        port = int(os.getenv("PORT", "8000"))
+        is_production = ENVIRONMENT.lower() == "production"
+        port = int(PORT)
         
         if is_production:
             # Production configuration
