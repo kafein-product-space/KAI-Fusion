@@ -36,7 +36,7 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 import WorkflowService from "~/services/workflows";
-import { Eraser, Save, Plus, Minus } from "lucide-react";
+import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
@@ -155,9 +155,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [stream, setStream] = useState<ReadableStream | null>(null);
-  const [conversationMode, setConversationMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [validationStatus, setValidationStatus] = useState<
     null | "success" | "error"
@@ -477,10 +474,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
-  const toggleConversationMode = () => {
-    setConversationMode(!conversationMode);
-  };
-
   return (
     <>
       <Navbar
@@ -488,6 +481,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
         currentWorkflow={currentWorkflow}
+        isLoading={isLoading}
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}
@@ -637,31 +631,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   <span className="font-semibold text-gray-700">
                     ReAct Chat
                   </span>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      conversationMode ? "bg-green-500" : "bg-gray-400"
-                    }`}
-                    title={
-                      conversationMode
-                        ? "Continuous mode ON"
-                        : "Continuous mode OFF"
-                    }
-                  ></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setConversationMode((v) => !v)}
-                    className={`px-2 py-1 text-xs rounded ${
-                      conversationMode
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                    title="Toggle continuous conversation"
-                  >
-                    {conversationMode ? "🔄" : "📄"}
-                  </button>
-                  <button
-                    onClick={() => setActiveChatflowId(null)}
+                    onClick={handleClearChat}
                     className="text-red-400 hover:text-red-700"
                     title="Clear chat history"
                   >
@@ -676,11 +649,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatLoading && (
-                  <div className="text-xs text-gray-400">
-                    Mesajlar yükleniyor...
-                  </div>
-                )}
                 {chatError && (
                   <div className="text-xs text-red-500">{chatError}</div>
                 )}
@@ -707,6 +675,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-center justify-center text-center">
+                  {chatLoading && (
+                    <div className="text-xs text-gray-400 text center">
+                      <Loader className="animate-spin" />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="p-3 border-t flex gap-2">
                 <input
