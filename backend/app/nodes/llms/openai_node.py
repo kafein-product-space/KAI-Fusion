@@ -1,5 +1,6 @@
 from typing import Dict, Any, Optional
 import os
+from ...core.constants import OPENAI_API_KEY
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
@@ -57,7 +58,7 @@ class OpenAINode(BaseNode):
         
         # Fallback to environment variable
         if not api_key:
-            api_key = os.getenv("OPENAI_API_KEY")
+            api_key = OPENAI_API_KEY
         
         if not api_key:
             raise ValueError("OpenAI API key is required. Please provide it in the node configuration or set OPENAI_API_KEY environment variable.")

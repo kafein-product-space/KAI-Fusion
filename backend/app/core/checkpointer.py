@@ -7,6 +7,7 @@ storage for development/testing.
 """
 
 import os
+from .constants import DISABLE_DATABASE, DATABASE_URL
 import warnings
 from typing import Optional
 from langgraph.checkpoint.memory import MemorySaver
@@ -35,7 +36,7 @@ def create_checkpointer(
         BaseCheckpointSaver: Configured checkpointer instance
     """
     # Check if database is disabled via environment variable
-    database_disabled = os.getenv("DISABLE_DATABASE", "false").lower() == "true"
+    database_disabled = DISABLE_DATABASE.lower() == "true"
     
     if use_memory or database_disabled or not database_url or not _POSTGRES_AVAILABLE:
         print("🧠 Using in-memory checkpointer for development")
@@ -68,5 +69,5 @@ def get_default_checkpointer() -> BaseCheckpointSaver:
     Returns:
         BaseCheckpointSaver: Default checkpointer instance
     """
-    database_url = os.getenv("DATABASE_URL")
+    database_url = DATABASE_URL
     return create_checkpointer(database_url) 

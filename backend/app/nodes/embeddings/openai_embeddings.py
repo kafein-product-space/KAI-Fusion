@@ -1,4 +1,5 @@
 import os
+from ...core.constants import OPENAI_API_KEY
 from typing import Optional
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from langchain_openai import OpenAIEmbeddings
@@ -49,7 +50,7 @@ class OpenAIEmbeddingsNode(ProviderNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute the OpenAI embeddings node"""
-        api_key = kwargs.get("api_key") or os.getenv("OPENAI_API_KEY")
+        api_key = kwargs.get("api_key") or OPENAI_API_KEY
         
         if not api_key:
             raise ValueError("OpenAI API Key is required")

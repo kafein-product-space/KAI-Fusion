@@ -1,4 +1,5 @@
 import os
+from ...core.constants import TAVILY_API_KEY
 from ..base import ProviderNode, NodeInput, NodeType
 from langchain_community.tools.tavily_search import TavilySearchResults
 from langchain_core.runnables import Runnable
@@ -26,7 +27,7 @@ class TavilySearchNode(ProviderNode):
     def _execute(self, **kwargs) -> Runnable:
         """Execute with correct ProviderNode signature"""
         tavily_api_key = kwargs.get("tavily_api_key")
-        api_key = tavily_api_key or os.getenv("TAVILY_API_KEY")
+        api_key = tavily_api_key or TAVILY_API_KEY
         if not api_key:
             raise ValueError("Tavily API Key is required.")
         return TavilySearchResults(api_key=api_key)
