@@ -26,6 +26,9 @@ function ExecutionsLayout() {
     }
   }, [currentWorkflow, workflows, fetchExecutions]);
 
+  console.log(executions);
+  console.log(workflows);
+
   return (
     <div className="flex h-screen w-screen">
       <DashboardSidebar />
