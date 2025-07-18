@@ -27,7 +27,6 @@ import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import LLMChainNode from "../nodes/chains/LLMChainNode";
 import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
 import CustomEdge from "../common/CustomEdge";
-import StreamingModal from "../modals/other/StreamingModal";
 
 import type {
   WorkflowData,
@@ -35,7 +34,7 @@ import type {
   WorkflowEdge,
   NodeMetadata,
 } from "~/types/api";
-import WorkflowService from "~/services/workflows";
+
 import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
