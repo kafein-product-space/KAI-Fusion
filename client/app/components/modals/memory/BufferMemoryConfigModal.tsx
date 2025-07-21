@@ -13,9 +13,7 @@ const BufferMemoryConfigModal = forwardRef<
   const dialogRef = useRef<HTMLDialogElement>(null);
   useImperativeHandle(ref, () => dialogRef.current!);
 
-  const [memoryKey, setMemoryKey] = useState(
-    nodeData?.memory_key || "chat_history"
-  );
+  const [memoryKey, setMemoryKey] = useState(nodeData?.memory_key || "memory");
   const [returnMessages, setReturnMessages] = useState(
     nodeData?.return_messages ?? true
   );

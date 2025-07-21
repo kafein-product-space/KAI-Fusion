@@ -150,7 +150,7 @@ export interface WorkflowExecution {
   result: WorkflowExecutionResult;
   started_at: string;
   completed_at?: string;
-  status: 'success' | 'failed' | 'running';
+  status: 'completed' | 'failed' | 'running';
   runtime?: string;
 }
 

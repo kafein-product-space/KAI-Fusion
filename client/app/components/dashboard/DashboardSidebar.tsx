@@ -7,10 +7,14 @@ import {
   User,
   Settings,
   LogOut,
+  Moon,
+  Sun,
 } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
+import { useThemeStore } from "~/stores/theme";
+import { ThemeToggle } from "../common/ThemeToggle";
 
 const Sidebar = () => {
   const { user, signOut } = useAuth();
@@ -32,8 +36,14 @@ const Sidebar = () => {
 
   return (
     <aside className="w-64 bg-gray-50 border-r border-gray-200 p-4 flex flex-col justify-between">
+      {/* Theme Toggle */}
+
       {/* Üst bölüm: logo + ana linkler */}
       <div>
+        <div className="flex justify-end">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+        </div>
         {/* Logo */}
         <div className="font-bold text-xl mb-8">
           <Link to="/">
