@@ -33,56 +33,69 @@ const OpenAIChatNodeModal = forwardRef<
   useImperativeHandle(ref, () => dialogRef.current!);
   const { enqueueSnackbar } = useSnackbar();
 
-  // Credential store
   const { userCredentials, fetchCredentials, isLoading } =
     useUserCredentialStore();
   const [selectedCredentialId, setSelectedCredentialId] = useState<string>("");
   const [apiKeyOverride, setApiKeyOverride] = useState<string>("");
-  const [loadingSecret, setLoadingSecret] = useState(false);
+  const [loadingCredential, setLoadingCredential] = useState(false);
+
+  const formikRef = useRef<any>(null);
 
   useEffect(() => {
     fetchCredentials();
   }, [fetchCredentials]);
 
-  // Seçili credential değiştiğinde API key'i inputa yaz
   useEffect(() => {
     if (selectedCredentialId) {
-      setLoadingSecret(true);
+      setLoadingCredential(true);
       getUserCredentialSecret(selectedCredentialId)
         .then((cred) => {
           console.log("[LLM Modal] getUserCredentialSecret result:", cred);
-          if (cred && cred.secret && cred.secret.api_key) {
+          if (cred?.secret?.api_key) {
             setApiKeyOverride(cred.secret.api_key);
+            if (formikRef.current) {
+              formikRef.current.setFieldValue("api_key", cred.secret.api_key);
+            }
           } else {
             setApiKeyOverride("");
+            if (formikRef.current) {
+              formikRef.current.setFieldValue("api_key", "");
+            }
+          }
+
+          if (cred?.name && formikRef.current) {
+            formikRef.current.setFieldValue("credential_name", cred.name);
           }
         })
-        .finally(() => setLoadingSecret(false));
+        .finally(() => setLoadingCredential(false));
     } else {
       setApiKeyOverride("");
+      if (formikRef.current) {
+        formikRef.current.setFieldValue("credential_name", "");
+        formikRef.current.setFieldValue("api_key", "");
+      }
     }
   }, [selectedCredentialId]);
 
-  // Formik initialValues'u, apiKeyOverride değiştiğinde de güncellenmeli
+  const selectedCredential = userCredentials.find(
+    (cred) => cred.id === selectedCredentialId
+  );
+
   const initialValues: OpenAIChatConfig = {
     model_name: nodeData?.model_name || "gpt-3.5-turbo",
     temperature: nodeData?.temperature ?? 0.7,
     max_tokens: nodeData?.max_tokens ?? 500,
-    credential_name: nodeData?.credential_name || "",
+    credential_name:
+      selectedCredential?.name || nodeData?.credential_name || "",
     api_key: selectedCredentialId ? apiKeyOverride : nodeData?.api_key || "",
   };
 
   const validate = (values: OpenAIChatConfig) => {
     const errors: Record<string, string> = {};
-    if (!values.api_key) {
-      errors.api_key = "API Key is required";
-    }
-    if (!values.credential_name) {
+    if (!values.api_key) errors.api_key = "API Key is required";
+    if (!values.credential_name)
       errors.credential_name = "Credential name is required";
-    }
-    if (!values.model_name) {
-      errors.model_name = "Model is required";
-    }
+    if (!values.model_name) errors.model_name = "Model is required";
     if (
       values.temperature !== undefined &&
       (values.temperature < 0 || values.temperature > 2)
@@ -120,14 +133,16 @@ const OpenAIChatNodeModal = forwardRef<
       <div className="modal-box">
         <h3 className="font-bold text-lg">OpenAI Chat Ayarları</h3>
         <Formik
+          innerRef={formikRef}
           initialValues={initialValues}
           validate={validate}
           onSubmit={handleSubmit}
           enableReinitialize
         >
-          {({ isSubmitting, setFieldValue, values, touched, errors }) => (
+          {({ isSubmitting, setFieldValue, values }) => (
             <Form className="flex flex-col gap-4">
-              <div className="form-control flex flex-col gap-2">
+              {/* Model */}
+              <div className="form-control">
                 <label className="label">Model</label>
                 <Field
                   as="select"
@@ -145,7 +160,8 @@ const OpenAIChatNodeModal = forwardRef<
                 />
               </div>
 
-              <div className="form-control flex flex-col gap-2">
+              {/* Temperature */}
+              <div className="form-control">
                 <label className="label">Temperature (0 - 2)</label>
                 <Field
                   type="number"
@@ -162,7 +178,8 @@ const OpenAIChatNodeModal = forwardRef<
                 />
               </div>
 
-              <div className="form-control flex flex-col gap-2">
+              {/* Max Tokens */}
+              <div className="form-control">
                 <label className="label">Max Tokens</label>
                 <Field
                   type="number"
@@ -177,23 +194,18 @@ const OpenAIChatNodeModal = forwardRef<
               </div>
 
               {/* Credential Selector */}
-              <div className="form-control flex flex-col gap-2">
+              <div className="form-control">
                 <label className="label">Credential Seç</label>
                 <select
                   className="select select-bordered w-full"
                   value={selectedCredentialId}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                     setSelectedCredentialId(e.target.value);
-                    const cred = userCredentials.find(
-                      (c) => c.id === e.target.value
-                    );
-                    if (cred) {
-                      setFieldValue("credential_name", cred.name);
-                      // API key artık useEffect ile fetch edilecek
-                    }
                   }}
                   disabled={
-                    isLoading || userCredentials.length === 0 || loadingSecret
+                    isLoading ||
+                    userCredentials.length === 0 ||
+                    loadingCredential
                   }
                 >
                   <option value="">Bir credential seçin...</option>
@@ -203,20 +215,26 @@ const OpenAIChatNodeModal = forwardRef<
                     </option>
                   ))}
                 </select>
-                {loadingSecret && (
+                {loadingCredential && (
                   <span className="text-xs text-gray-500">
-                    API anahtarı yükleniyor...
+                    Credential yükleniyor...
                   </span>
                 )}
               </div>
+
               {/* Credential Name */}
-              <div className="form-control flex flex-col gap-2">
+              <div className="form-control">
                 <label className="label">Credential Name</label>
                 <Field
                   type="text"
                   name="credential_name"
                   className="input input-bordered w-full"
+                  value={values.credential_name}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                    setFieldValue("credential_name", e.target.value);
+                  }}
                   readOnly={!!selectedCredentialId}
+                  disabled={loadingCredential}
                 />
                 <ErrorMessage
                   name="credential_name"
@@ -224,18 +242,20 @@ const OpenAIChatNodeModal = forwardRef<
                   className="text-red-500 text-xs"
                 />
               </div>
+
               {/* API Key */}
-              <div className="form-control flex flex-col gap-2">
+              <div className="form-control">
                 <label className="label">API Key</label>
                 <Field
                   type="password"
                   name="api_key"
                   className="input input-bordered w-full"
-                  value={selectedCredentialId ? apiKeyOverride : values.api_key}
+                  value={values.api_key}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setApiKeyOverride(e.target.value);
                     setFieldValue("api_key", e.target.value);
                   }}
+                  disabled={loadingCredential}
                 />
                 <ErrorMessage
                   name="api_key"
@@ -244,6 +264,7 @@ const OpenAIChatNodeModal = forwardRef<
                 />
               </div>
 
+              {/* Buttons */}
               <div className="modal-action flex gap-2">
                 <button
                   className="btn btn-outline"
