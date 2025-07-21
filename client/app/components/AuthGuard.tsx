@@ -1,34 +1,32 @@
-import React, { useEffect } from "react";
-import { useAuthStore } from "~/stores/auth";
+import React, { useEffect, useRef } from "react";
 import { Navigate, useLocation } from "react-router";
+import { useAuthStore } from "~/stores/auth";
 
+// 🔐 PRIVATE ROUTE GUARD
 interface AuthGuardProps {
   children: React.ReactNode;
-  fallback?: string;
+  fallback?: string; // Default: /signin
 }
 
-export const AuthGuard: React.FC<AuthGuardProps> = ({
+export const AuthGuard = ({
   children,
   fallback = "/signin",
-}) => {
-  // During development we skip all auth logic so pages render without login.
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
+}: AuthGuardProps) => {
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const isLoading = useAuthStore((state) => state.isLoading);
+  const initialize = useAuthStore.getState().initialize; // 🧠 Direkt referans
 
-  const { isAuthenticated, isLoading } = useAuthStore();
+  const initialized = useRef(false); // 👈 sadece bir kez çalışsın
+
   const location = useLocation();
 
-  // Show loading state while validating session
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (typeof window !== "undefined" && !initialized.current) {
+      initialize();
+      initialized.current = true;
+    }
+  }, []);
 
-  // Redirect to signin if not authenticated
   if (!isAuthenticated) {
     return (
       <Navigate to={fallback} state={{ from: location.pathname }} replace />
@@ -38,23 +36,22 @@ export const AuthGuard: React.FC<AuthGuardProps> = ({
   return <>{children}</>;
 };
 
+// 🌐 PUBLIC ONLY GUARD
 interface PublicOnlyProps {
   children: React.ReactNode;
-  redirectTo?: string;
+  redirectTo?: string; // Default: /
 }
 
-export const PublicOnly: React.FC<PublicOnlyProps> = ({
-  children,
-  redirectTo = "/",
-}) => {
-  // Skip auth checks entirely in development
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
+export const PublicOnly = ({ children, redirectTo = "/" }: PublicOnlyProps) => {
+  const { isAuthenticated, isLoading, initialize } = useAuthStore();
 
-  const { isAuthenticated, isLoading } = useAuthStore();
+  // ✅ Initialize sadece tarayıcıda
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      initialize();
+    }
+  }, [initialize]);
 
-  // Show loading state while validating session
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
@@ -63,7 +60,6 @@ export const PublicOnly: React.FC<PublicOnlyProps> = ({
     );
   }
 
-  // Redirect to home if already authenticated
   if (isAuthenticated) {
     return <Navigate to={redirectTo} replace />;
   }

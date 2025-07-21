@@ -339,4 +339,18 @@ export interface ApiKeyCreateResponse {
   created_at: string;
   last_used_at?: string;
   key: string; // Sadece oluşturulurken döner
+}
+
+// Chat types
+export interface ChatMessage {
+  id: string;
+  chatflow_id: string;
+  role: string; // 'user' | 'bot' gibi
+  content: string;
+  source_documents?: string | null;
+  created_at: string;
+}
+
+export interface ChatMessageInput {
+  content: string;
 } 

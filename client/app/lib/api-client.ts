@@ -117,7 +117,7 @@ class ApiClient {
                 refresh_token: refreshToken
               });
               
-              const newToken = response.data.access_token;
+              const newToken = response.data?.data?.access_token || response.data?.access_token;
               TokenManager.setAccessToken(newToken);
               
               // Process the failed queue

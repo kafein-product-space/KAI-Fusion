@@ -1,4 +1,5 @@
 import os
+from ...core.constants import REDIS_URL
 from typing import Dict, Any
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -28,7 +29,7 @@ class RedisCacheNode(ProviderNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute Redis cache node"""
-        redis_url = kwargs.get("redis_url") or os.getenv("REDIS_URL", "redis://localhost:6379")
+        redis_url = kwargs.get("redis_url") or REDIS_URL
         ttl = kwargs.get("ttl", 3600)
         
         try:

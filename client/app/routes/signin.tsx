@@ -125,13 +125,6 @@ const Signin = () => {
                     <label className="block text-sm font-medium text-gray-700">
                       Password
                     </label>
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="text-sm text-purple-600 hover:text-purple-700 transition-colors duration-200"
-                    >
-                      {showPassword ? "Hide" : "Show"}
-                    </button>
                   </div>
                   <input
                     type={showPassword ? "text" : "password"}
@@ -147,9 +140,17 @@ const Signin = () => {
                     }`}
                     placeholder="••••••"
                   />
+
                   {errors.password && touched.password && (
                     <p className="text-red-500 text-sm">{errors.password}</p>
                   )}
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="text-sm text-purple-600 hover:text-purple-700 transition-colors duration-200"
+                  >
+                    {showPassword ? "Hide" : "Show"}
+                  </button>
                 </div>
 
                 {/* Login Button */}

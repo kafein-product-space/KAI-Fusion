@@ -3,13 +3,13 @@
 Handles environment variables and application settings using Pydantic Settings.
 """
 
-import os
 from typing import List, Optional
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from dotenv import load_dotenv
 import logging
 from pydantic import field_validator
+from .constants import *
 
 load_dotenv()
 
@@ -18,65 +18,53 @@ class Settings(BaseSettings):
 
     # Core settings
     APP_NAME: str = "KAI Fusion"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
+    SECRET_KEY: str = SECRET_KEY
     API_V1_STR: str = "/api/v1"
 
     # Database settings
-    CREATE_DATABASE: bool = os.getenv("CREATE_DATABASE", "false").lower() in ("true", "1", "t")
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres.xjwosoxtrzysncbjrwlt:flowisekafein1!@aws-0-eu-north-1.pooler.supabase.com:5432/postgres")
+    CREATE_DATABASE: bool = CREATE_DATABASE.lower() in ("true", "1", "t")
+    DATABASE_URL: str = DATABASE_URL
     
     # PostgreSQL settings for Supabase
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisekafein1!")
-    POSTGRES_PORT: int = int(os.getenv("DATABASE_PORT", 5432))
-    POSTGRES_HOST: str = os.getenv("DATABASE_HOST", "aws-0-eu-north-1.pooler.supabase.com")
-    DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() in ("true", "1", "t")
+    POSTGRES_DB: str = POSTGRES_DB
+    POSTGRES_USER: str = POSTGRES_USER
+    POSTGRES_PASSWORD: str = POSTGRES_PASSWORD
+    POSTGRES_PORT: int = int(DATABASE_PORT)
+    POSTGRES_HOST: str = DATABASE_HOST
+    DATABASE_SSL: bool = DATABASE_SSL.lower() in ("true", "1", "t")
     
     # Connection pooling settings for Supabase/Vercel (optimized for serverless)
-    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
-    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "2"))
-    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "5"))
-    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "1800"))
-    DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() in ("true", "1", "t")
-    
-    # Supabase specific settings
-    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
-    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
-    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
-
-    @property
-    def ASYNC_DATABASE_URL(self) -> str:
-        """Construct the asynchronous database URL from DATABASE_URL."""
-        if self.DATABASE_URL.startswith("postgresql://"):
-            return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return self.DATABASE_URL
+    DB_POOL_SIZE: int = int(DB_POOL_SIZE)
+    DB_MAX_OVERFLOW: int = int(DB_MAX_OVERFLOW)
+    DB_POOL_TIMEOUT: int = int(DB_POOL_TIMEOUT)
+    DB_POOL_RECYCLE: int = int(DB_POOL_RECYCLE)
+    DB_POOL_PRE_PING: bool = DB_POOL_PRE_PING.lower() in ("true", "1", "t")
 
     # Agent Settings
     AGENT_NODE_ID: str = "agent"
 
     # Celery Settings
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
+    CELERY_BROKER_URL: str = CELERY_BROKER_URL
+    CELERY_RESULT_BACKEND: str = CELERY_RESULT_BACKEND
 
     # OpenAI API Key
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
+    OPENAI_API_KEY: Optional[str] = OPENAI_API_KEY
 
     # Anthropic Settings
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
+    ANTHROPIC_API_KEY: Optional[str] = ANTHROPIC_API_KEY
     
     # Google Settings
-    GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY")
-    GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
+    GOOGLE_API_KEY: Optional[str] = GOOGLE_API_KEY
+    GOOGLE_CSE_ID: Optional[str] = GOOGLE_CSE_ID
     
     # Tavily Settings
-    TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
+    TAVILY_API_KEY: Optional[str] = TAVILY_API_KEY
     
     # Security
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # Add this line
-    CREDENTIAL_MASTER_KEY: Optional[str] = os.getenv("CREDENTIAL_MASTER_KEY")
+    CREDENTIAL_MASTER_KEY: Optional[str] = CREDENTIAL_MASTER_KEY
     
     # CORS Settings
     ALLOWED_ORIGINS: List[str] = [
@@ -89,25 +77,25 @@ class Settings(BaseSettings):
     ]
     
     # Logging Settings
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
+    LOG_LEVEL: str = LOG_LEVEL
     
     # LangSmith Settings (Optional)
-    LANGCHAIN_TRACING_V2: bool = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
-    LANGCHAIN_ENDPOINT: Optional[str] = os.getenv("LANGCHAIN_ENDPOINT")
-    LANGCHAIN_API_KEY: Optional[str] = os.getenv("LANGCHAIN_API_KEY")
-    LANGCHAIN_PROJECT: Optional[str] = os.getenv("LANGCHAIN_PROJECT")
+    LANGCHAIN_TRACING_V2: bool = LANGCHAIN_TRACING_V2.lower() == "true"
+    LANGCHAIN_ENDPOINT: Optional[str] = LANGCHAIN_ENDPOINT
+    LANGCHAIN_API_KEY: Optional[str] = LANGCHAIN_API_KEY
+    LANGCHAIN_PROJECT: Optional[str] = LANGCHAIN_PROJECT
     
     # Session Management
-    SESSION_TTL_MINUTES: int = int(os.getenv("SESSION_TTL_MINUTES", "30"))
-    MAX_SESSIONS: int = int(os.getenv("MAX_SESSIONS", "1000"))
+    SESSION_TTL_MINUTES: int = int(SESSION_TTL_MINUTES)
+    MAX_SESSIONS: int = int(MAX_SESSIONS)
     
     # File Upload Settings
-    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
+    MAX_FILE_SIZE: int = int(MAX_FILE_SIZE)  # 10MB
+    UPLOAD_DIR: str = UPLOAD_DIR
     
     # Rate Limiting
-    RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
-    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
+    RATE_LIMIT_REQUESTS: int = int(RATE_LIMIT_REQUESTS)
+    RATE_LIMIT_WINDOW: int = int(RATE_LIMIT_WINDOW)
     
     @field_validator('ALLOWED_ORIGINS', mode='before')
     def parse_cors_origins(cls, v):  # noqa: N805 – Pydantic validator signature

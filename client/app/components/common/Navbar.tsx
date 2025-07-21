@@ -5,6 +5,7 @@ import {
   FileUp,
   Download,
   Trash,
+  Loader,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
@@ -19,6 +20,7 @@ interface NavbarProps {
   deleteWorkflow?: (id: string) => Promise<void>;
   setNodes?: (nodes: any[]) => void;
   setEdges?: (edges: any[]) => void;
+  isLoading: boolean;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -30,6 +32,7 @@ const Navbar: React.FC<NavbarProps> = ({
   deleteWorkflow,
   setNodes,
   setEdges,
+  isLoading,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -154,10 +157,14 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
             <div>
-              <Save
-                className="text-black hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-[#6a6969] transition duration-500"
-                onClick={onSave}
-              />
+              {isLoading ? (
+                <Loader className="animate-spin text-black cursor-pointer w-10 h-10 p-2 rounded-4xl" />
+              ) : (
+                <Save
+                  className="text-black hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-[#6a6969] transition duration-500"
+                  onClick={onSave}
+                />
+              )}
             </div>
             <div className="text-xs text-[#616161] relative">
               <Settings

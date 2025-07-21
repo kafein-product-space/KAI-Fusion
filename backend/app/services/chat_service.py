@@ -1,9 +1,11 @@
 import uuid
+import base64
 from uuid import UUID
-from sqlalchemy.orm import Session
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from app.models.chat import ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageUpdate
+from app.core.encryption import encrypt_data, decrypt_data
 from collections import defaultdict
 
 # TODO: Import the actual engine and workflow execution services
@@ -11,20 +13,59 @@ from collections import defaultdict
 # from app.services.execution_service import ExecutionService
 
 class ChatService:
-    def __init__(self, db: Session):
+    def __init__(self, db: AsyncSession):
         self.db = db
+    
+    def _encrypt_content(self, content: str) -> str:
+        """
+        Encrypt chat message content and return as base64 string for database storage.
+        """
+        try:
+            encrypted_bytes = encrypt_data(content)
+            return base64.b64encode(encrypted_bytes).decode('utf-8')
+        except Exception as e:
+            raise ValueError(f"Failed to encrypt content: {e}")
+    
+    def _decrypt_content(self, encrypted_content: str) -> str:
+        """
+        Decrypt a base64 encoded encrypted content from database.
+        """
+        try:
+            encrypted_bytes = base64.b64decode(encrypted_content.encode('utf-8'))
+            decrypted_data = decrypt_data(encrypted_bytes)
+            # If decrypted_data is a dict with 'value' key, return that
+            if isinstance(decrypted_data, dict) and 'value' in decrypted_data:
+                return decrypted_data['value']
+            # Otherwise, convert dict to string or return as-is
+            return str(decrypted_data) if isinstance(decrypted_data, dict) else decrypted_data
+        except Exception:
+            # If decryption fails, it might be an unencrypted legacy content
+            # Keep as-is for backward compatibility
+            return encrypted_content
+    
+    def _prepare_message_response(self, message: ChatMessage) -> ChatMessage:
+        """
+        Decrypt the message content for API response.
+        """
+        if message and message.content:
+            message.content = self._decrypt_content(message.content)
+        return message
 
     async def create_chat_message(self, chat_message: ChatMessageCreate) -> ChatMessage:
+        encrypted_content = self._encrypt_content(chat_message.content)
+        
         db_chat_message = ChatMessage(
             role=chat_message.role,
             chatflow_id=chat_message.chatflow_id,
-            content=chat_message.content,
+            content=encrypted_content,
             source_documents=chat_message.source_documents,
         )
         self.db.add(db_chat_message)
         await self.db.commit()
         await self.db.refresh(db_chat_message)
-        return db_chat_message
+        
+        # Return with decrypted content for API response
+        return self._prepare_message_response(db_chat_message)
 
     async def get_all_chats_grouped(self) -> dict[UUID, list[ChatMessage]]:
         """
@@ -34,10 +75,11 @@ class ChatService:
         result = await self.db.execute(stmt)
         all_messages = result.scalars().all()
         
-        # Group messages by chatflow_id
+        # Group messages by chatflow_id and decrypt content
         grouped_chats = defaultdict(list)
         for message in all_messages:
-            grouped_chats[message.chatflow_id].append(message)
+            decrypted_message = self._prepare_message_response(message)
+            grouped_chats[message.chatflow_id].append(decrypted_message)
             
         return grouped_chats
 
@@ -45,7 +87,8 @@ class ChatService:
         result = await self.db.execute(
             select(ChatMessage).filter(ChatMessage.chatflow_id == chatflow_id)
         )
-        return result.scalars().all()
+        messages = result.scalars().all()
+        return [self._prepare_message_response(msg) for msg in messages]
 
     async def update_chat_message(self, chat_message_id: UUID, chat_message_update: ChatMessageUpdate) -> list[ChatMessage]:
         result = await self.db.execute(select(ChatMessage).filter(ChatMessage.id == chat_message_id))
@@ -58,7 +101,10 @@ class ChatService:
         if db_chat_message.role != 'user':
             update_data = chat_message_update.dict(exclude_unset=True)
             for key, value in update_data.items():
-                setattr(db_chat_message, key, value)
+                if key == 'content' and value is not None:
+                    setattr(db_chat_message, key, self._encrypt_content(value))
+                else:
+                    setattr(db_chat_message, key, value)
             await self.db.commit()
             return await self.get_chat_messages(db_chat_message.chatflow_id)
 
@@ -76,13 +122,14 @@ class ChatService:
         # 2. Update the user's message content
         new_content = chat_message_update.content
         if new_content is not None:
-            db_chat_message.content = new_content
+            db_chat_message.content = self._encrypt_content(new_content)
 
         # 3. Regenerate a new response from the LLM (placeholder)
         llm_response_content = f"This is a regenerated response to: '{new_content}'"
+        encrypted_llm_content = self._encrypt_content(llm_response_content)
         llm_message = ChatMessage(
             role="assistant",
-            content=llm_response_content,
+            content=encrypted_llm_content,
             chatflow_id=chatflow_id
         )
         self.db.add(llm_message)
@@ -127,7 +174,7 @@ class ChatService:
         # 3. Trigger the LLM workflow (placeholder)
         llm_response_content = f"This is a simulated LLM response to your first message: '{user_input}'"
 
-        # 4. Save LLM's response
+        # 4. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
             role="assistant",
             content=llm_response_content,
@@ -154,7 +201,7 @@ class ChatService:
         # llm_response_content = execution_service.run_workflow(workflow_id, {"input": user_input})
         llm_response_content = f"This is a simulated LLM response to: '{user_input}'"
 
-        # 3. Save LLM's response
+        # 3. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
             role="assistant",
             content=llm_response_content,

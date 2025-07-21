@@ -1,4 +1,3 @@
-// Environment configuration for the application
 interface Config {
   API_BASE_URL: string;
   API_VERSION: string;
@@ -8,25 +7,24 @@ interface Config {
 }
 
 const getConfig = (): Config => {
-  // Check if we're in development by looking at the hostname
-  const isDevelopment = typeof window !== 'undefined' && 
-    (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
-  
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiVersion = import.meta.env.VITE_API_VERSION;
+  const appName = import.meta.env.VITE_APP_NAME;
+  const env = import.meta.env.VITE_NODE_ENV;
+  const enableLogging = import.meta.env.VITE_ENABLE_LOGGING === 'true';
+
   return {
-    API_BASE_URL: isDevelopment 
-      ? 'http://localhost:8001' 
-      : 'https://mwrkgmxbth.us-east-1.awsapprunner.com',
-    API_VERSION: '/api/v1',
-    APP_NAME: 'KAI-Fusion',
-    ENVIRONMENT: isDevelopment ? 'development' : 'production',
-    ENABLE_LOGGING: isDevelopment,
+    API_BASE_URL: apiBaseUrl,
+    API_VERSION: apiVersion,
+    APP_NAME: appName,
+    ENVIRONMENT: env,
+    ENABLE_LOGGING: enableLogging,
   };
 };
 
 export const config = getConfig();
 
 export const API_ENDPOINTS = {
-  // Authentication
   AUTH: {
     SIGNUP: '/auth/signup',
     SIGNIN: '/auth/signin',
@@ -35,19 +33,18 @@ export const API_ENDPOINTS = {
     ME: '/auth/me',
   },
   CREDENTIALS: {
-    LIST: '/credentials', // GET: listele
-    CREATE: '/credentials', // POST: oluştur
+    LIST: '/credentials',
+    CREATE: '/credentials',
     GET: (id: string) => `/credentials/${id}`,
     UPDATE: (id: string) => `/credentials/${id}`,
     DELETE: (id: string) => `/credentials/${id}`,
   },
   API_KEYS: {
-    LIST: '/api-keys', // GET: listele
-    CREATE: '/api-keys', // POST: oluştur
+    LIST: '/api-keys',
+    CREATE: '/api-keys',
     UPDATE: (id: string) => `/api-keys/${id}`,
     DELETE: (id: string) => `/api-keys/${id}`,
   },
-  // Workflows
   WORKFLOWS: {
     LIST: '/workflows',
     CREATE: '/workflows',
@@ -66,14 +63,25 @@ export const API_ENDPOINTS = {
     CREATE_TEMPLATE: '/workflows/templates/',
     CREATE_TEMPLATE_FROM_WORKFLOW: (id: string) => `/workflows/${id}/create-template`,
   },
-  // Nodes
   NODES: {
     LIST: '/nodes',
     CATEGORIES: '/nodes/categories',
     CUSTOM: '/nodes/custom',
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
   },
-  // Health
+  CHAT: {
+    LIST: '/chat', // Tüm chatleri getir
+    CREATE: '/chat', // Yeni chat başlat
+    GET: (chatflow_id: string) => `/chat/${chatflow_id}`,
+    INTERACT: (chatflow_id: string) => `/chat/${chatflow_id}/interact`,
+    UPDATE: (chat_message_id: string) => `/chat/${chat_message_id}`,
+    DELETE: (chat_message_id: string) => `/chat/${chat_message_id}`,
+  },
+  EXECUTIONS: {
+    LIST: '/executions',
+    CREATE: '/executions',
+    GET: (id: string) => `/executions/${id}`,
+  },
   HEALTH: '/health',
   INFO: '/info',
-} as const; 
+} as const;

@@ -3,6 +3,7 @@ import json
 import logging
 import uuid
 from typing import Any, Dict, Optional, AsyncGenerator, List
+from datetime import datetime
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -24,7 +25,11 @@ from app.schemas.workflow import (
     WorkflowTemplateResponse
 )
 from app.services.workflow_service import WorkflowService, WorkflowTemplateService
-from app.services.dependencies import get_workflow_service_dep, get_workflow_template_service_dep
+from app.services.dependencies import get_workflow_service_dep, get_workflow_template_service_dep, get_execution_service_dep
+from app.services.execution_service import ExecutionService
+from app.services.chat_service import ChatService
+from app.schemas.chat import ChatMessageCreate
+from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -462,12 +467,38 @@ class AdhocExecuteRequest(BaseModel):
     flow_data: Dict[str, Any]
     input_text: str = "Hello"
     session_id: Optional[str] = None
+    chatflow_id: Optional[str] = None  # Yeni eklenen alan
+    workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
 
+
+def _make_chunk_serializable(obj):
+    """Convert any object to a JSON-serializable format."""
+    from datetime import datetime, date
+    import uuid as uuid_mod
+    if obj is None or isinstance(obj, (bool, int, float, str)):
+        return obj
+    elif isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+    elif isinstance(obj, uuid_mod.UUID):
+        return str(obj)
+    elif isinstance(obj, (list, tuple)):
+        return [_make_chunk_serializable(item) for item in obj]
+    elif isinstance(obj, dict):
+        return {k: _make_chunk_serializable(v) for k, v in obj.items()}
+    elif hasattr(obj, 'model_dump'):
+        try:
+            return obj.model_dump()
+        except Exception:
+            return str(obj)
+    else:
+        return str(obj)
 
 @router.post("/execute")
 async def execute_adhoc_workflow(
     req: AdhocExecuteRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),  # DB session ekle
+    execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
     """
     Execute a workflow directly from flow data and stream the output.
@@ -483,6 +514,43 @@ async def execute_adhoc_workflow(
         "user_email": user_email
     }
 
+    # --- EXECUTION KAYDI OLUŞTUR ---
+    execution = None
+    if req.workflow_id:
+        try:
+            execution_create = WorkflowExecutionCreate(
+                workflow_id=uuid.UUID(req.workflow_id),
+                user_id=user_id,
+                status="pending",
+                inputs={"input": req.input_text, "flow_data": req.flow_data}
+            )
+            execution = await execution_service.create_execution(db, execution_in=execution_create)
+            logger.info(f"Created execution {execution.id} for workflow {req.workflow_id}")
+        except Exception as e:
+            logger.error(f"Failed to create execution record: {e}", exc_info=True)
+            # Execution kaydı oluşturulamazsa devam et ama log'la
+
+    # --- CHAT ENTEGRASYONU ---
+    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
+    chat_service = ChatService(db)
+    # Kullanıcı mesajını kaydet
+    await chat_service.create_chat_message(ChatMessageCreate(
+        role="user",
+        content=req.input_text,
+        chatflow_id=chatflow_id
+    ))
+
+    # Execution başlatıldığını işaretle
+    if execution:
+        try:
+            await execution_service.update_execution(
+                db,
+                execution.id,
+                WorkflowExecutionUpdate(status="running", started_at=datetime.utcnow())
+            )
+        except Exception as e:
+            logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
+
     try:
         engine.build(flow_data=req.flow_data, user_context=user_context)
         result_stream = await engine.execute(
@@ -492,44 +560,56 @@ async def execute_adhoc_workflow(
         )
     except Exception as e:
         logger.error(f"Error during graph build or execution: {e}", exc_info=True)
+        
+        # Execution hatası kaydet
+        if execution:
+            try:
+                await execution_service.update_execution(
+                    db,
+                    execution.id,
+                    WorkflowExecutionUpdate(
+                        status="failed",
+                        error_message=str(e),
+                        completed_at=datetime.utcnow()
+                    )
+                )
+            except Exception as update_e:
+                logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
+        
         raise HTTPException(status_code=400, detail=f"Failed to run workflow: {e}")
 
-    def _make_chunk_serializable(obj):
-        """Convert any object to a JSON-serializable format."""
-        from datetime import datetime, date
-        import uuid
-        
-        if obj is None or isinstance(obj, (bool, int, float, str)):
-            return obj
-        elif isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        elif isinstance(obj, uuid.UUID):
-            return str(obj)
-        elif isinstance(obj, (list, tuple)):
-            return [_make_chunk_serializable(item) for item in obj]
-        elif isinstance(obj, dict):
-            return {k: _make_chunk_serializable(v) for k, v in obj.items()}
-        elif hasattr(obj, 'model_dump'):
-            try:
-                return obj.model_dump()
-            except Exception:
-                return str(obj)
-        else:
-            return str(obj)
-    
+    # LLM cevabını almak için ilk chunk'ı yakala ve chat'e kaydet
     async def event_generator():
+        llm_output = ""
+        final_outputs = {}
+        execution_completed = False
+        
         try:
             if not isinstance(result_stream, AsyncGenerator):
                 raise TypeError("Expected an async generator from the engine for streaming.")
 
             async for chunk in result_stream:
+                if isinstance(chunk, dict):
+                    if chunk.get("type") == "token":
+                        llm_output += chunk.get("content", "")
+                    elif chunk.get("type") == "output":
+                        llm_output += chunk.get("output", "")
+                    elif chunk.get("type") == "complete":
+                        result = chunk.get("result")
+                        if isinstance(result, str):
+                            llm_output += result
+                            final_outputs["output"] = result
+                        elif isinstance(result, dict):
+                            if "output" in result:
+                                llm_output += result["output"]
+                            final_outputs.update(result)
+                        execution_completed = True
+                
                 # Make chunk serializable before JSON conversion
                 try:
-                    # Use the same serialization method as the graph builder
                     serialized_chunk = _make_chunk_serializable(chunk)
                     yield f"data: {json.dumps(serialized_chunk)}\n\n"
                 except (TypeError, ValueError) as e:
-                    # Handle non-serializable objects
                     logger.warning(f"Non-serializable chunk: {e}")
                     safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
                     yield f"data: {json.dumps(safe_chunk)}\n\n"
@@ -537,5 +617,44 @@ async def execute_adhoc_workflow(
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data)}\n\n"
+            
+            # Execution hatası kaydet
+            if execution:
+                try:
+                    await execution_service.update_execution(
+                        db,
+                        execution.id,
+                        WorkflowExecutionUpdate(
+                            status="failed",
+                            error_message=str(e),
+                            completed_at=datetime.utcnow()
+                        )
+                    )
+                except Exception as update_e:
+                    logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
+        finally:
+            # LLM cevabını chat'e kaydet
+            if llm_output:
+                await chat_service.create_chat_message(ChatMessageCreate(
+                    role="assistant",
+                    content=llm_output,
+                    chatflow_id=chatflow_id
+                ))
+            
+            # Execution başarıyla tamamlandığını kaydet
+            if execution and execution_completed:
+                try:
+                    await execution_service.update_execution(
+                        db,
+                        execution.id,
+                        WorkflowExecutionUpdate(
+                            status="completed",
+                            outputs=final_outputs,
+                            completed_at=datetime.utcnow()
+                        )
+                    )
+                    logger.info(f"Execution {execution.id} completed successfully")
+                except Exception as update_e:
+                    logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")

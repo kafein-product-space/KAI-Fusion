@@ -1,6 +1,47 @@
 import React from "react";
 import type { ReactElement } from "react";
-import { Archive, ArrowDownToLine, ArrowUpToLine, Binary, BookOpen, Bot, Braces, Brain, Calculator, CalculatorIcon, Cloud, Database, DatabaseZap, FilePen, FileText, FileTextIcon, GitBranch, GitCompare, Globe, Layers, Link, Link2, ListOrdered, MemoryStick, MessageCircle, Notebook, PenLine, Play, Repeat, Search, ServerCog, Settings, Settings2, Sparkles, Split, SplitSquareHorizontal, SquareCode, Text, Type,  } from "lucide-react";
+import {
+  Archive,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  Binary,
+  BookOpen,
+  Bot,
+  Braces,
+  Brain,
+  Calculator,
+  CalculatorIcon,
+  Cloud,
+  Database,
+  DatabaseZap,
+  FilePen,
+  FileText,
+  FileTextIcon,
+  GitBranch,
+  GitCompare,
+  Globe,
+  Layers,
+  Link,
+  Link2,
+  ListOrdered,
+  MemoryStick,
+  MessageCircle,
+  Notebook,
+  PenLine,
+  Play,
+  Repeat,
+  Search,
+  ServerCog,
+  Settings,
+  Settings2,
+  Sparkles,
+  Split,
+  SplitSquareHorizontal,
+  Square,
+  SquareCode,
+  Text,
+  Type,
+} from "lucide-react";
 
 interface NodeType {
   id: string;
@@ -231,6 +272,7 @@ c0-3.774,3.982-6.22,7.348-4.514l126.06,63.881C304.363,229.873,304.298,235.248,30
   PineconeVectorStore: <Cloud />,
   QdrantVectorStore: <Database />,
   WeaviateVectorStore: <ServerCog />,
+  EndNode: <Square />,
 
   // Yeni node tipleri buraya eklenebilir
 };
