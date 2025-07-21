@@ -19,6 +19,7 @@ from .workflow_service import WorkflowService
 from .execution_service import ExecutionService
 from .credential_service import CredentialService
 from .task_service import TaskService
+from .variable_service import VariableService
 
 __all__ = [
     "BaseService",
@@ -27,4 +28,5 @@ __all__ = [
     "ExecutionService",
     "CredentialService",
     "TaskService",
+    "VariableService",
 ] 
