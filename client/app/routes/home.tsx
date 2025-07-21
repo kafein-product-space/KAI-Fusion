@@ -69,10 +69,8 @@ function DashboardLayout() {
     { label: "Run time", statKey: "runtime" },
   ];
 
-  // Dummy chart data generation
   const generateChartData = (): ChartData[] => {
     const rawValue = statsData[selectedPeriod][selectedStat];
-
     const baseValue =
       typeof rawValue === "string"
         ? parseFloat(rawValue.replace(/[^0-9.]/g, ""))
@@ -85,20 +83,22 @@ function DashboardLayout() {
   };
 
   const chartData = generateChartData();
+  const isDarkMode =
+    typeof window !== "undefined"
+      ? document.documentElement.classList.contains("dark")
+      : false;
 
   return (
-    <div className="flex h-screen w-screen ">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
 
-      <main className="flex-1 p-10 m-10  bg-white dark:bg-[#18181b] text-black dark:text-gray-100">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex flex-col items-start gap-4 justify-between mb-6">
             <div className="flex items-center justify-between w-full">
               <div>
-                <h1 className="text-4xl font-medium text-start text-black dark:text-gray-100">
-                  Overview
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300">
+                <h1 className="text-4xl font-medium text-start">Overview</h1>
+                <p className="text-muted-foreground">
                   Get an overview of your activity, recent executions, and
                   system health at a glance.
                 </p>
@@ -128,7 +128,7 @@ function DashboardLayout() {
                     : "border-b border-gray-200 dark:border-gray-700"
                 }`}
               >
-                <div className="text-xs text-gray-600 dark:text-gray-300 mb-1 flex flex-col justify-start items-start">
+                <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
                   {stat.label} <br />
                   {selectedPeriod === "7days"
                     ? "Last 7 days"
@@ -149,27 +149,31 @@ function DashboardLayout() {
               <LineChart data={chartData}>
                 <XAxis
                   dataKey="name"
-                  stroke="#888"
-                  tick={{ fill: "#888" }}
-                  tickLine={{ stroke: "#888" }}
-                  axisLine={{ stroke: "#888" }}
+                  stroke={isDarkMode ? "#ccc" : "#888"}
+                  tick={{ fill: isDarkMode ? "#ccc" : "#888" }}
+                  tickLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                  axisLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
                 />
                 <YAxis
-                  stroke="#888"
-                  tick={{ fill: "#888" }}
-                  tickLine={{ stroke: "#888" }}
-                  axisLine={{ stroke: "#888" }}
+                  stroke={isDarkMode ? "#ccc" : "#888"}
+                  tick={{ fill: isDarkMode ? "#ccc" : "#888" }}
+                  tickLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                  axisLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
                 />
                 <Tooltip
                   contentStyle={{
-                    background: "#23272f",
-                    color: "#fff",
+                    background: isDarkMode ? "#1f2937" : "#fff",
+                    color: isDarkMode ? "#fff" : "#000",
                     border: "1px solid #444",
                   }}
-                  itemStyle={{ color: "#fff" }}
-                  labelStyle={{ color: "#fff" }}
+                  itemStyle={{
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                  labelStyle={{
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
                   wrapperStyle={{ zIndex: 50 }}
-                  cursor={{ fill: "#333", opacity: 0.1 }}
+                  cursor={{ fill: isDarkMode ? "#fff" : "#333", opacity: 0.05 }}
                 />
                 <Line
                   type="monotone"
