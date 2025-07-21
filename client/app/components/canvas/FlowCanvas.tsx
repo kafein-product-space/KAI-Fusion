@@ -155,9 +155,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [validationStatus, setValidationStatus] = useState<
-    null | "success" | "error"
-  >(null);
 
   const {
     currentWorkflow,
@@ -166,12 +163,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     error,
     hasUnsavedChanges,
     setHasUnsavedChanges,
-    executeWorkflow,
     fetchWorkflows,
     updateWorkflow,
     createWorkflow,
-    executionResult,
-    clearExecutionResult,
     fetchWorkflow,
   } = useWorkflows();
 
@@ -203,10 +197,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           // Tekil workflow'u doğrudan fetch et
           await fetchWorkflow(workflowId);
         } else {
-          const fetchedWorkflows = await fetchWorkflows();
-          if (fetchedWorkflows && fetchedWorkflows.length > 0) {
-            setCurrentWorkflow(fetchedWorkflows[0]);
-          }
+          await fetchWorkflows();
         }
       } catch (error) {
         setCurrentWorkflow(null);
@@ -279,7 +270,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           `🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`
         );
         // Use callback to prevent infinite loop
-        setEdges((prevEdges) => {
+        setEdges((prevEdges: Edge[]) => {
           if (prevEdges.length !== validEdges.length) {
             return validEdges;
           }
@@ -387,39 +378,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
-  // StartNode execution handler
-  const handleStartNodeExecute = useCallback(
-    async (nodeId: string) => {
-      enqueueSnackbar("Workflow çalıştırılıyor...", { variant: "info" });
-
-      const node = nodes.find((n) => n.id === nodeId);
-      console.log("Çift tıklanan nodeId:", nodeId, nodes);
-      if (!node) {
-        enqueueSnackbar("Start node bulunamadı.", { variant: "warning" });
-        return;
-      }
-
-      const flowData: WorkflowData = {
-        nodes: nodes as WorkflowNode[],
-        edges: edges as WorkflowEdge[],
-      };
-
-      try {
-        await executeWorkflow({
-          flow_data: flowData,
-          input_text: chatInput,
-        });
-
-        enqueueSnackbar(`Execution completed!`, { variant: "success" });
-      } catch (error) {
-        console.error("Execution error:", error);
-        enqueueSnackbar("Workflow execution failed", { variant: "error" });
-        return;
-      }
-    },
-    [nodes, edges, executeWorkflow, enqueueSnackbar, chatInput]
-  );
-
   // Use stable nodeTypes - pass handlers via node data instead
   const nodeTypes = baseNodeTypes;
   const handleClear = useCallback(() => {
@@ -449,10 +407,19 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     };
 
     try {
+      if (!currentWorkflow) {
+        enqueueSnackbar("Bir workflow seçili değil!", { variant: "warning" });
+        return;
+      }
       if (!activeChatflowId) {
-        await startLLMChat(flowData, userMessage);
+        await startLLMChat(flowData, userMessage, currentWorkflow.id);
       } else {
-        await sendLLMMessage(flowData, userMessage, activeChatflowId);
+        await sendLLMMessage(
+          flowData,
+          userMessage,
+          activeChatflowId,
+          currentWorkflow.id
+        );
       }
     } catch (e: any) {
       // Hata mesajını chat'e ekle
@@ -538,22 +505,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             </div>
           )}
 
-          {executionResult && (
-            <div className="absolute bottom-4 left-4 z-10 bg-green-50 border border-green-200 rounded-lg p-3 max-w-md">
-              <div className="text-green-800 text-sm">
-                <strong>Execution Result:</strong>
-                <pre className="mt-1 text-xs overflow-auto max-h-32">
-                  {JSON.stringify(executionResult.result, null, 2)}
-                </pre>
-              </div>
-              <button
-                onClick={clearExecutionResult}
-                className="mt-2 text-xs text-green-600 hover:text-green-800"
-              >
-                Close
-              </button>
-            </div>
-          )}
+          {/* executionResult and clearExecutionResult removed */}
 
           <div
             ref={reactFlowWrapper}
@@ -566,10 +518,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 ...node,
                 data: {
                   ...node.data,
-                  ...(node.type === "StartNode" && {
-                    onExecute: handleStartNodeExecute,
-                    validationStatus: validationStatus,
-                  }),
+                  // StartNode'a özel onExecute ve validationStatus kaldırıldı
                 },
               }))}
               edges={edges}
