@@ -12,6 +12,7 @@ import "./app.css";
 import { SnackbarProvider } from "notistack";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useThemeStore } from "./stores/theme";
+import { useEffect } from "react";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -28,6 +29,7 @@ export const links: Route.LinksFunction = () => [
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeStore();
+
   return (
     <html lang="en" className="h-full" data-theme={mode}>
       <head>

@@ -118,8 +118,6 @@ export const useAuthStore = create<AuthState>()(
       try {
         await AuthService.signOut();
       } catch (error) {
-        // Even if the API call fails, we should still clear local state
-        
         console.error('Sign out API call failed:', error);
       }
       

@@ -4,6 +4,7 @@ import FlowCanvas from "../components/canvas/FlowCanvas";
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import "@xyflow/react/dist/style.css";
 import { useLocation } from "react-router";
+import AuthGuard from "~/components/AuthGuard";
 
 export default function App() {
   const location = useLocation();
@@ -11,14 +12,16 @@ export default function App() {
   const workflowId = searchParams.get("workflow");
 
   return (
-    <ErrorBoundary>
-      <ReactFlowProvider>
-        <div className="w-full h-screen flex flex-col">
-          <div className="flex-1 flex">
-            <FlowCanvas workflowId={workflowId || undefined} />
+    <AuthGuard>
+      <ErrorBoundary>
+        <ReactFlowProvider>
+          <div className="w-full h-screen flex flex-col">
+            <div className="flex-1 flex">
+              <FlowCanvas workflowId={workflowId || undefined} />
+            </div>
           </div>
-        </div>
-      </ReactFlowProvider>
-    </ErrorBoundary>
+        </ReactFlowProvider>
+      </ErrorBoundary>
+    </AuthGuard>
   );
 }

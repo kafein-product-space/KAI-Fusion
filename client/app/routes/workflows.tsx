@@ -25,6 +25,7 @@ import { timeAgo } from "~/lib/dateFormatter";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
 import { useSnackbar } from "notistack";
+import AuthGuard from "~/components/AuthGuard";
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center py-8">
@@ -534,5 +535,9 @@ function WorkflowsLayout() {
 }
 
 export default function ProtectedWorkflowsLayout() {
-  return <WorkflowsLayout />;
+  return (
+    <AuthGuard>
+      <WorkflowsLayout />
+    </AuthGuard>
+  );
 }

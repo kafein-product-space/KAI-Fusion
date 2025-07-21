@@ -29,8 +29,6 @@ const Sidebar = () => {
       router("/signin");
     } catch (error) {
       console.error("Logout failed:", error);
-      // Even if logout fails, redirect to signin
-      router("/signin");
     }
   };
 

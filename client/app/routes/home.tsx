@@ -7,6 +7,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useAuth } from "~/stores/auth";
 
@@ -174,5 +175,9 @@ function DashboardLayout() {
 }
 
 export default function ProtectedDashboardLayout() {
-  return <DashboardLayout />;
+  return (
+    <AuthGuard>
+      <DashboardLayout />
+    </AuthGuard>
+  );
 }

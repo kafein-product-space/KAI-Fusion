@@ -16,6 +16,7 @@ import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
 import LoadingSpinner from "~/components/common/LoadingSpinner";
+import AuthGuard from "~/components/AuthGuard";
 
 function CredentialsLayout() {
   const {
@@ -544,5 +545,9 @@ function CredentialsLayout() {
 }
 
 export default function ProtectedCredentialsLayout() {
-  return <CredentialsLayout />;
+  return (
+    <AuthGuard>
+      <CredentialsLayout />
+    </AuthGuard>
+  );
 }

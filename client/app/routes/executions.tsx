@@ -14,6 +14,7 @@ import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
 import LoadingSpinner from "~/components/common/LoadingSpinner";
+import AuthGuard from "~/components/AuthGuard";
 
 function ExecutionsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -256,5 +257,9 @@ function ExecutionsLayout() {
 }
 
 export default function ProtectedExecutionsLayout() {
-  return <ExecutionsLayout />;
+  return (
+    <AuthGuard>
+      <ExecutionsLayout />
+    </AuthGuard>
+  );
 }
