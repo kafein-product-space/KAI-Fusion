@@ -131,7 +131,8 @@ class ApiClient {
               TokenManager.clearTokens();
               // Redirect to login
               if (typeof window !== 'undefined') {
-                window.location.href = '/signin';
+                window.history.pushState({}, '', '/signin');
+                window.dispatchEvent(new PopStateEvent('popstate'));
               }
             }
           } catch (refreshError) {
@@ -139,7 +140,8 @@ class ApiClient {
             TokenManager.clearTokens();
             // Redirect to login
             if (typeof window !== 'undefined') {
-              window.location.href = '/signin';
+              window.history.pushState({}, '', '/signin');
+              window.dispatchEvent(new PopStateEvent('popstate'));
             }
             return Promise.reject(refreshError);
           } finally {
@@ -168,37 +170,42 @@ class ApiClient {
     if (config.ENABLE_LOGGING) {
       console.error('API Error:', error);
     }
-
+  
     let apiError: ApiError = {
       message: 'An unexpected error occurred',
       status: 500,
     };
-
+  
     if (error.response) {
-      // Server responded with error status
       const errorData = error.response.data as any;
+  
+      // 🔥 Burayı güncelledik
+      const message =
+        errorData?.message ||
+        errorData?.detail || // <--- burası önemli
+        error.message;
+  
       apiError = {
-        message: errorData?.message || error.message,
+        message,
         status: error.response.status,
         code: errorData?.code,
         details: errorData?.details,
       };
     } else if (error.request) {
-      // Request was made but no response received
       apiError = {
         message: 'Network error - please check your connection',
         status: 0,
       };
     } else {
-      // Something else happened
       apiError = {
         message: error.message,
         status: 0,
       };
     }
-
+  
     return apiError;
   }
+  
 
   // Generic HTTP methods
   async get<T = any>(url: string, config?: any): Promise<T> {

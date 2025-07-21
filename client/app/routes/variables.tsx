@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
 
 interface VariableFormValues {
   name: string;
@@ -456,9 +455,5 @@ function VariablesLayout() {
 }
 
 export default function ProtectedVariablesLayout() {
-  return (
-    <AuthGuard>
-      <VariablesLayout />
-    </AuthGuard>
-  );
+  return <VariablesLayout />;
 }

@@ -9,7 +9,6 @@ import {
   X,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
-import { AuthGuard } from "../components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
@@ -257,9 +256,5 @@ function ExecutionsLayout() {
 }
 
 export default function ProtectedExecutionsLayout() {
-  return (
-    <AuthGuard>
-      <ExecutionsLayout />
-    </AuthGuard>
-  );
+  return <ExecutionsLayout />;
 }

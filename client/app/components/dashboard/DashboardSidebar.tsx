@@ -40,7 +40,7 @@ const Sidebar = () => {
 
       {/* Üst bölüm: logo + ana linkler */}
       <div>
-        <div className="flex justify-end">
+        <div className="flex justify-start">
           {/* Theme Toggle */}
           <ThemeToggle />
         </div>

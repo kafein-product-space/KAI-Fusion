@@ -11,7 +11,7 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
+
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
@@ -544,9 +544,5 @@ function CredentialsLayout() {
 }
 
 export default function ProtectedCredentialsLayout() {
-  return (
-    <AuthGuard>
-      <CredentialsLayout />
-    </AuthGuard>
-  );
+  return <CredentialsLayout />;
 }

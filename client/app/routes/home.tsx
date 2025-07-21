@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { AuthGuard } from "../components/AuthGuard";
 import {
   LineChart,
   Line,
@@ -175,9 +174,5 @@ function DashboardLayout() {
 }
 
 export default function ProtectedDashboardLayout() {
-  return (
-    <AuthGuard>
-      <DashboardLayout />
-    </AuthGuard>
-  );
+  return <DashboardLayout />;
 }

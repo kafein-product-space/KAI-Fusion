@@ -15,7 +15,7 @@ import React, { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
-import { AuthGuard } from "~/components/AuthGuard";
+
 import type {
   Workflow,
   WorkflowCreateRequest,
@@ -534,9 +534,5 @@ function WorkflowsLayout() {
 }
 
 export default function ProtectedWorkflowsLayout() {
-  return (
-    <AuthGuard>
-      <WorkflowsLayout />
-    </AuthGuard>
-  );
+  return <WorkflowsLayout />;
 }

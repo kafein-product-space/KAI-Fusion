@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
 
 interface TemplateFormValues {
   name: string;
@@ -472,9 +471,5 @@ function TemplatesLayout() {
 }
 
 export default function ProtectedTemplatesLayout() {
-  return (
-    <AuthGuard>
-      <TemplatesLayout />
-    </AuthGuard>
-  );
+  return <TemplatesLayout />;
 }
