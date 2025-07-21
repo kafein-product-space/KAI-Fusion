@@ -69,8 +69,6 @@ class Settings(BaseSettings):
     GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY")
     GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
     
-    # Tavily Settings
-    TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
     
     # Security
     ALGORITHM: str = "HS256"
@@ -96,6 +94,12 @@ class Settings(BaseSettings):
     LANGCHAIN_ENDPOINT: Optional[str] = os.getenv("LANGCHAIN_ENDPOINT")
     LANGCHAIN_API_KEY: Optional[str] = os.getenv("LANGCHAIN_API_KEY")
     LANGCHAIN_PROJECT: Optional[str] = os.getenv("LANGCHAIN_PROJECT")
+    ENABLE_WORKFLOW_TRACING: bool = os.getenv("ENABLE_WORKFLOW_TRACING", "false").lower() == "true"
+    TRACE_MEMORY_OPERATIONS: bool = os.getenv("TRACE_MEMORY_OPERATIONS", "false").lower() == "true"
+    TRACE_AGENT_REASONING: bool = os.getenv("TRACE_AGENT_REASONING", "false").lower() == "true"
+
+    # Tavily API Key
+    TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
     
     # Session Management
     SESSION_TTL_MINUTES: int = int(os.getenv("SESSION_TTL_MINUTES", "30"))

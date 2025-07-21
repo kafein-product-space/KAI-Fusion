@@ -19,11 +19,18 @@ sync_connection_args = {
 }
 
 async_connection_args = {
-    "poolclass": NullPool,  # Use NullPool for async connections
+    # Note: AsyncEngine automatically uses AsyncAdaptedQueuePool
+    "pool_size": settings.DB_POOL_SIZE,
+    "max_overflow": settings.DB_MAX_OVERFLOW,
+    "pool_timeout": settings.DB_POOL_TIMEOUT,
+    "pool_recycle": settings.DB_POOL_RECYCLE,
+    "pool_pre_ping": settings.DB_POOL_PRE_PING,
     "echo": False,  # Disable in production for performance
     "connect_args": {
         "server_settings": {"application_name": "kai-fusion"},
-        "statement_cache_size": 0,  # Disable prepared statements for pgbouncer
+        "statement_cache_size": 1000,  # Enable prepared statements for better performance
+        "prepared_statement_cache_size": 100,
+        "command_timeout": 60,
     },
 }
 
