@@ -191,22 +191,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
-    const loadWorkflow = async () => {
-      try {
-        if (workflowId) {
-          // Tekil workflow'u doğrudan fetch et
-          await fetchWorkflow(workflowId);
-        } else {
-          await fetchWorkflows();
-        }
-      } catch (error) {
+    if (workflowId) {
+      // Tekil workflow'u doğrudan fetch et
+      fetchWorkflow(workflowId).catch(() => {
         setCurrentWorkflow(null);
         enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
           variant: "error",
         });
-      }
-    };
-    loadWorkflow();
+      });
+    } else {
+      // Yeni workflow: state'i sıfırla
+      setCurrentWorkflow(null);
+      setNodes([]);
+      setEdges([]);
+      setWorkflowName("isimsiz dosya");
+    }
   }, [workflowId]);
 
   useEffect(() => {
