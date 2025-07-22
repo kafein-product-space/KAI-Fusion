@@ -6,6 +6,7 @@ from .execution import WorkflowExecution, ExecutionCheckpoint
 from .organization import Role, Organization, OrganizationUser
 from .auth import LoginMethod, LoginActivity
 from .chat import ChatMessage
+from .variable import Variable
 from .memory import Memory
 
 __all__ = [
@@ -22,6 +23,7 @@ __all__ = [
     "LoginMethod",
     "LoginActivity",
     "ChatMessage",
+    "Variable",
     "Memory"
 ]
 
