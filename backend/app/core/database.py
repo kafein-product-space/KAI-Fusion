@@ -11,7 +11,7 @@ sync_connection_args = {
     "max_overflow": int(DB_MAX_OVERFLOW),
     "pool_timeout": int(DB_POOL_TIMEOUT),
     "pool_recycle": int(DB_POOL_RECYCLE),
-    "pool_pre_ping": DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
+    "pool_pre_ping": (DB_POOL_PRE_PING or "").lower() in ("true", "1", "t"),
     "poolclass": QueuePool,
     "echo": False,  # Disable in production for performance
     "connect_args": {"application_name": "kai-fusion"},
