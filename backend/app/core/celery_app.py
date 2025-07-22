@@ -1,9 +1,8 @@
 from celery import Celery
 from celery.signals import task_prerun, task_postrun, task_failure
-from app.core.config import get_settings
 from typing import Optional, Any
 import os
-from .constants import REDIS_URL
+from .constants import REDIS_URL, CELERY_BROKER_URL, CELERY_RESULT_BACKEND
 import logging
 
 # Configure logging
@@ -14,7 +13,7 @@ def create_celery_app() -> Celery:
     """Create and configure Celery app"""
     
     # Redis connection URLs
-    redis_url = REDIS_URL
+    redis_url = REDIS_URL or CELERY_BROKER_URL
     
     # Create Celery instance
     celery_app = Celery(
