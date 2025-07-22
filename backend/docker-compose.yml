@@ -10,8 +10,6 @@ services:
     environment:
       # Core Application Settings
       SECRET_KEY: ${SECRET_KEY}
-      ENVIRONMENT: ${ENVIRONMENT}
-      PORT: ${PORT}
 
       # Database Settings
       CREATE_DATABASE: ${CREATE_DATABASE}
@@ -24,31 +22,8 @@ services:
       DATABASE_SSL: ${DATABASE_SSL}
       DISABLE_DATABASE: ${DISABLE_DATABASE}
 
-      # Database Pool Settings
-      DB_POOL_SIZE: ${DB_POOL_SIZE}
-      DB_MAX_OVERFLOW: ${DB_MAX_OVERFLOW}
-      DB_POOL_TIMEOUT: ${DB_POOL_TIMEOUT}
-      DB_POOL_RECYCLE: ${DB_POOL_RECYCLE}
-      DB_POOL_PRE_PING: ${DB_POOL_PRE_PING}
-
-      # Redis Settings
-      REDIS_URL: ${REDIS_URL}
-      CELERY_BROKER_URL: ${CELERY_BROKER_URL}
-      CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-
-      # API Keys
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
-      GOOGLE_API_KEY: ${GOOGLE_API_KEY}
-      GOOGLE_CSE_ID: ${GOOGLE_CSE_ID}
-      TAVILY_API_KEY: ${TAVILY_API_KEY}
-      COHERE_API_KEY: ${COHERE_API_KEY}
-
       # Security
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
-
-      # Logging
-      LOG_LEVEL: ${LOG_LEVEL}
 
       # LangSmith Settings
       LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
@@ -56,25 +31,10 @@ services:
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
 
-      # Session Management
-      SESSION_TTL_MINUTES: ${SESSION_TTL_MINUTES}
-      MAX_SESSIONS: ${MAX_SESSIONS}
-
-      # File Upload Settings
-      MAX_FILE_SIZE: ${MAX_FILE_SIZE}
-      UPLOAD_DIR: ${UPLOAD_DIR}
-
-      # Rate Limiting
-      RATE_LIMIT_REQUESTS: ${RATE_LIMIT_REQUESTS}
-      RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW}
-
-      # Engine Settings
-      AF_USE_STUB_ENGINE: ${AF_USE_STUB_ENGINE}
-
       # Async Database
       ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
 
-    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       - ./:/app
     networks:
@@ -82,39 +42,6 @@ services:
     stdin_open: true
     restart: always
     tty: true
-    depends_on:
-      - redis
-      - postgres
-
-  # Redis servisi
-  redis:
-    image: redis:latest
-    ports:
-      - "6379:6379"
-    networks:
-      - kaifusion-network
-    volumes:
-      - redis-data:/data
-    restart: always
-
-  # PostgreSQL servisi
-  postgres:
-    image: postgres:14
-    environment:
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "${DATABASE_PORT}:5432"
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    networks:
-      - kaifusion-network
-    restart: always
-
-volumes:
-  redis-data:
-  postgres-data:
 
 networks:
   kaifusion-network:
