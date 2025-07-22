@@ -11,7 +11,9 @@ from typing import Dict, Any, Optional, List
 from functools import wraps
 from langchain_core.tracers import LangChainTracer
 from langchain_core.callbacks import CallbackManager
-from app.core.config import get_settings
+from app.core.constants import ENABLE_WORKFLOW_TRACING
+from app.core.constants import TRACE_MEMORY_OPERATIONS
+from app.core.constants import LANGCHAIN_TRACING_V2
 
 logger = logging.getLogger(__name__)
 
@@ -20,7 +22,7 @@ class WorkflowTracer:
     """Enhanced tracer for KAI Fusion workflows with LangSmith integration."""
     
     def __init__(self, session_id: Optional[str] = None, user_id: Optional[str] = None):
-        self.settings = get_settings()
+        
         self.session_id = session_id
         self.user_id = user_id
         self.workflow_start_time: Optional[float] = None
@@ -31,7 +33,7 @@ class WorkflowTracer:
         """Start tracking a workflow execution."""
         self.workflow_start_time = time.time()
         
-        if self.settings.LANGCHAIN_TRACING_V2:
+        if LANGCHAIN_TRACING_V2:
             metadata = {
                 "workflow_id": workflow_id,
                 "session_id": self.session_id,
@@ -49,7 +51,7 @@ class WorkflowTracer:
         """Start tracking a node execution."""
         self.node_timings[node_id] = time.time()
         
-        if self.settings.TRACE_AGENT_REASONING and node_type == "ReactAgent":
+        if TRACE_AGENT_REASONING and node_type == "ReactAgent":
             logger.info(f"🤖 Agent reasoning started: {node_id}")
             logger.info(f"📝 Agent inputs: {list(inputs.keys())}")
     
@@ -58,7 +60,7 @@ class WorkflowTracer:
         if node_id in self.node_timings:
             duration = time.time() - self.node_timings[node_id]
             
-            if self.settings.TRACE_AGENT_REASONING and node_type == "ReactAgent":
+            if TRACE_AGENT_REASONING and node_type == "ReactAgent":
                 logger.info(f"🤖 Agent reasoning completed: {node_id} ({duration:.2f}s)")
                 logger.info(f"📤 Agent outputs: {list(outputs.keys())}")
             
@@ -66,7 +68,7 @@ class WorkflowTracer:
     
     def track_memory_operation(self, operation: str, node_id: str, content: str, session_id: str):
         """Track memory operations for debugging."""
-        if self.settings.TRACE_MEMORY_OPERATIONS:
+        if TRACE_MEMORY_OPERATIONS:
             memory_op = {
                 "timestamp": time.time(),
                 "operation": operation,
@@ -104,9 +106,9 @@ class WorkflowTracer:
     
     def get_callback_manager(self) -> Optional[CallbackManager]:
         """Get callback manager for LangSmith integration."""
-        if self.settings.LANGCHAIN_TRACING_V2 and self.settings.LANGCHAIN_API_KEY:
+        if LANGCHAIN_TRACING_V2 and LANGCHAIN_API_KEY:
             tracer = LangChainTracer(
-                project_name=self.settings.LANGCHAIN_PROJECT,
+                project_name=LANGCHAIN_PROJECT,
                 session_id=self.session_id
             )
             return CallbackManager([tracer])
@@ -117,8 +119,7 @@ def trace_workflow(func):
     """Decorator to trace workflow execution."""
     @wraps(func)
     def wrapper(*args, **kwargs):
-        settings = get_settings()
-        if not settings.ENABLE_WORKFLOW_TRACING:
+        if not ENABLE_WORKFLOW_TRACING:
             return func(*args, **kwargs)
         
         # Extract session and user info from kwargs
@@ -152,8 +153,7 @@ def trace_node_execution(func):
     """Decorator to trace individual node execution."""
     @wraps(func)
     def wrapper(self, *args, **kwargs):
-        settings = get_settings()
-        if not settings.ENABLE_WORKFLOW_TRACING:
+        if not ENABLE_WORKFLOW_TRACING:
             return func(self, *args, **kwargs)
         
         node_id = getattr(self, 'node_id', 'unknown')
@@ -187,8 +187,7 @@ def trace_memory_operation(operation: str):
     def decorator(func):
         @wraps(func)
         def wrapper(self, *args, **kwargs):
-            settings = get_settings()
-            if not settings.TRACE_MEMORY_OPERATIONS:
+            if not TRACE_MEMORY_OPERATIONS:
                 return func(self, *args, **kwargs)
             
             node_id = getattr(self, 'node_id', 'unknown')
@@ -221,11 +220,10 @@ def get_workflow_tracer(session_id: Optional[str] = None, user_id: Optional[str]
 
 def setup_tracing():
     """Initialize tracing configuration."""
-    settings = get_settings()
     
-    if settings.LANGCHAIN_TRACING_V2:
+    if LANGCHAIN_TRACING_V2:
         from app.core.config import setup_langsmith
-        setup_langsmith(settings)
+        setup_langsmith()
         logger.info("🔍 Workflow tracing initialized")
     else:
         logger.info("ℹ️ Workflow tracing disabled")

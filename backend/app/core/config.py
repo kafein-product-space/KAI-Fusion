@@ -1,165 +1,46 @@
 """Configuration management for Agent-Flow V2.
 
-Handles environment variables and application settings using Pydantic Settings.
+Handles application settings using constants from constants.py.
+All environment variables are defined in constants.py.
 """
 
 import os
-from typing import List, Optional
-from pydantic import Field
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from dotenv import load_dotenv
 import logging
-from pydantic import field_validator
+from typing import List
 
-load_dotenv()
+# Import all constants
+from app.core.constants import *
 
-class Settings(BaseSettings):
-    """Application-wide settings"""
+def get_warnings() -> List[str]:
+    """Get a list of configuration-related warnings."""
+    warnings = []
+    if SECRET_KEY == "your-secret-key-here-change-in-production":
+        warnings.append("SECRET_KEY is not set, using default. THIS IS NOT SAFE FOR PRODUCTION.")
 
-    # Core settings
-    APP_NAME: str = "KAI Fusion"
-    SECRET_KEY: str = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
-    API_V1_STR: str = "/api/v1"
+    if not OPENAI_API_KEY:
+        warnings.append(
+            "OPENAI_API_KEY is not set. OpenAI-related features will not work."
+        )
 
-    # Database settings
-    CREATE_DATABASE: bool = os.getenv("CREATE_DATABASE", "false").lower() in ("true", "1", "t")
-    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres.xjwosoxtrzysncbjrwlt:flowisekafein1!@aws-0-eu-north-1.pooler.supabase.com:5432/postgres")
+    if not GOOGLE_API_KEY:
+        warnings.append("Google API key not set. Google Search tools will not work.")
     
-    # PostgreSQL settings for Supabase
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "postgres")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "postgres")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "flowisekafein1!")
-    POSTGRES_PORT: int = int(os.getenv("DATABASE_PORT", 5432))
-    POSTGRES_HOST: str = os.getenv("DATABASE_HOST", "aws-0-eu-north-1.pooler.supabase.com")
-    DATABASE_SSL: bool = os.getenv("DATABASE_SSL", "true").lower() in ("true", "1", "t")
+    if not TAVILY_API_KEY:
+        warnings.append("Tavily API key not set. Tavily search tools will not work.")
     
-    # Connection pooling settings for Supabase/Vercel (optimized for serverless)
-    DB_POOL_SIZE: int = int(os.getenv("DB_POOL_SIZE", "5"))
-    DB_MAX_OVERFLOW: int = int(os.getenv("DB_MAX_OVERFLOW", "2"))
-    DB_POOL_TIMEOUT: int = int(os.getenv("DB_POOL_TIMEOUT", "5"))
-    DB_POOL_RECYCLE: int = int(os.getenv("DB_POOL_RECYCLE", "1800"))
-    DB_POOL_PRE_PING: bool = os.getenv("DB_POOL_PRE_PING", "true").lower() in ("true", "1", "t")
-    
-    # Supabase specific settings
-    SUPABASE_URL: Optional[str] = os.getenv("SUPABASE_URL")
-    SUPABASE_ANON_KEY: Optional[str] = os.getenv("SUPABASE_ANON_KEY")
-    SUPABASE_SERVICE_ROLE_KEY: Optional[str] = os.getenv("SUPABASE_SERVICE_ROLE_KEY")
+    if not ANTHROPIC_API_KEY:
+        warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
 
-    @property
-    def ASYNC_DATABASE_URL(self) -> str:
-        """Construct the asynchronous database URL from DATABASE_URL."""
-        if self.DATABASE_URL.startswith("postgresql://"):
-            return self.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
-        return self.DATABASE_URL
+    return warnings
 
-    # Agent Settings
-    AGENT_NODE_ID: str = "agent"
-
-    # Celery Settings
-    CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
-    CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/0")
-
-    # OpenAI API Key
-    OPENAI_API_KEY: Optional[str] = os.getenv("OPENAI_API_KEY")
-
-    # Anthropic Settings
-    ANTHROPIC_API_KEY: Optional[str] = os.getenv("ANTHROPIC_API_KEY")
-    
-    # Google Settings
-    GOOGLE_API_KEY: Optional[str] = os.getenv("GOOGLE_API_KEY")
-    GOOGLE_CSE_ID: Optional[str] = os.getenv("GOOGLE_CSE_ID")
-    
-    
-    # Security
-    ALGORITHM: str = "HS256"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
-    REFRESH_TOKEN_EXPIRE_DAYS: int = 7  # Add this line
-    CREDENTIAL_MASTER_KEY: Optional[str] = os.getenv("CREDENTIAL_MASTER_KEY")
-    
-    # CORS Settings
-    ALLOWED_ORIGINS: List[str] = [
-        "http://localhost:3000", 
-        "http://localhost:3001",
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:8080",  # Alternative frontend port
-        "https://*.vercel.app",   # Vercel deployments
-        "https://*.supabase.co"   # Supabase dashboard
-    ]
-    
-    # Logging Settings
-    LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
-    
-    # LangSmith Settings (Optional)
-    LANGCHAIN_TRACING_V2: bool = os.getenv("LANGCHAIN_TRACING_V2", "false").lower() == "true"
-    LANGCHAIN_ENDPOINT: Optional[str] = os.getenv("LANGCHAIN_ENDPOINT")
-    LANGCHAIN_API_KEY: Optional[str] = os.getenv("LANGCHAIN_API_KEY")
-    LANGCHAIN_PROJECT: Optional[str] = os.getenv("LANGCHAIN_PROJECT")
-    ENABLE_WORKFLOW_TRACING: bool = os.getenv("ENABLE_WORKFLOW_TRACING", "false").lower() == "true"
-    TRACE_MEMORY_OPERATIONS: bool = os.getenv("TRACE_MEMORY_OPERATIONS", "false").lower() == "true"
-    TRACE_AGENT_REASONING: bool = os.getenv("TRACE_AGENT_REASONING", "false").lower() == "true"
-
-    # Tavily API Key
-    TAVILY_API_KEY: Optional[str] = os.getenv("TAVILY_API_KEY")
-    
-    # Session Management
-    SESSION_TTL_MINUTES: int = int(os.getenv("SESSION_TTL_MINUTES", "30"))
-    MAX_SESSIONS: int = int(os.getenv("MAX_SESSIONS", "1000"))
-    
-    # File Upload Settings
-    MAX_FILE_SIZE: int = int(os.getenv("MAX_FILE_SIZE", "10485760"))  # 10MB
-    UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
-    
-    # Rate Limiting
-    RATE_LIMIT_REQUESTS: int = int(os.getenv("RATE_LIMIT_REQUESTS", "100"))
-    RATE_LIMIT_WINDOW: int = int(os.getenv("RATE_LIMIT_WINDOW", "60"))
-    
-    @field_validator('ALLOWED_ORIGINS', mode='before')
-    def parse_cors_origins(cls, v):  # noqa: N805 – Pydantic validator signature
-        """Parse CORS origins from a comma-separated string to list."""
-        if isinstance(v, str):
-            return [origin.strip() for origin in v.split(',')]
-        return v
-
-    def get_warnings(self) -> List[str]:
-        """Get a list of configuration-related warnings."""
-        warnings = []
-        if self.SECRET_KEY == "your-secret-key-here-change-in-production":
-            warnings.append("SECRET_KEY is not set, using default. THIS IS NOT SAFE FOR PRODUCTION.")
-
-        if not self.OPENAI_API_KEY:
-            warnings.append(
-                "OPENAI_API_KEY is not set. OpenAI-related features will not work."
-            )
-
-        if not self.GOOGLE_API_KEY:
-            warnings.append("Google API key not set. Google Search tools will not work.")
-        
-        if not self.TAVILY_API_KEY:
-            warnings.append("Tavily API key not set. Tavily search tools will not work.")
-        
-        if not self.ANTHROPIC_API_KEY:
-            warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
-
-        return warnings
-
-# Global settings instance
-_settings: Optional[Settings] = None
-
-def get_settings() -> Settings:
-    """Get application settings instance."""
-    global _settings
-    if _settings is None:
-        _settings = Settings()
-    return _settings
-
-def setup_logging(settings: Settings):
+def setup_logging():
     """Setup logging configuration"""
     logging.basicConfig(
-        level=getattr(logging, settings.LOG_LEVEL),
+        level=getattr(logging, LOG_LEVEL),
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler("app.log") if not settings.DEBUG else logging.NullHandler()
+            logging.FileHandler("app.log") if not DEBUG else logging.NullHandler()
         ]
     )
     
@@ -167,40 +48,40 @@ def setup_logging(settings: Settings):
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("fastapi").setLevel(logging.INFO)
     
-    if settings.DEBUG:
+    if DEBUG:
         logging.getLogger("app").setLevel(logging.DEBUG)
 
-def setup_langsmith(settings: Settings):
+def setup_langsmith():
     """Setup LangSmith tracing if enabled"""
-    if settings.LANGCHAIN_TRACING_V2:
+    if LANGCHAIN_TRACING_V2:
         os.environ["LANGCHAIN_TRACING_V2"] = "true"
-        if settings.LANGCHAIN_ENDPOINT:
-            os.environ["LANGCHAIN_ENDPOINT"] = settings.LANGCHAIN_ENDPOINT
-        if settings.LANGCHAIN_API_KEY:
-            os.environ["LANGCHAIN_API_KEY"] = settings.LANGCHAIN_API_KEY
-        if settings.LANGCHAIN_PROJECT:
-            os.environ["LANGCHAIN_PROJECT"] = settings.LANGCHAIN_PROJECT
+        if LANGCHAIN_ENDPOINT:
+            os.environ["LANGCHAIN_ENDPOINT"] = LANGCHAIN_ENDPOINT
+        if LANGCHAIN_API_KEY:
+            os.environ["LANGCHAIN_API_KEY"] = LANGCHAIN_API_KEY
+        if LANGCHAIN_PROJECT:
+            os.environ["LANGCHAIN_PROJECT"] = LANGCHAIN_PROJECT
         logging.info("✅ LangSmith tracing enabled")
 
-def validate_api_keys(settings: Settings) -> List[str]:
+def validate_api_keys() -> List[str]:
     """Validate API keys and return warnings"""
     warnings = []
     
     # Critical validations
-    if not settings.OPENAI_API_KEY:
+    if not OPENAI_API_KEY:
         warnings.append("OpenAI API key not set. OpenAI LLM nodes will not work.")
     
-    if not settings.GOOGLE_API_KEY:
+    if not GOOGLE_API_KEY:
         warnings.append("Google API key not set. Google Search tools will not work.")
     
-    if not settings.TAVILY_API_KEY:
+    if not TAVILY_API_KEY:
         warnings.append("Tavily API key not set. Tavily search tools will not work.")
     
-    if not settings.ANTHROPIC_API_KEY:
+    if not ANTHROPIC_API_KEY:
         warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
     
     # Security validations
-    if settings.SECRET_KEY == "your-secret-key-here-change-in-production":
+    if SECRET_KEY == "your-secret-key-here-change-in-production":
         warnings.append("Default secret key detected. Change SECRET_KEY in production.")
     
     # Log warnings
@@ -209,22 +90,27 @@ def validate_api_keys(settings: Settings) -> List[str]:
     
     return warnings
 
-def create_directories(settings: Settings):
+def create_directories():
     """Create necessary directories"""
-    if not os.path.exists(settings.UPLOAD_DIR):
-        os.makedirs(settings.UPLOAD_DIR)
-        logging.info(f"Created upload directory: {settings.UPLOAD_DIR}")
+    if not os.path.exists(UPLOAD_DIR):
+        os.makedirs(UPLOAD_DIR)
+        logging.info(f"Created upload directory: {UPLOAD_DIR}")
 
-def get_database_url(settings: Settings) -> str:
+def get_database_url() -> str:
     """Get database URL for direct connections"""
-    return settings.DATABASE_URL
+    return DATABASE_URL
 
-def get_cors_origins(settings: Settings) -> List[str]:
+def get_cors_origins() -> List[str]:
     """Get CORS origins"""
-    origins = settings.ALLOWED_ORIGINS.copy()
+    # Parse CORS origins if it's a string
+    origins = []
+    if isinstance(ALLOWED_ORIGINS, str):
+        origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
+    else:
+        origins = ALLOWED_ORIGINS
     
     # Add dynamic origins based on environment
-    if settings.DEBUG:
+    if DEBUG:
         origins.extend([
             "http://localhost:*",
             "https://localhost:*"

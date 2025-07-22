@@ -207,7 +207,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                     errors.append(f"Unknown node type: {node_type}")
                     # Suggest similar node types
                     available_types = list(self._builder.node_registry.keys())
-                    similar = [t for t in available_types if node_type.lower() in t.lower()]
+                    similar = [t for t in available_types if (node_type or "").lower() in t.lower()]
                     if similar:
                         warnings.append(f"Did you mean one of: {', '.join(similar[:3])}?")
         
@@ -385,6 +385,6 @@ def get_engine() -> BaseWorkflowEngine:  # noqa: D401
     if _ENGINE_IMPL_CACHE is not None:
         return _ENGINE_IMPL_CACHE
 
-    use_stub = AF_USE_STUB_ENGINE.lower() in {"1", "true", "yes"}
+    use_stub = (AF_USE_STUB_ENGINE or "").lower() in {"1", "true", "yes"}
     _ENGINE_IMPL_CACHE = StubWorkflowEngine() if use_stub else LangGraphWorkflowEngine()
     return _ENGINE_IMPL_CACHE 

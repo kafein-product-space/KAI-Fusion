@@ -12,6 +12,7 @@ from app.services.execution_service import ExecutionService
 from app.services.credential_service import CredentialService
 from app.services.task_service import TaskService
 from app.services.api_key_service import APIKeyService
+from app.services.variable_service import VariableService
 
 
 @lru_cache
@@ -40,4 +41,8 @@ def get_task_service_dep() -> TaskService:
 
 @lru_cache
 def get_api_key_service() -> APIKeyService:
-    return APIKeyService() 
+    return APIKeyService()
+
+@lru_cache
+def get_variable_service_dep() -> VariableService:
+    return VariableService() 
