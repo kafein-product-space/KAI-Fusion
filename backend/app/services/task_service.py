@@ -1,7 +1,5 @@
 from celery import Celery
-from app.core.config import get_settings
-
-settings = get_settings()
+from app.core.constants import CELERY_BROKER_URL, CELERY_RESULT_BACKEND
 
 class TaskService:
     def __init__(self):
@@ -10,8 +8,8 @@ class TaskService:
         """
         self.celery_app = Celery(
             "worker",
-            broker=settings.CELERY_BROKER_URL,
-            backend=settings.CELERY_RESULT_BACKEND
+            broker=CELERY_BROKER_URL,
+            backend=CELERY_RESULT_BACKEND
         )
 
     def get_task_status(self, task_id: str):
