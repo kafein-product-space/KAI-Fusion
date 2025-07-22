@@ -17,6 +17,7 @@ from app.core.config import get_settings
 from app.core.node_registry import node_registry
 from app.core.engine_v2 import get_engine
 from app.core.database import create_tables, get_db_session
+from app.core.tracing import setup_tracing
 
 # API routers imports
 from app.api.workflows import router as workflows_router
@@ -50,6 +51,13 @@ async def lifespan(app: FastAPI):
         logger.info("✅ Engine initialized")
     except Exception as e:
         logger.error(f"❌ Failed to initialize engine: {e}")
+    
+    # Initialize tracing and monitoring
+    try:
+        setup_tracing()
+        logger.info("✅ Tracing and monitoring initialized")
+    except Exception as e:
+        logger.error(f"❌ Failed to initialize tracing: {e}")
     
     # Initialize database only if CREATE_DATABASE is enabled
     if settings.CREATE_DATABASE:
@@ -105,7 +113,7 @@ app.add_middleware(
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
 app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
-app.include_router(api_key_router, prefix="/api/v1/apikey", tags=["API Keys"])
+app.include_router(api_key_router, prefix="/api/v1/api-keys", tags=["API Keys"])
 app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
@@ -244,7 +252,7 @@ if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
         host="0.0.0.0",
-        port=8001,
+        port=8000,
         reload=True,
         log_level="info"
     ) 

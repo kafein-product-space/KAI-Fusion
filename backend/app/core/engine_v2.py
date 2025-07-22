@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import abc
 from typing import Any, AsyncGenerator, Dict, Optional, Union
+from app.core.tracing import trace_workflow, get_workflow_tracer
 
 
 JSONType = Dict[str, Any]
@@ -147,6 +148,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         # Choose MemorySaver automatically (GraphBuilder handles this)
         self._builder = GraphBuilder(node_registry.nodes)
         self._built: bool = False
+        self._flow_data: Optional[JSONType] = None  # Store flow_data for tracing
 
     def _create_minimal_fallback_registry(self, registry):
         """Create a minimal fallback registry with essential nodes."""
@@ -205,7 +207,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                     errors.append(f"Unknown node type: {node_type}")
                     # Suggest similar node types
                     available_types = list(self._builder.node_registry.keys())
-                    similar = [t for t in available_types if node_type.lower() in t.lower()]
+                    similar = [t for t in available_types if (node_type or "").lower() in t.lower()]
                     if similar:
                         warnings.append(f"Did you mean one of: {', '.join(similar[:3])}?")
         
@@ -257,6 +259,9 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         """Enhanced build with better error handling and logging"""
         print("🔨 Building workflow...")
         
+        # Store flow_data for tracing
+        self._flow_data = flow_data
+        
         # Enhanced validation before build
         validation_result = self.validate(flow_data)
         if not validation_result["valid"]:
@@ -292,6 +297,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
     # ------------------------------------------------------------------
     # Execute
     # ------------------------------------------------------------------
+    @trace_workflow
     async def execute(
         self,
         inputs: Optional[JSONType] = None,
@@ -299,20 +305,27 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         stream: bool = False,
         user_context: Optional[JSONType] = None,
     ) -> ExecutionResult:  # noqa: D401
-        """Enhanced execution with better error handling and logging"""
+        """Enhanced execution with better error handling and LangSmith tracing"""
         if not self._built:
             raise RuntimeError("Workflow must be built before execution. Call build() first.")
 
         inputs = inputs or {}
         user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
+        session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
         print(f"🚀 Starting workflow execution (stream={stream})")
         if user_id:
             print(f"👤 Executing for user: {user_id}")
         if workflow_id:
             print(f"🔗 Workflow ID: {workflow_id}")
+        if session_id:
+            print(f"🎯 Session ID: {session_id}")
         print(f"📥 Inputs: {list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)}")
+
+        # Create workflow tracer
+        tracer = get_workflow_tracer(session_id=session_id, user_id=user_id)
+        tracer.start_workflow(workflow_id=workflow_id, flow_data=self._flow_data)
 
         try:
             # GraphBuilder.execute manages streaming vs sync
@@ -320,15 +333,18 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                 inputs,
                 user_id=user_id,
                 workflow_id=workflow_id,
+                session_id=session_id,
                 stream=stream,
             )
             
             print("✅ Workflow execution completed successfully")
+            tracer.end_workflow(success=True)
             return result
             
         except Exception as e:
             error_msg = f"Workflow execution failed: {str(e)}"
             print(f"❌ {error_msg}")
+            tracer.end_workflow(success=False, error=error_msg)
             
             # Return structured error result
             if stream:
@@ -341,7 +357,8 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                     "error": error_msg,
                     "error_type": type(e).__name__,
                     "user_id": user_id,
-                    "workflow_id": workflow_id
+                    "workflow_id": workflow_id,
+                    "session_id": session_id
                 }
 
 
@@ -368,6 +385,6 @@ def get_engine() -> BaseWorkflowEngine:  # noqa: D401
     if _ENGINE_IMPL_CACHE is not None:
         return _ENGINE_IMPL_CACHE
 
-    use_stub = AF_USE_STUB_ENGINE.lower() in {"1", "true", "yes"}
+    use_stub = (AF_USE_STUB_ENGINE or "").lower() in {"1", "true", "yes"}
     _ENGINE_IMPL_CACHE = StubWorkflowEngine() if use_stub else LangGraphWorkflowEngine()
     return _ENGINE_IMPL_CACHE 

@@ -52,3 +52,11 @@ class CredentialDetailResponse(BaseModel):
 class CredentialDeleteResponse(BaseModel):
     message: str
     deleted_id: uuid.UUID 
+
+class CredentialSecretResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    service_type: str
+    created_at: datetime
+    updated_at: datetime
+    secret: Dict[str, Any] 

@@ -15,7 +15,8 @@ from app.schemas.user_credential import (
     CredentialUpdateRequest,
     CredentialDetailResponse,
     CredentialDeleteResponse,
-    UserCredentialCreate
+    UserCredentialCreate,
+    CredentialSecretResponse
 )
 
 logger = logging.getLogger(__name__)
@@ -301,6 +302,26 @@ async def delete_credential(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to delete credential"
         )
+
+@router.get("/{credential_id}/secret", response_model=CredentialSecretResponse)
+async def get_credential_secret(
+    credential_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    credential_service: CredentialService = Depends(get_credential_service_dep)
+):
+    """
+    Get a credential's decrypted secret (API key etc) for the current user.
+    """
+    user_id = current_user.id
+    try:
+        cred = await credential_service.get_decrypted_credential(db, user_id, credential_id)
+        if not cred:
+            raise HTTPException(status_code=404, detail="Credential not found or not yours")
+        return cred
+    except Exception as e:
+        logger.error(f"Error retrieving credential secret for {credential_id} user {user_id}: {e}")
+        raise HTTPException(status_code=500, detail="Failed to retrieve credential secret")
 
 def _detect_service_type(data: dict) -> str:
     """

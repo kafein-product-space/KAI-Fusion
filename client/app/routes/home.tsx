@@ -1,5 +1,4 @@
 import React, { useState } from "react";
-import { AuthGuard } from "../components/AuthGuard";
 import {
   LineChart,
   Line,
@@ -8,8 +7,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { useAuth } from "~/stores/auth";
 
 // Types
 interface StatData {
@@ -35,7 +34,6 @@ interface ChartData {
 }
 
 function DashboardLayout() {
-  const { user, isAuthenticated, isLoading } = useAuth();
   const [selectedStat, setSelectedStat] = useState<keyof StatData>("prodexec");
   const [selectedPeriod, setSelectedPeriod] = useState("7days");
 
@@ -71,10 +69,8 @@ function DashboardLayout() {
     { label: "Run time", statKey: "runtime" },
   ];
 
-  // Dummy chart data generation
   const generateChartData = (): ChartData[] => {
     const rawValue = statsData[selectedPeriod][selectedStat];
-
     const baseValue =
       typeof rawValue === "string"
         ? parseFloat(rawValue.replace(/[^0-9.]/g, ""))
@@ -87,35 +83,30 @@ function DashboardLayout() {
   };
 
   const chartData = generateChartData();
+  const isDarkMode =
+    typeof window !== "undefined"
+      ? document.documentElement.classList.contains("dark")
+      : false;
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
 
-      <main className="flex-1 p-10 m-10">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex flex-col items-start gap-4 justify-between mb-6">
             <div className="flex items-center justify-between w-full">
               <div>
                 <h1 className="text-4xl font-medium text-start">Overview</h1>
-                <p className="text-gray-600">
+                <p className="text-muted-foreground">
                   Get an overview of your activity, recent executions, and
                   system health at a glance.
                 </p>
               </div>
-              {isAuthenticated && user && (
-                <div className="text-right">
-                  <p className="text-sm text-gray-600">Welcome back,</p>
-                  <p className="text-lg font-semibold text-gray-900">
-                    {user.full_name || "User"}
-                  </p>
-                  <p className="text-sm text-gray-500">{user.email}</p>
-                </div>
-              )}
             </div>
 
             <select
-              className="border border-gray-300 rounded-lg px-3 py-1 text-sm w-64 h-8"
+              className="border border-gray-300 dark:border-gray-700 bg-background text-sm w-64 h-8 rounded-lg px-3 py-1 text-foreground"
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
             >
@@ -131,13 +122,13 @@ function DashboardLayout() {
               <button
                 key={idx}
                 onClick={() => setSelectedStat(stat.statKey)}
-                className={` cursor-pointer border rounded-t-lg p-4  transition-all text-start ${
+                className={`cursor-pointer border rounded-t-lg p-4 transition-all text-start bg-background text-foreground ${
                   selectedStat === stat.statKey
-                    ? "border-gray-200 border-b-2 border-b-blue-500"
-                    : "border-b border-gray-200"
+                    ? "border-gray-200 dark:border-gray-600 border-b-2 border-b-blue-500 dark:border-b-blue-400"
+                    : "border-b border-gray-200 dark:border-gray-700"
                 }`}
               >
-                <div className="text-xs text-gray-600 mb-1 flex flex-col justify-start items-start">
+                <div className="text-xs text-foreground mb-1">
                   {stat.label} <br />
                   {selectedPeriod === "7days"
                     ? "Last 7 days"
@@ -153,12 +144,37 @@ function DashboardLayout() {
           </div>
 
           {/* Chart */}
-          <div className="border border-gray-300 rounded-b-lg w-full h-64 p-4">
+          <div className="border border-gray-300 dark:border-gray-700 rounded-b-lg w-full h-64 p-4 bg-background text-foreground">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
-                <XAxis dataKey="name" />
-                <YAxis />
-                <Tooltip />
+                <XAxis
+                  dataKey="name"
+                  stroke={isDarkMode ? "#ccc" : "#888"}
+                  tick={{ fill: isDarkMode ? "#ccc" : "#888" }}
+                  tickLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                  axisLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                />
+                <YAxis
+                  stroke={isDarkMode ? "#ccc" : "#888"}
+                  tick={{ fill: isDarkMode ? "#ccc" : "#888" }}
+                  tickLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                  axisLine={{ stroke: isDarkMode ? "#ccc" : "#888" }}
+                />
+                <Tooltip
+                  contentStyle={{
+                    background: isDarkMode ? "#1f2937" : "#fff",
+                    color: isDarkMode ? "#fff" : "#000",
+                    border: "1px solid #444",
+                  }}
+                  itemStyle={{
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                  labelStyle={{
+                    color: isDarkMode ? "#fff" : "#000",
+                  }}
+                  wrapperStyle={{ zIndex: 50 }}
+                  cursor={{ fill: isDarkMode ? "#fff" : "#333", opacity: 0.05 }}
+                />
                 <Line
                   type="monotone"
                   dataKey="value"

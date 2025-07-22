@@ -2,9 +2,9 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Pencil, Plus, Search, Trash } from "lucide-react";
 import React, { useState } from "react";
 import { Link } from "react-router";
+import AuthGuard from "~/components/AuthGuard";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
 
 interface TemplateFormValues {
   name: string;

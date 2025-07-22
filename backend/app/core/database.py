@@ -3,6 +3,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import QueuePool, NullPool
 from app.core.constants import *
+from app.core.config import get_settings
 
 # Connection pooling configuration optimized for Supabase + Vercel
 sync_connection_args = {
@@ -10,18 +11,25 @@ sync_connection_args = {
     "max_overflow": int(DB_MAX_OVERFLOW),
     "pool_timeout": int(DB_POOL_TIMEOUT),
     "pool_recycle": int(DB_POOL_RECYCLE),
-    "pool_pre_ping": DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
+    "pool_pre_ping": (DB_POOL_PRE_PING or "").lower() in ("true", "1", "t"),
     "poolclass": QueuePool,
     "echo": False,  # Disable in production for performance
     "connect_args": {"application_name": "kai-fusion"},
 }
 
 async_connection_args = {
-    "poolclass": NullPool,  # Use NullPool for async connections
+    # Note: AsyncEngine automatically uses AsyncAdaptedQueuePool
+    "pool_size": int(get_settings().DB_POOL_SIZE),
+    "max_overflow": int(get_settings().DB_MAX_OVERFLOW),
+    "pool_timeout": int(get_settings().DB_POOL_TIMEOUT),
+    "pool_recycle": int(get_settings().DB_POOL_RECYCLE),
+    "pool_pre_ping": get_settings().DB_POOL_PRE_PING,
     "echo": False,  # Disable in production for performance
     "connect_args": {
         "server_settings": {"application_name": "kai-fusion"},
-        "statement_cache_size": 0,  # Disable prepared statements for pgbouncer
+        "statement_cache_size": 1000,  # Enable prepared statements for better performance
+        "prepared_statement_cache_size": 100,
+        "command_timeout": 60,
     },
 }
 

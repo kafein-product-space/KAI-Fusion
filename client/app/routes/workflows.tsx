@@ -8,12 +8,14 @@ import {
   Trash,
   AlertCircle,
   RefreshCw,
+  ChevronRight,
+  ChevronLeft,
 } from "lucide-react";
 import React, { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
-import { AuthGuard } from "~/components/AuthGuard";
+
 import type {
   Workflow,
   WorkflowCreateRequest,
@@ -23,6 +25,7 @@ import { timeAgo } from "~/lib/dateFormatter";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
 import { useSnackbar } from "notistack";
+import AuthGuard from "~/components/AuthGuard";
 
 const LoadingSpinner = () => (
   <div className="flex items-center justify-center py-8">
@@ -105,6 +108,20 @@ function WorkflowsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [page, setPage] = useState(1);
+
+  // Sayfalama hesaplamaları
+  const totalItems = workflows.length; // Use workflows from the store for total count
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIdx = (page - 1) * itemsPerPage;
+  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+  const pagedWorkflows = workflows.slice(startIdx, endIdx); // Use workflows from the store for paged data
+
+  useEffect(() => {
+    // Sayfa değişince, eğer mevcut sayfa yeni toplam sayfa sayısından büyükse, son sayfaya çek
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
 
   useEffect(() => {
     fetchWorkflows();
@@ -254,7 +271,7 @@ function WorkflowsLayout() {
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredWorkflows.map((workflow) => (
+                  {pagedWorkflows.map((workflow) => (
                     <tr key={workflow.id}>
                       <td className="p-6 text-blue-600">
                         <Link to={`/canvas?workflow=${workflow.id}`}>
@@ -351,6 +368,64 @@ function WorkflowsLayout() {
                   ))}
                 </tbody>
               </table>
+              {/* Modern Pagination Bar - table altı */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 px-4 pb-4">
+                {/* Items per page */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Items per page:</span>
+                  <select
+                    className="border rounded px-2 py-1 text-xs"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    {[10, 20, 50, 100].map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Sayfa numaraları */}
+                <div className="flex items-center gap-1 justify-center">
+                  <button
+                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`px-3 py-1 rounded text-xs border transition ${
+                          p === page
+                            ? "bg-[#9664E0] text-white border-[#9664E0] font-bold"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <button
+                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Items X to Y of Z */}
+                <div className="text-xs text-gray-500 text-right">
+                  Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
+                  {totalItems}
+                </div>
+              </div>
               {searchQuery && (
                 <div className="px-6 py-3 bg-gray-50 border-t border-gray-300 text-sm text-gray-600">
                   Showing {filteredWorkflows.length} of {workflows.length}{" "}

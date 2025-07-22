@@ -239,10 +239,24 @@ async def get_public_workflows(
     Get list of public workflows.
     """
     try:
+        sanitized_search = None
+        if search:
+            # Sanitize search parameter to prevent injection attacks
+            if len(search.strip()) == 0:
+                sanitized_search = None
+            elif len(search) > 200:
+                raise HTTPException(status_code=400, detail="Search query too long")
+            else:
+                # Remove potentially dangerous characters
+                import re
+                sanitized_search = re.sub(r'[^\w\s\-_]', '', search.strip())
+        
         workflows = await workflow_service.get_public_workflows(
-            db, skip=skip, limit=limit, search=search
+            db, skip=skip, limit=limit, search=sanitized_search
         )
         return [WorkflowResponse.model_validate(workflow) for workflow in workflows]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching public workflows: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch public workflows")
@@ -261,11 +275,23 @@ async def search_workflows(
     Search user's workflows by name or description.
     """
     try:
+        # Sanitize search parameter to prevent injection attacks
+        if len(q.strip()) == 0:
+            raise HTTPException(status_code=400, detail="Search query cannot be empty")
+        if len(q) > 200:
+            raise HTTPException(status_code=400, detail="Search query too long")
+        
+        # Remove potentially dangerous characters
+        import re
+        sanitized_q = re.sub(r'[^\w\s\-_]', '', q.strip())
+        
         user_id = current_user.id  # Cache user ID
         workflows = await workflow_service.get_user_workflows(
-            db, user_id, skip=skip, limit=limit, search=q
+            db, user_id, skip=skip, limit=limit, search=sanitized_q
         )
         return [WorkflowResponse.model_validate(workflow) for workflow in workflows]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error searching workflows: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to search workflows")
@@ -365,13 +391,32 @@ async def get_workflow_templates(
 ):
     """Get list of workflow templates"""
     try:
+        # Sanitize search and category parameters
+        sanitized_search = None
+        sanitized_category = None
+        
         if search:
+            if len(search.strip()) == 0:
+                sanitized_search = None
+            elif len(search) > 200:
+                raise HTTPException(status_code=400, detail="Search query too long")
+            else:
+                import re
+                sanitized_search = re.sub(r'[^\w\s\-_]', '', search.strip())
+        
+        if category:
+            if len(category) > 100:
+                raise HTTPException(status_code=400, detail="Category name too long")
+            import re
+            sanitized_category = re.sub(r'[^\w\s\-_]', '', category.strip())
+        
+        if sanitized_search:
             templates = await template_service.search_templates(
-                db, search, skip=skip, limit=limit
+                db, sanitized_search, skip=skip, limit=limit
             )
-        elif category:
+        elif sanitized_category:
             templates = await template_service.get_templates_by_category(
-                db, category, skip=skip, limit=limit
+                db, sanitized_category, skip=skip, limit=limit
             )
         else:
             query = (
@@ -384,6 +429,8 @@ async def get_workflow_templates(
             templates = result.scalars().all()
         
         return [WorkflowTemplateResponse.model_validate(template) for template in templates]
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching workflow templates: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch workflow templates")
@@ -505,7 +552,9 @@ async def execute_adhoc_workflow(
     This is the primary endpoint for running workflows from the frontend.
     """
     engine = get_engine()
-    session_id = req.session_id or str(uuid.uuid4())
+    # Use chatflow_id as session_id for memory persistence
+    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
+    session_id = req.session_id or str(chatflow_id)
     user_id = current_user.id  # Cache user ID
     user_email = current_user.email  # Cache user email
     user_context = {
@@ -531,7 +580,7 @@ async def execute_adhoc_workflow(
             # Execution kaydı oluşturulamazsa devam et ama log'la
 
     # --- CHAT ENTEGRASYONU ---
-    chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
+    # chatflow_id already defined above
     chat_service = ChatService(db)
     # Kullanıcı mesajını kaydet
     await chat_service.create_chat_message(ChatMessageCreate(

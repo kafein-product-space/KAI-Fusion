@@ -1,4 +1,13 @@
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useState,
+  useEffect,
+} from "react";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import type { UserCredential } from "~/types/api";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 interface ClaudeConfigModalProps {
   nodeData: any;
@@ -25,6 +34,37 @@ const ClaudeConfigModal = forwardRef<HTMLDialogElement, ClaudeConfigModalProps>(
       "claude-3-sonnet-20240229",
       "claude-3-haiku-20240307",
     ];
+
+    const { userCredentials, fetchCredentials, isLoading } =
+      useUserCredentialStore();
+    const [selectedCredentialId, setSelectedCredentialId] =
+      useState<string>("");
+    const [apiKeyOverride, setApiKeyOverride] = useState<string>("");
+    const [loadingSecret, setLoadingSecret] = useState(false);
+
+    useEffect(() => {
+      fetchCredentials();
+    }, [fetchCredentials]);
+
+    useEffect(() => {
+      if (selectedCredentialId) {
+        setLoadingSecret(true);
+        getUserCredentialSecret(selectedCredentialId)
+          .then((cred) => {
+            if (cred && cred.secret && cred.secret.api_key) {
+              setApiKeyOverride(cred.secret.api_key);
+              setApiKey(cred.secret.api_key);
+            } else {
+              setApiKeyOverride("");
+              setApiKey("");
+            }
+          })
+          .finally(() => setLoadingSecret(false));
+      } else {
+        setApiKeyOverride("");
+        setApiKey("");
+      }
+    }, [selectedCredentialId]);
 
     const handleSave = () => {
       onSave({
@@ -58,14 +98,50 @@ const ClaudeConfigModal = forwardRef<HTMLDialogElement, ClaudeConfigModalProps>(
               </select>
             </div>
 
+            {/* Credential Selector */}
+            <div>
+              <label className="label">Credential Seç</label>
+              <select
+                className="select select-bordered w-full"
+                value={selectedCredentialId}
+                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                  setSelectedCredentialId(e.target.value);
+                  const cred = userCredentials.find(
+                    (c) => c.id === e.target.value
+                  );
+                  if (cred) {
+                    // API key artık useEffect ile fetch edilecek
+                  }
+                }}
+                disabled={
+                  isLoading || userCredentials.length === 0 || loadingSecret
+                }
+              >
+                <option value="">Bir credential seçin...</option>
+                {userCredentials.map((cred) => (
+                  <option key={cred.id} value={cred.id}>
+                    {cred.name}
+                  </option>
+                ))}
+              </select>
+              {loadingSecret && (
+                <span className="text-xs text-gray-500">
+                  API anahtarı yükleniyor...
+                </span>
+              )}
+            </div>
+
             {/* API Key */}
             <div>
               <label className="label">API Key</label>
               <input
                 className="input input-bordered w-full"
                 type="password"
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
+                value={selectedCredentialId ? apiKeyOverride : apiKey}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                  setApiKeyOverride(e.target.value);
+                  setApiKey(e.target.value);
+                }}
                 placeholder="sk-ant-..."
               />
             </div>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Formik } from "formik";
-import { Link, Navigate, useLocation } from "react-router";
+import type { FormikHelpers } from "formik";
+import { ErrorMessage, Formik } from "formik";
+import { Link, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
-import { PublicOnly } from "~/components/AuthGuard";
+import PublicOnlyGuard from "~/components/PublicOnlyGuard";
 
 interface SignInFormValues {
   email: string;
@@ -10,40 +11,55 @@ interface SignInFormValues {
 }
 
 const Signin = () => {
-  const { signIn, isAuthenticated, isLoading, error, clearError } = useAuth();
-  const location = useLocation();
+  const navigate = useNavigate();
+  const { signIn, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [status, setStatus] = useState<{ loginError?: string } | null>(null);
 
-  // Get the redirect path from location state
-  const from = location.state?.from || "/";
-
-  // Clear any existing errors when component mounts
   useEffect(() => {
-    clearError();
+    return () => {
+      clearError();
+      setStatus(null);
+    };
   }, [clearError]);
 
   const handleSubmit = async (
     values: SignInFormValues,
-    { setSubmitting }: any
+    { setSubmitting, setStatus }: FormikHelpers<SignInFormValues>
   ) => {
     try {
+      // Önceki hataları temizle
+      clearError();
+      setStatus(null);
+
+      console.log("Giriş denemesi:", values.email);
+
       await signIn(values);
-      // Navigation will be handled by the auth guard
-    } catch (err) {
-      // Error is handled by the store
+
+      console.log("Giriş başarılı!");
+
+      // Başarılı giriş sonrası yönlendirme
+      navigate("/");
+    } catch (err: any) {
       console.error("Sign in failed:", err);
+
+      // Hata mesajını Formik status'una ayarla
+      const errorMessage =
+        err?.response?.data?.detail ||
+        err?.response?.data?.message ||
+        err?.message ||
+        "Giriş yapılamadı. Lütfen bilgilerinizi kontrol edin.";
+      setStatus({ loginError: errorMessage });
     } finally {
       setSubmitting(false);
     }
   };
-
-  // Redirect if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to={from} replace />;
-  }
+  console.log(error);
+  console.log(status);
+  console.log(ErrorMessage);
 
   return (
-    <PublicOnly>
+    <PublicOnlyGuard>
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           {/* Header */}
@@ -51,35 +67,33 @@ const Signin = () => {
             <h1 className="text-3xl font-semibold font-inter text-gray-900 text-start">
               Sign In
             </h1>
-            {from !== "/" && (
-              <p className="text-sm text-gray-600 mt-2">
-                Please sign in to continue to your requested page
-              </p>
-            )}
           </div>
 
           {/* Error Message */}
-          {error && (
+          {(error || status?.loginError) && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-600 text-sm">{error}</p>
+              <p className="text-red-600 text-sm">
+                {status?.loginError || error}
+              </p>
             </div>
           )}
 
           <Formik
             initialValues={{ email: "", password: "" }}
+            initialStatus={{}}
             validate={(values: SignInFormValues) => {
               const errors: { [key: string]: string } = {};
               if (!values.email) {
-                errors.email = "Required";
+                errors.email = "Email gerekli";
               } else if (
                 !/^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i.test(values.email)
               ) {
-                errors.email = "Invalid email address";
+                errors.email = "Geçersiz email adresi";
               }
               if (!values.password) {
-                errors.password = "Required";
+                errors.password = "Şifre gerekli";
               } else if (values.password.length < 6) {
-                errors.password = "Password must be at least 6 characters";
+                errors.password = "Şifre en az 6 karakter olmalı";
               }
               return errors;
             }}
@@ -93,6 +107,16 @@ const Signin = () => {
               handleBlur,
               handleSubmit,
               isSubmitting,
+              status,
+            }: {
+              values: SignInFormValues;
+              errors: any;
+              touched: any;
+              handleChange: any;
+              handleBlur: any;
+              handleSubmit: any;
+              isSubmitting: boolean;
+              status?: { loginError?: string };
             }) => (
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Email Field */}
@@ -103,7 +127,14 @@ const Signin = () => {
                   <input
                     type="email"
                     name="email"
-                    onChange={handleChange}
+                    onChange={(e) => {
+                      handleChange(e);
+                      // Email değiştiğinde hataları temizle
+                      if (status?.loginError || error) {
+                        clearError();
+                        setStatus(null);
+                      }
+                    }}
                     onBlur={handleBlur}
                     value={values.email}
                     disabled={isLoading || isSubmitting}
@@ -123,34 +154,43 @@ const Signin = () => {
                 <div className="space-y-2">
                   <div className="flex justify-between items-center">
                     <label className="block text-sm font-medium text-gray-700">
-                      Password
+                      Şifre
                     </label>
                   </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    name="password"
-                    onChange={handleChange}
-                    onBlur={handleBlur}
-                    value={values.password}
-                    disabled={isLoading || isSubmitting}
-                    className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
-                      errors.password && touched.password
-                        ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white hover:border-gray-400"
-                    }`}
-                    placeholder="••••••"
-                  />
+                  <div className="relative">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      onChange={(e) => {
+                        handleChange(e);
+                        // Şifre değiştiğinde hataları temizle
+                        if (status?.loginError || error) {
+                          clearError();
+                          setStatus(null);
+                        }
+                      }}
+                      onBlur={handleBlur}
+                      value={values.password}
+                      disabled={isLoading || isSubmitting}
+                      className={`w-full px-4 py-3 border rounded-md text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-gray-100 disabled:cursor-not-allowed ${
+                        errors.password && touched.password
+                          ? "border-red-300 bg-red-50"
+                          : "border-gray-300 bg-white hover:border-gray-400"
+                      }`}
+                      placeholder="••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-sm text-purple-600 hover:text-purple-700 transition-colors duration-200"
+                    >
+                      {showPassword ? "Gizle" : "Göster"}
+                    </button>
+                  </div>
 
                   {errors.password && touched.password && (
                     <p className="text-red-500 text-sm">{errors.password}</p>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="text-sm text-purple-600 hover:text-purple-700 transition-colors duration-200"
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
                 </div>
 
                 {/* Login Button */}
@@ -166,10 +206,10 @@ const Signin = () => {
                   {isSubmitting || isLoading ? (
                     <div className="flex items-center justify-center">
                       <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                      Signing in...
+                      Giriş yapılıyor...
                     </div>
                   ) : (
-                    "Sign In"
+                    "Giriş Yap"
                   )}
                 </button>
 
@@ -179,7 +219,7 @@ const Signin = () => {
                     <div className="w-full border-t border-gray-300"></div>
                   </div>
                   <div className="relative flex justify-center text-sm">
-                    <span className="px-2 bg-gray-50 text-gray-500">OR</span>
+                    <span className="px-2 bg-gray-50 text-gray-500">VEYA</span>
                   </div>
                 </div>
 
@@ -208,7 +248,7 @@ const Signin = () => {
                         d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
                       />
                     </svg>
-                    Sign In With Google
+                    Google ile Giriş Yap
                   </button>
 
                   <button
@@ -223,19 +263,19 @@ const Signin = () => {
                     >
                       <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                     </svg>
-                    Sign In With Github
+                    Github ile Giriş Yap
                   </button>
                 </div>
 
                 {/* Sign Up Link */}
                 <div className="text-center mt-8">
                   <p className="text-sm text-gray-600">
-                    Don't have an account?{" "}
+                    Hesabınız yok mu?{" "}
                     <Link
                       to="/register"
                       className="text-purple-600 hover:text-purple-700 font-medium transition-colors duration-200"
                     >
-                      Sign up
+                      Kayıt Ol
                     </Link>
                   </p>
                 </div>
@@ -244,7 +284,7 @@ const Signin = () => {
           </Formik>
         </div>
       </div>
-    </PublicOnly>
+    </PublicOnlyGuard>
   );
 };
 

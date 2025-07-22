@@ -7,15 +7,20 @@ import {
   User,
   Settings,
   LogOut,
+  Moon,
+  Sun,
 } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
+import { useThemeStore } from "~/stores/theme";
+import { ThemeToggle } from "../common/ThemeToggle";
 
 const Sidebar = () => {
   const { user, signOut } = useAuth();
   const location = useLocation();
   const router = useNavigate();
+  const mode = useThemeStore((s) => s.mode);
 
   // Close dropdown when clicking outside
 
@@ -25,85 +30,80 @@ const Sidebar = () => {
       router("/signin");
     } catch (error) {
       console.error("Logout failed:", error);
-      // Even if logout fails, redirect to signin
-      router("/signin");
     }
   };
 
   return (
-    <aside className="w-64 bg-gray-50 border-r border-gray-200 p-4 flex flex-col justify-between">
-      {/* Üst bölüm: logo + ana linkler */}
+    <aside className="w-64 p-4 flex flex-col justify-between bg-background text-foreground border-r border-gray-300 dark:border-gray-700 transition-colors duration-300">
+      {/* Theme Toggle */}
       <div>
+        <div className="flex justify-start">
+          <ThemeToggle />
+        </div>
         {/* Logo */}
         <div className="font-bold text-xl mb-8">
           <Link to="/">
             <img src="/logo.png" alt="logo" />
           </Link>
         </div>
-
         {/* Ana Linkler */}
-        <nav className="space-y-2 mb-8">
-          {/* Workflows page disabled during MVP (relies on DB) – direct users to Canvas instead */}
-          <SidebarLink
-            icon={<Play className="w-5 h-5" />}
-            label="Workflows"
-            path="/workflows"
-            active={location.pathname === "/workflows"}
-          />
-          <SidebarLink
-            icon={<BarChart2 className="w-6 h-6" />}
-            label="Executions"
-            path="/executions"
-            active={location.pathname === "/executions"}
-          />
-          <SidebarLink
-            icon={<Key className="w-6 h-6" />}
-            label="Credentials"
-            path="/credentials"
-            active={location.pathname === "/credentials"}
-          />
+        <nav className="flex-1 px-1 py-2 overflow-y-auto">
+          <ul className="space-y-1.5">
+            <SidebarLink
+              icon={<Play className="w-5 h-5" />}
+              label="Workflows"
+              path="/workflows"
+              active={location.pathname === "/workflows"}
+            />
+            <SidebarLink
+              icon={<BarChart2 className="w-6 h-6" />}
+              label="Executions"
+              path="/executions"
+              active={location.pathname === "/executions"}
+            />
+            <SidebarLink
+              icon={<Key className="w-6 h-6" />}
+              label="Credentials"
+              path="/credentials"
+              active={location.pathname === "/credentials"}
+            />
+            <SidebarLink
+              icon={<Layers className="w-6 h-6" />}
+              label="Templates"
+              path="/templates"
+              active={location.pathname === "/templates"}
+            />
+            <SidebarLink
+              icon={<Database className="w-6 h-6" />}
+              label="Variables"
+              path="/variables"
+              active={location.pathname === "/variables"}
+            />
+          </ul>
         </nav>
       </div>
-
-      {/* Alt bölüm: templates + variables + kullanıcı */}
-      <div className="space-y-4">
-        {/* Templates & Variables */}
-        <div className="space-y-2">
-          <SidebarLink
-            icon={<Layers className="w-6 h-6" />}
-            label="Templates"
-            path="/templates"
-            active={location.pathname === "/templates"}
-          />
-          <SidebarLink
-            icon={<Database className="w-6 h-6" />}
-            label="Variables"
-            path="/variables"
-            active={location.pathname === "/variables"}
-          />
-        </div>
-
-        <div className="relative dropdown w-full">
-          <button className="flex items-center justify-between w-full p-2 rounded-lg hover:bg-gray-100">
-            <div className="flex items-center gap-2 ">
-              <span className="text-sm">{user?.full_name || "User"}</span>
-            </div>
-
-            <div className="text-sm">☰</div>
-          </button>
-
-          <div className="dropdown-content absolute left-0 bottom-full mb-2 bg-white border border-gray-200 rounded-md shadow-md w-full z-10">
-            <button className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2">
-              <Settings className="w-6 h-6" /> Settings
-            </button>
-            <button
-              className="w-full text-left px-4 py-2 hover:bg-gray-100 flex items-center gap-2"
-              onClick={handleLogOut}
-            >
-              <LogOut className="w-6 h-6" /> Sign Out
-            </button>
+      {/* Profil ve logout bölümü */}
+      <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
+        <div className="flex items-center gap-3 px-2 py-3">
+          <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-lg font-bold text-primary-foreground">
+            {user?.full_name?.[0] || "U"}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-foreground truncate">
+              {user?.full_name || "User"}
+            </p>
+            <p className="text-xs text-muted-foreground truncate">
+              {user?.email}
+            </p>
           </div>
         </div>
+        <button
+          onClick={handleLogOut}
+          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-red-500 hover:text-red-600 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all mt-2"
+        >
+          <LogOut className="w-5 h-5" />
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );
@@ -125,12 +125,19 @@ function SidebarLink({
   return (
     <Link
       to={path}
-      className={`flex items-center gap-3 p-3 rounded-lg w-full text-left hover:bg-[#D9DEE8] transition-colors ${
-        active ? "bg-[#D9DEE8] font-semibold" : ""
-      }`}
+      className={`
+        flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200
+        ${
+          active
+            ? "bg-purple-100 text-foreground font-semibold dark:bg-purple-700 dark:text-white"
+            : "text-muted-foreground hover:text-foreground hover:bg-purple-100  dark:hover:!bg-purple-700 dark:hover:text-white"
+        }
+      `}
     >
-      {icon}
-      <span className="text-sm text-[#414244]">{label}</span>
+      <span className="flex items-center justify-center min-w-[24px]">
+        {icon}
+      </span>
+      <span className="text-sm">{label}</span>
     </Link>
   );
 }

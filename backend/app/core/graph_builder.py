@@ -313,17 +313,48 @@ class GraphBuilder:
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
                 
-                # 🔥 ENHANCED: Pass session information to ReAct Agents
+                # 🔥 ENHANCED: Pass session information to ReAct Agents and Memory nodes
                 if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
                     gnode.node_instance.session_id = session_id
                     print(f"[DEBUG] Set session_id for {node_id}: {session_id}")
                 
+                # Set session_id for memory nodes
+                if 'Memory' in gnode.type and hasattr(gnode.node_instance, 'session_id'):
+                    session_id = state.session_id or f"session_{node_id}"
+                    gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id for memory node {node_id}: {session_id}")
+                
+                # Initialize tracer for this node
+                try:
+                    tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
+                    inputs_dict = {"input": state.current_input} if hasattr(state, 'current_input') else {}
+                    tracer.start_node_execution(node_id, gnode.type, inputs_dict)
+                except Exception as trace_error:
+                    print(f"[WARNING] Tracing failed: {trace_error}")
+                
                 # 🔥 SPECIAL HANDLING for ProcessorNodes (ReactAgent)
+                print(f"[DEBUG] Node {node_id} type check - node_type: {gnode.node_instance.metadata.node_type.value}")
+                print(f"[DEBUG] Node {node_id} has _input_connections: {hasattr(gnode.node_instance, '_input_connections')}")
+                if hasattr(gnode.node_instance, '_input_connections'):
+                    print(f"[DEBUG] Node {node_id} input connections: {list(gnode.node_instance._input_connections.keys())}")
                 if gnode.node_instance.metadata.node_type.value == "processor":
                     # For ProcessorNodes, we need to pass actual node instances, not their outputs
-                    user_inputs = self._extract_user_inputs_for_processor(gnode, state)
-                    connected_nodes = self._extract_connected_node_instances(gnode, state)
+                    try:
+                        print(f"[DEBUG] Extracting user inputs for processor {node_id}")
+                        user_inputs = self._extract_user_inputs_for_processor(gnode, state)
+                        print(f"[DEBUG] User inputs extracted successfully: {list(user_inputs.keys())}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to extract user inputs for {node_id}: {e}")
+                        raise
+                    
+                    try:
+                        print(f"[DEBUG] Extracting connected node instances for processor {node_id}")
+                        connected_nodes = self._extract_connected_node_instances(gnode, state)
+                        print(f"[DEBUG] Connected nodes extracted successfully: {list(connected_nodes.keys())}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to extract connected nodes for {node_id}: {e}")
+                        raise
                     
                     print(f"[DEBUG] Processor {node_id} - User inputs: {list(user_inputs.keys())}")
                     print(f"[DEBUG] Processor {node_id} - Connected nodes: {list(connected_nodes.keys())}")
@@ -356,17 +387,41 @@ class GraphBuilder:
                     }
                     print(f"[DEBUG] Node {node_id} returning state update: {result_dict}")
                     print(f"[DEBUG] State after update - last_output: '{state.last_output}'")
+                    
+                    # End node tracing for processor nodes
+                    try:
+                        tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
+                        tracer.end_node_execution(node_id, gnode.type, {"output": processed_result})
+                    except Exception as trace_error:
+                        print(f"[WARNING] Tracing failed: {trace_error}")
+                    
                     return result_dict
                 else:
                     # For other node types, use the standard graph node function
                     node_func = gnode.node_instance.to_graph_node()
                     result = node_func(state)
                     print(f"[DEBUG] Node {node_id} completed successfully")
+                    
+                    # End node tracing
+                    try:
+                        tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
+                        tracer.end_node_execution(node_id, gnode.type, result)
+                    except Exception as trace_error:
+                        print(f"[WARNING] Tracing failed: {trace_error}")
+                    
                     return result
                 
             except Exception as e:
                 error_msg = f"Node {node_id} execution failed: {str(e)}"
                 print(f"[ERROR] {error_msg}")
+                
+                # End node tracing with error
+                try:
+                    tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
+                    tracer.end_node_execution(node_id, gnode.type, {"error": error_msg})
+                except Exception as trace_error:
+                    print(f"[WARNING] Tracing failed: {trace_error}")
+                
                 if hasattr(state, 'add_error'):
                     state.add_error(error_msg)
                 return {
@@ -382,22 +437,32 @@ class GraphBuilder:
         inputs = {}
         
         for input_spec in gnode.node_instance.metadata.inputs:
+            # Skip inputs that have actual connections (they'll be handled separately)
+            if input_spec.name in gnode.node_instance._input_connections:
+                print(f"[DEBUG] Skipping connected input: {input_spec.name}")
+                continue
+                
             if not input_spec.is_connection:
                 # Check user_data first (from frontend form)
                 if input_spec.name in gnode.node_instance.user_data:
                     inputs[input_spec.name] = gnode.node_instance.user_data[input_spec.name]
+                    print(f"[DEBUG] Found user input {input_spec.name} in user_data")
                 # Then check state variables
                 elif input_spec.name in state.variables:
                     inputs[input_spec.name] = state.get_variable(input_spec.name)
+                    print(f"[DEBUG] Found user input {input_spec.name} in state variables")
                 # Use default if available
                 elif input_spec.default is not None:
                     inputs[input_spec.name] = input_spec.default
+                    print(f"[DEBUG] Using default for {input_spec.name}: {input_spec.default}")
                 # Check if required
                 elif input_spec.required:
                     # For special input names, try to get from state
                     if input_spec.name == "input":
                         inputs[input_spec.name] = state.current_input or ""
+                        print(f"[DEBUG] Using current_input for {input_spec.name}")
                     else:
+                        print(f"[DEBUG] Required input '{input_spec.name}' not found in user_data, state, or defaults")
                         raise ValueError(f"Required input '{input_spec.name}' not found")
         
         return inputs
@@ -406,30 +471,53 @@ class GraphBuilder:
         """Extract connected node instances for processor nodes"""
         connected = {}
         
-        for input_spec in gnode.node_instance.metadata.inputs:
-            if input_spec.is_connection:
-                # Use connection mapping if available
-                if input_spec.name in gnode.node_instance._input_connections:
-                    connection_info = gnode.node_instance._input_connections[input_spec.name]
-                    source_node_id = connection_info["source_node_id"]
-                    
-                    # Get the actual node instance from our nodes registry
-                    if source_node_id in self.nodes:
-                        source_node_instance = self.nodes[source_node_id].node_instance
-                        
-                        # For provider nodes, we need to execute them to get the instance
-                        if source_node_instance.metadata.node_type.value == "provider":
+        # Check all input connections defined for this node
+        for input_name, connection_info in gnode.node_instance._input_connections.items():
+            source_node_id = connection_info["source_node_id"]
+            
+            print(f"[DEBUG] Processing connection {input_name} <- {source_node_id}")
+            
+            # Get the actual node instance from our nodes registry
+            if source_node_id in self.nodes:
+                source_node_instance = self.nodes[source_node_id].node_instance
+                
+                # For provider nodes, we need to execute them to get the instance
+                if source_node_instance.metadata.node_type.value == "provider":
+                    try:
+                        # 🔥 CRITICAL FIX: Pass session_id to memory nodes
+                        if source_node_instance.metadata.name in ['BufferMemory', 'ConversationMemory']:
+                            # Set session_id on memory nodes before execution
+                            source_node_instance.session_id = state.session_id
+                            print(f"[DEBUG] Set session_id on {source_node_id}: {state.session_id}")
+                            
+                            # Track memory node execution
                             try:
-                                # Execute the provider node to get the actual instance
-                                provider_inputs = self._extract_user_inputs_for_processor(self.nodes[source_node_id], state)
-                                node_instance = source_node_instance.execute(**provider_inputs)
-                                connected[input_spec.name] = node_instance
-                                print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id} instance: {type(node_instance).__name__}")
-                            except Exception as e:
-                                print(f"[ERROR] Failed to get instance from {source_node_id}: {e}")
-                        else:
-                            connected[input_spec.name] = source_node_instance
-                            print(f"[DEBUG] Connected {input_spec.name} -> {source_node_id} instance: {type(source_node_instance).__name__}")
+                                tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
+                                tracer.track_memory_operation("connect", source_node_id, "memory_node_connection", state.session_id)
+                            except Exception as trace_error:
+                                print(f"[WARNING] Memory tracing failed: {trace_error}")
+                        
+                        # Execute the provider node to get the actual instance
+                        # For provider nodes, we need to extract ALL inputs (not just user inputs)
+                        provider_inputs = {}
+                        for input_spec in source_node_instance.metadata.inputs:
+                            if input_spec.name in source_node_instance.user_data:
+                                provider_inputs[input_spec.name] = source_node_instance.user_data[input_spec.name]
+                            elif input_spec.default is not None:
+                                provider_inputs[input_spec.name] = input_spec.default
+                        
+                        node_instance = source_node_instance.execute(**provider_inputs)
+                        connected[input_name] = node_instance
+                        print(f"[DEBUG] Connected {input_name} -> {source_node_id} instance: {type(node_instance).__name__}")
+                    except Exception as e:
+                        print(f"[ERROR] Failed to get instance from {source_node_id}: {e}")
+                        raise ValueError(f"Required input '{input_name}' not found") from e
+                else:
+                    connected[input_name] = source_node_instance
+                    print(f"[DEBUG] Connected {input_name} -> {source_node_id} instance: {type(source_node_instance).__name__}")
+            else:
+                print(f"[ERROR] Source node {source_node_id} not found in registry")
+                raise ValueError(f"Required input '{input_name}' not found")
         
         return connected
 

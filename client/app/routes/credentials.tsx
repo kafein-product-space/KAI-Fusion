@@ -1,16 +1,34 @@
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { Pencil, Plus, Search, Trash } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Search,
+  Trash,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
+
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
 import LoadingSpinner from "~/components/common/LoadingSpinner";
+import AuthGuard from "~/components/AuthGuard";
 
 function CredentialsLayout() {
+  const {
+    userCredentials,
+    fetchCredentials,
+    addCredential,
+    updateCredential,
+    removeCredential,
+    isLoading,
+    error,
+  } = useUserCredentialStore();
+
   const [searchQuery, setSearchQuery] = useState("");
   interface Api {
     id: number;
@@ -23,16 +41,22 @@ function CredentialsLayout() {
   }
 
   const [selectedApi, setSelectedApi] = useState<Api | null>(null);
+  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [page, setPage] = useState(1);
 
-  const {
-    userCredentials,
-    fetchCredentials,
-    addCredential,
-    updateCredential,
-    removeCredential,
-    isLoading,
-    error,
-  } = useUserCredentialStore();
+  // Sayfalama hesaplamaları
+  const filteredCredentials = userCredentials.filter((credential) =>
+    credential.name.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+  const totalItems = filteredCredentials.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIdx = (page - 1) * itemsPerPage;
+  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+  const pagedCredentials = filteredCredentials.slice(startIdx, endIdx);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
 
   useEffect(() => {
     fetchCredentials();
@@ -195,132 +219,179 @@ function CredentialsLayout() {
                   </tr>
                 </thead>
                 <tbody>
-                  {userCredentials
-                    .filter((credential) =>
-                      credential.name
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    )
-                    .map((credential) => (
-                      <tr
-                        key={credential.id}
-                        className="border-b border-gray-300"
-                      >
-                        <td className="p-6 flex items-center gap-4">
-                          {/* Optionally add logo if available */}
-                          {credential.name}
-                        </td>
-                        <td className="p-3">
-                          {timeAgo(credential.created_at)}
-                        </td>
-                        <td className="p-3">
-                          {timeAgo(credential.updated_at)}
-                        </td>
-                        <td></td>
-
-                        <td className="p-6">
-                          <div className="flex items-center gap-1">
-                            <button
-                              className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
-                              title="Edit variable"
-                              onClick={() =>
-                                (
-                                  document.getElementById(
-                                    `editModal-${credential.id}`
-                                  ) as HTMLDialogElement
-                                )?.showModal()
-                              }
-                            >
-                              <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
-                            </button>
-                            <button
-                              className="p-2 rounded-lg hover:bg-red-50 transition duration-200 group"
-                              title="Delete variable"
-                              onClick={() =>
-                                (
-                                  document.getElementById(
-                                    `deleteModal-${credential.id}`
-                                  ) as HTMLDialogElement
-                                )?.showModal()
-                              }
-                            >
-                              <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                            </button>
+                  {pagedCredentials.map((credential) => (
+                    <tr
+                      key={credential.id}
+                      className="border-b border-gray-300"
+                    >
+                      <td className="p-6 flex items-center gap-4">
+                        {/* Optionally add logo if available */}
+                        {credential.name}
+                      </td>
+                      <td className="p-3">{timeAgo(credential.created_at)}</td>
+                      <td className="p-3">{timeAgo(credential.updated_at)}</td>
+                      <td></td>
+                      <td className="p-6">
+                        <div className="flex items-center gap-1">
+                          <button
+                            className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
+                            title="Edit variable"
+                            onClick={() =>
+                              (
+                                document.getElementById(
+                                  `editModal-${credential.id}`
+                                ) as HTMLDialogElement
+                              )?.showModal()
+                            }
+                          >
+                            <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
+                          </button>
+                          <button
+                            className="p-2 rounded-lg hover:bg-red-50 transition duration-200 group"
+                            title="Delete variable"
+                            onClick={() =>
+                              (
+                                document.getElementById(
+                                  `deleteModal-${credential.id}`
+                                ) as HTMLDialogElement
+                              )?.showModal()
+                            }
+                          >
+                            <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
+                          </button>
+                        </div>
+                        <dialog
+                          id={`updateModal-${credential.id}`}
+                          className="modal"
+                        >
+                          <div className="modal-box">
+                            <h3 className="font-bold text-lg">
+                              Update Credential
+                            </h3>
+                            <p className="py-4">
+                              Update{" "}
+                              <strong className="font-mono">
+                                {credential.name}
+                              </strong>
+                              ?
+                              <br />
+                              <span className="text-red-600 text-sm">
+                                This action cannot be undone.
+                              </span>
+                            </p>
+                            <div className="modal-action">
+                              <form
+                                method="dialog"
+                                className="flex items-center gap-2"
+                              >
+                                <button className="btn">Cancel</button>
+                                <button className="btn bg-red-500 hover:bg-red-600 text-white">
+                                  Update
+                                </button>
+                              </form>
+                            </div>
                           </div>
-                          <dialog
-                            id={`updateModal-${credential.id}`}
-                            className="modal"
-                          >
-                            <div className="modal-box">
-                              <h3 className="font-bold text-lg">
-                                Update Credential
-                              </h3>
-                              <p className="py-4">
-                                Update{" "}
-                                <strong className="font-mono">
-                                  {credential.name}
-                                </strong>
-                                ?
-                                <br />
-                                <span className="text-red-600 text-sm">
-                                  This action cannot be undone.
-                                </span>
-                              </p>
-                              <div className="modal-action">
-                                <form
-                                  method="dialog"
-                                  className="flex items-center gap-2"
-                                >
-                                  <button className="btn">Cancel</button>
-                                  <button className="btn bg-red-500 hover:bg-red-600 text-white">
-                                    Update
-                                  </button>
-                                </form>
-                              </div>
-                            </div>
-                          </dialog>
+                        </dialog>
 
-                          {/* Delete Modal for each variable */}
-                          <dialog
-                            id={`deleteModal-${credential.id}`}
-                            className="modal"
-                          >
-                            <div className="modal-box">
-                              <h3 className="font-bold text-lg">
-                                Delete Credential
-                              </h3>
-                              <p className="py-4">
-                                Are you sure you want to delete{" "}
-                                <strong className="font-mono">
-                                  {credential.name}
-                                </strong>
-                                ?
-                                <br />
-                                <span className="text-red-600 text-sm">
-                                  This action cannot be undone.
-                                </span>
-                              </p>
-                              <div className="modal-action">
-                                <form
-                                  method="dialog"
-                                  className="flex items-center gap-2"
+                        {/* Delete Modal for each variable */}
+                        <dialog
+                          id={`deleteModal-${credential.id}`}
+                          className="modal"
+                        >
+                          <div className="modal-box">
+                            <h3 className="font-bold text-lg">
+                              Delete Credential
+                            </h3>
+                            <p className="py-4">
+                              Are you sure you want to delete{" "}
+                              <strong className="font-mono">
+                                {credential.name}
+                              </strong>
+                              ?
+                              <br />
+                              <span className="text-red-600 text-sm">
+                                This action cannot be undone.
+                              </span>
+                            </p>
+                            <div className="modal-action">
+                              <form
+                                method="dialog"
+                                className="flex items-center gap-2"
+                              >
+                                <button className="btn">Cancel</button>
+                                <button
+                                  className="btn bg-red-500 hover:bg-red-600 text-white"
+                                  onClick={() => handleDelete(credential.id)}
                                 >
-                                  <button className="btn">Cancel</button>
-                                  <button
-                                    className="btn bg-red-500 hover:bg-red-600 text-white"
-                                    onClick={() => handleDelete(credential.id)}
-                                  >
-                                    Delete
-                                  </button>
-                                </form>
-                              </div>
+                                  Delete
+                                </button>
+                              </form>
                             </div>
-                          </dialog>
-                        </td>
-                      </tr>
-                    ))}
+                          </div>
+                        </dialog>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
+              {/* Modern Pagination Bar - table altı */}
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 px-4 pb-4">
+                {/* Items per page */}
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-gray-500">Items per page:</span>
+                  <select
+                    className="border rounded px-2 py-1 text-xs"
+                    value={itemsPerPage}
+                    onChange={(e) => {
+                      setItemsPerPage(Number(e.target.value));
+                      setPage(1);
+                    }}
+                  >
+                    {[10, 20, 50, 100].map((opt) => (
+                      <option key={opt} value={opt}>
+                        {opt}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                {/* Sayfa numaraları */}
+                <div className="flex items-center gap-1 justify-center">
+                  <button
+                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
+                    onClick={() => setPage(page - 1)}
+                    disabled={page === 1}
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                    (p) => (
+                      <button
+                        key={p}
+                        onClick={() => setPage(p)}
+                        className={`px-3 py-1 rounded text-xs border transition ${
+                          p === page
+                            ? "bg-[#9664E0] text-white border-[#9664E0] font-bold"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    )
+                  )}
+                  <button
+                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
+                    onClick={() => setPage(page + 1)}
+                    disabled={page === totalPages}
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+                {/* Items X to Y of Z */}
+                <div className="text-xs text-gray-500 text-right">
+                  Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
+                  {totalItems}
+                </div>
+              </div>
             </div>
           )}
         </div>
