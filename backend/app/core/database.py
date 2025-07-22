@@ -2,7 +2,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import QueuePool, NullPool
-from app.core.constants import *
+from app.core.constants import DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, DB_POOL_RECYCLE, DB_POOL_PRE_PING, DATABASE_URL, ASYNC_DATABASE_URL
 
 # Connection pooling configuration optimized for Supabase + Vercel
 sync_connection_args = {
@@ -10,7 +10,7 @@ sync_connection_args = {
     "max_overflow": int(DB_MAX_OVERFLOW),
     "pool_timeout": int(DB_POOL_TIMEOUT),
     "pool_recycle": int(DB_POOL_RECYCLE),
-    "pool_pre_ping": DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
+    "pool_pre_ping": DB_POOL_PRE_PING if isinstance(DB_POOL_PRE_PING, bool) else DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
     "poolclass": QueuePool,
     "echo": False,  # Disable in production for performance
     "connect_args": {"application_name": "kai-fusion"},
@@ -18,11 +18,11 @@ sync_connection_args = {
 
 async_connection_args = {
     # Note: AsyncEngine automatically uses AsyncAdaptedQueuePool
-    "pool_size": settings.DB_POOL_SIZE,
-    "max_overflow": settings.DB_MAX_OVERFLOW,
-    "pool_timeout": settings.DB_POOL_TIMEOUT,
-    "pool_recycle": settings.DB_POOL_RECYCLE,
-    "pool_pre_ping": settings.DB_POOL_PRE_PING,
+    "pool_size": int(DB_POOL_SIZE),
+    "max_overflow": int(DB_MAX_OVERFLOW),
+    "pool_timeout": int(DB_POOL_TIMEOUT),
+    "pool_recycle": int(DB_POOL_RECYCLE),
+    "pool_pre_ping": DB_POOL_PRE_PING if isinstance(DB_POOL_PRE_PING, bool) else DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
     "echo": False,  # Disable in production for performance
     "connect_args": {
         "server_settings": {"application_name": "kai-fusion"},

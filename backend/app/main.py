@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter
 
 # Core imports
-from app.core.config import get_settings
+from app.core.constants import CREATE_DATABASE
 from app.core.node_registry import node_registry
 from app.core.engine_v2 import get_engine
 from app.core.database import create_tables, get_db_session
@@ -27,7 +27,7 @@ from app.api.credentials import router as credentials_router
 from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
-# Memory API removed as per user request
+from app.api.variables import router as variables_router
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +60,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Failed to initialize tracing: {e}")
     
     # Initialize database only if CREATE_DATABASE is enabled
-    if settings.CREATE_DATABASE:
+    if CREATE_DATABASE:
         try:
             await create_tables()
             logger.info("✅ Database tables created or already exist.")
@@ -89,7 +89,6 @@ app = FastAPI(
 )
 
 # Configure CORS
-settings = get_settings()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],  # Configure appropriately for production
@@ -117,7 +116,7 @@ app.include_router(api_key_router, prefix="/api/v1/api-keys", tags=["API Keys"])
 app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
-# Memory router removed as per user request
+app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
 
 
 # Health checks and info endpoints
@@ -136,7 +135,7 @@ async def health_check():
             engine_healthy = False
         
         # Database health (conditional based on CREATE_DATABASE setting)
-        if settings.CREATE_DATABASE:
+        if CREATE_DATABASE:
             db_healthy = "enabled"
         else:
             db_healthy = "disabled (CREATE_DATABASE=false)"
@@ -157,7 +156,7 @@ async def health_check():
                 },
                 "database": {
                     "status": db_healthy,
-                    "enabled": settings.CREATE_DATABASE
+                    "enabled": CREATE_DATABASE
                 }
             }
         }
@@ -193,7 +192,7 @@ async def get_info():
                 "total_nodes": len(node_registry.nodes),
                 "node_types": list(set(node.__name__ for node in node_registry.nodes.values())),
                 "api_endpoints": 25,  # Approximate count
-                "database_enabled": settings.CREATE_DATABASE
+                "database_enabled": CREATE_DATABASE
             },
             "engine": {
                 "type": "LangGraph Unified Engine",
@@ -244,7 +243,7 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
         "info": "/api/v1/info",
-        "database_enabled": get_settings().CREATE_DATABASE
+        "database_enabled": CREATE_DATABASE
     }
 
 if __name__ == "__main__":

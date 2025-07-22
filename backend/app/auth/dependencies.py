@@ -7,10 +7,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.user import User
 from app.services.user_service import UserService
 from app.services.dependencies import get_user_service_dep, get_db_session
-from app.core.config import get_settings
+from app.core.constants import SECRET_KEY, ALGORITHM
 
 security = HTTPBearer()
-settings = get_settings()
 
 async def get_current_user(
     credentials: HTTPAuthorizationCredentials = Depends(security),
@@ -27,7 +26,7 @@ async def get_current_user(
     )
     try:
         payload = jwt.decode(
-            credentials.credentials, settings.SECRET_KEY, algorithms=[settings.ALGORITHM]
+            credentials.credentials, SECRET_KEY, algorithms=[ALGORITHM]
         )
         email: Optional[str] = payload.get("sub")
         if email is None:
