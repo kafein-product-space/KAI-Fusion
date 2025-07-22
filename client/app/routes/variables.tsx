@@ -1,10 +1,12 @@
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { Pencil, Plus, Search, Trash } from "lucide-react";
-import React, { useState } from "react";
-import { Link } from "react-router";
+import { enqueueSnackbar, useSnackbar } from "notistack";
+import React, { useEffect, useState } from "react";
+import { Search, Plus, Pencil, Trash } from "lucide-react"; // Icon import'ları eklendi
 import AuthGuard from "~/components/AuthGuard";
-
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import { removeVariable } from "~/services/variableService";
+import { useVariableStore } from "~/stores/variables";
+import { timeAgo } from "~/lib/dateFormatter";
 
 interface VariableFormValues {
   name: string;
@@ -13,7 +15,7 @@ interface VariableFormValues {
 }
 
 interface Variable {
-  id: number;
+  id: string; // number'dan string'e değiştirildi
   name: string;
   value: string;
   type: string;
@@ -22,66 +24,40 @@ interface Variable {
 }
 
 function VariablesLayout() {
+  const { enqueueSnackbar } = useSnackbar();
   const [searchQuery, setSearchQuery] = useState("");
 
-  const [variables, setVariables] = useState<Variable[]>([
-    {
-      id: 1,
-      name: "API_BASE_URL",
-      value: "https://api.example.com/v1",
-      type: "static",
-      updated: "June 26th, 2025",
-      created: "June 26th, 2025",
-    },
-    {
-      id: 2,
-      name: "DATABASE_CONNECTION",
-      value: "postgresql://user:pass@localhost:5432/db",
-      type: "static",
-      updated: "June 30th, 2025",
-      created: "June 30th, 2025",
-    },
-    {
-      id: 3,
-      name: "USER_SESSION_TIMEOUT",
-      value: "3600",
-      type: "dynamic",
-      updated: "July 1st, 2025",
-      created: "July 1st, 2025",
-    },
-  ]);
+  const {
+    variables,
+    fetchVariables,
+    isLoading,
+    removeVariable: removeVariableFromStore,
+    updateVariable,
+    createVariable,
+  } = useVariableStore();
 
-  const handleVariableSubmit = (
+  useEffect(() => {
+    fetchVariables();
+  }, [fetchVariables]); // dependency array'e fetchVariables eklendi
+
+  const handleVariableSubmit = async (
     values: VariableFormValues,
     { resetForm }: any
   ) => {
-    const newVariable: Variable = {
-      id: variables.length + 1,
-      name: values.name,
-      value: values.value,
-      type: values.type,
-      updated: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-      created: new Date().toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "long",
-        day: "numeric",
-      }),
-    };
+    try {
+      await createVariable(values);
+      enqueueSnackbar("Variable created successfully", { variant: "success" });
 
-    setVariables([...variables, newVariable]);
-
-    // Modal'ı kapat ve formu temizle
-    const modal = document.getElementById(
-      "modalCreateVariable"
-    ) as HTMLDialogElement;
-    modal?.close();
-    resetForm();
-
-    console.log("Variable saved:", values);
+      // Modal'ı kapat ve formu temizle
+      const modal = document.getElementById(
+        "modalCreateVariable"
+      ) as HTMLDialogElement;
+      modal?.close();
+      resetForm();
+    } catch (error) {
+      console.log(error);
+      enqueueSnackbar("Failed to create variable", { variant: "error" });
+    }
   };
 
   const validateVariable = (values: VariableFormValues) => {
@@ -107,8 +83,14 @@ function VariablesLayout() {
     return errors;
   };
 
-  const handleDelete = (id: number) => {
-    setVariables(variables.filter((variable) => variable.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await removeVariableFromStore(id); // Store method kullanıldı
+      enqueueSnackbar("Variable deleted successfully", { variant: "success" });
+    } catch (error) {
+      console.log(error);
+      enqueueSnackbar("Failed to delete variable", { variant: "error" });
+    }
   };
 
   const filteredVariables = variables.filter(
@@ -116,6 +98,20 @@ function VariablesLayout() {
       variable.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       variable.value.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen w-screen">
+        <DashboardSidebar />
+        <main className="flex-1 p-10 m-10 bg-white flex items-center justify-center">
+          <div className="text-center">
+            <div className="loading loading-spinner loading-lg"></div>
+            <p className="mt-4 text-gray-600">Loading variables...</p>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen w-screen">
@@ -162,28 +158,6 @@ function VariablesLayout() {
                 <Plus className="w-4 h-4" />
                 Create Variable
               </button>
-            </div>
-          </div>
-
-          {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {variables.length}
-              </div>
-              <div className="text-sm text-gray-600">Total Variables</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {variables.filter((v) => v.type === "static").length}
-              </div>
-              <div className="text-sm text-gray-600">Static Variables</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {variables.filter((v) => v.type === "dynamic").length}
-              </div>
-              <div className="text-sm text-gray-600">Dynamic Variables</div>
             </div>
           </div>
 
@@ -261,10 +235,10 @@ function VariablesLayout() {
                         </span>
                       </td>
                       <td className="p-6 text-gray-600 text-sm">
-                        {variable.created}
+                        {timeAgo(variable.created_at)}
                       </td>
                       <td className="p-6 text-gray-600 text-sm">
-                        {variable.updated}
+                        {timeAgo(variable.updated_at)}
                       </td>
                       <td className="p-6">
                         <div className="flex items-center gap-1">
@@ -316,8 +290,16 @@ function VariablesLayout() {
                               >
                                 <button className="btn">Cancel</button>
                                 <button
+                                  type="button"
                                   className="btn bg-red-500 hover:bg-red-600 text-white"
-                                  onClick={() => handleDelete(variable.id)}
+                                  onClick={() => {
+                                    handleDelete(variable.id);
+                                    // Modal'ı kapat
+                                    const modal = document.getElementById(
+                                      `deleteModal-${variable.id}`
+                                    ) as HTMLDialogElement;
+                                    modal?.close();
+                                  }}
                                 >
                                   Delete
                                 </button>

@@ -82,6 +82,13 @@ export const API_ENDPOINTS = {
     CREATE: '/executions',
     GET: (id: string) => `/executions/${id}`,
   },
+  VARIABLES: {
+    LIST: '/variables',
+    CREATE: '/variables',
+    GET: (id: string) => `/variables/${id}`,
+    UPDATE: (id: string) => `/variables/${id}`,
+    DELETE: (id: string) => `/variables/${id}`,
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;
