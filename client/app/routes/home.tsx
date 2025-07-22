@@ -106,7 +106,7 @@ function DashboardLayout() {
             </div>
 
             <select
-              className="border border-gray-300 dark:border-gray-700 bg-white dark:bg-[#23272f] text-sm w-64 h-8 rounded-lg px-3 py-1 text-black dark:text-gray-100"
+              className="border border-gray-300 dark:border-gray-700 bg-background text-sm w-64 h-8 rounded-lg px-3 py-1 text-foreground"
               value={selectedPeriod}
               onChange={(e) => setSelectedPeriod(e.target.value)}
             >
@@ -122,13 +122,13 @@ function DashboardLayout() {
               <button
                 key={idx}
                 onClick={() => setSelectedStat(stat.statKey)}
-                className={`cursor-pointer border rounded-t-lg p-4 transition-all text-start bg-white dark:bg-[#23272f] text-black dark:text-gray-100 ${
+                className={`cursor-pointer border rounded-t-lg p-4 transition-all text-start bg-background text-foreground ${
                   selectedStat === stat.statKey
                     ? "border-gray-200 dark:border-gray-600 border-b-2 border-b-blue-500 dark:border-b-blue-400"
                     : "border-b border-gray-200 dark:border-gray-700"
                 }`}
               >
-                <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+                <div className="text-xs text-foreground mb-1">
                   {stat.label} <br />
                   {selectedPeriod === "7days"
                     ? "Last 7 days"
@@ -144,7 +144,7 @@ function DashboardLayout() {
           </div>
 
           {/* Chart */}
-          <div className="border border-gray-300 dark:border-gray-700 rounded-b-lg w-full h-64 p-4 bg-white dark:bg-[#23272f]">
+          <div className="border border-gray-300 dark:border-gray-700 rounded-b-lg w-full h-64 p-4 bg-background text-foreground">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>
                 <XAxis
