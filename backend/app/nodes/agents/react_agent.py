@@ -1,369 +1,206 @@
+
+
 from ..base import ProcessorNode, NodeInput, NodeType, NodeOutput
-from typing import Dict, Any, Sequence, Optional
+from typing import Dict, Any, Sequence
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
-from langchain_core.prompts import PromptTemplate, BasePromptTemplate
+from langchain_core.prompts import PromptTemplate
 from langchain_core.memory import BaseMemory
 from langchain.agents import AgentExecutor, create_react_agent
-from langchain.memory import ConversationBufferMemory
 
 class ReactAgentNode(ProcessorNode):
+    """
+    A sophisticated ReAct agent designed for robust orchestration of LLMs, tools, and memory.
+    This agent uses a refined prompting strategy to improve its reasoning and tool utilization.
+    """
+    
     def __init__(self):
         super().__init__()
         self._metadata = {
             "name": "ReactAgent",
             "display_name": "ReAct Agent",
-            "description": "Advanced ReAct agent that orchestrates LLM, tools, and memory for continuous conversations",
+            "description": "Orchestrates LLM, tools, and memory for complex, multi-step tasks.",
             "category": "Agents",
             "node_type": NodeType.PROCESSOR,
             "inputs": [
-                NodeInput(
-                    name="input", 
-                    type="string", 
-                    description="User input for the agent", 
-                    is_connection=True, 
-                    required=True
-                ),
-                NodeInput(
-                    name="llm", 
-                    type="BaseLanguageModel", 
-                    description="The language model to use", 
-                    is_connection=True,
-                    required=True
-                ),
-                NodeInput(
-                    name="chat_model", 
-                    type="BaseLanguageModel", 
-                    description="The language model to use (legacy name)", 
-                    is_connection=True,
-                    required=False
-                ),
-                NodeInput(
-                    name="tools", 
-                    type="Sequence[BaseTool]", 
-                    description="The tools for the agent to use", 
-                    is_connection=True,
-                    required=False
-                ),
-                NodeInput(
-                    name="tool", 
-                    type="BaseTool", 
-                    description="Single tool for the agent (legacy name)", 
-                    is_connection=True,
-                    required=False
-                ),
-                NodeInput(
-                    name="memory", 
-                    type="BaseMemory", 
-                    description="Memory object for the agent", 
-                    is_connection=True, 
-                    required=False
-                ),
-                NodeInput(
-                    name="max_iterations",
-                    type="int",
-                    description="Maximum iterations for agent",
-                    default=10,
-                    required=False
-                ),
-                NodeInput(
-                    name="system_prompt",
-                    type="str",
-                    description="System prompt for the agent",
-                    default="You are a helpful AI assistant. Use available tools when needed. Always provide helpful and informative responses.",
-                    required=False
-                ),
-                NodeInput(
-                    name="enable_memory",
-                    type="bool",
-                    description="Enable conversation memory",
-                    default=True,
-                    required=False
-                ),
+                NodeInput(name="input", type="string", required=True, description="The user's input to the agent."),
+                NodeInput(name="llm", type="BaseLanguageModel", required=True, description="The language model that the agent will use."),
+                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, description="The tools that the agent can use."),
+                NodeInput(name="memory", type="BaseMemory", required=False, description="The memory that the agent can use."),
+                NodeInput(name="max_iterations", type="int", default=15, description="The maximum number of iterations the agent can perform."),
+                NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
+                NodeInput(name="prompt_instructions", type="str", required=False, 
+                         description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
+                         default=""),
             ],
-            "outputs": [
-                NodeOutput(
-                    name="output",
-                    type="str",
-                    description="Agent response"
-                ),
-                NodeOutput(
-                    name="agent_executor",
-                    type="AgentExecutor",
-                    description="Agent executor for advanced usage"
-                )
-            ]
+            "outputs": [NodeOutput(name="output", type="str", description="The final output from the agent.")]
         }
-        # Persistent memory across calls for the same session
-        self._session_memories: Dict[str, BaseMemory] = {}
 
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
-        """Enhanced execute with proper memory management and orchestration"""
-        print(f"🤖 ReAct Agent executing with inputs: {list(inputs.keys())}")
-        print(f"🔗 Connected nodes: {list(connected_nodes.keys())}")
-        
-        # Get connected components (with backward compatibility)
-        llm_node = connected_nodes.get("llm") or connected_nodes.get("chat_model")
-        tools_node = connected_nodes.get("tools") or connected_nodes.get("tool")
-        memory_node = connected_nodes.get("memory")
-        
-        # Get configuration
-        input_text = inputs.get("input", "")
-        max_iterations = self.user_data.get("max_iterations", 10)
-        system_prompt = self.user_data.get("system_prompt", 
-            "You are a helpful AI assistant. Use available tools when needed to answer questions. "
-            "If you have access to memory, use it to maintain conversation context. "
-            "Always provide helpful and informative responses.")
-        enable_memory = self.user_data.get("enable_memory", True)
-        
-        # Validate required components
-        if not llm_node:
-            raise ValueError("LLM connection is required for ReAct Agent")
-        
-        if not isinstance(llm_node, BaseLanguageModel):
-            raise TypeError("LLM connection must be a BaseLanguageModel")
+        """
+        Sets up and returns a RunnableLambda that executes the agent.
+        """
+        def agent_executor_lambda(runtime_inputs: dict) -> dict:
+            llm = connected_nodes.get("llm")
+            tools = connected_nodes.get("tools")
+            memory = connected_nodes.get("memory")
 
-        print(f"✅ LLM validated: {type(llm_node).__name__}")
+            if not isinstance(llm, BaseLanguageModel):
+                raise ValueError("A valid LLM connection is required.")
 
-        # Handle tools - can be empty list
-        tools_list = []
-        if tools_node:
-            if isinstance(tools_node, BaseTool):
-                tools_list = [tools_node]
-            elif isinstance(tools_node, (list, tuple)):
-                tools_list = list(tools_node)
+            tools_list = self._prepare_tools(tools)
+
+            agent_prompt = self._create_prompt(tools_list)
+
+            agent = create_react_agent(llm, tools_list, agent_prompt)
+
+            # Build executor config with conditional memory
+            executor_config = {
+                "agent": agent,
+                "tools": tools_list,
+                "verbose": True, # Essential for real-time debugging
+                "handle_parsing_errors": "Check your output and make sure it conforms! If you need more iterations, provide your current best answer.",
+                "max_iterations": self.user_data.get("max_iterations", 3),  # Further reduce iterations for efficiency
+                "return_intermediate_steps": True,  # Capture tool usage for debugging
+                "max_execution_time": 60,  # Increase execution time slightly
+                "early_stopping_method": "force"  # Use supported method
+            }
+            
+            # Only add memory if it exists
+            if memory is not None:
+                executor_config["memory"] = memory
+                
+            executor = AgentExecutor(**executor_config)
+
+            # Enhanced debug logging with memory context
+            print(f"[DEBUG ReactAgent] inputs: {inputs}")
+            print(f"[DEBUG ReactAgent] runtime_inputs: {runtime_inputs}")
+            print(f"[DEBUG ReactAgent] tools_list: {[tool.name for tool in tools_list]}")
+            
+            # Memory context debug (for visibility)
+            if memory and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                messages = memory.chat_memory.messages
+                print(f"[DEBUG ReactAgent] memory_messages_count: {len(messages)}")
+                if messages:
+                    recent = messages[-2:] if len(messages) >= 2 else messages
+                    for i, msg in enumerate(recent):
+                        msg_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
+                        print(f"[DEBUG ReactAgent] recent_message_{i}: {type(msg).__name__}: {msg_preview}")
             else:
-                print(f"⚠️  Tools type not recognized: {type(tools_node)}, ignoring")
-        
-        print(f"🔧 Tools available: {len(tools_list)}")
-        for tool in tools_list:
-            print(f"  - {tool.name}: {tool.description}")
-
-        # Handle memory with session persistence
-        memory = None
-        session_id = getattr(self, 'session_id', 'default_session')
-        print(f"🔍 ReactAgent session_id: {session_id}")
-        print(f"🔍 Enable memory: {enable_memory}")
-        print(f"🔍 Memory node: {memory_node}")
-        print(f"🔍 Memory node type: {type(memory_node)}")
-        
-        if enable_memory:
-            if memory_node and isinstance(memory_node, BaseMemory):
-                # Use connected memory - but ensure it's session-aware
-                memory = memory_node
-                print(f"💭 Using connected memory: {type(memory).__name__}")
-                
-                # Debug memory content
-                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                    print(f"💭 Connected memory has {len(memory.chat_memory.messages)} messages")
-                    for i, msg in enumerate(memory.chat_memory.messages):
-                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
-                
+                print(f"[DEBUG ReactAgent] memory: No chat memory available")
+            
+            # Handle runtime_inputs being either dict or string
+            if isinstance(runtime_inputs, str):
+                user_input = runtime_inputs
+            elif isinstance(runtime_inputs, dict):
+                user_input = runtime_inputs.get("input", inputs.get("input", ""))
             else:
-                # Use persistent session memory
-                if session_id not in self._session_memories:
-                    self._session_memories[session_id] = ConversationBufferMemory(
-                        memory_key="chat_history",
-                        return_messages=True,
-                        input_key="input",
-                        output_key="output"
-                    )
-                    print(f"💭 Created new session memory for: {session_id}")
-                memory = self._session_memories[session_id]
-                print(f"💭 Using persistent session memory: {session_id}")
-                
-                # Debug session memory content
-                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                    print(f"💭 Session memory has {len(memory.chat_memory.messages)} messages")
-                    for i, msg in enumerate(memory.chat_memory.messages):
-                        print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
+                user_input = inputs.get("input", "")
+            
+            final_input = {
+                "input": user_input,
+                "tools": tools_list,  # LangChain create_react_agent için gerekli
+                "tool_names": [tool.name for tool in tools_list]
+            }
+            
+            print(f"[DEBUG ReactAgent] final_input keys: {list(final_input.keys())}")
+            print(f"[DEBUG ReactAgent] final_input['input']: {final_input['input']}")
+            
+            return executor.invoke(final_input)
 
-        # Create enhanced prompt template
-        if tools_list:
-            prompt_template = f"""{system_prompt}
+        return RunnableLambda(agent_executor_lambda)
 
-You have access to the following tools:
-{{tools}}
+    def _prepare_tools(self, tools_input: Any) -> list[BaseTool]:
+        """Ensures the tools are in the correct list format."""
+        if not tools_input:
+            return []
+        if isinstance(tools_input, list):
+            return tools_input
+        if isinstance(tools_input, BaseTool):
+            return [tools_input]
+        return []
 
-Use the following format:
+    def _create_prompt(self, tools: list[BaseTool]) -> PromptTemplate:
+        """
+        Creates a unified ReAct-compatible prompt that works with LangChain's create_react_agent.
+        Uses custom prompt_instructions if provided, otherwise falls back to smart orchestration.
+        """
+        custom_instructions = self.user_data.get("prompt_instructions", "").strip()
+        
+        # Optimized system context with efficient tool usage
+        base_system_context = """
+Sen KAI-Fusion platformunda çalışan verimli bir AI asistanısın. 
+Kullanıcının dilinde (Türkçe/İngilizce) hızlı ve yararlı cevaplar ver.
+
+VERİMLİLİK KURALLARI:
+- Basit sorularda (merhaba, nasılsın, teşekkür) araç kullanma
+- Sadece güncel/yeni bilgi gerektiğinde araç kullan
+- Araç kullanımından sonra hemen cevap ver, gereksiz araç kullanımı yapma
+- Maksimum 2 araç kullanımı ile cevabını tamamla
+- Eğer bilgin varsa araç kullanmadan cevapla
+- Senin hafizan {memory}
+"""
+        
+        # Build dynamic, intelligent prompt based on available components
+        prompt_content = self._build_intelligent_prompt(custom_instructions, base_system_context)
+
+        return PromptTemplate.from_template(prompt_content)
+
+    def _build_intelligent_prompt(self, custom_instructions: str, base_system_context: str) -> str:
+        """
+        Builds an intelligent, dynamic system prompt that adapts to available tools, memory, and custom instructions.
+        This creates a context-aware agent that understands its capabilities and constraints.
+        """
+        
+        # === SIMPLE IDENTITY SECTION ===
+        if custom_instructions:
+            identity_section = f"{custom_instructions}\n\n{base_system_context}"
+        else:
+            identity_section = base_system_context
+
+        # Minimal guidelines
+        simplified_guidelines = "Kullanıcıya yardımcı ol ve gerektiğinde araçları kullan."
+
+        # === OPTIMIZED REACT TEMPLATE ===
+        react_template = """Answer the following questions efficiently. You have access to these tools:
+
+{tools}
+
+IMPORTANT: Be concise and efficient. Use tools only when necessary for current information.
+
+Use this EXACT format:
 
 Question: the input question you must answer
-Thought: you should always think about what to do
-Action: the action to take, should be one of [{{tool_names}}]
+Thought: think about what to do (be concise)
+Action: the tool to use, should be one of [{tool_names}]
 Action Input: the input to the action
 Observation: the result of the action
-... (this Thought/Action/Action Input/Observation can repeat N times)
+... (this can repeat max 2 times)
 Thought: I now know the final answer
 Final Answer: the final answer to the original input question
 
+For direct answers (no tools needed):
+Thought: I can answer this directly
+Final Answer: [your answer]
+
+Be efficient - if you have enough information after 1 tool use, provide the final answer.
+
 Begin!
 
-{{chat_history}}
+Question: {input}
+Thought:{agent_scratchpad}"""
 
-Question: {{input}}
-Thought:"""
-        else:
-            prompt_template = f"""{system_prompt}
+        # === COMBINE ALL SECTIONS ===
+        full_prompt = f"""
+{identity_section}
 
-{{chat_history}}
+{simplified_guidelines}
 
-User: {{input}}
-Assistant: I'll help you with that. Let me provide a helpful response:"""
+{react_template}
+"""
 
-        try:
-            prompt = PromptTemplate.from_template(prompt_template)
-            print(f"📝 Prompt template created")
+        return full_prompt.strip()
 
-            if tools_list:
-                # Create ReAct agent with tools
-                agent = create_react_agent(llm_node, tools_list, prompt)
-                print(f"🤖 ReAct agent created with {len(tools_list)} tools")
-            else:
-                # Create simple conversational agent without tools
-                def simple_agent_func(agent_input):
-                    print(f"🔧 simple_agent_func called with: {agent_input}")
-                    
-                    # Extract the actual user input
-                    current_input = agent_input.get("input", "") if isinstance(agent_input, dict) else str(agent_input)
-                    print(f"🔧 Extracted current_input: '{current_input}'")
-                    
-                    # Get chat history from memory safely
-                    chat_history = ""
-                    if memory:
-                        print(f"🔧 Getting chat history from memory type: {type(memory)}")
-                        
-                        # Try different memory access methods
-                        if hasattr(memory, 'buffer') and memory.buffer:
-                            chat_history = memory.buffer
-                            print(f"🔧 Got buffer: {chat_history[:100]}...")
-                        elif hasattr(memory, 'chat_memory'):
-                            chat_memory = memory.chat_memory
-                            if chat_memory and hasattr(chat_memory, 'messages'):
-                                messages = chat_memory.messages
-                                print(f"🔧 Found {len(messages)} messages in chat_memory")
-                                
-                                # Format messages for prompt
-                                formatted_messages = []
-                                for msg in messages:
-                                    msg_type = getattr(msg, 'type', 'unknown')
-                                    msg_content = getattr(msg, 'content', str(msg))
-                                    if msg_type == 'human':
-                                        formatted_messages.append(f"User: {msg_content}")
-                                    elif msg_type == 'ai':
-                                        formatted_messages.append(f"Assistant: {msg_content}")
-                                    else:
-                                        formatted_messages.append(f"{msg_type}: {msg_content}")
-                                
-                                chat_history = "\n".join(formatted_messages)
-                                print(f"🔧 Formatted chat history: {chat_history}")
-                        else:
-                            print(f"🔧 Memory has no accessible history format")
-                    
-                    print(f"🔧 Final chat history length: {len(chat_history)}")
-                    if chat_history:
-                        print(f"🔧 Chat history preview: {chat_history[:200]}...")
-                    
-                    formatted_prompt = prompt.format(
-                        chat_history=chat_history,
-                        input=current_input
-                    )
-                    print(f"🔧 Formatted prompt: '{formatted_prompt[:200]}...'")
-                    
-                    response = llm_node.invoke(formatted_prompt)
-                    simple_output = response.content if hasattr(response, 'content') else str(response)
-                    
-                    print(f"🔧 LLM response: '{simple_output[:100]}...'")
-                    
-                    # Update memory if available
-                    if memory:
-                        print(f"🔧 Saving to memory: input='{current_input}', output='{simple_output[:50]}...'")
-                        memory.save_context(
-                            {"input": current_input}, 
-                            {"output": simple_output}
-                        )
-                    
-                    return {
-                        "output": simple_output
-                    }
-                
-                agent = RunnableLambda(simple_agent_func)
-                print(f"🤖 Simple conversational agent created (no tools)")
-
-            # Create executor
-            if tools_list:
-                executor = AgentExecutor(
-                    agent=agent,
-                    tools=tools_list,
-                    verbose=self.user_data.get("verbose", True),
-                    handle_parsing_errors=True,
-                    memory=memory,
-                    max_iterations=max_iterations,
-                    return_intermediate_steps=False,
-                )
-                print(f"⚡ Agent executor created with memory: {memory is not None}")
-            else:
-                executor = agent
-
-            # Create wrapper function that maintains conversation context
-            def conversation_wrapper(_input) -> Dict[str, Any]:
-                """Wrapper that handles conversation flow and memory management"""
-                try:
-                    print(f"💬 conversation_wrapper called with input type: {type(_input)}")
-                    print(f"💬 conversation_wrapper input: {_input}")
-                    
-                    # Extract the actual input text from runtime input (this is what user types)
-                    if isinstance(_input, dict):
-                        runtime_input = _input.get("input", str(_input))
-                    else:
-                        runtime_input = str(_input)
-                        
-                    print(f"💬 Processing runtime input: '{runtime_input[:100]}...'")
-                    
-                    if tools_list:
-                        # Use agent executor for tools with runtime input
-                        result = executor.invoke({"input": runtime_input})
-                        output = result.get("output", str(result))
-                    else:
-                        # Use simple agent with runtime input
-                        result = executor.invoke({"input": runtime_input})
-                        output = result.get("output", str(result))
-                    
-                    print(f"✅ Agent response generated: {len(output)} characters")
-                    print(f"🎯 Final output: '{output[:100]}...'")
-                    
-                    return {
-                        "output": output,
-                        "session_id": session_id,
-                        "has_memory": memory is not None,
-                        "tools_used": len(tools_list) > 0
-                    }
-                    
-                except Exception as e:
-                    error_msg = f"Agent execution error: {str(e)}"
-                    print(f"❌ {error_msg}")
-                    return {
-                        "output": f"I apologize, but I encountered an error: {str(e)}",
-                        "error": error_msg,
-                        "session_id": session_id
-                    }
-
-            return RunnableLambda(conversation_wrapper)
-            
-        except Exception as e:
-            error_msg = f"Failed to create ReAct agent: {str(e)}"
-            print(f"❌ {error_msg}")
-            raise ValueError(error_msg) from e
-
-    def get_session_memory(self, session_id: str) -> Optional[BaseMemory]:
-        """Get memory for a specific session"""
-        return self._session_memories.get(session_id)
-    
-    def clear_session_memory(self, session_id: str):
-        """Clear memory for a specific session"""
-        if session_id in self._session_memories:
-            del self._session_memories[session_id]
-            print(f"🗑️ Cleared session memory: {session_id}")
-
-# Add alias for frontend compatibility
+# Alias for frontend compatibility
 ToolAgentNode = ReactAgentNode

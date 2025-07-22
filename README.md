@@ -109,11 +109,7 @@ SUPABASE_SERVICE_KEY=your-service-key-optional
 SECRET_KEY=your-32-character-secret-key
 ACCESS_TOKEN_EXPIRE_MINUTES=30
 
-# AI Services (Optional)
-OPENAI_API_KEY=your-openai-api-key
-GOOGLE_API_KEY=your-google-api-key
-TAVILY_API_KEY=your-tavily-api-key
-
+#
 # Development
 DEBUG=True
 # Allowed origins for CORS (must match Settings.ALLOWED_ORIGINS)
