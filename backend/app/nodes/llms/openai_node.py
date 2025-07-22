@@ -1,6 +1,5 @@
 from typing import Dict, Any, Optional, List
 import os
-from ...core.constants import OPENAI_API_KEY
 from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
@@ -188,15 +187,12 @@ class OpenAINode(BaseNode):
         streaming = bool(self.user_data.get("streaming", False))
         timeout = int(self.user_data.get("timeout", 60))
         
-        # Get API key
+        # Get API key from user configuration (database/UI)
         api_key = self.user_data.get("api_key")
-        if not api_key:
-            api_key = OPENAI_API_KEY
         
         if not api_key:
             raise ValueError(
-                "OpenAI API key is required. Please provide it in the node configuration "
-                "or set OPENAI_API_KEY environment variable."
+                "OpenAI API key is required. Please provide it in the node configuration through the UI."
             )
         
         # Validate model and get config

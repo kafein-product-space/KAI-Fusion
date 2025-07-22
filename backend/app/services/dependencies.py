@@ -10,7 +10,6 @@ from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService, WorkflowTemplateService
 from app.services.execution_service import ExecutionService
 from app.services.credential_service import CredentialService
-from app.services.task_service import TaskService
 from app.services.api_key_service import APIKeyService
 from app.services.variable_service import VariableService
 
@@ -35,9 +34,6 @@ def get_execution_service_dep() -> ExecutionService:
 def get_credential_service_dep() -> CredentialService:
     return CredentialService()
 
-@lru_cache
-def get_task_service_dep() -> TaskService:
-    return TaskService()
 
 @lru_cache
 def get_api_key_service() -> APIKeyService:

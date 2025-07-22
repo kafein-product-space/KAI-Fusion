@@ -10,7 +10,6 @@ Architecture:
 - WorkflowService: Workflow CRUD, execution orchestration
 - ExecutionService: Execution tracking and management
 - CredentialService: Secure credential management
-- TaskService: Async task management
 """
 
 from .base import BaseService
@@ -18,7 +17,6 @@ from .user_service import UserService
 from .workflow_service import WorkflowService
 from .execution_service import ExecutionService
 from .credential_service import CredentialService
-from .task_service import TaskService
 from .variable_service import VariableService
 
 __all__ = [
@@ -27,6 +25,5 @@ __all__ = [
     "WorkflowService",
     "ExecutionService",
     "CredentialService",
-    "TaskService",
     "VariableService",
 ] 

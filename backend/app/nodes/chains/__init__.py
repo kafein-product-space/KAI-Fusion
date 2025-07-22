@@ -1,3 +1,0 @@
-"""
-Chain node implementations
-"""

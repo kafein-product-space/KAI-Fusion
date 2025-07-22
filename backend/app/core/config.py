@@ -17,21 +17,7 @@ def get_warnings() -> List[str]:
     if SECRET_KEY == "your-secret-key-here-change-in-production":
         warnings.append("SECRET_KEY is not set, using default. THIS IS NOT SAFE FOR PRODUCTION.")
 
-    if not OPENAI_API_KEY:
-        warnings.append(
-            "OPENAI_API_KEY is not set. OpenAI-related features will not work."
-        )
-
-    if not GOOGLE_API_KEY:
-        warnings.append("Google API key not set. Google Search tools will not work.")
-    
-    if not TAVILY_API_KEY:
-        warnings.append("Tavily API key not set. Tavily search tools will not work.")
-    
-    if not ANTHROPIC_API_KEY:
-        warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
-
-    return warnings
+   
 
 def setup_logging():
     """Setup logging configuration"""
@@ -40,7 +26,7 @@ def setup_logging():
         format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
         handlers=[
             logging.StreamHandler(),
-            logging.FileHandler("app.log") if not DEBUG else logging.NullHandler()
+            logging.FileHandler("app.log")
         ]
     )
     
@@ -48,8 +34,7 @@ def setup_logging():
     logging.getLogger("uvicorn").setLevel(logging.INFO)
     logging.getLogger("fastapi").setLevel(logging.INFO)
     
-    if DEBUG:
-        logging.getLogger("app").setLevel(logging.DEBUG)
+    
 
 def setup_langsmith():
     """Setup LangSmith tracing if enabled"""
@@ -63,32 +48,7 @@ def setup_langsmith():
             os.environ["LANGCHAIN_PROJECT"] = LANGCHAIN_PROJECT
         logging.info("✅ LangSmith tracing enabled")
 
-def validate_api_keys() -> List[str]:
-    """Validate API keys and return warnings"""
-    warnings = []
-    
-    # Critical validations
-    if not OPENAI_API_KEY:
-        warnings.append("OpenAI API key not set. OpenAI LLM nodes will not work.")
-    
-    if not GOOGLE_API_KEY:
-        warnings.append("Google API key not set. Google Search tools will not work.")
-    
-    if not TAVILY_API_KEY:
-        warnings.append("Tavily API key not set. Tavily search tools will not work.")
-    
-    if not ANTHROPIC_API_KEY:
-        warnings.append("Anthropic API key not set. Claude LLM nodes will not work.")
-    
-    # Security validations
-    if SECRET_KEY == "your-secret-key-here-change-in-production":
-        warnings.append("Default secret key detected. Change SECRET_KEY in production.")
-    
-    # Log warnings
-    for warning in warnings:
-        logging.warning(warning)
-    
-    return warnings
+
 
 def create_directories():
     """Create necessary directories"""
