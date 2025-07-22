@@ -1,8 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Link } from "lucide-react";
-import AgentConfigModal from "../../modals/agents/AgentConfigModal";
-import OpenAIChatNodeModal from "../../modals/llms/OpenAIChatModal";
 import ConditionalChainConfigModal from "../../modals/chains/ConditionalChainConfigModal";
 
 interface ConditionalChainNodeProps {

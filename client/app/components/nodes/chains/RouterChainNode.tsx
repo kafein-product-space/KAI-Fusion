@@ -1,17 +1,13 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Link } from "lucide-react";
-import HuggingFaceEmbeddingsConfigModal from "../../modals/embeddings/HuggingFaceEmbeddingsConfigModal";
 
-interface HuggingFaceEmbeddingsNodeProps {
+interface RouterChainNodeProps {
   data: any;
   id: string;
 }
 
-function HuggingFaceEmbeddingsNode({
-  data,
-  id,
-}: HuggingFaceEmbeddingsNodeProps) {
+function RouterChainNode({ data, id }: RouterChainNodeProps) {
   const { setNodes } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -34,22 +30,27 @@ function HuggingFaceEmbeddingsNode({
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
+        className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-fuchsia-400 bg-fuchsia-100 hover:bg-fuchsia-200`}
         onDoubleClick={handleOpenModal}
         title="Çift tıklayarak konfigüre edin"
       >
-        <div className="bg-gray-500 p-1 rounded-2xl">
+        <div className="bg-white p-1 rounded-2xl">
           <Link />
         </div>
-
         <div className="flex-1">
           <div className="flex items-center gap-2">
             <p className="font-semibold">
-              {data?.displayName || "HuggingFace Embeddings"}
+              {data.displayName || data?.name || "Router Chain"}
             </p>
           </div>
         </div>
-
+        {/* llm */}
+        <Handle
+          type="target"
+          position={Position.Left}
+          id="input"
+          className="w-16 !bg-gray-500"
+        />
         <Handle
           type="source"
           position={Position.Right}
@@ -59,14 +60,8 @@ function HuggingFaceEmbeddingsNode({
       </div>
 
       {/* DaisyUI dialog modal */}
-      <HuggingFaceEmbeddingsConfigModal
-        ref={modalRef}
-        nodeData={data}
-        onSave={handleConfigSave}
-        nodeId={id}
-      />
     </>
   );
 }
 
-export default HuggingFaceEmbeddingsNode;
+export default RouterChainNode;

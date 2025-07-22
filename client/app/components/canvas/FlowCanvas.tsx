@@ -24,7 +24,7 @@ import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
-import LLMChainNode from "../nodes/chains/LLMChainNode";
+
 import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
 import CustomEdge from "../common/CustomEdge";
 
@@ -36,52 +36,21 @@ import type {
 } from "~/types/api";
 
 import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
-import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
+
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
-import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
+
 import RedisCacheNode from "../nodes/cache/RedisCacheNode";
 import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
-import MapReduceChainNode from "../nodes/chains/MapReduceChainNode";
-import SequentialChainNode from "../nodes/chains/SequentialChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
-import HuggingFaceEmbeddingsNode from "../nodes/embeddings/HuggingFaceEmbeddingsNode";
-import GeminiNode from "../nodes/llms/GeminiNode";
-import AnthropicClaudeNode from "../nodes/llms/ClaudeNode";
 import BufferMemoryNode from "../nodes/memory/BufferMemory";
-import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
-import SummaryMemoryNode from "../nodes/memory/SummaryMemoryNode";
-import AgentPromptNode from "../nodes/prompts/AgentPromptNode";
-import PromptTemplateNode from "../nodes/prompts/PromptTemplateNode";
-import PDFLoaderNode from "../nodes/document_loaders/PDFLoaderNode";
-import WebLoaderNode from "../nodes/document_loaders/WebLoaderNode";
-import PydanticOutputParserNode from "../nodes/output_parsers/PydanticOutputParserNode";
-import StringOutputParserNode from "../nodes/output_parsers/StringOutputParserNode";
-import ChromaRetrieverNode from "../nodes/retrievers/ChromaRetrieverNode";
-import CharacterTextSplitterNode from "../nodes/text_splitters/CharacterTextSplitterNode";
-import RecursiveTextSplitterNode from "../nodes/text_splitters/RecursiveTextSplitterNode";
-import TokenTextSplitterNode from "../nodes/text_splitters/TokenTextSplitterNode";
-import ArxivToolNode from "../nodes/tools/ArxivToolNode";
-import FileToolNode from "../nodes/tools/FileToolNode";
-import GoogleSearchNode from "../nodes/tools/GoogleSearchNode";
-import JSONParserToolNode from "../nodes/tools/JSONParserToolNode";
-import RequestsGetToolNode from "../nodes/tools/RequestsGetToolNode";
-import RequestsPostToolNode from "../nodes/tools/RequestsPostToolNode";
 import TavilySearchNode from "../nodes/tools/TavilySearchNode";
-import WebBrowserToolNode from "../nodes/tools/WebBrowserToolNode";
-import WikipediaToolNode from "../nodes/tools/WikipediaToolNode";
-import WolframAlphaToolNode from "../nodes/tools/WolframAlphaToolNode";
-import ReadFileToolNode from "../nodes/tools/ReadFileToolNode";
-import CalculatorNode from "../nodes/utilities/CalculatorNode";
-import TextFormatterNode from "../nodes/utilities/TextFormatterNode";
-import FaissVectorStoreNode from "../nodes/vector_stores/FaissVectorStoreNode";
-import PineconeVectorStoreNode from "../nodes/vector_stores/PineconeVectorStoreNode";
-import QdrantVectorStoreNode from "../nodes/vector_stores/QdrantVectorStoreNode";
-import WeaviateVectorStoreNode from "../nodes/vector_stores/WeaviateVectorStoreNode";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
 import { useChatStore } from "../../stores/chat";
-
+import RouterChainNode from "../nodes/chains/RouterChainNode";
+import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
+import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   ReactAgent: ToolAgentNode,
@@ -89,47 +58,15 @@ const baseNodeTypes = {
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
-  InMemoryCache: InMemoryCacheNode,
+
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
-  LLMChain: LLMChainNode,
-  MapReduceChain: MapReduceChainNode,
-  SequentialChain: SequentialChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
-  HuggingFaceEmbeddings: HuggingFaceEmbeddingsNode,
-  AnthropicClaude: AnthropicClaudeNode,
-  GoogleGemini: GeminiNode,
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
-  SummaryMemory: SummaryMemoryNode,
-  AgentPrompt: AgentPromptNode,
-  PromptTemplate: PromptTemplateNode,
-  PDFLoader: PDFLoaderNode,
-  WebLoader: WebLoaderNode,
-  PydanticOutputParser: PydanticOutputParserNode,
-  StringOutputParser: StringOutputParserNode,
-  ChromaRetriever: ChromaRetrieverNode,
-  CharacterTextSplitter: CharacterTextSplitterNode,
-  RecursiveTextSplitter: RecursiveTextSplitterNode,
-  TokenTextSplitter: TokenTextSplitterNode,
-  ArxivTool: ArxivToolNode,
-  WriteFileTool: FileToolNode,
-  GoogleSearchTool: GoogleSearchNode,
-  JSONParser: JSONParserToolNode,
-  RequestsGetTool: RequestsGetToolNode,
-  RequestsPostTool: RequestsPostToolNode,
   TavilySearch: TavilySearchNode,
-  WebBrowserTool: WebBrowserToolNode,
-  WikipediaTool: WikipediaToolNode,
-  WolframAlphaTool: WolframAlphaToolNode,
-  ReadFileTool: ReadFileToolNode,
-  Calculator: CalculatorNode,
-  TextFormatter: TextFormatterNode,
-  FaissVectorStore: FaissVectorStoreNode,
-  PineconeVectorStore: PineconeVectorStoreNode,
-  QdrantVectorStore: QdrantVectorStoreNode,
-  WeaviateVectorStore: WeaviateVectorStoreNode,
   EndNode: EndNode,
+  RouterChain: RouterChainNode,
 };
 
 const edgeTypes = {
