@@ -14,7 +14,7 @@ class VariableService(BaseService[Variable]):
     
     def _encrypt_value(self, value: str) -> str:
         """
-        Encrypt a variable value and return as base64 string for database storage.
+        Encrypt a variable value and return as base64 string for database storage. 
         """
         try:
             encrypted_bytes = encrypt_data(value)
