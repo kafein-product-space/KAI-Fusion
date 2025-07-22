@@ -368,6 +368,6 @@ def get_engine() -> BaseWorkflowEngine:  # noqa: D401
     if _ENGINE_IMPL_CACHE is not None:
         return _ENGINE_IMPL_CACHE
 
-    use_stub = AF_USE_STUB_ENGINE.lower() in {"1", "true", "yes"}
+    use_stub = AF_USE_STUB_ENGINE and AF_USE_STUB_ENGINE.lower() in {"1", "true", "yes"}
     _ENGINE_IMPL_CACHE = StubWorkflowEngine() if use_stub else LangGraphWorkflowEngine()
     return _ENGINE_IMPL_CACHE 

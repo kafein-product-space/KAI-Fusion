@@ -10,14 +10,26 @@ sync_connection_args = {
     "max_overflow": int(DB_MAX_OVERFLOW),
     "pool_timeout": int(DB_POOL_TIMEOUT),
     "pool_recycle": int(DB_POOL_RECYCLE),
-    "pool_pre_ping": DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
+    "pool_pre_ping": DB_POOL_PRE_PING and DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
     "poolclass": QueuePool,
     "echo": False,  # Disable in production for performance
     "connect_args": {"application_name": "kai-fusion"},
 }
 
 async_connection_args = {
+<<<<<<< Updated upstream
     "poolclass": NullPool,  # Use NullPool for async connections
+=======
+    # Note: AsyncEngine automatically uses AsyncAdaptedQueuePool
+    "pool_size": int(DB_POOL_SIZE),
+    "max_overflow": int(DB_MAX_OVERFLOW),
+    "pool_timeout": int(DB_POOL_TIMEOUT),
+    "pool_recycle": int(DB_POOL_RECYCLE),
+    "pool_pre_ping": DB_POOL_PRE_PING and DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
+<<<<<<< Updated upstream
+>>>>>>> Stashed changes
+=======
+>>>>>>> Stashed changes
     "echo": False,  # Disable in production for performance
     "connect_args": {
         "server_settings": {"application_name": "kai-fusion"},
@@ -32,8 +44,14 @@ sync_engine = create_engine(
 )
 
 # Create an asynchronous engine for the main application
+# Convert sync DATABASE_URL to async format if ASYNC_DATABASE_URL is not set
+async_db_url = ASYNC_DATABASE_URL
+if not async_db_url and DATABASE_URL:
+    # Convert postgresql:// to postgresql+asyncpg://
+    async_db_url = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
+
 async_engine = create_async_engine(
-    ASYNC_DATABASE_URL, 
+    async_db_url, 
     **async_connection_args
 )
 

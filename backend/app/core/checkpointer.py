@@ -36,7 +36,7 @@ def create_checkpointer(
         BaseCheckpointSaver: Configured checkpointer instance
     """
     # Check if database is disabled via environment variable
-    database_disabled = DISABLE_DATABASE.lower() == "true"
+    database_disabled = DISABLE_DATABASE and DISABLE_DATABASE.lower() == "true"
     
     if use_memory or database_disabled or not database_url or not _POSTGRES_AVAILABLE:
         print("🧠 Using in-memory checkpointer for development")
