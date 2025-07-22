@@ -2,17 +2,15 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import QueuePool, NullPool
-from app.core.config import get_settings
-
-settings = get_settings()
+from app.core.constants import *
 
 # Connection pooling configuration optimized for Supabase + Vercel
 sync_connection_args = {
-    "pool_size": settings.DB_POOL_SIZE,
-    "max_overflow": settings.DB_MAX_OVERFLOW,
-    "pool_timeout": settings.DB_POOL_TIMEOUT,
-    "pool_recycle": settings.DB_POOL_RECYCLE,
-    "pool_pre_ping": settings.DB_POOL_PRE_PING,
+    "pool_size": int(DB_POOL_SIZE),
+    "max_overflow": int(DB_MAX_OVERFLOW),
+    "pool_timeout": int(DB_POOL_TIMEOUT),
+    "pool_recycle": int(DB_POOL_RECYCLE),
+    "pool_pre_ping": DB_POOL_PRE_PING.lower() in ("true", "1", "t"),
     "poolclass": QueuePool,
     "echo": False,  # Disable in production for performance
     "connect_args": {"application_name": "kai-fusion"},
@@ -36,13 +34,13 @@ async_connection_args = {
 
 # Create a synchronous engine for tasks that require it (e.g., migrations)
 sync_engine = create_engine(
-    settings.DATABASE_URL, 
+    DATABASE_URL, 
     **sync_connection_args
 )
 
 # Create an asynchronous engine for the main application
 async_engine = create_async_engine(
-    settings.ASYNC_DATABASE_URL, 
+    ASYNC_DATABASE_URL, 
     **async_connection_args
 )
 

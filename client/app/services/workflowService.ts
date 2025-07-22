@@ -29,12 +29,14 @@ export const executeWorkflow = async (
   flow_data: any,
   input_text: string,
   chatflow_id?: string,
-  session_id?: string
+  session_id?: string,
+  workflow_id?: string
 ) => {
   return apiClient.post(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
     flow_data,
     input_text,
     chatflow_id,
     session_id,
+    workflow_id,
   });
 }; 

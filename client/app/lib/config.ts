@@ -77,6 +77,11 @@ export const API_ENDPOINTS = {
     UPDATE: (chat_message_id: string) => `/chat/${chat_message_id}`,
     DELETE: (chat_message_id: string) => `/chat/${chat_message_id}`,
   },
+  EXECUTIONS: {
+    LIST: '/executions',
+    CREATE: '/executions',
+    GET: (id: string) => `/executions/${id}`,
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;

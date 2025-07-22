@@ -1,9 +1,10 @@
 import { ReactFlowProvider } from "@xyflow/react";
 import FlowCanvas from "../components/canvas/FlowCanvas";
-import { AuthGuard } from "../components/AuthGuard";
+
 import ErrorBoundary from "../components/common/ErrorBoundary";
 import "@xyflow/react/dist/style.css";
 import { useLocation } from "react-router";
+import AuthGuard from "~/components/AuthGuard";
 
 export default function App() {
   const location = useLocation();

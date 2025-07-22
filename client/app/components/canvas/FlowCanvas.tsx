@@ -27,7 +27,6 @@ import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 import LLMChainNode from "../nodes/chains/LLMChainNode";
 import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
 import CustomEdge from "../common/CustomEdge";
-import StreamingModal from "../modals/other/StreamingModal";
 
 import type {
   WorkflowData,
@@ -35,8 +34,8 @@ import type {
   WorkflowEdge,
   NodeMetadata,
 } from "~/types/api";
-import WorkflowService from "~/services/workflows";
-import { Eraser, Save, Plus, Minus } from "lucide-react";
+
+import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 import InMemoryCacheNode from "../nodes/cache/InMemoryCacheNode";
@@ -155,13 +154,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [stream, setStream] = useState<ReadableStream | null>(null);
-  const [conversationMode, setConversationMode] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [validationStatus, setValidationStatus] = useState<
-    null | "success" | "error"
-  >(null);
 
   const {
     currentWorkflow,
@@ -170,12 +163,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     error,
     hasUnsavedChanges,
     setHasUnsavedChanges,
-    executeWorkflow,
     fetchWorkflows,
     updateWorkflow,
     createWorkflow,
-    executionResult,
-    clearExecutionResult,
     fetchWorkflow,
   } = useWorkflows();
 
@@ -201,25 +191,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
-    const loadWorkflow = async () => {
-      try {
-        if (workflowId) {
-          // Tekil workflow'u doğrudan fetch et
-          await fetchWorkflow(workflowId);
-        } else {
-          const fetchedWorkflows = await fetchWorkflows();
-          if (fetchedWorkflows && fetchedWorkflows.length > 0) {
-            setCurrentWorkflow(fetchedWorkflows[0]);
-          }
-        }
-      } catch (error) {
+    if (workflowId) {
+      // Tekil workflow'u doğrudan fetch et
+      fetchWorkflow(workflowId).catch(() => {
         setCurrentWorkflow(null);
         enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
           variant: "error",
         });
-      }
-    };
-    loadWorkflow();
+      });
+    } else {
+      // Yeni workflow: state'i sıfırla
+      setCurrentWorkflow(null);
+      setNodes([]);
+      setEdges([]);
+      setWorkflowName("isimsiz dosya");
+    }
   }, [workflowId]);
 
   useEffect(() => {
@@ -283,7 +269,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           `🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`
         );
         // Use callback to prevent infinite loop
-        setEdges((prevEdges) => {
+        setEdges((prevEdges: Edge[]) => {
           if (prevEdges.length !== validEdges.length) {
             return validEdges;
           }
@@ -391,39 +377,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
-  // StartNode execution handler
-  const handleStartNodeExecute = useCallback(
-    async (nodeId: string) => {
-      enqueueSnackbar("Workflow çalıştırılıyor...", { variant: "info" });
-
-      const node = nodes.find((n) => n.id === nodeId);
-      console.log("Çift tıklanan nodeId:", nodeId, nodes);
-      if (!node) {
-        enqueueSnackbar("Start node bulunamadı.", { variant: "warning" });
-        return;
-      }
-
-      const flowData: WorkflowData = {
-        nodes: nodes as WorkflowNode[],
-        edges: edges as WorkflowEdge[],
-      };
-
-      try {
-        await executeWorkflow({
-          flow_data: flowData,
-          input_text: chatInput,
-        });
-
-        enqueueSnackbar(`Execution completed!`, { variant: "success" });
-      } catch (error) {
-        console.error("Execution error:", error);
-        enqueueSnackbar("Workflow execution failed", { variant: "error" });
-        return;
-      }
-    },
-    [nodes, edges, executeWorkflow, enqueueSnackbar, chatInput]
-  );
-
   // Use stable nodeTypes - pass handlers via node data instead
   const nodeTypes = baseNodeTypes;
   const handleClear = useCallback(() => {
@@ -453,10 +406,19 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     };
 
     try {
+      if (!currentWorkflow) {
+        enqueueSnackbar("Bir workflow seçili değil!", { variant: "warning" });
+        return;
+      }
       if (!activeChatflowId) {
-        await startLLMChat(flowData, userMessage);
+        await startLLMChat(flowData, userMessage, currentWorkflow.id);
       } else {
-        await sendLLMMessage(flowData, userMessage, activeChatflowId);
+        await sendLLMMessage(
+          flowData,
+          userMessage,
+          activeChatflowId,
+          currentWorkflow.id
+        );
       }
     } catch (e: any) {
       // Hata mesajını chat'e ekle
@@ -477,10 +439,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
-  const toggleConversationMode = () => {
-    setConversationMode(!conversationMode);
-  };
-
   return (
     <>
       <Navbar
@@ -488,6 +446,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
         currentWorkflow={currentWorkflow}
+        isLoading={isLoading}
       />
       <div className="w-full h-full relative pt-16 flex">
         {/* Sidebar açma butonu */}
@@ -539,44 +498,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             </button>
           </div>
 
-          {currentWorkflow && (
-            <div className="absolute top-4 right-4 z-10 bg-white rounded-lg shadow-lg border p-3 max-w-xs mt-19">
-              <h3 className="font-medium text-gray-900">
-                {currentWorkflow.name}
-              </h3>
-              {currentWorkflow.description && (
-                <p className="text-sm text-gray-600 mt-1">
-                  {currentWorkflow.description}
-                </p>
-              )}
-              <div className="text-xs text-gray-500 mt-2">
-                {nodes.length} nodes, {edges.length} connections
-              </div>
-            </div>
-          )}
-
           {error && (
             <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
               <div className="text-red-800 text-sm">{error}</div>
             </div>
           )}
 
-          {executionResult && (
-            <div className="absolute bottom-4 left-4 z-10 bg-green-50 border border-green-200 rounded-lg p-3 max-w-md">
-              <div className="text-green-800 text-sm">
-                <strong>Execution Result:</strong>
-                <pre className="mt-1 text-xs overflow-auto max-h-32">
-                  {JSON.stringify(executionResult.result, null, 2)}
-                </pre>
-              </div>
-              <button
-                onClick={clearExecutionResult}
-                className="mt-2 text-xs text-green-600 hover:text-green-800"
-              >
-                Close
-              </button>
-            </div>
-          )}
+          {/* executionResult and clearExecutionResult removed */}
 
           <div
             ref={reactFlowWrapper}
@@ -589,10 +517,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 ...node,
                 data: {
                   ...node.data,
-                  ...(node.type === "StartNode" && {
-                    onExecute: handleStartNodeExecute,
-                    validationStatus: validationStatus,
-                  }),
+                  // StartNode'a özel onExecute ve validationStatus kaldırıldı
                 },
               }))}
               edges={edges}
@@ -637,31 +562,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   <span className="font-semibold text-gray-700">
                     ReAct Chat
                   </span>
-                  <span
-                    className={`w-2 h-2 rounded-full ${
-                      conversationMode ? "bg-green-500" : "bg-gray-400"
-                    }`}
-                    title={
-                      conversationMode
-                        ? "Continuous mode ON"
-                        : "Continuous mode OFF"
-                    }
-                  ></span>
                 </div>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setConversationMode((v) => !v)}
-                    className={`px-2 py-1 text-xs rounded ${
-                      conversationMode
-                        ? "bg-green-100 text-green-700"
-                        : "bg-gray-100 text-gray-600"
-                    }`}
-                    title="Toggle continuous conversation"
-                  >
-                    {conversationMode ? "🔄" : "📄"}
-                  </button>
-                  <button
-                    onClick={() => setActiveChatflowId(null)}
+                    onClick={handleClearChat}
                     className="text-red-400 hover:text-red-700"
                     title="Clear chat history"
                   >
@@ -676,11 +580,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatLoading && (
-                  <div className="text-xs text-gray-400">
-                    Mesajlar yükleniyor...
-                  </div>
-                )}
                 {chatError && (
                   <div className="text-xs text-red-500">{chatError}</div>
                 )}
@@ -707,6 +606,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     </div>
                   </div>
                 ))}
+                <div className="flex items-center justify-center text-center">
+                  {chatLoading && (
+                    <div className="text-xs text-gray-400 text center">
+                      <Loader className="animate-spin" />
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="p-3 border-t flex gap-2">
                 <input

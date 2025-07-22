@@ -1,24 +1,15 @@
-// Execution Service Template
-import axios from 'axios';
+import { apiClient } from '../lib/api-client';
+import { API_ENDPOINTS } from '../lib/config';
+import type { WorkflowExecution } from '../types/api';
 
-const API_BASE_URL = '/api/execution';
-
-export const getExecutions = async () => {
-  return axios.get(API_BASE_URL);
+export const createExecution = async (workflow_id: string, inputs: Record<string, any>) => {
+  return apiClient.post<WorkflowExecution>(API_ENDPOINTS.EXECUTIONS.CREATE, { workflow_id, inputs });
 };
 
-export const getExecutionById = async (id: string | number) => {
-  return axios.get(`${API_BASE_URL}/${id}`);
+export const getExecution = async (execution_id: string) => {
+  return apiClient.get<WorkflowExecution>(API_ENDPOINTS.EXECUTIONS.GET(execution_id));
 };
 
-export const createExecution = async (data: any) => {
-  return axios.post(API_BASE_URL, data);
-};
-
-export const updateExecution = async (id: string | number, data: any) => {
-  return axios.put(`${API_BASE_URL}/${id}`, data);
-};
-
-export const deleteExecution = async (id: string | number) => {
-  return axios.delete(`${API_BASE_URL}/${id}`);
+export const listExecutions = async (workflow_id: string, params?: { skip?: number; limit?: number }) => {
+  return apiClient.get<WorkflowExecution[]>(API_ENDPOINTS.EXECUTIONS.LIST, { params: { workflow_id, ...params } });
 }; 

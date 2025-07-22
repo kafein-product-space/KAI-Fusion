@@ -1,74 +1,59 @@
-import React, { useEffect } from "react";
-import { useAuthStore } from "~/stores/auth";
-import { Navigate, useLocation } from "react-router";
+// components/AuthGuard.tsx
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { apiClient } from "~/lib/api-client";
+import { useAuth } from "~/stores/auth";
 
-interface AuthGuardProps {
-  children: React.ReactNode;
-  fallback?: string;
-}
-
-export const AuthGuard: React.FC<AuthGuardProps> = ({
-  children,
-  fallback = "/signin",
-}) => {
-  // During development we skip all auth logic so pages render without login.
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
-
-  const { isAuthenticated, isLoading } = useAuthStore();
+export default function AuthGuard({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, setUser, setIsAuthenticated } = useAuth();
+  const [checking, setChecking] = useState(true);
 
-  // Show loading state while validating session
-  if (isLoading) {
+  useEffect(() => {
+    const checkAuth = async () => {
+      // 1. Token yoksa signin'e yönlendir
+      if (!apiClient.isAuthenticated()) {
+        navigate("/signin", { replace: true, state: { from: location } });
+        return;
+      }
+
+      // 2. Kullanıcı yoksa backend'den çek
+      if (!user) {
+        try {
+          const me = await apiClient.get("/auth/me");
+          setUser(me);
+          setIsAuthenticated(true);
+        } catch (err) {
+          // Token bozuksa interceptor zaten yönlendirir
+          setUser(null);
+          setIsAuthenticated(false);
+          navigate("/signin", { replace: true, state: { from: location } });
+          return;
+        }
+      }
+
+      setChecking(false);
+    };
+
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 3. Auth kontrolü sırasında loading göster
+  if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        <span className="text-sm text-gray-500">Loading...</span>
       </div>
     );
   }
 
-  // Redirect to signin if not authenticated
-  if (!isAuthenticated) {
-    return (
-      <Navigate to={fallback} state={{ from: location.pathname }} replace />
-    );
+  // 4. Kullanıcı yoksa fallback olarak yönlendir (önlem amaçlı)
+  if (!isAuthenticated || !user) {
+    navigate("/signin", { replace: true, state: { from: location } });
+    return null;
   }
 
   return <>{children}</>;
-};
-
-interface PublicOnlyProps {
-  children: React.ReactNode;
-  redirectTo?: string;
 }
-
-export const PublicOnly: React.FC<PublicOnlyProps> = ({
-  children,
-  redirectTo = "/",
-}) => {
-  // Skip auth checks entirely in development
-  if (import.meta.env.DEV) {
-    return <>{children}</>;
-  }
-
-  const { isAuthenticated, isLoading } = useAuthStore();
-
-  // Show loading state while validating session
-  if (isLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-      </div>
-    );
-  }
-
-  // Redirect to home if already authenticated
-  if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
-  }
-
-  return <>{children}</>;
-};
-
-export default AuthGuard;

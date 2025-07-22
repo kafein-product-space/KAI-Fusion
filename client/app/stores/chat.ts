@@ -20,8 +20,8 @@ interface ChatStore {
   removeMessage: (chatflow_id: string, message_id: string) => void;
   clearMessages: (chatflow_id: string) => void;
   // LLM entegrasyonu:
-  startLLMChat: (flow_data: any, input_text: string) => Promise<void>;
-  sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string) => Promise<void>;
+  startLLMChat: (flow_data: any, input_text: string, workflow_id: string) => Promise<void>;
+  sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -114,12 +114,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       },
     })),
   // LLM entegrasyonu:
-  startLLMChat: async (flow_data, input_text) => {
+  startLLMChat: async (flow_data, input_text, workflow_id) => {
     set({ loading: true, error: null });
     const chatflow_id = crypto.randomUUID();
     get().setActiveChatflowId(chatflow_id);
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id);
+      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'LLM ile konuşma başlatılamadı' });
@@ -127,10 +127,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ loading: false });
     }
   },
-  sendLLMMessage: async (flow_data, input_text, chatflow_id) => {
+  sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, error: null });
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id);
+      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });

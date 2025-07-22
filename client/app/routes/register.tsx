@@ -3,7 +3,7 @@ import { Formik } from "formik";
 import type { FormikHelpers } from "formik";
 import { Link, Navigate, useLocation } from "react-router";
 import { useAuth } from "~/stores/auth";
-import { PublicOnly } from "~/components/AuthGuard";
+import PublicOnlyGuard from "~/components/PublicOnlyGuard";
 
 interface RegisterFormValues {
   fullName: string;
@@ -68,7 +68,7 @@ const Register = () => {
   }
 
   return (
-    <PublicOnly>
+    <PublicOnlyGuard>
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
           {/* Header */}
@@ -86,9 +86,7 @@ const Register = () => {
           {/* Error Message */}
           {error && (
             <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-md">
-              <p className="text-red-600 text-sm">
-                {error}
-              </p>
+              <p className="text-red-600 text-sm">{error}</p>
             </div>
           )}
 
@@ -336,7 +334,7 @@ const Register = () => {
           </Formik>
         </div>
       </div>
-    </PublicOnly>
+    </PublicOnlyGuard>
   );
 };
 

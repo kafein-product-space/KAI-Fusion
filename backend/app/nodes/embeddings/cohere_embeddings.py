@@ -1,4 +1,5 @@
 import os
+from ...core.constants import COHERE_API_KEY
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from langchain_community.embeddings import CohereEmbeddings
 from langchain_core.runnables import Runnable
@@ -41,7 +42,7 @@ class CohereEmbeddingsNode(ProviderNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute the Cohere embeddings node"""
-        api_key = kwargs.get("api_key") or os.getenv("COHERE_API_KEY")
+        api_key = kwargs.get("api_key") or COHERE_API_KEY
         
         if not api_key:
             raise ValueError("Cohere API Key is required")

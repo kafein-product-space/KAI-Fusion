@@ -115,7 +115,6 @@ class CredentialService(BaseService[UserCredential]):
         credential = await self.get_by_user_and_id(db, user_id, credential_id)
         if not credential:
             return None
-        
         try:
             # Convert base64 string back to bytes for decryption
             encrypted_bytes = base64.b64decode(credential.encrypted_secret.encode('utf-8'))
@@ -124,16 +123,17 @@ class CredentialService(BaseService[UserCredential]):
                 "id": credential.id,
                 "name": credential.name,
                 "service_type": credential.service_type,
-                "secret": decrypted_secret,
+                "secret": decrypted_secret if decrypted_secret is not None else {},
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
             }
         except Exception:
-            # Return credential without secret if decryption fails
+            # Return credential with empty secret if decryption fails
             return {
                 "id": credential.id,
                 "name": credential.name,
                 "service_type": credential.service_type,
+                "secret": {},
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
             } 
