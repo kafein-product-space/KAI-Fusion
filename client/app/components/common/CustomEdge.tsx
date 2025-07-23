@@ -19,6 +19,7 @@ interface CustomAnimatedEdgeProps extends EdgeProps {
   style?: React.CSSProperties;
   markerEnd?: string;
   data?: any;
+  isActive?: boolean;
 }
 
 function CustomAnimatedEdge({
@@ -32,6 +33,7 @@ function CustomAnimatedEdge({
   style = {},
   markerEnd,
   data,
+  isActive = false,
 }: CustomAnimatedEdgeProps) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
@@ -71,14 +73,42 @@ function CustomAnimatedEdge({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: isHovered ? "#3b82f6" : "#6b7280",
-          strokeWidth: isHovered ? 3 : 2,
-          animation: "dash 2s linear infinite",
-          strokeDasharray: "10 5",
+          stroke: isActive ? "#facc15" : isHovered ? "#3b82f6" : "#6b7280",
+          strokeWidth: isActive ? 4 : isHovered ? 3 : 2,
+          strokeDasharray: isActive ? "12 6" : "none",
+          strokeDashoffset: isActive ? 0 : undefined,
+          animation: isActive ? "electric-flow 0.7s linear infinite" : "none",
         }}
         onMouseEnter={handleMouseEnter}
         onMouseLeave={handleMouseLeave}
       />
+      {/* Elektriklenme animasyonu: parlayan top edge boyunca hareket eder */}
+      {isActive && (
+        <svg
+          style={{
+            position: "absolute",
+            pointerEvents: "none",
+            overflow: "visible",
+          }}
+        >
+          <circle r="7" fill="#facc15" filter="url(#glow)">
+            <animateMotion
+              dur="1.2s"
+              repeatCount="indefinite"
+              path={edgePath}
+            />
+          </circle>
+          <defs>
+            <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+              <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+              <feMerge>
+                <feMergeNode in="coloredBlur" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+          </defs>
+        </svg>
+      )}
 
       {/* Invisible wider edge for better hover detection */}
       <path
@@ -123,6 +153,10 @@ function CustomAnimatedEdge({
           to {
             stroke-dashoffset: -15;
           }
+        }
+        @keyframes electric-flow {
+          0% { stroke-dashoffset: 0; }
+          100% { stroke-dashoffset: -36; }
         }
       `}</style>
     </>

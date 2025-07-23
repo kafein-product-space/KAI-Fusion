@@ -17,6 +17,7 @@ import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
 import LoadingSpinner from "~/components/common/LoadingSpinner";
 import AuthGuard from "~/components/AuthGuard";
+import { apiClient } from "../lib/api-client";
 
 function CredentialsLayout() {
   const {
@@ -43,6 +44,9 @@ function CredentialsLayout() {
   const [selectedApi, setSelectedApi] = useState<Api | null>(null);
   const [itemsPerPage, setItemsPerPage] = useState(10);
   const [page, setPage] = useState(1);
+  const [editingCredential, setEditingCredential] = useState<any>(null);
+  const [editSecret, setEditSecret] = useState<string>("");
+  const [editLoading, setEditLoading] = useState(false);
 
   // Sayfalama hesaplamaları
   const filteredCredentials = userCredentials.filter((credential) =>
@@ -140,11 +144,11 @@ function CredentialsLayout() {
   };
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
 
       {/* Main Content */}
-      <main className="flex-1 p-10 m-10 bg-white">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <div className="flex flex-col items-start gap-4">
@@ -209,7 +213,7 @@ function CredentialsLayout() {
           ) : (
             <div className="overflow-hidden rounded-xl border border-gray-300">
               <table className="w-full text-sm p-2">
-                <thead className="bg-[#F5F5F5] text-left text-md border-b border-gray-300 ">
+                <thead className="bg-background text-left text-md border-b border-gray-300 ">
                   <tr>
                     <th className="p-6 font-normal text-base">Name</th>
                     <th className="p-6 font-normal text-base">Created</th>
@@ -235,20 +239,31 @@ function CredentialsLayout() {
                         <div className="flex items-center gap-1">
                           <button
                             className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
-                            title="Edit variable"
-                            onClick={() =>
+                            title="Edit credential"
+                            onClick={async () => {
+                              setEditLoading(true);
+                              setEditingCredential(credential);
+                              try {
+                                const res = await apiClient.get(
+                                  `/credentials/${credential.id}/secret`
+                                );
+                                setEditSecret(res.secret?.api_key || "");
+                              } catch (e) {
+                                setEditSecret("");
+                              }
+                              setEditLoading(false);
                               (
                                 document.getElementById(
                                   `editModal-${credential.id}`
                                 ) as HTMLDialogElement
-                              )?.showModal()
-                            }
+                              )?.showModal();
+                            }}
                           >
                             <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
                           </button>
                           <button
                             className="p-2 rounded-lg hover:bg-red-50 transition duration-200 group"
-                            title="Delete variable"
+                            title="Delete credential"
                             onClick={() =>
                               (
                                 document.getElementById(
@@ -260,40 +275,123 @@ function CredentialsLayout() {
                             <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
                           </button>
                         </div>
+                        {/* Edit Modal for each credential */}
                         <dialog
-                          id={`updateModal-${credential.id}`}
+                          id={`editModal-${credential.id}`}
                           className="modal"
                         >
                           <div className="modal-box">
-                            <h3 className="font-bold text-lg">
-                              Update Credential
+                            <h3 className="font-bold text-lg mb-4">
+                              Edit Credential
                             </h3>
-                            <p className="py-4">
-                              Update{" "}
-                              <strong className="font-mono">
-                                {credential.name}
-                              </strong>
-                              ?
-                              <br />
-                              <span className="text-red-600 text-sm">
-                                This action cannot be undone.
-                              </span>
-                            </p>
-                            <div className="modal-action">
-                              <form
-                                method="dialog"
-                                className="flex items-center gap-2"
+                            {editLoading ? (
+                              <div className="flex items-center justify-center py-8">
+                                Loading...
+                              </div>
+                            ) : (
+                              <Formik
+                                initialValues={{
+                                  name: credential.name,
+                                  apiKey: editSecret,
+                                }}
+                                enableReinitialize
+                                validate={validateCredential}
+                                onSubmit={async (values, { setSubmitting }) => {
+                                  await handleUpdate(credential.id, values);
+                                  setSubmitting(false);
+                                  setEditingCredential(null);
+                                  setEditSecret("");
+                                  const modal = document.getElementById(
+                                    `editModal-${credential.id}`
+                                  ) as HTMLDialogElement;
+                                  modal?.close();
+                                }}
                               >
-                                <button className="btn">Cancel</button>
-                                <button className="btn bg-red-500 hover:bg-red-600 text-white">
-                                  Update
-                                </button>
-                              </form>
-                            </div>
+                                {({
+                                  values,
+                                  errors,
+                                  touched,
+                                  isSubmitting,
+                                }) => (
+                                  <Form className="flex flex-col gap-4">
+                                    <div className="flex flex-col gap-2">
+                                      <label
+                                        htmlFor="name"
+                                        className="font-light"
+                                      >
+                                        Credential Name
+                                      </label>
+                                      <Field
+                                        name="name"
+                                        type="text"
+                                        className={`input w-full h-12 rounded-2xl ${
+                                          errors.name && touched.name
+                                            ? "border-red-300 bg-red-50"
+                                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
+                                        }`}
+                                      />
+                                      <ErrorMessage
+                                        name="name"
+                                        component="p"
+                                        className="text-red-500 text-sm"
+                                      />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                      <label
+                                        htmlFor="apiKey"
+                                        className="font-light"
+                                      >
+                                        API Key
+                                      </label>
+                                      <Field
+                                        name="apiKey"
+                                        type="password"
+                                        placeholder="Enter API Key"
+                                        className={`input w-full h-12 rounded-2xl ${
+                                          errors.apiKey && touched.apiKey
+                                            ? "border-red-300 bg-red-50"
+                                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
+                                        }`}
+                                      />
+                                      <ErrorMessage
+                                        name="apiKey"
+                                        component="p"
+                                        className="text-red-500 text-sm"
+                                      />
+                                    </div>
+                                    <div className="modal-action">
+                                      <div className="flex gap-4">
+                                        <button
+                                          type="button"
+                                          className="btn"
+                                          onClick={() => {
+                                            setEditingCredential(null);
+                                            setEditSecret("");
+                                            const modal =
+                                              document.getElementById(
+                                                `editModal-${credential.id}`
+                                              ) as HTMLDialogElement;
+                                            modal?.close();
+                                          }}
+                                        >
+                                          Cancel
+                                        </button>
+                                        <button
+                                          type="submit"
+                                          className="btn btn-primary"
+                                          disabled={isSubmitting}
+                                        >
+                                          {isSubmitting ? "Saving..." : "Save"}
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </Form>
+                                )}
+                              </Formik>
+                            )}
                           </div>
                         </dialog>
-
-                        {/* Delete Modal for each variable */}
+                        {/* Delete Modal for each credential */}
                         <dialog
                           id={`deleteModal-${credential.id}`}
                           className="modal"
@@ -478,7 +576,7 @@ function CredentialsLayout() {
                         className={`input w-full h-12 rounded-2xl ${
                           errors.name && touched.name
                             ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-white hover:border-gray-400"
+                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
                         }`}
                       />
                       <ErrorMessage
@@ -499,7 +597,7 @@ function CredentialsLayout() {
                         className={`input w-full h-12 rounded-2xl ${
                           errors.apiKey && touched.apiKey
                             ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-white hover:border-gray-400"
+                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
                         }`}
                       />
                       <ErrorMessage

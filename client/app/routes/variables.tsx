@@ -26,6 +26,7 @@ interface Variable {
 function VariablesLayout() {
   const { enqueueSnackbar } = useSnackbar();
   const [searchQuery, setSearchQuery] = useState("");
+  const [editingVariable, setEditingVariable] = useState<any>(null);
 
   const {
     variables,
@@ -101,9 +102,9 @@ function VariablesLayout() {
 
   if (isLoading) {
     return (
-      <div className="flex h-screen w-screen">
+      <div className="flex h-screen w-screen bg-background text-foreground">
         <DashboardSidebar />
-        <main className="flex-1 p-10 m-10 bg-white flex items-center justify-center">
+        <main className="flex-1 p-10 m-10 bg-background flex items-center justify-center">
           <div className="text-center">
             <div className="loading loading-spinner loading-lg"></div>
             <p className="mt-4 text-gray-600">Loading variables...</p>
@@ -114,16 +115,16 @@ function VariablesLayout() {
   }
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
 
       {/* Main Content */}
-      <main className="flex-1 p-10 m-10 bg-white">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <div className="flex flex-col items-start gap-4">
               <h1 className="text-4xl font-medium text-start">Variables</h1>
-              <p className="text-gray-600">
+              <p className="text-muted-foreground">
                 Manage your application variables and configuration values
               </p>
             </div>
@@ -163,20 +164,22 @@ function VariablesLayout() {
 
           {/* Table */}
           {filteredVariables.length === 0 ? (
-            <div className="text-center py-12 bg-gray-50 rounded-lg">
+            <div className="text-center py-12 bg-background rounded-lg">
               {searchQuery ? (
                 <>
-                  <p className="text-gray-500 text-lg">
+                  <p className="text-muted-foreground text-lg">
                     No variables found for "{searchQuery}"
                   </p>
-                  <p className="text-gray-400 text-sm mt-2">
+                  <p className="text-muted-foreground text-sm mt-2">
                     Try adjusting your search terms
                   </p>
                 </>
               ) : (
                 <>
-                  <p className="text-gray-500 text-lg">No variables found</p>
-                  <p className="text-gray-400 text-sm mt-2">
+                  <p className="text-muted-foreground text-lg">
+                    No variables found
+                  </p>
+                  <p className="text-muted-foreground text-sm mt-2">
                     Create your first variable to get started
                   </p>
                   <button
@@ -195,9 +198,9 @@ function VariablesLayout() {
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-300 bg-white">
-              <table className="w-full text-sm">
-                <thead className="bg-[#F5F5F5] text-left border-b border-gray-300">
+            <div className="overflow-hidden rounded-xl border border-gray-300 text-foreground">
+              <table className="w-full text-sm bg-background text-foreground">
+                <thead className="bg-background text-left border-b border-gray-300">
                   <tr>
                     <th className="p-6 font-medium text-base">Name</th>
                     <th className="p-6 font-medium text-base">Value</th>
@@ -211,15 +214,15 @@ function VariablesLayout() {
                   {filteredVariables.map((variable) => (
                     <tr
                       key={variable.id}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition duration-150"
+                      className="border-b border-gray-200 text-foreground transition duration-150"
                     >
                       <td className="p-6">
-                        <div className="font-mono font-medium text-gray-900">
+                        <div className="font-mono font-medium ">
                           {variable.name}
                         </div>
                       </td>
                       <td className="p-6">
-                        <div className="font-mono text-sm text-gray-600 max-w-xs truncate">
+                        <div className="font-mono text-sm  max-w-xs truncate">
                           {variable.value}
                         </div>
                       </td>
@@ -234,10 +237,10 @@ function VariablesLayout() {
                           {variable.type}
                         </span>
                       </td>
-                      <td className="p-6 text-gray-600 text-sm">
+                      <td className="p-6  text-sm">
                         {timeAgo(variable.created_at)}
                       </td>
-                      <td className="p-6 text-gray-600 text-sm">
+                      <td className="p-6  text-sm">
                         {timeAgo(variable.updated_at)}
                       </td>
                       <td className="p-6">
@@ -245,6 +248,14 @@ function VariablesLayout() {
                           <button
                             className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
                             title="Edit variable"
+                            onClick={() => {
+                              setEditingVariable(variable);
+                              (
+                                document.getElementById(
+                                  `editModal-${variable.id}`
+                                ) as HTMLDialogElement
+                              )?.showModal();
+                            }}
                           >
                             <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
                           </button>
@@ -263,6 +274,141 @@ function VariablesLayout() {
                           </button>
                         </div>
 
+                        {/* Edit Modal for each variable */}
+                        <dialog
+                          id={`editModal-${variable.id}`}
+                          className="modal"
+                        >
+                          <div className="modal-box max-w-md">
+                            <h3 className="font-bold text-xl mb-6">
+                              Edit Variable
+                            </h3>
+                            <Formik
+                              initialValues={{
+                                name: variable.name,
+                                type: variable.type,
+                                value: variable.value,
+                              }}
+                              enableReinitialize
+                              validate={validateVariable}
+                              onSubmit={async (values, { setSubmitting }) => {
+                                await updateVariable(variable.id, values);
+                                setSubmitting(false);
+                                setEditingVariable(null);
+                                const modal = document.getElementById(
+                                  `editModal-${variable.id}`
+                                ) as HTMLDialogElement;
+                                modal?.close();
+                              }}
+                            >
+                              {({ values, errors, touched, isSubmitting }) => (
+                                <Form className="space-y-6">
+                                  <div className="space-y-2">
+                                    <label
+                                      htmlFor="name"
+                                      className="block text-sm font-medium text-gray-700"
+                                    >
+                                      Variable Name
+                                    </label>
+                                    <Field
+                                      name="name"
+                                      type="text"
+                                      placeholder="e.g., API_BASE_URL"
+                                      className={`input input-bordered w-full ${
+                                        errors.name && touched.name
+                                          ? "border-red-300 bg-red-50"
+                                          : "border-gray-300 bg-background text-foreground"
+                                      }`}
+                                    />
+                                    <ErrorMessage
+                                      name="name"
+                                      component="p"
+                                      className="text-red-500 text-sm"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label
+                                      htmlFor="type"
+                                      className="block text-sm font-medium text-gray-700"
+                                    >
+                                      Variable Type
+                                    </label>
+                                    <Field
+                                      as="select"
+                                      name="type"
+                                      className={`select select-bordered w-full ${
+                                        errors.type && touched.type
+                                          ? "border-red-300 bg-red-50"
+                                          : "border-gray-300 bg-background text-foreground"
+                                      }`}
+                                    >
+                                      <option value="static">
+                                        Static - Fixed value
+                                      </option>
+                                      <option value="dynamic">
+                                        Dynamic - Can change at runtime
+                                      </option>
+                                    </Field>
+                                    <ErrorMessage
+                                      name="type"
+                                      component="p"
+                                      className="text-red-500 text-sm"
+                                    />
+                                  </div>
+                                  <div className="space-y-2">
+                                    <label
+                                      htmlFor="value"
+                                      className="block text-sm font-medium text-gray-700"
+                                    >
+                                      Variable Value
+                                    </label>
+                                    <Field
+                                      name="value"
+                                      type="text"
+                                      placeholder="Enter the variable value"
+                                      className={`input input-bordered w-full ${
+                                        errors.value && touched.value
+                                          ? "border-red-300 bg-red-50"
+                                          : "border-gray-300 bg-background text-foreground"
+                                      }`}
+                                    />
+                                    <ErrorMessage
+                                      name="value"
+                                      component="p"
+                                      className="text-red-500 text-sm"
+                                    />
+                                  </div>
+                                  <div className="modal-action pt-6">
+                                    <div className="flex gap-3 w-full">
+                                      <button
+                                        type="button"
+                                        className="btn btn-outline flex-1"
+                                        onClick={() => {
+                                          setEditingVariable(null);
+                                          const modal = document.getElementById(
+                                            `editModal-${variable.id}`
+                                          ) as HTMLDialogElement;
+                                          modal?.close();
+                                        }}
+                                      >
+                                        Cancel
+                                      </button>
+                                      <button
+                                        type="submit"
+                                        className="btn bg-[#9664E0] hover:bg-[#8557d4] text-white flex-1"
+                                        disabled={isSubmitting}
+                                      >
+                                        {isSubmitting
+                                          ? "Saving..."
+                                          : "Save Changes"}
+                                      </button>
+                                    </div>
+                                  </div>
+                                </Form>
+                              )}
+                            </Formik>
+                          </div>
+                        </dialog>
                         {/* Delete Modal for each variable */}
                         <dialog
                           id={`deleteModal-${variable.id}`}
@@ -343,7 +489,7 @@ function VariablesLayout() {
                     className={`input input-bordered w-full ${
                       errors.name && touched.name
                         ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white"
+                        : "border-gray-300 bg-background text-foreground"
                     }`}
                   />
                   <ErrorMessage
@@ -366,7 +512,7 @@ function VariablesLayout() {
                     className={`select select-bordered w-full ${
                       errors.type && touched.type
                         ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white"
+                        : "border-gray-300 bg-background text-foreground"
                     }`}
                   >
                     <option value="static">Static - Fixed value</option>
@@ -395,7 +541,7 @@ function VariablesLayout() {
                     className={`input input-bordered w-full ${
                       errors.value && touched.value
                         ? "border-red-300 bg-red-50"
-                        : "border-gray-300 bg-white"
+                        : "border-gray-300 bg-background text-foreground"
                     }`}
                   />
                   <ErrorMessage

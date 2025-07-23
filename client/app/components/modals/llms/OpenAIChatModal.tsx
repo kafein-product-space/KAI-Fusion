@@ -129,7 +129,7 @@ const OpenAIChatNodeModal = forwardRef<
   };
 
   return (
-    <dialog ref={dialogRef} className="modal">
+    <dialog ref={dialogRef} className="modal bg-background text-foreground">
       <div className="modal-box">
         <h3 className="font-bold text-lg">OpenAI Chat Ayarları</h3>
         <Formik
@@ -147,7 +147,7 @@ const OpenAIChatNodeModal = forwardRef<
                 <Field
                   as="select"
                   name="model_name"
-                  className="select select-bordered w-full"
+                  className="select select-bordered w-full bg-background text-foreground"
                 >
                   <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
                   <option value="gpt-4">gpt-4</option>
@@ -169,7 +169,7 @@ const OpenAIChatNodeModal = forwardRef<
                   min="0"
                   max="2"
                   name="temperature"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full bg-background text-foreground"
                 />
                 <ErrorMessage
                   name="temperature"
@@ -184,7 +184,7 @@ const OpenAIChatNodeModal = forwardRef<
                 <Field
                   type="number"
                   name="max_tokens"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full bg-background text-foreground"
                 />
                 <ErrorMessage
                   name="max_tokens"
@@ -197,7 +197,7 @@ const OpenAIChatNodeModal = forwardRef<
               <div className="form-control">
                 <label className="label">Credential Seç</label>
                 <select
-                  className="select select-bordered w-full"
+                  className="select select-bordered w-full bg-background text-foreground"
                   value={selectedCredentialId}
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
                     setSelectedCredentialId(e.target.value);
@@ -228,7 +228,7 @@ const OpenAIChatNodeModal = forwardRef<
                 <Field
                   type="text"
                   name="credential_name"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full bg-background text-foreground"
                   value={values.credential_name}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setFieldValue("credential_name", e.target.value);
@@ -245,11 +245,11 @@ const OpenAIChatNodeModal = forwardRef<
 
               {/* API Key */}
               <div className="form-control">
-                <label className="label">API Key</label>
+                <label className="label text-foreground">API Key</label>
                 <Field
                   type="password"
                   name="api_key"
-                  className="input input-bordered w-full"
+                  className="input input-bordered w-full bg-background text-foreground"
                   value={values.api_key}
                   onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                     setApiKeyOverride(e.target.value);

@@ -69,10 +69,6 @@ const baseNodeTypes = {
   RouterChain: RouterChainNode,
 };
 
-const edgeTypes = {
-  custom: CustomEdge,
-};
-
 interface FlowCanvasProps {
   workflowId?: string;
 }
@@ -92,6 +88,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { screenToFlowPosition } = useReactFlow();
   const [nodeId, setNodeId] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [activeEdges, setActiveEdges] = useState<string[]>([]);
 
   const {
     currentWorkflow,
@@ -376,6 +373,30 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
+  // Edge'leri render ederken CustomEdge'a isActive prop'u ilet
+  const edgeTypes = useMemo(
+    () => ({
+      custom: (edgeProps: any) => (
+        <CustomEdge
+          {...edgeProps}
+          isActive={activeEdges.includes(edgeProps.id)}
+        />
+      ),
+    }),
+    [activeEdges]
+  );
+
+  //const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
+
+  /*
+  const animateExecution = async () => {
+    for (const edgeId of executionPath) {
+      setActiveEdges([edgeId]);
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    }
+    setActiveEdges([]);
+  };
+  */
   return (
     <>
       <Navbar
@@ -575,6 +596,26 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           )}
         </div>
       </div>
+      {/*
+      <button
+        className="fixed bottom-24 right-4 z-50 bg-yellow-400 text-black px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-yellow-500 transition-all"
+        onClick={() => {
+          if (edges.length > 0) {
+            const randomEdge = edges[Math.floor(Math.random() * edges.length)];
+            setActiveEdges([randomEdge.id]);
+            setTimeout(() => setActiveEdges([]), 2000); // 2 saniye sonra efekti kaldır
+          }
+        }}
+      >
+        Elektrik Test
+      </button>
+      <button
+        className="fixed bottom-36 right-4 z-50 bg-green-500 text-white px-5 py-2 rounded-full shadow-lg hover:bg-green-600 transition-all"
+        onClick={animateExecution}
+      >
+        Workflow Execute Test
+      </button>
+      */}
     </>
   );
 }

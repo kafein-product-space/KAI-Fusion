@@ -244,7 +244,7 @@ export interface Variable {
   id: string;
   name: string;
   value: string;
-  type: 'static' | 'dynamic';
+  type: string; // enum değil, string olmalı
   description?: string;
   user_id: string;
   created_at: string;
@@ -254,7 +254,7 @@ export interface Variable {
 export interface VariableCreateRequest {
   name: string;
   value: string;
-  type: 'static' | 'dynamic';
+  type: string; // enum değil, string olmalı
   description?: string;
 }
 

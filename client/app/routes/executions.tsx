@@ -65,9 +65,9 @@ function ExecutionsLayout() {
     }
   };
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
-      <main className="flex-1 p-10 m-10 bg-white">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <div className="flex flex-col items-start gap-4">
@@ -131,7 +131,7 @@ function ExecutionsLayout() {
             ) : (
               <div className="overflow-hidden rounded-xl border border-gray-300">
                 <table className="table w-full text-sm p-2">
-                  <thead className="bg-[#F5F5F5] text-left text-md border-b border-gray-300 ">
+                  <thead className="bg-background text-left text-md border-b border-gray-300 ">
                     <tr>
                       <th className="p-6 font-normal text-base">ID</th>
                       <th className="p-6 font-normal text-base">Status</th>

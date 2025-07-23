@@ -26,10 +26,11 @@ const Sidebar = () => {
 
   const handleLogOut = async () => {
     try {
-      await signOut();
-      router("/signin");
+      router("/signin"); // Önce yönlendir
+      await signOut(); // Sonra logout işlemini başlat
     } catch (error) {
       console.error("Logout failed:", error);
+      router("/signin"); // Hata olsa bile yönlendir
     }
   };
 

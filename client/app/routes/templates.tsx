@@ -129,11 +129,11 @@ function TemplatesLayout() {
   };
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
 
       {/* Main Content */}
-      <main className="flex-1 p-10 m-10 bg-white">
+      <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">
             <div className="flex flex-col items-start gap-4">
@@ -177,28 +177,6 @@ function TemplatesLayout() {
             </div>
           </div>
 
-          {/* Stats Cards */}
-          <div className="grid grid-cols-3 gap-4 mb-6">
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-gray-900">
-                {templates.length}
-              </div>
-              <div className="text-sm text-gray-600">Total Templates</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-blue-600">
-                {templates.filter((t) => t.tag === "business").length}
-              </div>
-              <div className="text-sm text-gray-600">Business Templates</div>
-            </div>
-            <div className="bg-white border border-gray-200 rounded-lg p-4">
-              <div className="text-2xl font-bold text-green-600">
-                {templates.filter((t) => t.tag === "marketing").length}
-              </div>
-              <div className="text-sm text-gray-600">Marketing Templates</div>
-            </div>
-          </div>
-
           {/* Table */}
           {filteredTemplates.length === 0 ? (
             <div className="text-center py-12 bg-gray-50 rounded-lg">
@@ -233,9 +211,9 @@ function TemplatesLayout() {
               )}
             </div>
           ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-300 bg-white">
-              <table className="w-full text-sm">
-                <thead className="bg-[#F5F5F5] text-left border-b border-gray-300">
+            <div className="overflow-hidden rounded-xl border border-gray-300 text-foreground">
+              <table className="w-full text-sm bg-background text-foreground">
+                <thead className="bg-background text-left border-b border-gray-300">
                   <tr>
                     <th className="p-6 font-medium text-base">Name</th>
                     <th className="p-6 font-medium text-base">Tag</th>
@@ -249,12 +227,10 @@ function TemplatesLayout() {
                   {filteredTemplates.map((template) => (
                     <tr
                       key={template.id}
-                      className="border-b border-gray-200 hover:bg-gray-50 transition duration-150"
+                      className="border-b border-gray-200 text-foreground transition duration-150"
                     >
                       <td className="p-6">
-                        <div className="font-medium text-gray-900">
-                          {template.name}
-                        </div>
+                        <div className="font-medium ">{template.name}</div>
                       </td>
                       <td className="p-6">
                         <span
@@ -266,16 +242,12 @@ function TemplatesLayout() {
                         </span>
                       </td>
                       <td className="p-6">
-                        <div className="text-sm text-gray-600 max-w-xs truncate">
+                        <div className="text-sm  max-w-xs truncate">
                           {template.description}
                         </div>
                       </td>
-                      <td className="p-6 text-gray-600 text-sm">
-                        {template.created}
-                      </td>
-                      <td className="p-6 text-gray-600 text-sm">
-                        {template.updated}
-                      </td>
+                      <td className="p-6  text-sm">{template.created}</td>
+                      <td className="p-6  text-sm">{template.updated}</td>
                       <td className="p-6">
                         <div className="flex items-center gap-1">
                           <Link

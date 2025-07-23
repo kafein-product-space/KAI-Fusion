@@ -3,7 +3,7 @@ import { API_ENDPOINTS } from '../lib/config';
 import type { Variable } from '../types/api';
 
 export const createVariable = async (inputs: Record<string, any>) => {
-  return apiClient.post<Variable>(API_ENDPOINTS.VARIABLES.CREATE, { inputs });
+  return apiClient.post<Variable>(API_ENDPOINTS.VARIABLES.CREATE, inputs);
 };
 
 export const getVariable = async (variable_id: string) => {

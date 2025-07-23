@@ -1,4 +1,5 @@
 // components/AuthGuard.tsx
+import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router";
 import { apiClient } from "~/lib/api-client";
@@ -44,7 +45,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <span className="text-sm text-gray-500">Loading...</span>
+        <Loader2 className="w-4 h-4 animate-spin" />
       </div>
     );
   }
