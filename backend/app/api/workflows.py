@@ -634,34 +634,51 @@ async def execute_adhoc_workflow(
         execution_completed = False
         
         try:
-            if not isinstance(result_stream, AsyncGenerator):
-                raise TypeError("Expected an async generator from the engine for streaming.")
-
-            async for chunk in result_stream:
-                if isinstance(chunk, dict):
-                    if chunk.get("type") == "token":
-                        llm_output += chunk.get("content", "")
-                    elif chunk.get("type") == "output":
-                        llm_output += chunk.get("output", "")
-                    elif chunk.get("type") == "complete":
-                        result = chunk.get("result")
-                        if isinstance(result, str):
-                            llm_output += result
-                            final_outputs["output"] = result
-                        elif isinstance(result, dict):
-                            if "output" in result:
-                                llm_output += result["output"]
-                            final_outputs.update(result)
-                        execution_completed = True
-                
-                # Make chunk serializable before JSON conversion
-                try:
-                    serialized_chunk = _make_chunk_serializable(chunk)
-                    yield f"data: {json.dumps(serialized_chunk)}\n\n"
-                except (TypeError, ValueError) as e:
-                    logger.warning(f"Non-serializable chunk: {e}")
-                    safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
-                    yield f"data: {json.dumps(safe_chunk)}\n\n"
+            # Handle both streaming and non-streaming results
+            if isinstance(result_stream, AsyncGenerator):
+                async for chunk in result_stream:
+                    if isinstance(chunk, dict):
+                        if chunk.get("type") == "token":
+                            llm_output += chunk.get("content", "")
+                        elif chunk.get("type") == "output":
+                            llm_output += chunk.get("output", "")
+                        elif chunk.get("type") == "complete":
+                            result = chunk.get("result")
+                            if isinstance(result, str):
+                                llm_output += result
+                                final_outputs["output"] = result
+                            elif isinstance(result, dict):
+                                if "output" in result:
+                                    llm_output += result["output"]
+                                final_outputs.update(result)
+                            execution_completed = True
+                    
+                    # Make chunk serializable before JSON conversion
+                    try:
+                        serialized_chunk = _make_chunk_serializable(chunk)
+                        yield f"data: {json.dumps(serialized_chunk)}\n\n"
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"Non-serializable chunk: {e}")
+                        safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
+                        yield f"data: {json.dumps(safe_chunk)}\n\n"
+            else:
+                # Handle non-streaming result (dict)
+                if isinstance(result_stream, dict):
+                    result = result_stream.get("last_output", "")
+                    if isinstance(result, str):
+                        llm_output += result
+                    final_outputs.update(result_stream)
+                    execution_completed = True
+                    
+                    # Send the result as a chunk
+                    chunk = {"type": "complete", "result": result}
+                    try:
+                        serialized_chunk = _make_chunk_serializable(chunk)
+                        yield f"data: {json.dumps(serialized_chunk)}\n\n"
+                    except (TypeError, ValueError) as e:
+                        logger.warning(f"Non-serializable chunk: {e}")
+                        safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
+                        yield f"data: {json.dumps(safe_chunk)}\n\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
@@ -682,13 +699,20 @@ async def execute_adhoc_workflow(
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
         finally:
-            # LLM cevabını chat'e kaydet
+            # LLM cevabını chat'e kaydet - Yeni DB session kullan
             if llm_output:
-                await chat_service.create_chat_message(ChatMessageCreate(
-                    role="assistant",
-                    content=llm_output,
-                    chatflow_id=chatflow_id
-                ))
+                try:
+                    from app.core.database import get_db_session
+                    async with get_db_session() as new_db:
+                        new_chat_service = ChatService(new_db)
+                        await new_chat_service.create_chat_message(ChatMessageCreate(
+                            role="assistant",
+                            content=llm_output,
+                            chatflow_id=chatflow_id
+                        ))
+                        print(f"✅ AI response saved to chat: {llm_output[:50]}...")
+                except Exception as save_error:
+                    print(f"⚠️  Failed to save AI response to chat: {str(save_error)}")
             
             # Execution başarıyla tamamlandığını kaydet
             if execution and execution_completed:

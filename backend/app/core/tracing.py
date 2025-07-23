@@ -13,6 +13,7 @@ from langchain_core.tracers import LangChainTracer
 from langchain_core.callbacks import CallbackManager
 from app.core.constants import ENABLE_WORKFLOW_TRACING
 from app.core.constants import TRACE_MEMORY_OPERATIONS
+from app.core.constants import TRACE_AGENT_REASONING
 from app.core.constants import LANGCHAIN_TRACING_V2
 
 logger = logging.getLogger(__name__)
