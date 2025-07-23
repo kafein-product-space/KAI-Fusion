@@ -1,13 +1,5 @@
 // DashboardLayout.jsx
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical,
-  Search,
-  Trash,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Search,  } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useExecutionsStore } from "~/stores/executions";

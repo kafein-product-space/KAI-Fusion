@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { ChatMessage } from '../types/api';
 import * as chatService from '../services/chatService';
-import { executeWorkflow } from '../services/workflowService';
+import  executeWorkflow  from '../services/workflows';
 
 interface ChatStore {
   chats: Record<string, ChatMessage[]>;
