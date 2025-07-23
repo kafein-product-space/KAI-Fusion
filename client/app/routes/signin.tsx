@@ -31,13 +31,7 @@ const Signin = () => {
       // Önceki hataları temizle
       clearError();
       setStatus(null);
-
-      console.log("Giriş denemesi:", values.email);
-
       await signIn(values);
-
-      console.log("Giriş başarılı!");
-
       // Başarılı giriş sonrası yönlendirme
       navigate("/");
     } catch (err: any) {
@@ -54,9 +48,6 @@ const Signin = () => {
       setSubmitting(false);
     }
   };
-  console.log(error);
-  console.log(status);
-  console.log(ErrorMessage);
 
   return (
     <PublicOnlyGuard>

@@ -1,5 +1,3 @@
-
-
 import sys
 import uvicorn
 from pathlib import Path
