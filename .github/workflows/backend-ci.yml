@@ -86,6 +86,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Docker image
+      - name: Build and run with Docker Compose
         run: |
-          docker build -t backend-app:latest . 
+          docker-compose -f docker-compose.yml up --build -d 
