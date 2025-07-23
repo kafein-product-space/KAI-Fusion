@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import type { ChatMessage } from '../types/api';
 import * as chatService from '../services/chatService';
-import  executeWorkflow  from '../services/workflows';
+import workflowsService from '../services/workflows';
 
 interface ChatStore {
   chats: Record<string, ChatMessage[]>;
@@ -119,7 +119,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const chatflow_id = crypto.randomUUID();
     get().setActiveChatflowId(chatflow_id);
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      await workflowsService.executeAdhocWorkflow({ flow_data, input_text, session_id: chatflow_id, workflow_id });
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'LLM ile konuşma başlatılamadı' });
@@ -130,7 +130,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, error: null });
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      await workflowsService.executeAdhocWorkflow({ flow_data, input_text, session_id: chatflow_id, workflow_id });
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });

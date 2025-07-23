@@ -82,7 +82,7 @@ export default {
     });
   },
   // Execute a workflow (streaming handled elsewhere)
-  async executeAdhocWorkflow(data: { flow_data: WorkflowData; input_text: string; session_id?: string }) {
+  async executeAdhocWorkflow(data: { flow_data: WorkflowData; input_text: string; session_id?: string; workflow_id?: string }) {
     return await apiClient.post<any>(API_ENDPOINTS.WORKFLOWS.EXECUTE, data);
   },
 }; 
