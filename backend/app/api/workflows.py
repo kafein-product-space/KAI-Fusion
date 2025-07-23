@@ -10,7 +10,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
-from sqlalchemy import desc
+from sqlalchemy import desc, func, and_
+from datetime import timedelta
 
 from app.core.engine_v2 import get_engine
 from app.core.database import get_db_session
@@ -30,6 +31,7 @@ from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
+from app.models.execution import WorkflowExecution
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -376,6 +378,61 @@ async def get_workflow_stats(
     except Exception as e:
         logger.error(f"Error fetching workflow stats: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail="Failed to fetch workflow statistics")
+
+
+@router.get("/dashboard/stats/")
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get dashboard statistics for the current user for the last 7, 30, and 90 days.
+    Returns production executions, failed executions, failure rate, time saved (dummy), and runtime (dummy).
+    """
+    user_id = current_user.id
+    now = datetime.utcnow()
+    periods = {
+        "7days": 7,
+        "30days": 30,
+        "90days": 90,
+    }
+    stats = {}
+    for label, days in periods.items():
+        since = now - timedelta(days=days)
+        # Query executions for this user and period
+        total_q = await db.execute(
+            select(func.count()).select_from(WorkflowExecution)
+            .where(
+                and_(
+                    WorkflowExecution.user_id == user_id,
+                    WorkflowExecution.started_at >= since,
+                )
+            )
+        )
+        total = total_q.scalar() or 0
+        failed_q = await db.execute(
+            select(func.count()).select_from(WorkflowExecution)
+            .where(
+                and_(
+                    WorkflowExecution.user_id == user_id,
+                    WorkflowExecution.started_at >= since,
+                    WorkflowExecution.status == "failed",
+                )
+            )
+        )
+        failed = failed_q.scalar() or 0
+        # Dummy values for time saved and runtime (replace with real logic if available)
+        time_saved = f"{total * 0.3:.0f}h" if total else "0h"
+        runtime = f"{total * 0.1:.0f}h" if total else "0h"
+        failurerate = f"{(failed / total * 100):.1f}%" if total else "0%"
+        stats[label] = {
+            "prodexec": total,
+            "failedprod": failed,
+            "failurerate": failurerate,
+            "timesaved": time_saved,
+            "runtime": runtime,
+        }
+    return stats
 
 
 # Template endpoints

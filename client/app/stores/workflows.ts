@@ -11,6 +11,7 @@ import type {
   WorkflowTemplateResponse,
   WorkflowStats,
 } from '~/types/api';
+import type { DashboardStats } from '~/services/workflows';
 import type { StateCreator } from 'zustand'
 interface WorkflowState {
   workflows: Workflow[];
@@ -22,6 +23,7 @@ interface WorkflowState {
   isLoading: boolean;
   error: string | null;
   hasUnsavedChanges: boolean;
+  dashboardStats: DashboardStats | null;
   // Actions
   fetchWorkflows: () => Promise<void>;
   fetchPublicWorkflows: () => Promise<void>;
@@ -36,6 +38,7 @@ interface WorkflowState {
   createTemplate: (data: WorkflowTemplateCreate) => Promise<WorkflowTemplateResponse>;
   createTemplateFromWorkflow: (workflow_id: string, template_name: string, template_description?: string, category?: string) => Promise<WorkflowTemplateResponse>;
   fetchStats: () => Promise<void>;
+  fetchDashboardStats: () => Promise<void>;
   setCurrentWorkflow: (workflow: Workflow | null) => void;
   setHasUnsavedChanges: (hasChanges: boolean) => void;
   clearError: () => void;
@@ -51,6 +54,7 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   isLoading: false,
   error: null,
   hasUnsavedChanges: false,
+  dashboardStats: null,
   fetchWorkflows: async () => {
     set({ isLoading: true, error: null });
     try {
@@ -179,6 +183,15 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     try {
       const stats = await WorkflowService.getWorkflowStats();
       set({ stats, isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+    }
+  },
+  fetchDashboardStats: async () => {
+    set({ isLoading: true });
+    try {
+      const dashboardStats = await WorkflowService.getDashboardStats();
+      set({ dashboardStats, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
