@@ -17,13 +17,11 @@ import type {
 import { API_ENDPOINTS } from '~/lib/config';
 
 export type DashboardStats = {
-  [period: string]: {
+  [period: string]: Array<{
+    date: string;
     prodexec: number;
     failedprod: number;
-    failurerate: string;
-    timesaved: string;
-    runtime: string;
-  };
+  }>;
 };
 
 export default {

@@ -158,6 +158,13 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 axisLine={false}
                 tickMargin={10}
                 tick={{ fill: "#6b7280" }}
+                tickFormatter={(value) => {
+                  const date = new Date(value);
+                  return date.toLocaleDateString("tr-TR", {
+                    day: "2-digit",
+                    month: "short",
+                  });
+                }}
               />
               <YAxis
                 tickLine={false}
@@ -169,6 +176,14 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 content={<CustomTooltip dataKeys={dataKeys} config={config} />}
                 wrapperStyle={{ zIndex: 50 }}
                 cursor={{ fill: "#2563eb", opacity: 0.08 }}
+                labelFormatter={(label) => {
+                  const date = new Date(label);
+                  return date.toLocaleDateString("tr-TR", {
+                    year: "numeric",
+                    month: "long",
+                    day: "2-digit",
+                  });
+                }}
               />
               {dataKeys.map((key) => (
                 <Area

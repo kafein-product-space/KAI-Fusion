@@ -387,7 +387,7 @@ async def get_dashboard_stats(
 ):
     """
     Get dashboard statistics for the current user for the last 7, 30, and 90 days.
-    Returns production executions, failed executions, failure rate, time saved (dummy), and runtime (dummy).
+    Returns daily production executions and failed executions for each day in the period.
     """
     user_id = current_user.id
     now = datetime.utcnow()
@@ -399,9 +399,9 @@ async def get_dashboard_stats(
     stats = {}
     for label, days in periods.items():
         since = now - timedelta(days=days)
-        # Query executions for this user and period
-        total_q = await db.execute(
-            select(func.count()).select_from(WorkflowExecution)
+        # Get all executions for this user and period
+        executions_q = await db.execute(
+            select(WorkflowExecution.started_at, WorkflowExecution.status)
             .where(
                 and_(
                     WorkflowExecution.user_id == user_id,
@@ -409,29 +409,22 @@ async def get_dashboard_stats(
                 )
             )
         )
-        total = total_q.scalar() or 0
-        failed_q = await db.execute(
-            select(func.count()).select_from(WorkflowExecution)
-            .where(
-                and_(
-                    WorkflowExecution.user_id == user_id,
-                    WorkflowExecution.started_at >= since,
-                    WorkflowExecution.status == "failed",
-                )
-            )
-        )
-        failed = failed_q.scalar() or 0
-        # Dummy values for time saved and runtime (replace with real logic if available)
-        time_saved = f"{total * 0.3:.0f}h" if total else "0h"
-        runtime = f"{total * 0.1:.0f}h" if total else "0h"
-        failurerate = f"{(failed / total * 100):.1f}%" if total else "0%"
-        stats[label] = {
-            "prodexec": total,
-            "failedprod": failed,
-            "failurerate": failurerate,
-            "timesaved": time_saved,
-            "runtime": runtime,
-        }
+        executions = executions_q.all()
+        # Build a dict of date -> {prodexec, failedprod}
+        day_stats = {}
+        for i in range(days):
+            day = (since + timedelta(days=i)).date()
+            day_stats[day] = {"prodexec": 0, "failedprod": 0}
+        for started_at, status in executions:
+            day = started_at.date()
+            if day in day_stats:
+                day_stats[day]["prodexec"] += 1
+                if status and status.lower() == "failed":
+                    day_stats[day]["failedprod"] += 1
+        # Convert to list for frontend
+        stats[label] = [
+            {"date": day.isoformat(), **day_stats[day]} for day in sorted(day_stats.keys())
+        ]
     return stats
 
 

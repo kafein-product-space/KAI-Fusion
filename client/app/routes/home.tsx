@@ -43,13 +43,6 @@ function DashboardLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center">
-        <LoadingSpinner />
-      </div>
-    );
-  }
   if (error || !dashboardStats) {
     return (
       <div className="flex h-screen w-screen items-center justify-center text-red-500">
@@ -67,23 +60,13 @@ function DashboardLayout() {
   ];
 
   // Prepare chart data for DashboardChart
-  const chartData: ChartData[] = Array.from({ length: 7 }, (_, i) => ({
-    name: `Gün ${i + 1}`,
-    prodexec: Math.round(
-      (typeof dashboardStats[selectedPeriod]["prodexec"] === "string"
-        ? parseFloat(dashboardStats[selectedPeriod]["prodexec"] as string)
-        : dashboardStats[selectedPeriod]["prodexec"]) /
-        7 +
-        Math.random() * 10
-    ),
-    failedprod: Math.round(
-      (typeof dashboardStats[selectedPeriod]["failedprod"] === "string"
-        ? parseFloat(dashboardStats[selectedPeriod]["failedprod"] as string)
-        : dashboardStats[selectedPeriod]["failedprod"]) /
-        7 +
-        Math.random() * 3
-    ),
-  }));
+  const chartData: ChartData[] = (dashboardStats[selectedPeriod] || []).map(
+    (d: any) => ({
+      name: d.date,
+      prodexec: d.prodexec,
+      failedprod: d.failedprod,
+    })
+  );
 
   const chartConfig: ChartConfig = {
     prodexec: {
@@ -128,20 +111,26 @@ function DashboardLayout() {
               <option value="90days">Last 90 days</option>
             </select>
           </div>
-          <DashboardChart
-            title="Production Executions"
-            description={
-              selectedPeriod === "7days"
-                ? "Last 7 days"
-                : selectedPeriod === "30days"
-                ? "Last 30 days"
-                : "Last 90 days"
-            }
-            data={chartData}
-            dataKeys={["prodexec", "failedprod"]}
-            config={chartConfig}
-            className="mt-4"
-          />
+          {isLoading ? (
+            <div className="flex justify-center items-center ">
+              <LoadingSpinner />
+            </div>
+          ) : (
+            <DashboardChart
+              title="Production Executions"
+              description={
+                selectedPeriod === "7days"
+                  ? "Last 7 days"
+                  : selectedPeriod === "30days"
+                  ? "Last 30 days"
+                  : "Last 90 days"
+              }
+              data={chartData}
+              dataKeys={["prodexec", "failedprod"]}
+              config={chartConfig}
+              className="mt-4"
+            />
+          )}
         </div>
       </main>
     </div>
