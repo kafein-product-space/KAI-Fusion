@@ -23,7 +23,7 @@ function MarketplaceLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [duplicating, setDuplicating] = useState<string | null>(null);
 
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   const filteredWorkflows = publicWorkflows.filter(
@@ -150,7 +150,7 @@ function MarketplaceLayout() {
                       setPage(1);
                     }}
                   >
-                    {[10, 20, 50, 100].map((opt) => (
+                    {[7, 10, 20, 50, 100].map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
                       </option>

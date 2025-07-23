@@ -1,4 +1,11 @@
-import { Play, BarChart2, Key, Database, LogOut, Warehouse,  } from "lucide-react";
+import {
+  Play,
+  BarChart2,
+  Key,
+  Database,
+  LogOut,
+  Warehouse,
+} from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
