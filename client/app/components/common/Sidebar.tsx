@@ -116,7 +116,7 @@ function Sidebar({ onClose }: SidebarProps) {
         <h3 className="font-bold text-gray-700 mb-4">Add Nodes</h3>
 
         {/* Search Input */}
-        <label className="input w-full rounded-2xl border flex items-center gap-2 px-2 py-1 mb-3">
+        <label className="input w-full rounded-2xl bg-transparent text-black border border-black flex items-center gap-2 px-2 py-1 mb-3">
           <Search className="h-4 w-4 opacity-50" />
           <input
             type="search"
@@ -166,7 +166,7 @@ function Sidebar({ onClose }: SidebarProps) {
                     className="collapse collapse-arrow rounded-lg"
                   >
                     <input type="checkbox" defaultChecked />
-                    <div className="collapse-title font-semibold text-sm ">
+                    <div className="collapse-title font-semibold text-sm text-black">
                       {categories.find((c) => c.name === categoryName)
                         ?.display_name || categoryName}
                       <span className="ml-2 text-xs text-gray-500">

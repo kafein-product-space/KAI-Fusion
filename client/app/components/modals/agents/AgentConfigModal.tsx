@@ -3,6 +3,7 @@ import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
 import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { useThemeStore } from "~/stores/theme";
 
 interface ReactAgentConfigModalProps {
   nodeData: any;
@@ -47,7 +48,7 @@ const ReactAgentConfigModal = forwardRef<
     nodeData?.prompt_template ||
       "You are a helpful assistant. Use tools to answer: {input}"
   );
-
+  const { mode } = useThemeStore();
   const handleSave = () => {
     onSave({
       name: agentName,
@@ -88,7 +89,7 @@ const ReactAgentConfigModal = forwardRef<
                 highlightActiveLine: false,
                 foldGutter: false,
               }}
-              theme="light"
+              theme={mode === "dark" ? "dark" : "light"}
               extensions={[
                 syntaxHighlighting(curlyHighlight),
                 EditorView.lineWrapping,

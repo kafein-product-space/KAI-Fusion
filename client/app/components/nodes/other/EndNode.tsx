@@ -36,4 +36,4 @@ function EndNode({ data }: EndNodeProps) {
   );
 }
 
-export default EndNode; 
+export default EndNode;

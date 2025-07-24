@@ -412,7 +412,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         {/* Sidebar açma butonu */}
         {!isSidebarOpen ? (
           <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white border rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
+            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
             onClick={() => setIsSidebarOpen(true)}
             title="Open Sidebar"
           >
@@ -420,7 +420,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           </button>
         ) : (
           <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white border rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
+            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
             onClick={() => setIsSidebarOpen(false)}
             title="Close Sidebar"
           >
@@ -432,32 +432,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
         {/* Canvas alanı */}
         <div className="flex-1">
-          <div className="absolute top-4 left-4 z-10 bg-white rounded-lg shadow-lg border p-2 flex items-center gap-2">
-            <button
-              onClick={handleSave}
-              disabled={isLoading}
-              className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
-              title="Save Workflow"
-            >
-              {isLoading ? (
-                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-gray-900"></div>
-              ) : (
-                <Save
-                  className={`h-5 w-5 ${
-                    hasUnsavedChanges ? "text-blue-600" : "text-gray-500"
-                  }`}
-                />
-              )}
-            </button>
-            <button
-              onClick={handleClear}
-              className="p-2 rounded-lg transition-colors duration-200 hover:bg-gray-100"
-              title="Clear Canvas"
-            >
-              <Eraser className="h-5 w-5 text-gray-600" />
-            </button>
-          </div>
-
           {error && (
             <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
               <div className="text-red-800 text-sm">{error}</div>
@@ -487,11 +461,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               nodeTypes={nodeTypes as any}
               edgeTypes={edgeTypes}
               fitView
-              className="bg-gray-50"
             >
-              <Controls position="top-right" />
+              <Controls
+                position="top-right"
+                className="bg-background text-black"
+              />
               <Background gap={20} size={1} />
-              <MiniMap />
+              <MiniMap className="bg-background text-black" />
             </ReactFlow>
           </div>
 
@@ -577,7 +553,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               <div className="p-3 border-t flex gap-2">
                 <input
                   type="text"
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm"
+                  className="flex-1 border rounded-lg px-3 py-2 text-sm border-black bg-transparent text-black"
                   placeholder="Mesajınızı yazın..."
                   value={chatInput}
                   onChange={(e) => setChatInput(e.target.value)}

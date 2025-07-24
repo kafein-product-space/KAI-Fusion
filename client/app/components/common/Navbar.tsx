@@ -135,11 +135,11 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="w-full h-16 bg-[#F5F5F5] shadow-lg shadow-[#616161] fixed top-0 left-0 z-20">
-        <nav className="flex justify-between items-center p-4 bg-[#FFFFFF] text-[#616161] m-auto">
+      <header className="w-full h-16 bg-background text foreground shadow-lg shadow-[#616161] fixed top-0 left-0 z-20">
+        <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
           <div className="flex items-center gap-2">
             <ArrowLeft
-              className="text-black cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-[#6a6969] transition duration-500"
+              className="text-foreground cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
               onClick={handleRouteBack}
             />
           </div>
@@ -152,23 +152,23 @@ const Navbar: React.FC<NavbarProps> = ({
               onBlur={handleBlur}
               placeholder="Dosya Adı"
               required
-              className="text-3xl border-b-2 border-[#616161] w-full text-center focus:outline-none"
+              className="text-3xl border-b-2 border-[#616161] w-full text-center focus:outline-none bg-transparent text-foreground"
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
             <div>
               {isLoading ? (
-                <Loader className="animate-spin text-black cursor-pointer w-10 h-10 p-2 rounded-4xl" />
+                <Loader className="animate-spin text-foreground cursor-pointer w-10 h-10 p-2 rounded-4xl" />
               ) : (
                 <Save
-                  className="text-black hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-[#6a6969] transition duration-500"
+                  className="text-foreground hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={onSave}
                 />
               )}
             </div>
-            <div className="text-xs text-[#616161] relative">
+            <div className="text-xs text-foreground relative">
               <Settings
-                className="text-black hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-[#6a6969] transition duration-500"
+                className="text-foreground hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                 onClick={() => setIsDropdownOpen((v) => !v)}
               />
               {isDropdownOpen && (
@@ -178,7 +178,7 @@ const Navbar: React.FC<NavbarProps> = ({
                 >
                   {/* Load */}
                   <button
-                    className="w-full font-medium text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={() => fileInputRef.current?.click()}
                   >
                     <FileUp className="w-5 h-5" />
@@ -193,7 +193,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   />
                   {/* Export */}
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    className="w-full text-left px-3 py-2 text-black hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
                     onClick={handleExport}
                   >
                     <Download className="w-5 h-5" />

@@ -1,6 +1,6 @@
-import React, { Component } from 'react';
-import type { ErrorInfo, ReactNode } from 'react';
-import { AlertTriangle, RefreshCw, Home } from 'lucide-react';
+import React, { Component } from "react";
+import type { ErrorInfo, ReactNode } from "react";
+import { AlertTriangle, RefreshCw, Home } from "lucide-react";
 
 interface Props {
   children: ReactNode;
@@ -24,11 +24,11 @@ class ErrorBoundary extends Component<Props, State> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error('Error caught by boundary:', error, errorInfo);
+    console.error("Error caught by boundary:", error, errorInfo);
     this.setState({ error, errorInfo });
-    
+
     // In production, you might want to send this to an error reporting service
-    if (process.env.NODE_ENV === 'production') {
+    if (process.env.NODE_ENV === "production") {
       // Example: logErrorToService(error, errorInfo);
     }
   }
@@ -38,7 +38,7 @@ class ErrorBoundary extends Component<Props, State> {
   };
 
   handleGoHome = () => {
-    window.location.href = '/';
+    window.location.href = "/";
   };
 
   render() {
@@ -52,18 +52,21 @@ class ErrorBoundary extends Component<Props, State> {
           <div className="max-w-md w-full">
             <div className="bg-white rounded-lg shadow-lg p-8 text-center">
               <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-              
+
               <h1 className="text-2xl font-bold text-gray-900 mb-2">
                 Oops! Something went wrong
               </h1>
-              
+
               <p className="text-gray-600 mb-6">
-                We encountered an unexpected error. This has been logged and we'll look into it.
+                We encountered an unexpected error. This has been logged and
+                we'll look into it.
               </p>
 
-              {process.env.NODE_ENV === 'development' && this.state.error && (
+              {process.env.NODE_ENV === "development" && this.state.error && (
                 <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-                  <h3 className="text-sm font-medium text-red-800 mb-2">Error Details:</h3>
+                  <h3 className="text-sm font-medium text-red-800 mb-2">
+                    Error Details:
+                  </h3>
                   <pre className="text-xs text-red-700 overflow-auto max-h-32">
                     {this.state.error.message}
                     {this.state.errorInfo?.componentStack && (
@@ -84,7 +87,7 @@ class ErrorBoundary extends Component<Props, State> {
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
                 </button>
-                
+
                 <button
                   onClick={this.handleGoHome}
                   className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -110,12 +113,12 @@ interface ErrorBoundaryWrapperProps {
   onError?: (error: Error, errorInfo: ErrorInfo) => void;
 }
 
-export const ErrorBoundaryWrapper: React.FC<ErrorBoundaryWrapperProps> = ({ 
-  children, 
+export const ErrorBoundaryWrapper: React.FC<ErrorBoundaryWrapperProps> = ({
+  children,
   fallback,
-  onError 
+  onError,
 }) => {
   return <ErrorBoundary fallback={fallback}>{children}</ErrorBoundary>;
 };
 
-export default ErrorBoundary; 
+export default ErrorBoundary;
