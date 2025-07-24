@@ -15,9 +15,9 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
-import LoadingSpinner from "~/components/common/LoadingSpinner";
 import AuthGuard from "~/components/AuthGuard";
 import { apiClient } from "../lib/api-client";
+import Loading from "~/components/Loading";
 
 function CredentialsLayout() {
   const {
@@ -195,7 +195,7 @@ function CredentialsLayout() {
           {/* Table */}
           {isLoading ? (
             <div className="flex items-center justify-center ">
-              <LoadingSpinner text="Loading Credentials" />
+              <Loading size="sm" />
             </div>
           ) : error ? (
             <p className="text-red-500">{error}</p>

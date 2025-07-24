@@ -10,6 +10,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
 import AuthGuard from "~/components/AuthGuard";
+import Loading from "~/components/Loading";
 
 function MarketplaceLayout() {
   const {
@@ -92,8 +93,7 @@ function MarketplaceLayout() {
 
           {isLoading ? (
             <div className="flex justify-center items-center py-12">
-              <Loader2 className="w-6 h-6 animate-spin" />
-              <span className="ml-2">Loading workflows...</span>
+              <Loading size="sm" />
             </div>
           ) : error ? (
             <div className="text-red-500 text-center py-12">{error}</div>

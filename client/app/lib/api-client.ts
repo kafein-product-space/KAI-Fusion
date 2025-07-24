@@ -64,7 +64,7 @@ class ApiClient {
     // Create axios instance
     this.instance = axios.create({
       baseURL: `${config.API_BASE_URL}${config.API_VERSION}`,
-      timeout: 120000, // 2 minutes timeout for long AI operations
+      timeout: 180000, // 3 minutes timeout for long AI operations
       headers: {
         'Content-Type': 'application/json',
       },

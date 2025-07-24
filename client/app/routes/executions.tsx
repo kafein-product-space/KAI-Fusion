@@ -5,7 +5,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
-import LoadingSpinner from "~/components/common/LoadingSpinner";
+import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 
 function ExecutionsLayout() {
@@ -107,7 +107,7 @@ function ExecutionsLayout() {
             {error && <div className="p-4 text-red-500">{error}</div>}
             {loading ? (
               <div className="flex items-center justify-center ">
-                <LoadingSpinner text="Loading Executions" />
+                <Loading size="sm" />
               </div>
             ) : executions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4">

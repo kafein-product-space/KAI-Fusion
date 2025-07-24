@@ -1,40 +1,12 @@
-import React, { useState, useEffect } from "react";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import React, { useEffect } from "react";
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import type { ChartConfig, ChartData } from "../components/DashboardChart";
 import DashboardChart from "../components/DashboardChart";
-import LoadingSpinner from "../components/common/LoadingSpinner";
+import Loading from "../components/Loading";
 import { useWorkflows } from "~/stores/workflows";
 
-// Types
-interface StatData {
-  prodexec: number;
-  failedprod: number;
-  failurerate: string;
-  timesaved: string;
-  runtime: string;
-}
-
-interface PeriodStats {
-  [key: string]: StatData;
-}
-
-interface Stat {
-  label: string;
-  statKey: keyof StatData;
-}
-
 function DashboardLayout() {
-  const [selectedStat, setSelectedStat] = useState<keyof StatData>("prodexec");
-  const [selectedPeriod, setSelectedPeriod] = useState("7days");
+  const [selectedPeriod, setSelectedPeriod] = React.useState("7days");
   const { dashboardStats, fetchDashboardStats, isLoading, error } =
     useWorkflows();
 
@@ -51,24 +23,14 @@ function DashboardLayout() {
     );
   }
 
-  const statsData: Stat[] = [
-    { label: "Prod. executions", statKey: "prodexec" },
-    { label: "Failed Prod. executions", statKey: "failedprod" },
-    { label: "Failure Rate", statKey: "failurerate" },
-    { label: "Time Saved", statKey: "timesaved" },
-    { label: "Run time", statKey: "runtime" },
-  ];
-
   // Prepare chart data for DashboardChart
-  const chartData: ChartData[] = (dashboardStats[selectedPeriod] || []).map(
-    (d: any) => ({
-      name: d.date,
-      prodexec: d.prodexec,
-      failedprod: d.failedprod,
-    })
-  );
+  const chartData = (dashboardStats[selectedPeriod] || []).map((d: any) => ({
+    name: d.date,
+    prodexec: d.prodexec,
+    failedprod: d.failedprod,
+  }));
 
-  const chartConfig: ChartConfig = {
+  const chartConfig = {
     prodexec: {
       label: "Prod. executions",
       color: "#2563eb",
@@ -78,11 +40,6 @@ function DashboardLayout() {
       color: "#ef4444",
     },
   };
-
-  const isDarkMode =
-    typeof window !== "undefined"
-      ? document.documentElement.classList.contains("dark")
-      : false;
 
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
@@ -113,7 +70,7 @@ function DashboardLayout() {
           </div>
           {isLoading ? (
             <div className="flex justify-center items-center ">
-              <LoadingSpinner />
+              <Loading size="sm" />
             </div>
           ) : (
             <DashboardChart

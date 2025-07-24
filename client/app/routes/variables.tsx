@@ -6,6 +6,7 @@ import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useVariableStore } from "~/stores/variables";
 import { timeAgo } from "~/lib/dateFormatter";
+import Loading from "~/components/Loading";
 
 interface VariableFormValues {
   name: string;
@@ -146,7 +147,11 @@ function VariablesLayout() {
           </div>
 
           {/* Table */}
-          {pagedVariables.length === 0 ? (
+          {isLoading ? (
+            <div className="flex justify-center items-center py-12">
+              <Loading size="sm" />
+            </div>
+          ) : pagedVariables.length === 0 ? (
             <div className="text-center py-12 bg-background rounded-lg">
               <p className="text-muted-foreground text-lg">
                 No variables found
