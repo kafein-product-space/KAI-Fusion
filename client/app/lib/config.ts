@@ -58,6 +58,7 @@ export const API_ENDPOINTS = {
     DUPLICATE: (id: string) => `/workflows/${id}/duplicate`,
     VISIBILITY: (id: string) => `/workflows/${id}/visibility`,
     STATS: '/workflows/stats/',
+    DASHBOARD_STATS: '/workflows/dashboard/stats/',
     TEMPLATES: '/workflows/templates/',
     TEMPLATE_CATEGORIES: '/workflows/templates/categories/',
     CREATE_TEMPLATE: '/workflows/templates/',

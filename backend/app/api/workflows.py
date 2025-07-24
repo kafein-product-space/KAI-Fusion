@@ -3,7 +3,8 @@ import json
 import logging
 import uuid
 from typing import Any, Dict, Optional, AsyncGenerator, List
-from datetime import datetime
+from datetime import datetime, timedelta
+from sqlalchemy import and_
 
 from fastapi import APIRouter, HTTPException, Depends
 from fastapi.responses import StreamingResponse
@@ -11,7 +12,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc
-
+from app.models.execution import WorkflowExecution
 from app.core.engine_v2 import get_engine
 from app.core.database import get_db_session
 from app.auth.dependencies import get_current_user, get_optional_user
@@ -539,6 +540,52 @@ def _make_chunk_serializable(obj):
             return str(obj)
     else:
         return str(obj)
+@router.get("/dashboard/stats/")
+async def get_dashboard_stats(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+):
+    """
+    Get dashboard statistics for the current user for the last 7, 30, and 90 days.
+    Returns daily production executions and failed executions for each day in the period.
+    """
+    user_id = current_user.id
+    now = datetime.utcnow()
+    periods = {
+        "7days": 7,
+        "30days": 30,
+        "90days": 90,
+    }
+    stats = {}
+    for label, days in periods.items():
+        since = now - timedelta(days=days)
+        # Get all executions for this user and period
+        executions_q = await db.execute(
+            select(WorkflowExecution.started_at, WorkflowExecution.status)
+            .where(
+                and_(
+                    WorkflowExecution.user_id == user_id,
+                    WorkflowExecution.started_at >= since,
+                )
+            )
+        )
+        executions = executions_q.all()
+        # Build a dict of date -> {prodexec, failedprod}
+        day_stats = {}
+        for i in range(days):
+            day = (since + timedelta(days=i)).date()
+            day_stats[day] = {"prodexec": 0, "failedprod": 0}
+        for started_at, status in executions:
+            day = started_at.date()
+            if day in day_stats:
+                day_stats[day]["prodexec"] += 1
+                if status and status.lower() == "failed":
+                    day_stats[day]["failedprod"] += 1
+        # Convert to list for frontend
+        stats[label] = [
+            {"date": day.isoformat(), **day_stats[day]} for day in sorted(day_stats.keys())
+        ]
+    return stats
 
 @router.post("/execute")
 async def execute_adhoc_workflow(
