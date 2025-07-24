@@ -8,6 +8,7 @@ import { removeVariable } from "~/services/variableService";
 import { useVariableStore } from "~/stores/variables";
 import { timeAgo } from "~/lib/dateFormatter";
 import Loading from "~/components/Loading";
+
 interface VariableFormValues {
   name: string;
   type: string;
@@ -15,7 +16,7 @@ interface VariableFormValues {
 }
 
 interface Variable {
-  id: string; // number'dan string'e değiştirildi
+  id: string;
   name: string;
   value: string;
   type: string;
@@ -37,9 +38,13 @@ function VariablesLayout() {
     createVariable,
   } = useVariableStore();
 
+  // Pagination
+  const [itemsPerPage, setItemsPerPage] = useState(7);
+  const [page, setPage] = useState(1);
+
   useEffect(() => {
     fetchVariables();
-  }, [fetchVariables]); // dependency array'e fetchVariables eklendi
+  }, [fetchVariables]);
 
   const handleVariableSubmit = async (
     values: VariableFormValues,
@@ -48,15 +53,12 @@ function VariablesLayout() {
     try {
       await createVariable(values);
       enqueueSnackbar("Variable created successfully", { variant: "success" });
-
-      // Modal'ı kapat ve formu temizle
       const modal = document.getElementById(
         "modalCreateVariable"
       ) as HTMLDialogElement;
       modal?.close();
       resetForm();
     } catch (error) {
-      console.log(error);
       enqueueSnackbar("Failed to create variable", { variant: "error" });
     }
   };
@@ -103,8 +105,6 @@ function VariablesLayout() {
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
-
-      {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">

@@ -102,7 +102,7 @@ function WorkflowsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları

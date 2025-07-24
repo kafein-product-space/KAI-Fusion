@@ -42,7 +42,7 @@ function CredentialsLayout() {
   }
 
   const [selectedApi, setSelectedApi] = useState<Api | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
   const [editingCredential, setEditingCredential] = useState<any>(null);
   const [editSecret, setEditSecret] = useState<string>("");

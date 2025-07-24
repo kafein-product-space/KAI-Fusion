@@ -19,29 +19,40 @@ class ChatService:
     def _encrypt_content(self, content: str) -> str:
         """
         Encrypt chat message content and return as base64 string for database storage.
+        TEMPORARILY DISABLED - storing as plain text to fix corruption issues
         """
-        try:
-            encrypted_bytes = encrypt_data(content)
-            return base64.b64encode(encrypted_bytes).decode('utf-8')
-        except Exception as e:
-            raise ValueError(f"Failed to encrypt content: {e}")
+        # TODO: Re-enable encryption after fixing corruption
+        return content
     
     def _decrypt_content(self, encrypted_content: str) -> str:
         """
         Decrypt a base64 encoded encrypted content from database.
+        TEMPORARILY SIMPLIFIED - assuming plain text to fix corruption issues
         """
+        # Check if content is empty or None
+        if not encrypted_content or encrypted_content.strip() == "":
+            return ""
+        
+        # Try to detect if this is encrypted content (base64 encoded)
         try:
-            encrypted_bytes = base64.b64decode(encrypted_content.encode('utf-8'))
-            decrypted_data = decrypt_data(encrypted_bytes)
-            # If decrypted_data is a dict with 'value' key, return that
-            if isinstance(decrypted_data, dict) and 'value' in decrypted_data:
-                return decrypted_data['value']
-            # Otherwise, convert dict to string or return as-is
-            return str(decrypted_data) if isinstance(decrypted_data, dict) else decrypted_data
+            # If it looks like base64 and decodes properly, try to decrypt
+            if len(encrypted_content) > 20 and encrypted_content.replace('+', '').replace('/', '').replace('=', '').isalnum():
+                encrypted_bytes = base64.b64decode(encrypted_content.encode('utf-8'))
+                if encrypted_bytes:
+                    try:
+                        decrypted_data = decrypt_data(encrypted_bytes)
+                        if isinstance(decrypted_data, dict) and 'value' in decrypted_data:
+                            return decrypted_data['value']
+                        return str(decrypted_data) if isinstance(decrypted_data, dict) else decrypted_data
+                    except Exception:
+                        # If decryption fails, treat as plain text
+                        pass
         except Exception:
-            # If decryption fails, it might be an unencrypted legacy content
-            # Keep as-is for backward compatibility
-            return encrypted_content
+            # If base64 decoding fails, treat as plain text
+            pass
+        
+        # Return as-is (plain text)
+        return encrypted_content
     
     def _prepare_message_response(self, message: ChatMessage) -> ChatMessage:
         """

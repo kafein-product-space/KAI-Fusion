@@ -3,12 +3,7 @@ import {
   BarChart2,
   Key,
   Database,
-  Layers,
-  User,
-  Settings,
   LogOut,
-  Moon,
-  Sun,
   Store,
 } from "lucide-react";
 import React from "react";
