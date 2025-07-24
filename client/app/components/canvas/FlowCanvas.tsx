@@ -145,6 +145,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   useEffect(() => {
     if (currentWorkflow?.name) {
       setWorkflowName(currentWorkflow.name);
+    } else {
+      setWorkflowName("isimsiz dosya");
     }
   }, [currentWorkflow?.name]);
 

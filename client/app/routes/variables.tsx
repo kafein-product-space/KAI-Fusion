@@ -65,7 +65,6 @@ function VariablesLayout() {
 
   const validateVariable = (values: VariableFormValues) => {
     const errors: Partial<VariableFormValues> = {};
-
     if (!values.name) {
       errors.name = "Variable name is required";
     } else if (values.name.length < 2) {
@@ -105,6 +104,8 @@ function VariablesLayout() {
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
+
+      {/* Main Content */}
       <main className="flex-1 p-10 m-10 bg-background">
         <div className="max-w-screen-xl mx-auto">
           <div className="flex justify-between items-center mb-6">
@@ -150,7 +151,7 @@ function VariablesLayout() {
 
           {/* Table */}
           {isLoading ? (
-            <div className="flex items-center justify-center ">
+            <div className="flex items-center justify-center">
               <Loading size="sm" />
             </div>
           ) : filteredVariables.length === 0 ? (
