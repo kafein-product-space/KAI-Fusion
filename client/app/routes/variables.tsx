@@ -7,7 +7,7 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { removeVariable } from "~/services/variableService";
 import { useVariableStore } from "~/stores/variables";
 import { timeAgo } from "~/lib/dateFormatter";
-
+import Loading from "~/components/Loading";
 interface VariableFormValues {
   name: string;
   type: string;
@@ -100,20 +100,6 @@ function VariablesLayout() {
       variable.value.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  if (isLoading) {
-    return (
-      <div className="flex h-screen w-screen bg-background text-foreground">
-        <DashboardSidebar />
-        <main className="flex-1 p-10 m-10 bg-background flex items-center justify-center">
-          <div className="text-center">
-            <div className="loading loading-spinner loading-lg"></div>
-            <p className="mt-4 text-gray-600">Loading variables...</p>
-          </div>
-        </main>
-      </div>
-    );
-  }
-
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
@@ -163,7 +149,11 @@ function VariablesLayout() {
           </div>
 
           {/* Table */}
-          {filteredVariables.length === 0 ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center ">
+              <Loading size="sm" />
+            </div>
+          ) : filteredVariables.length === 0 ? (
             <div className="text-center py-12 bg-background rounded-lg">
               {searchQuery ? (
                 <>
