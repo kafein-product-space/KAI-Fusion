@@ -9,6 +9,7 @@ import {
   LogOut,
   Moon,
   Sun,
+  Store,
 } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -69,10 +70,10 @@ const Sidebar = () => {
               active={location.pathname === "/credentials"}
             />
             <SidebarLink
-              icon={<Layers className="w-6 h-6" />}
-              label="Templates"
-              path="/templates"
-              active={location.pathname === "/templates"}
+              icon={<Store className="w-6 h-6" />}
+              label="Marketplace"
+              path="/marketplace"
+              active={location.pathname === "/marketplace"}
             />
             <SidebarLink
               icon={<Database className="w-6 h-6" />}

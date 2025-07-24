@@ -23,5 +23,5 @@ export default [
   route("executions", "routes/executions.tsx"),
   route("credentials", "routes/credentials.tsx"),
   route("variables", "routes/variables.tsx"),
-  route("templates", "routes/templates.tsx")
+  route("marketplace", "routes/marketplace.tsx")
 ] satisfies RouteConfig;
