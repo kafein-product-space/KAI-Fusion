@@ -1,9 +1,7 @@
 version: '3'
 services:
   kaifusion:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    build: .
     image: kaifusion:latest
     ports:
       - 0.0.0.0:${PORT}:8000
@@ -35,8 +33,6 @@ services:
       ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
 
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    volumes:
-      - ./:/app
     networks:
       - kaifusion-network
     stdin_open: true
