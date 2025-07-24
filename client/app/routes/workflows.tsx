@@ -26,13 +26,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
 import { useSnackbar } from "notistack";
 import AuthGuard from "~/components/AuthGuard";
-
-const LoadingSpinner = () => (
-  <div className="flex items-center justify-center py-8">
-    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
-    <span className="ml-2 text-gray-600">Loading workflows...</span>
-  </div>
-);
+import Loading from "~/components/Loading";
 
 const ErrorMessageBlock = ({
   error,
@@ -108,7 +102,7 @@ function WorkflowsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -254,7 +248,9 @@ function WorkflowsLayout() {
           {error ? (
             <ErrorMessageBlock error={error} onRetry={handleRetry} />
           ) : isLoading && workflows.length === 0 ? (
-            <LoadingSpinner />
+            <div className="flex justify-center items-center py-12">
+              <Loading size="sm" />
+            </div>
           ) : workflows.length === 0 ? (
             <EmptyState />
           ) : (

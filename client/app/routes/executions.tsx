@@ -1,19 +1,11 @@
 // DashboardLayout.jsx
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical,
-  Search,
-  Trash,
-  X,
-} from "lucide-react";
+import { ChevronLeft, ChevronRight, Search } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
-import LoadingSpinner from "~/components/common/LoadingSpinner";
+import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 
 function ExecutionsLayout() {
@@ -21,7 +13,7 @@ function ExecutionsLayout() {
   const { executions, loading, error, fetchExecutions } = useExecutionsStore();
   const { workflows, currentWorkflow, fetchWorkflows, setCurrentWorkflow } =
     useWorkflows();
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -115,7 +107,7 @@ function ExecutionsLayout() {
             {error && <div className="p-4 text-red-500">{error}</div>}
             {loading ? (
               <div className="flex items-center justify-center ">
-                <LoadingSpinner text="Loading Executions" />
+                <Loading size="sm" />
               </div>
             ) : executions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-4">
@@ -202,7 +194,7 @@ function ExecutionsLayout() {
                         setPage(1);
                       }}
                     >
-                      {[10, 20, 50, 100].map((opt) => (
+                      {[7, 10, 20, 50, 100].map((opt) => (
                         <option key={opt} value={opt}>
                           {opt}
                         </option>

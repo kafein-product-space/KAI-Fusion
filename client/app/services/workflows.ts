@@ -16,6 +16,14 @@ import type {
 } from '~/types/api';
 import { API_ENDPOINTS } from '~/lib/config';
 
+export type DashboardStats = {
+  [period: string]: Array<{
+    date: string;
+    prodexec: number;
+    failedprod: number;
+  }>;
+};
+
 export default {
   // Get all workflows for the current user
   async getWorkflows(params?: { skip?: number; limit?: number }) {
@@ -61,6 +69,10 @@ export default {
   async getWorkflowStats() {
     return await apiClient.get<WorkflowStats>(API_ENDPOINTS.WORKFLOWS.STATS);
   },
+  // Get dashboard stats
+  async getDashboardStats() {
+    return await apiClient.get<DashboardStats>(API_ENDPOINTS.WORKFLOWS.DASHBOARD_STATS);
+  },
   // Get workflow templates
   async getWorkflowTemplates(params?: { skip?: number; limit?: number; category?: string; search?: string }) {
     return await apiClient.get<WorkflowTemplateResponse[]>(API_ENDPOINTS.WORKFLOWS.TEMPLATES, { params });
@@ -86,7 +98,7 @@ export default {
   },
   
   // Execute a workflow (streaming handled elsewhere)
-  async executeAdhocWorkflow(data: { flow_data: WorkflowData; input_text: string; session_id?: string }) {
+  async executeAdhocWorkflow(data: { flow_data: WorkflowData; input_text: string; session_id?: string; workflow_id?: string }) {
     return await apiClient.post<any>(API_ENDPOINTS.WORKFLOWS.EXECUTE, data);
   },
 }; 

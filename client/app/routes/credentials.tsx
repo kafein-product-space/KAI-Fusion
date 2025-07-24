@@ -15,9 +15,9 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
-import LoadingSpinner from "~/components/common/LoadingSpinner";
 import AuthGuard from "~/components/AuthGuard";
 import { apiClient } from "../lib/api-client";
+import Loading from "~/components/Loading";
 
 function CredentialsLayout() {
   const {
@@ -42,7 +42,7 @@ function CredentialsLayout() {
   }
 
   const [selectedApi, setSelectedApi] = useState<Api | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
   const [editingCredential, setEditingCredential] = useState<any>(null);
   const [editSecret, setEditSecret] = useState<string>("");
@@ -195,7 +195,7 @@ function CredentialsLayout() {
           {/* Table */}
           {isLoading ? (
             <div className="flex items-center justify-center ">
-              <LoadingSpinner text="Loading Credentials" />
+              <Loading size="sm" />
             </div>
           ) : error ? (
             <p className="text-red-500">{error}</p>
@@ -445,7 +445,7 @@ function CredentialsLayout() {
                       setPage(1);
                     }}
                   >
-                    {[10, 20, 50, 100].map((opt) => (
+                    {[7, 10, 20, 50, 100].map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
                       </option>

@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
-import { Play, Square, Trash } from "lucide-react";
+import { Square, Trash } from "lucide-react";
 
 interface EndNodeProps {
   data: any;
