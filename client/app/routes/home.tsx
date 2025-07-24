@@ -15,20 +15,16 @@ function DashboardLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (error || !dashboardStats) {
-    return (
-      <div className="flex h-screen w-screen items-center justify-center text-red-500">
-        {error || "Veri yok"}
-      </div>
-    );
-  }
-
   // Prepare chart data for DashboardChart
-  const chartData = (dashboardStats[selectedPeriod] || []).map((d: any) => ({
-    name: d.date,
-    prodexec: d.prodexec,
-    failedprod: d.failedprod,
-  }));
+  const periodData =
+    dashboardStats?.[selectedPeriod as keyof typeof dashboardStats];
+  const chartData = Array.isArray(periodData)
+    ? periodData.map((d: any) => ({
+        name: d.date,
+        prodexec: d.prodexec,
+        failedprod: d.failedprod,
+      }))
+    : [];
 
   const chartConfig = {
     prodexec: {

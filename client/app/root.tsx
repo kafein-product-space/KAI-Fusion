@@ -12,7 +12,6 @@ import "./app.css";
 import { SnackbarProvider } from "notistack";
 import { ReactFlowProvider } from "@xyflow/react";
 import { useThemeStore } from "./stores/theme";
-import { useEffect } from "react";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
