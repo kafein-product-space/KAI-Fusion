@@ -92,17 +92,9 @@ class CredentialEncryption:
             Decrypted dictionary
         """
         try:
-            # Check if encrypted_data is empty
-            if not encrypted_data:
-                return {"value": ""}
-            
             # Decrypt the data
             decrypted_bytes = self.cipher.decrypt(encrypted_data)
             decrypted_str = decrypted_bytes.decode('utf-8')
-            
-            # Check if decrypted string is empty
-            if not decrypted_str.strip():
-                return {"value": ""}
             
             # Parse JSON
             try:
@@ -112,9 +104,7 @@ class CredentialEncryption:
                 return {"value": decrypted_str}
                 
         except Exception as e:
-            # Handle InvalidToken and other decryption errors gracefully
-            print(f"⚠️  Decryption failed (likely old/incompatible data): {str(e)}")
-            return {"value": ""}
+            raise ValueError(f"Decryption failed: {e}")
     
     def rotate_key(self, new_master_key: str, old_encrypted_data: bytes) -> bytes:
         """

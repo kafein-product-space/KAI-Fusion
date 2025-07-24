@@ -69,6 +69,5 @@ def get_default_checkpointer() -> BaseCheckpointSaver:
     Returns:
         BaseCheckpointSaver: Default checkpointer instance
     """
-    # Force use of MemorySaver to avoid PostgreSQL async context issues
-    print("🧠 Using MemorySaver to avoid PostgreSQL async context issues")
-    return MemorySaver() 
+    database_url = DATABASE_URL
+    return create_checkpointer(database_url) 

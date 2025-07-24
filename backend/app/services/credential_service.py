@@ -127,14 +127,13 @@ class CredentialService(BaseService[UserCredential]):
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
             }
-        except Exception as e:
-            print(f"⚠️  Failed to decrypt credential {credential_id}: {str(e)}")
+        except Exception:
             # Return credential with empty secret if decryption fails
             return {
                 "id": credential.id,
                 "name": credential.name,
                 "service_type": credential.service_type,
-                "secret": {},  # Empty secret when decryption fails
+                "secret": {},
                 "created_at": credential.created_at,
                 "updated_at": credential.updated_at
             } 

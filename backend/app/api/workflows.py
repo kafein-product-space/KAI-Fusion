@@ -11,9 +11,8 @@ from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy import desc
 from app.models.execution import WorkflowExecution
-from sqlalchemy import desc, func, and_
-from datetime import timedelta
 from app.core.engine_v2 import get_engine
 from app.core.database import get_db_session
 from app.auth.dependencies import get_current_user, get_optional_user
@@ -32,7 +31,6 @@ from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
-from app.models.execution import WorkflowExecution
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -381,54 +379,6 @@ async def get_workflow_stats(
         raise HTTPException(status_code=500, detail="Failed to fetch workflow statistics")
 
 
-@router.get("/dashboard/stats/")
-async def get_dashboard_stats(
-    db: AsyncSession = Depends(get_db_session),
-    current_user: User = Depends(get_current_user),
-):
-    """
-    Get dashboard statistics for the current user for the last 7, 30, and 90 days.
-    Returns daily production executions and failed executions for each day in the period.
-    """
-    user_id = current_user.id
-    now = datetime.utcnow()
-    periods = {
-        "7days": 7,
-        "30days": 30,
-        "90days": 90,
-    }
-    stats = {}
-    for label, days in periods.items():
-        since = now - timedelta(days=days)
-        # Get all executions for this user and period
-        executions_q = await db.execute(
-            select(WorkflowExecution.started_at, WorkflowExecution.status)
-            .where(
-                and_(
-                    WorkflowExecution.user_id == user_id,
-                    WorkflowExecution.started_at >= since,
-                )
-            )
-        )
-        executions = executions_q.all()
-        # Build a dict of date -> {prodexec, failedprod}
-        day_stats = {}
-        for i in range(days):
-            day = (since + timedelta(days=i)).date()
-            day_stats[day] = {"prodexec": 0, "failedprod": 0}
-        for started_at, status in executions:
-            day = started_at.date()
-            if day in day_stats:
-                day_stats[day]["prodexec"] += 1
-                if status and status.lower() == "failed":
-                    day_stats[day]["failedprod"] += 1
-        # Convert to list for frontend
-        stats[label] = [
-            {"date": day.isoformat(), **day_stats[day]} for day in sorted(day_stats.keys())
-        ]
-    return stats
-
-
 # Template endpoints
 @router.get("/templates/", response_model=List[WorkflowTemplateResponse])
 async def get_workflow_templates(
@@ -731,51 +681,34 @@ async def execute_adhoc_workflow(
         execution_completed = False
         
         try:
-            # Handle both streaming and non-streaming results
-            if isinstance(result_stream, AsyncGenerator):
-                async for chunk in result_stream:
-                    if isinstance(chunk, dict):
-                        if chunk.get("type") == "token":
-                            llm_output += chunk.get("content", "")
-                        elif chunk.get("type") == "output":
-                            llm_output += chunk.get("output", "")
-                        elif chunk.get("type") == "complete":
-                            result = chunk.get("result")
-                            if isinstance(result, str):
-                                llm_output += result
-                                final_outputs["output"] = result
-                            elif isinstance(result, dict):
-                                if "output" in result:
-                                    llm_output += result["output"]
-                                final_outputs.update(result)
-                            execution_completed = True
-                    
-                    # Make chunk serializable before JSON conversion
-                    try:
-                        serialized_chunk = _make_chunk_serializable(chunk)
-                        yield f"data: {json.dumps(serialized_chunk)}\n\n"
-                    except (TypeError, ValueError) as e:
-                        logger.warning(f"Non-serializable chunk: {e}")
-                        safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
-                        yield f"data: {json.dumps(safe_chunk)}\n\n"
-            else:
-                # Handle non-streaming result (dict)
-                if isinstance(result_stream, dict):
-                    result = result_stream.get("last_output", "")
-                    if isinstance(result, str):
-                        llm_output += result
-                    final_outputs.update(result_stream)
-                    execution_completed = True
-                    
-                    # Send the result as a chunk
-                    chunk = {"type": "complete", "result": result}
-                    try:
-                        serialized_chunk = _make_chunk_serializable(chunk)
-                        yield f"data: {json.dumps(serialized_chunk)}\n\n"
-                    except (TypeError, ValueError) as e:
-                        logger.warning(f"Non-serializable chunk: {e}")
-                        safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
-                        yield f"data: {json.dumps(safe_chunk)}\n\n"
+            if not isinstance(result_stream, AsyncGenerator):
+                raise TypeError("Expected an async generator from the engine for streaming.")
+
+            async for chunk in result_stream:
+                if isinstance(chunk, dict):
+                    if chunk.get("type") == "token":
+                        llm_output += chunk.get("content", "")
+                    elif chunk.get("type") == "output":
+                        llm_output += chunk.get("output", "")
+                    elif chunk.get("type") == "complete":
+                        result = chunk.get("result")
+                        if isinstance(result, str):
+                            llm_output += result
+                            final_outputs["output"] = result
+                        elif isinstance(result, dict):
+                            if "output" in result:
+                                llm_output += result["output"]
+                            final_outputs.update(result)
+                        execution_completed = True
+                
+                # Make chunk serializable before JSON conversion
+                try:
+                    serialized_chunk = _make_chunk_serializable(chunk)
+                    yield f"data: {json.dumps(serialized_chunk)}\n\n"
+                except (TypeError, ValueError) as e:
+                    logger.warning(f"Non-serializable chunk: {e}")
+                    safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
+                    yield f"data: {json.dumps(safe_chunk)}\n\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
@@ -796,20 +729,13 @@ async def execute_adhoc_workflow(
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
         finally:
-            # LLM cevabını chat'e kaydet - Yeni DB session kullan
+            # LLM cevabını chat'e kaydet
             if llm_output:
-                try:
-                    from app.core.database import get_db_session
-                    async with get_db_session() as new_db:
-                        new_chat_service = ChatService(new_db)
-                        await new_chat_service.create_chat_message(ChatMessageCreate(
-                            role="assistant",
-                            content=llm_output,
-                            chatflow_id=chatflow_id
-                        ))
-                        print(f"✅ AI response saved to chat: {llm_output[:50]}...")
-                except Exception as save_error:
-                    print(f"⚠️  Failed to save AI response to chat: {str(save_error)}")
+                await chat_service.create_chat_message(ChatMessageCreate(
+                    role="assistant",
+                    content=llm_output,
+                    chatflow_id=chatflow_id
+                ))
             
             # Execution başarıyla tamamlandığını kaydet
             if execution and execution_completed:

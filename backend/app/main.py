@@ -32,28 +32,9 @@ from app.api.variables import router as variables_router
 logger = logging.getLogger(__name__)
 
 
-def validate_env_vars():
-    """Check if all required environment variables are set."""
-    required_vars = [
-        "CREATE_DATABASE",
-        "DATABASE_URL",
-        "ASYNC_DATABASE_URL"
-    ]
-    missing = [var for var in required_vars if not os.getenv(var)]
-    if missing:
-        logger.error(f"❌ Missing required environment variables: {', '.join(missing)}")
-        raise RuntimeError("Environment validation failed")
-    for var in required_vars:
-        logger.info(f"✅ {var} = {os.getenv(var)}")
-
-
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
-
-    # ✅ Check .env values early
-    validate_env_vars()
-
     logger.info("🚀 Starting Agent-Flow V2 Backend...")
     
     # Initialize node registry
@@ -126,6 +107,8 @@ app.add_middleware(
 #         pass
 
 # Include API routers
+
+# Core routers (always available)
 app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
 app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
 app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
@@ -136,22 +119,27 @@ app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
 
 
-# Health check endpoint
+# Health checks and info endpoints
 @app.get("/health", tags=["Health"])
 async def health_check():
+    """Health check endpoint."""
     try:
+        # Check node registry health
         nodes_healthy = len(node_registry.nodes) > 0
+        
+        # Check engine health
         engine_healthy = True
         try:
             engine = get_engine()
         except Exception:
             engine_healthy = False
-
+        
+        # Database health (conditional based on CREATE_DATABASE setting)
         if CREATE_DATABASE:
             db_healthy = "enabled"
         else:
             db_healthy = "disabled (CREATE_DATABASE=false)"
-
+        
         return {
             "status": "healthy" if (nodes_healthy and engine_healthy) else "degraded",
             "version": "2.0.0",
@@ -179,14 +167,15 @@ async def health_check():
             content={"status": "unhealthy", "error": str(e)}
         )
 
-
+# Legacy alias for health endpoint expected by some clients/tests
 @app.get("/api/health", tags=["Health"])
 async def health_check_api():
     return await health_check()
 
-
+# Info endpoint
 @app.get("/info", tags=["Info"])
 async def get_info():
+    """Get application information and statistics."""
     try:
         return {
             "name": "Agent-Flow V2",
@@ -202,7 +191,7 @@ async def get_info():
             "statistics": {
                 "total_nodes": len(node_registry.nodes),
                 "node_types": list(set(node.__name__ for node in node_registry.nodes.values())),
-                "api_endpoints": 25,
+                "api_endpoints": 25,  # Approximate count
                 "database_enabled": CREATE_DATABASE
             },
             "engine": {
@@ -223,12 +212,16 @@ async def get_info():
             content={"error": "Failed to retrieve application info"}
         )
 
-
+# Legacy alias for info endpoint with additional fields to maintain backward compatibility
 @app.get("/api/v1/info", tags=["Info"])
 async def get_info_v1():
     original = await get_info()
+
+    # If get_info returned a JSONResponse (error case), forward it as-is
     if isinstance(original, JSONResponse):
         return original
+
+    # Otherwise it's a normal dict – add legacy fields expected by tests
     original.setdefault("endpoints", [
         "/",
         "/api/health",
@@ -238,9 +231,10 @@ async def get_info_v1():
     original.setdefault("stats", original.get("statistics", {}))
     return original
 
-
+# Root endpoint
 @app.get("/", tags=["Root"])
 async def root():
+    """Root endpoint with API information."""
     return {
         "status": "healthy",
         "app": "Agent-Flow V2",
@@ -252,7 +246,6 @@ async def root():
         "database_enabled": CREATE_DATABASE
     }
 
-
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
@@ -261,4 +254,4 @@ if __name__ == "__main__":
         port=8000,
         reload=True,
         log_level="info"
-    )
+    ) 

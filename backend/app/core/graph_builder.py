@@ -13,8 +13,6 @@ from enum import Enum
 import uuid
 import asyncio
 import os
-from app.core.tracing import get_workflow_tracer
-
 
 from langgraph.graph import StateGraph, START, END
 from langgraph.graph.state import CompiledStateGraph
@@ -170,9 +168,10 @@ class GraphBuilder:
         )
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
-        # Temporarily disable streaming due to LangGraph compatibility issues
-        # Always use synchronous execution
-        return await self._execute_sync(init_state, config)
+        if stream:
+            return self._execute_stream(init_state, config)
+        else:
+            return await self._execute_sync(init_state, config)
 
     # ------------------------------------------------------------------
     # Internal helpers – build phase
