@@ -102,7 +102,7 @@ function WorkflowsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -370,15 +370,19 @@ function WorkflowsLayout() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">Items per page:</span>
                   <select
-                    className="border rounded px-2 py-1 text-xs"
+                    className="border rounded px-2 py-1 text-xs bg-background"
                     value={itemsPerPage}
                     onChange={(e) => {
                       setItemsPerPage(Number(e.target.value));
                       setPage(1);
                     }}
                   >
-                    {[10, 20, 50, 100].map((opt) => (
-                      <option key={opt} value={opt}>
+                    {[7, 10, 20, 50, 100].map((opt) => (
+                      <option
+                        key={opt}
+                        value={opt}
+                        className="bg-background text-foreground"
+                      >
                         {opt}
                       </option>
                     ))}

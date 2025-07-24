@@ -41,12 +41,13 @@ function CredentialsLayout() {
     apiKey: string;
   }
 
-  const [selectedApi, setSelectedApi] = useState<Api | null>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  // Remove apiKeys and selectedApi logic
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
   const [editingCredential, setEditingCredential] = useState<any>(null);
   const [editSecret, setEditSecret] = useState<string>("");
   const [editLoading, setEditLoading] = useState(false);
+  const [showEditApiKey, setShowEditApiKey] = useState(false);
 
   // Sayfalama hesaplamaları
   const filteredCredentials = userCredentials.filter((credential) =>
@@ -67,45 +68,25 @@ function CredentialsLayout() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [apiKeys] = useState([
-    {
-      id: 1,
-      name: "OpenAI API",
-      logo: "https://www.svgrepo.com/show/306500/openai.svg",
-    },
-    {
-      id: 2,
-      name: "GitHub API",
-      logo: "https://cdn-icons-png.flaticon.com/512/25/25231.png",
-    },
-    {
-      id: 3,
-      name: "Google API",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png",
-    },
-  ]);
+  // Remove apiKeys and selectedApi logic
 
   const handleCredentialSubmit = async (values: CredentialFormValues) => {
-    if (selectedApi) {
-      const payload: CredentialCreateRequest = {
-        name: values.name,
-        data: { api_key: values.apiKey },
-        service_type:
-          selectedApi.name === "OpenAI API"
-            ? "openai"
-            : selectedApi.name?.toLowerCase().replace(/ api$/, ""),
-      };
-      try {
-        await addCredential(payload);
-        // Modal'ı kapat
-        const modal = document.getElementById(
-          "modalCreateCredential"
-        ) as HTMLDialogElement;
-        modal?.close();
-        setSelectedApi(null);
-      } catch (e) {
-        // handle error
-      }
+    const payload: CredentialCreateRequest = {
+      name: values.name,
+      data: { api_key: values.apiKey },
+      service_type: "", // or set a default, or remove if not required by backend
+    };
+    try {
+      await addCredential(payload);
+      // Modal'ı kapat
+      const modal = document.getElementById(
+        "modalCreateCredential"
+      ) as HTMLDialogElement;
+      modal?.close();
+      // setSelectedApi(null); // This line is removed
+      // setUiError(null); // This line is removed
+    } catch (e: any) {
+      // setUiError(e.message || "Failed to add credential"); // This line is removed
     }
   };
 
@@ -182,7 +163,9 @@ function CredentialsLayout() {
                 className="flex items-center gap-2 px-4 py-2 bg-[#9664E0] text-white rounded-lg hover:bg-[#8557d4] transition duration-200"
                 onClick={() =>
                   (
-                    document.getElementById("my_modal_1") as HTMLDialogElement
+                    document.getElementById(
+                      "modalCreateCredential"
+                    ) as HTMLDialogElement
                   )?.showModal()
                 }
               >
@@ -229,7 +212,8 @@ function CredentialsLayout() {
                       className="border-b border-gray-300"
                     >
                       <td className="p-6 flex items-center gap-4">
-                        {/* Optionally add logo if available */}
+                        {/* Show logo if available */}
+                        {/* The logo display logic is removed as apiKeys is gone */}
                         {credential.name}
                       </td>
                       <td className="p-3">{timeAgo(credential.created_at)}</td>
@@ -445,7 +429,7 @@ function CredentialsLayout() {
                       setPage(1);
                     }}
                   >
-                    {[10, 20, 50, 100].map((opt) => (
+                    {[7, 10, 20, 50, 100].map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
                       </option>
@@ -495,147 +479,83 @@ function CredentialsLayout() {
         </div>
       </main>
 
-      {/* First Modal: Select API */}
-      <dialog id="my_modal_1" className="modal">
-        <div className="modal-box space-y-4 max-h-[80vh] overflow-auto">
-          <h3 className="font-bold text-lg">Add New Credential</h3>
-          <div className="flex items-center gap-6 justify-center w-full">
-            <div className="flex gap-2 p-3 flex-col items-start w-full">
-              <label className="input w-full rounded-2xl border flex items-center gap-2 px-2 py-1">
-                <Search className="h-4 w-4 opacity-50" />
-                <input
-                  type="search"
-                  className="grow w-full"
-                  placeholder="Search"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </label>
-            </div>
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            {apiKeys.map((apiKey) => (
-              <div
-                key={apiKey.id}
-                className="flex items-center justify-center gap-2 w-full border rounded-2xl p-3 hover:bg-[#ede7f6] hover:text-[#9664E0] cursor-pointer"
-                onClick={() => {
-                  const modal1 = document.getElementById(
-                    "my_modal_1"
-                  ) as HTMLDialogElement;
-                  const modal2 = document.getElementById(
-                    "modalCreateCredential"
-                  ) as HTMLDialogElement;
-                  setSelectedApi(apiKey);
-                  modal1?.close();
-                  setTimeout(() => {
-                    modal2?.showModal();
-                  }, 100);
-                }}
-              >
-                <img src={apiKey.logo} className="w-8 h-8" alt="" />
-                <h2 className="text-lg font-light">{apiKey.name}</h2>
-              </div>
-            ))}
-          </div>
-          <div className="modal-action">
-            <form method="dialog">
-              <button className="btn">Close</button>
-            </form>
-          </div>
-        </div>
-      </dialog>
-
       {/* Second Modal: After Selection */}
       <dialog id="modalCreateCredential" className="modal">
         <div className="modal-box">
-          {selectedApi && (
-            <>
-              <div className="flex items-center gap-2 mb-6 space-x-4 p-3">
-                <div>
-                  <img src={selectedApi.logo} className="w-8 h-8" alt="" />
+          <h3 className="font-bold text-lg mb-4">Add New Credential</h3>
+          <Formik
+            initialValues={{ name: "", apiKey: "" }}
+            validate={validateCredential}
+            onSubmit={handleCredentialSubmit}
+          >
+            {({ values, errors, touched, isSubmitting }) => (
+              <Form className="flex flex-col gap-4 space-y-4">
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="name" className="font-light">
+                    Credential Name
+                  </label>
+                  <Field
+                    name="name"
+                    type="text"
+                    placeholder="Enter credential name"
+                    className={`input w-full h-12 rounded-2xl ${
+                      errors.name && touched.name
+                        ? "border-red-300 bg-red-50"
+                        : "border-gray-300 bg-background text-foreground hover:border-gray-400"
+                    }`}
+                  />
+                  <ErrorMessage
+                    name="name"
+                    component="p"
+                    className="text-red-500 text-sm"
+                  />
                 </div>
-                <div>
-                  <h2 className="text-lg font-medium">{selectedApi.name}</h2>
+                <div className="flex flex-col gap-2">
+                  <label htmlFor="apiKey" className="font-light">
+                    API Key
+                  </label>
+                  <Field
+                    name="apiKey"
+                    type="password"
+                    placeholder="Enter API Key"
+                    className={`input w-full h-12 rounded-2xl ${
+                      errors.apiKey && touched.apiKey
+                        ? "border-red-300 bg-red-50"
+                        : "border-gray-300 bg-background text-foreground hover:border-gray-400"
+                    }`}
+                  />
+                  <ErrorMessage
+                    name="apiKey"
+                    component="p"
+                    className="text-red-500 text-sm"
+                  />
                 </div>
-              </div>
-
-              <Formik
-                initialValues={{ name: "", apiKey: "" }}
-                validate={validateCredential}
-                onSubmit={handleCredentialSubmit}
-              >
-                {({ values, errors, touched, isSubmitting }) => (
-                  <Form className="flex flex-col gap-4 space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="name" className="font-light">
-                        Credential Name
-                      </label>
-                      <Field
-                        name="name"
-                        type="text"
-                        placeholder="Enter credential name"
-                        className={`input w-full h-12 rounded-2xl ${
-                          errors.name && touched.name
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
-                        }`}
-                      />
-                      <ErrorMessage
-                        name="name"
-                        component="p"
-                        className="text-red-500 text-sm"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="apiKey" className="font-light">
-                        {selectedApi.name} API Key
-                      </label>
-                      <Field
-                        name="apiKey"
-                        type="password"
-                        placeholder="Enter API Key"
-                        className={`input w-full h-12 rounded-2xl ${
-                          errors.apiKey && touched.apiKey
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-background text-foreground hover:border-gray-400"
-                        }`}
-                      />
-                      <ErrorMessage
-                        name="apiKey"
-                        component="p"
-                        className="text-red-500 text-sm"
-                      />
-                    </div>
-
-                    <div className="modal-action">
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => {
-                            const modal = document.getElementById(
-                              "modalCreateCredential"
-                            ) as HTMLDialogElement;
-                            modal?.close();
-                            setSelectedApi(null);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  </Form>
-                )}
-              </Formik>
-            </>
-          )}
+                <div className="modal-action">
+                  <div className="flex gap-4">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        const modal = document.getElementById(
+                          "modalCreateCredential"
+                        ) as HTMLDialogElement;
+                        modal?.close();
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </div>
+              </Form>
+            )}
+          </Formik>
         </div>
       </dialog>
     </div>

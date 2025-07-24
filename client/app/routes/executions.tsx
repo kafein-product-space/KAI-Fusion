@@ -21,7 +21,7 @@ function ExecutionsLayout() {
   const { executions, loading, error, fetchExecutions } = useExecutionsStore();
   const { workflows, currentWorkflow, fetchWorkflows, setCurrentWorkflow } =
     useWorkflows();
-  const [itemsPerPage, setItemsPerPage] = useState(10);
+  const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -44,13 +44,19 @@ function ExecutionsLayout() {
     fetchWorkflows();
   }, [fetchWorkflows]);
 
+  // Set currentWorkflow to first workflow after workflows are fetched, if not set
+  useEffect(() => {
+    if (workflows.length > 0 && !currentWorkflow) {
+      setCurrentWorkflow(workflows[0]);
+    }
+  }, [workflows, currentWorkflow, setCurrentWorkflow]);
+
+  // Only fetch executions when currentWorkflow changes
   useEffect(() => {
     if (currentWorkflow?.id) {
       fetchExecutions(currentWorkflow.id);
-    } else if (workflows.length > 0) {
-      fetchExecutions(workflows[0].id);
     }
-  }, [currentWorkflow, workflows, fetchExecutions]);
+  }, [currentWorkflow, fetchExecutions]);
 
   const getTagColor = (tag: string) => {
     switch (tag) {
@@ -202,7 +208,7 @@ function ExecutionsLayout() {
                         setPage(1);
                       }}
                     >
-                      {[10, 20, 50, 100].map((opt) => (
+                      {[7, 10, 20, 50, 100].map((opt) => (
                         <option key={opt} value={opt}>
                           {opt}
                         </option>
