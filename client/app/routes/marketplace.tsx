@@ -1,11 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  Copy,
-  RefreshCw,
-  ChevronLeft,
-  ChevronRight,
-  Loader2,
-} from "lucide-react";
+import { Copy, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";

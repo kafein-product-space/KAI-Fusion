@@ -36,13 +36,19 @@ function ExecutionsLayout() {
     fetchWorkflows();
   }, [fetchWorkflows]);
 
+  // Set currentWorkflow to first workflow after workflows are fetched, if not set
+  useEffect(() => {
+    if (workflows.length > 0 && !currentWorkflow) {
+      setCurrentWorkflow(workflows[0]);
+    }
+  }, [workflows, currentWorkflow, setCurrentWorkflow]);
+
+  // Only fetch executions when currentWorkflow changes
   useEffect(() => {
     if (currentWorkflow?.id) {
       fetchExecutions(currentWorkflow.id);
-    } else if (workflows.length > 0) {
-      fetchExecutions(workflows[0].id);
     }
-  }, [currentWorkflow, workflows, fetchExecutions]);
+  }, [currentWorkflow, fetchExecutions]);
 
   const getTagColor = (tag: string) => {
     switch (tag) {

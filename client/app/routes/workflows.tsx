@@ -248,7 +248,7 @@ function WorkflowsLayout() {
           {error ? (
             <ErrorMessageBlock error={error} onRetry={handleRetry} />
           ) : isLoading && workflows.length === 0 ? (
-            <div className="flex justify-center items-center py-12">
+            <div className="flex items-center justify-center ">
               <Loading size="sm" />
             </div>
           ) : workflows.length === 0 ? (
@@ -370,15 +370,19 @@ function WorkflowsLayout() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-gray-500">Items per page:</span>
                   <select
-                    className="border rounded px-2 py-1 text-xs"
+                    className="border rounded px-2 py-1 text-xs bg-background"
                     value={itemsPerPage}
                     onChange={(e) => {
                       setItemsPerPage(Number(e.target.value));
                       setPage(1);
                     }}
                   >
-                    {[10, 20, 50, 100].map((opt) => (
-                      <option key={opt} value={opt}>
+                    {[7, 10, 20, 50, 100].map((opt) => (
+                      <option
+                        key={opt}
+                        value={opt}
+                        className="bg-background text-foreground"
+                      >
                         {opt}
                       </option>
                     ))}

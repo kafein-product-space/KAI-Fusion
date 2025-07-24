@@ -4,7 +4,7 @@ import {
   Key,
   Database,
   LogOut,
-  Warehouse,
+  Store,
 } from "lucide-react";
 import React from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -65,7 +65,7 @@ const Sidebar = () => {
               active={location.pathname === "/credentials"}
             />
             <SidebarLink
-              icon={<Warehouse className="w-6 h-6" />}
+              icon={<Store className="w-6 h-6" />}
               label="Marketplace"
               path="/marketplace"
               active={location.pathname === "/marketplace"}

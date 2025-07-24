@@ -15,9 +15,9 @@ import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useUserCredentialStore } from "../stores/userCredential";
 import type { CredentialCreateRequest } from "../types/api";
 import { timeAgo } from "~/lib/dateFormatter";
+import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 import { apiClient } from "../lib/api-client";
-import Loading from "~/components/Loading";
 
 function CredentialsLayout() {
   const {
@@ -445,7 +445,7 @@ function CredentialsLayout() {
                       setPage(1);
                     }}
                   >
-                    {[7, 10, 20, 50, 100].map((opt) => (
+                    {[10, 20, 50, 100].map((opt) => (
                       <option key={opt} value={opt}>
                         {opt}
                       </option>
