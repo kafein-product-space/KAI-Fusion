@@ -53,6 +53,7 @@ import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import CustomNeonEdge from "../common/NeonHandle";
 import ChatBubble from "../common/ChatBubble";
+import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   Agent: ToolAgentNode,
@@ -66,6 +67,7 @@ const baseNodeTypes = {
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
   TavilySearch: TavilySearchNode,
+  WebScraper: WebScraperNode,
   EndNode: EndNode,
   RouterChain: RouterChainNode,
 };
