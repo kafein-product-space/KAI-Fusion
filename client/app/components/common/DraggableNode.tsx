@@ -7,6 +7,7 @@ import {
   FileText,
   GitBranch,
   GitCompare,
+  Globe,
   MessageCircle,
   Play,
   Sparkles,
@@ -109,6 +110,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   ConversationMemory: <MessageCircle />,
   TavilySearch: <Sparkles />,
   EndNode: <Square />,
+  WebScraper: <Globe />,
 
   // Yeni node tipleri buraya eklenebilir
 };
