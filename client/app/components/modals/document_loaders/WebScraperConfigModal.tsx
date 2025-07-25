@@ -1,5 +1,13 @@
-import React, { forwardRef, useImperativeHandle, useRef } from "react";
+import React, {
+  forwardRef,
+  useImperativeHandle,
+  useRef,
+  useEffect,
+  useState,
+} from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 interface WebScraperConfigModalProps {
   nodeData: any;
@@ -20,6 +28,15 @@ const WebScraperConfigModal = forwardRef<
 >(({ nodeData, onSave, nodeId }, ref) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   useImperativeHandle(ref, () => dialogRef.current!);
+
+  const { userCredentials, fetchCredentials, isLoading } =
+    useUserCredentialStore();
+  const [selectedCredentialId, setSelectedCredentialId] = useState<string>("");
+  const [loadingCredential, setLoadingCredential] = useState(false);
+
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
 
   const initialValues: WebScraperConfig = {
     urls: nodeData?.urls || "",
@@ -50,8 +67,10 @@ const WebScraperConfigModal = forwardRef<
             setSubmitting(false);
           }}
         >
-          {({ isSubmitting }) => (
+          {({ isSubmitting, setFieldValue, values }) => (
             <Form className="space-y-4 mt-4">
+              {/* Credential Seçici */}
+
               <div className="form-control">
                 <label className="label">
                   URL Listesi (her satıra bir URL)
@@ -69,12 +88,51 @@ const WebScraperConfigModal = forwardRef<
                 />
               </div>
               <div className="form-control">
+                <label className="label">Credential Seç (Opsiyonel)</label>
+                <select
+                  className="select select-bordered w-full"
+                  value={selectedCredentialId}
+                  onChange={async (e) => {
+                    const credId = e.target.value;
+                    setSelectedCredentialId(credId);
+                    if (credId) {
+                      setLoadingCredential(true);
+                      try {
+                        const result = await getUserCredentialSecret(credId);
+                        if (result?.secret?.api_key) {
+                          setFieldValue(
+                            "tavily_api_key",
+                            result.secret.api_key
+                          );
+                        }
+                      } finally {
+                        setLoadingCredential(false);
+                      }
+                    }
+                  }}
+                  disabled={isLoading || loadingCredential}
+                >
+                  <option value="">Bir credential seçin...</option>
+                  {userCredentials.map((cred) => (
+                    <option key={cred.id} value={cred.id}>
+                      {cred.name}
+                    </option>
+                  ))}
+                </select>
+                {loadingCredential && (
+                  <span className="text-xs text-gray-500">
+                    Credential yükleniyor...
+                  </span>
+                )}
+              </div>
+              <div className="form-control">
                 <label className="label">Tavily API Key</label>
                 <Field
                   className="input input-bordered w-full"
                   type="password"
                   name="tavily_api_key"
                   placeholder="your-tavily-api-key"
+                  value={values.tavily_api_key}
                 />
                 <ErrorMessage
                   name="tavily_api_key"
