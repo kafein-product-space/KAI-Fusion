@@ -18,8 +18,8 @@ class ReactAgentNode(ProcessorNode):
     def __init__(self):
         super().__init__()
         self._metadata = {
-            "name": "ReactAgent",
-            "display_name": "ReAct Agent",
+            "name": "Agent",
+            "display_name": "Agent",
             "description": "Orchestrates LLM, tools, and memory for complex, multi-step tasks.",
             "category": "Agents",
             "node_type": NodeType.PROCESSOR,

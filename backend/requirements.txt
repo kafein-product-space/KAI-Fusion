@@ -38,6 +38,10 @@ requests>=2.31.0
 # Additional utilities
 python-multipart>=0.0.6
 
+# HTML Processing
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
 # ML/Vector
 numpy>=1.24.0
 scikit-learn>=1.3.0
