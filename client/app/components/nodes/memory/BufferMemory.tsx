@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import BufferMemoryConfigModal from "../../modals/memory/BufferMemoryConfigModal";
 import { Archive, Trash } from "lucide-react";
+import NeonHandle from "~/components/common/NeonHandle";
 
 interface BufferMemoryNodeProps {
   data: any;
@@ -9,7 +10,7 @@ interface BufferMemoryNodeProps {
 }
 
 function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
 
@@ -30,7 +31,14 @@ function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
+  const edges = getEdges ? getEdges() : [];
 
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
   return (
     <>
       {/* Ana node kutusu */}
@@ -72,15 +80,14 @@ function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
           {data?.displayName || data?.name || "Buffer Memory"}
         </div>
 
-        <Handle
+        <NeonHandle
           type="source"
           position={Position.Top}
           id="output"
-          className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
-          style={{
-            width: 10,
-            height: 10,
-          }}
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+          glow={isHandleConnected("output", true)}
         />
       </div>
 

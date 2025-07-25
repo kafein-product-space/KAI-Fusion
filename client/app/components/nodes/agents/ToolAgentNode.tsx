@@ -1,7 +1,8 @@
 import React, { useRef, useState, useCallback } from "react";
-import { useReactFlow, Handle, Position } from "@xyflow/react";
+import { useReactFlow, Position } from "@xyflow/react";
 import { Bot, Trash } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
+import { NeonHandle } from "~/components/common/NeonHandle";
 
 interface ToolAgentNodeProps {
   data: any;
@@ -12,9 +13,17 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
   data,
   id,
 }: ToolAgentNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
+  const edges = getEdges ? getEdges() : [];
+
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
 
   const handleOpenModal = useCallback(() => {
     modalRef.current?.showModal();
@@ -41,7 +50,6 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
     [id, setNodes]
   );
 
-  // Input handle konfigürasyonu
   const leftInputHandles = [
     { id: "start", label: "Start", required: true, position: 50 },
   ];
@@ -54,7 +62,6 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
 
   return (
     <>
-      {/* Ana node kutusu */}
       <div
         className={`relative flex flex-col items-center gap-2 px-6 py-4 rounded-xl border-2 text-gray-700 font-medium cursor-pointer transition-all
           ${
@@ -84,6 +91,8 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
             </p>
           </div>
         </div>
+
+        {/* Silme butonu */}
         {isHovered && (
           <button
             className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white shadow-lg transition-all duration-200 hover:scale-110 flex items-center justify-center z-10"
@@ -93,27 +102,25 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
             <Trash size={8} />
           </button>
         )}
+
         {/* Left Input Handle */}
         {leftInputHandles.map((handle) => (
-          <Handle
+          <NeonHandle
             key={handle.id}
             type="target"
             position={Position.Left}
             id={handle.id}
-            className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
-            style={{
-              width: 10,
-              height: 10,
-              top: `${handle.position}%`,
-              left: "-1px",
-            }}
+            isConnectable={true}
+            size={10}
+            color1="#00FFFF"
+            glow={isHandleConnected(handle.id)}
             title="Input"
           />
         ))}
 
         {/* Bottom Input Handles */}
         {bottomInputHandles.map((handle) => (
-          <Handle
+          <NeonHandle
             key={handle.id}
             type="target"
             position={Position.Bottom}
@@ -156,22 +163,18 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
         </div>
 
         {/* Output Handle */}
-        <Handle
+        <NeonHandle
           type="source"
           position={Position.Right}
           id="output"
-          className="w-3 h-3  border-2 border-white !bg-gray-400"
-          style={{
-            width: 10,
-            height: 10,
-            right: "-1px",
-            top: "50%",
-          }}
+          isConnectable={true}
+          size={10}
+          color1="#8b5cf6"
+          glow={isHandleConnected("output", true)}
           title="Agent Output"
         />
       </div>
 
-      {/* DaisyUI dialog modal */}
       <AgentConfigModal
         ref={modalRef}
         nodeData={data}
@@ -180,6 +183,7 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
     </>
   );
 });
+
 ToolAgentNode.displayName = "ToolAgentNode";
 
 export default ToolAgentNode;

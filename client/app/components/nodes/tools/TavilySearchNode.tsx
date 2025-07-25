@@ -4,6 +4,7 @@ import { Sparkles, Trash } from "lucide-react";
 import AgentConfigModal from "../../modals/agents/AgentConfigModal";
 import OpenAIChatNodeModal from "../../modals/llms/OpenAIChatModal";
 import TavilySearchConfigModal from "~/components/modals/tools/TavilySearchConfigModal";
+import NeonHandle from "~/components/common/NeonHandle";
 
 interface TavilySearchNodeProps {
   data: any;
@@ -11,7 +12,7 @@ interface TavilySearchNodeProps {
 }
 
 function TavilySearchNode({ data, id }: TavilySearchNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
 
@@ -32,7 +33,14 @@ function TavilySearchNode({ data, id }: TavilySearchNodeProps) {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
+  const edges = getEdges ? getEdges() : [];
 
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
   return (
     <>
       {/* Ana node kutusu */}
@@ -73,15 +81,14 @@ function TavilySearchNode({ data, id }: TavilySearchNodeProps) {
           {data?.displayName || data?.name || "Tavily Search"}
         </div>
 
-        <Handle
+        <NeonHandle
           type="source"
           position={Position.Top}
           id="output"
-          className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
-          style={{
-            width: 10,
-            height: 10,
-          }}
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+          glow={isHandleConnected("output", true)}
         />
       </div>
 

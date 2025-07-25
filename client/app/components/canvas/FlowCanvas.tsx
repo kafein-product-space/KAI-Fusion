@@ -53,12 +53,11 @@ import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
-  ReactAgent: ToolAgentNode,
+  Agent: ToolAgentNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
-
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
