@@ -295,6 +295,42 @@ class BaseNode(ABC):
         """Validate if an input value is acceptable"""
         # Override in subclasses for custom validation
         return True
+    
+    def as_runnable(self) -> "Runnable":
+        """
+        Convert node to LangChain Runnable for direct composition.
+        
+        Returns:
+            RunnableLambda that executes this node
+        """
+        from langchain_core.runnables import RunnableLambda, RunnableConfig
+        import os
+        
+        # LangSmith tracing configuration
+        ENABLE_TRACING = bool(os.getenv("LANGCHAIN_TRACING_V2", ""))
+        run_config = RunnableConfig(run_name=self.__class__.__name__) if ENABLE_TRACING else None
+        
+        def node_runner(params):
+            """Execute node with parameters."""
+            if hasattr(self, 'execute'):
+                # Handle different node types
+                if self.metadata.node_type == NodeType.PROCESSOR:
+                    # Processor nodes need inputs and connected_nodes
+                    inputs = params.get('inputs', {})
+                    connected_nodes = params.get('connected_nodes', {})
+                    return self.execute(inputs=inputs, connected_nodes=connected_nodes)
+                else:
+                    # Provider and Terminator nodes use **kwargs pattern
+                    return self.execute(**params)
+            else:
+                raise NotImplementedError(f"{self.__class__.__name__} must implement execute()")
+        
+        runnable = RunnableLambda(node_runner, name=self.__class__.__name__)
+        
+        if run_config:
+            runnable = runnable.with_config(run_config)
+        
+        return runnable
 
 # 4. Geliştiricilerin Kullanacağı 3 Standart Node Sınıfı
 

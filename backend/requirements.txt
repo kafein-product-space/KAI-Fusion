@@ -12,7 +12,6 @@ PyJWT>=2.8.0
 
 # Vector Database
 pgvector>=0.2.0
-langchain-postgres>=0.0.6
 # Data Validation
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
@@ -32,6 +31,14 @@ langchain-openai>=0.0.5
 langchain-tavily>=0.2.0
 langchain-text-splitters>=0.3.0
 langgraph>=0.0.30
+
+# Reranking and Compression
+cohere>=4.30.0
+rank-bm25>=0.2.2
+
+# Scheduling and Triggers
+croniter>=1.4.0
+APScheduler>=3.10.0
 
 # Environment
 python-dotenv>=1.0.0
