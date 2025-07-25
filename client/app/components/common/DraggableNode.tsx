@@ -28,7 +28,7 @@ interface DraggableNodeProps {
 
 // Node type -> icon haritası
 const nodeTypeIconMap: Record<string, ReactElement> = {
-  ReactAgent: <Bot className="w-6 h-6 text-blue-600" />,
+  Agent: <Bot className="w-6 h-6 text-blue-600" />,
   StartNode: <Play className="w-6 h-6 text-green-600" />,
   start: <Play className="w-6 h-6 text-green-600" />,
   OpenAIChat: (

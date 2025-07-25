@@ -2,6 +2,7 @@ import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Link } from "lucide-react";
 import CohereEmbeddingsConfigModal from "../../modals/embeddings/CohereEmbeddingsConfigModal";
+import NeonHandle from "~/components/common/NeonHandle";
 
 interface CohereEmbeddingsNodeProps {
   data: any;
@@ -9,7 +10,7 @@ interface CohereEmbeddingsNodeProps {
 }
 
 function CohereEmbeddingsNode({ data, id }: CohereEmbeddingsNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
 
@@ -26,7 +27,14 @@ function CohereEmbeddingsNode({ data, id }: CohereEmbeddingsNodeProps) {
       )
     );
   };
+  const edges = getEdges ? getEdges() : [];
 
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
   return (
     <>
       {/* Ana node kutusu */}
@@ -47,11 +55,14 @@ function CohereEmbeddingsNode({ data, id }: CohereEmbeddingsNodeProps) {
           </div>
         </div>
 
-        <Handle
+        <NeonHandle
           type="source"
           position={Position.Right}
           id="output"
-          className="w-3 h-3 bg-gray-500"
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+          glow={isHandleConnected("output", true)}
         />
       </div>
 
