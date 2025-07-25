@@ -3,9 +3,7 @@ Central constants file for all environment variables.
 All os.getenv calls should be defined here and imported from other files.
 """
 import os
-from dotenv import load_dotenv
 
-load_dotenv()
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
