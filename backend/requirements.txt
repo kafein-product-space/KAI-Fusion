@@ -26,6 +26,7 @@ langchain-core>=0.1.0
 langchain-community>=0.0.10
 langchain-openai>=0.0.5
 langchain-tavily>=0.2.0
+langchain-text-splitters>=0.3.0
 langgraph>=0.0.30
 
 # Environment
