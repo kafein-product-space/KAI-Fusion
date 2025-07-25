@@ -31,7 +31,8 @@ class BufferMemoryNode(ProviderNode):
         """Execute buffer memory node with session persistence and tracing"""
         # Get session ID from context (set by graph builder)
         session_id = getattr(self, 'session_id', 'default_session')
-        print(f"💾 BufferMemoryNode session_id: {session_id}")
+        print(f"\n💾 BUFFER MEMORY SETUP")
+        print(f"   📝 Session: {session_id[:8]}...")
         
         # Use existing session memory or create new one (using global class storage)
         if session_id not in BufferMemoryNode._global_session_memories:
@@ -41,23 +42,24 @@ class BufferMemoryNode(ProviderNode):
                 input_key=kwargs.get("input_key", "input"),
                 output_key=kwargs.get("output_key", "output")
             )
-            print(f"💾 Created new BufferMemory for session: {session_id}")
+            print(f"   ✅ Created new memory")
         else:
-            print(f"💾 Reusing existing BufferMemory for session: {session_id}")
+            print(f"   ♻️  Reusing existing memory")
             
         memory = BufferMemoryNode._global_session_memories[session_id]
         
         # Debug memory content with enhanced tracing
         if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
             message_count = len(memory.chat_memory.messages)
-            print(f"💾 BufferMemory has {message_count} messages")
-            for i, msg in enumerate(memory.chat_memory.messages[-3:]):  # Show last 3 messages
-                print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
+            print(f"   📚 Messages: {message_count}")
             
             # Track memory content for LangSmith
-            from app.core.tracing import get_workflow_tracer
-            tracer = get_workflow_tracer(session_id=session_id)
-            tracer.track_memory_operation("retrieve", "BufferMemory", f"{message_count} messages", session_id)
+            try:
+                from app.core.tracing import get_workflow_tracer
+                tracer = get_workflow_tracer(session_id=session_id)
+                tracer.track_memory_operation("retrieve", "BufferMemory", f"{message_count} messages", session_id)
+            except Exception as e:
+                print(f"   ⚠️  Memory tracing failed: {e}")
         
-        print(f"💾 BufferMemory ready for session: {session_id}")
+        print(f"   ✅ Memory ready")
         return cast(Runnable, memory)

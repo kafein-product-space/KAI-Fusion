@@ -183,6 +183,8 @@ class GraphBuilder:
 
     def _parse_connections(self, edges: List[Dict[str, Any]]):
         """Parse edges into internal connection format with handle support."""
+        if edges:
+            print(f"\n🔗 PARSING CONNECTIONS ({len(edges)} edges)")
         for edge in edges:
             source = edge.get("source", "")
             target = edge.get("target", "")
@@ -199,7 +201,7 @@ class GraphBuilder:
                     data_type=data_type,
                 )
                 self.connections.append(conn)
-                print(f"[DEBUG] Parsed connection: {source}[{source_handle}] -> {target}[{target_handle}]")
+                print(f"   📤 {source}[{source_handle}] ➜ {target}[{target_handle}]")
 
     def _identify_control_flow_nodes(self, nodes: List[Dict[str, Any]]):
         """Detect control-flow constructs like conditional, loop, parallel."""
@@ -218,6 +220,8 @@ class GraphBuilder:
 
     def _instantiate_nodes(self, nodes: List[Dict[str, Any]]):
         """Instantiate nodes and build proper connection mappings with source handle support."""
+        if nodes:
+            print(f"\n🏭 INSTANTIATING NODES ({len(nodes)} nodes)")
         for node_def in nodes:
             node_id = node_def["id"]
             node_type = node_def["type"]
@@ -266,10 +270,6 @@ class GraphBuilder:
             # Store user configuration from frontend
             instance.user_data = user_data
             
-            # Log user data for debugging
-            if user_data:
-                print(f"[DEBUG] Node {node_id} user data: {list(user_data.keys())}")
-
             # Create GraphNodeInstance
             self.nodes[node_id] = GraphNodeInstance(
                 id=node_id,
@@ -279,7 +279,9 @@ class GraphBuilder:
                 user_data=user_data,
             )
             
-            print(f"[DEBUG] ✅ Instantiated node '{node_id}' ({node_type}) with {len(input_connections)} inputs, {len(output_connections)} outputs")
+            # Log instantiation
+            config_keys = list(user_data.keys()) if user_data else []
+            print(f"   ✅ {node_id} ({node_type}) | Config: {len(config_keys)} | I/O: {len(input_connections)}/{len(output_connections)}")
 
     # ------------------------------------------------------------------
     # Internal – Graph building
@@ -308,7 +310,7 @@ class GraphBuilder:
         def wrapper(state: FlowState) -> Dict[str, Any]:  # noqa: D401
             """Enhanced wrapper that provides better context and error handling."""
             try:
-                print(f"[DEBUG] Executing node: {node_id} ({gnode.type})")
+                print(f"\n🎯 EXECUTING: {node_id} ({gnode.type})")
                 
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
@@ -317,13 +319,11 @@ class GraphBuilder:
                 if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
                     gnode.node_instance.session_id = session_id
-                    print(f"[DEBUG] Set session_id for {node_id}: {session_id}")
                 
                 # Set session_id for memory nodes
                 if 'Memory' in gnode.type and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
                     gnode.node_instance.session_id = session_id
-                    print(f"[DEBUG] Set session_id for memory node {node_id}: {session_id}")
                 
                 # Initialize tracer for this node
                 try:
@@ -334,16 +334,12 @@ class GraphBuilder:
                     print(f"[WARNING] Tracing failed: {trace_error}")
                 
                 # 🔥 SPECIAL HANDLING for ProcessorNodes (ReactAgent)
-                print(f"[DEBUG] Node {node_id} type check - node_type: {gnode.node_instance.metadata.node_type.value}")
-                print(f"[DEBUG] Node {node_id} has _input_connections: {hasattr(gnode.node_instance, '_input_connections')}")
-                if hasattr(gnode.node_instance, '_input_connections'):
-                    print(f"[DEBUG] Node {node_id} input connections: {list(gnode.node_instance._input_connections.keys())}")
                 if gnode.node_instance.metadata.node_type.value == "processor":
                     # For ProcessorNodes, we need to pass actual node instances, not their outputs
                     try:
-                        print(f"[DEBUG] Extracting user inputs for processor {node_id}")
+                        # Extract user inputs for processor
                         user_inputs = self._extract_user_inputs_for_processor(gnode, state)
-                        print(f"[DEBUG] User inputs extracted successfully: {list(user_inputs.keys())}")
+                        # User inputs extracted successfully
                     except Exception as e:
                         print(f"[ERROR] Failed to extract user inputs for {node_id}: {e}")
                         raise
@@ -385,8 +381,8 @@ class GraphBuilder:
                         "executed_nodes": updated_executed_nodes,
                         "last_output": last_output
                     }
-                    print(f"[DEBUG] Node {node_id} returning state update: {result_dict}")
-                    print(f"[DEBUG] State after update - last_output: '{state.last_output}'")
+                    print(f"   ✅ Output: '{last_output[:80]}...' ({len(str(last_output))} chars)")
+                    print(f"   📊 State updated with output")
                     
                     # End node tracing for processor nodes
                     try:
@@ -640,7 +636,7 @@ class GraphBuilder:
 
     # ---------------- Regular edges & START/END ------------
     def _add_regular_edges(self, graph: StateGraph):
-        print(f"[DEBUG] Adding regular edges:")
+        print(f"\n🔗 BUILDING GRAPH EDGES")
         
         # Group connections by target node to handle multi-input nodes properly
         target_groups = {}
@@ -657,9 +653,8 @@ class GraphBuilder:
             if target_node in self.end_nodes_for_connections:
                 continue
 
-            print(f"[DEBUG] Target {target_node} depends on: {source_nodes}")
+            print(f"   🎯 {target_node} ← {', '.join(source_nodes)}")
             for source_node in source_nodes:
-                print(f"[DEBUG]   {source_node} -> {target_node}")
                 graph.add_edge(source_node, target_node)
 
     def _add_start_end_connections(self, graph: StateGraph):
@@ -668,7 +663,7 @@ class GraphBuilder:
         and connects nodes linked to EndNode to END.
         This method replaces the old auto-detection logic.
         """
-        print("[DEBUG] Connecting START and END nodes based on explicit connections.")
+        print(f"\n🔀 CONNECTING START/END NODES")
         
         # 1. Connect START to the nodes that follow StartNode
         if not self.explicit_start_nodes:
@@ -676,11 +671,11 @@ class GraphBuilder:
             
         for start_target_id in self.explicit_start_nodes:
             if start_target_id in self.nodes or start_target_id in self.control_flow_nodes:
-                print(f"[DEBUG]   START -> {start_target_id}")
+                print(f"   🚀 START ➜ {start_target_id}")
                 graph.add_edge(START, start_target_id)
             elif start_target_id in self.end_nodes_for_connections:
                 # Special case: StartNode connects directly to EndNode
-                print(f"[DEBUG]   START -> END (via {start_target_id})")
+                print(f"   🚀 START ➜ END (via {start_target_id})")
                 graph.add_edge(START, END)
             else:
                 print(f"[WARNING] StartNode is connected to a non-existent node: {start_target_id}")
@@ -697,13 +692,13 @@ class GraphBuilder:
             
             for terminal_node in terminal_nodes:
                 if terminal_node in self.nodes:
-                    print(f"[DEBUG]   {terminal_node} -> END (terminal node)")
+                    print(f"   🏁 {terminal_node} ➜ END")
                     graph.add_edge(terminal_node, END)
         else:
             end_source_ids = {conn.source_node_id for conn in end_connections}
             for end_source_id in end_source_ids:
                 if end_source_id in self.nodes or end_source_id in self.control_flow_nodes:
-                    print(f"[DEBUG]   {end_source_id} -> END")
+                    print(f"   🏁 {end_source_id} ➜ END")
                     graph.add_edge(end_source_id, END)
                 else:
                     print(f"[WARNING] A non-existent node is connected to EndNode: {end_source_id}")
@@ -826,8 +821,12 @@ class GraphBuilder:
                 elif ev_type == "on_chain_error":
                     yield {"type": "error", "error": str(ev.get("data", {}).get("error", "Unknown error"))}
             final_state = await self.graph.aget_state(config)  # type: ignore[arg-type]
-            print(f"[DEBUG] Final state: {final_state}")
-            print(f"[DEBUG] Final state values: {getattr(final_state, 'values', 'No values')}")
+            print(f"\n🏁 WORKFLOW COMPLETED")
+            if hasattr(final_state, 'values') and final_state.values:
+                last_output = final_state.values.get('last_output', 'No output')
+                executed_nodes = final_state.values.get('executed_nodes', [])
+                print(f"   ✅ Result: '{str(last_output)[:80]}...'")
+                print(f"   📋 Executed: {', '.join(executed_nodes)}")
             
             # Convert FlowState to serializable format using helper
             if hasattr(final_state, 'values') and final_state.values:
@@ -873,7 +872,7 @@ class GraphBuilder:
                 "node_outputs": serializable_result.get("node_outputs", {}),
                 "session_id": serializable_result.get("session_id", init_state.session_id),
             }
-            print(f"🎯 Sending complete event: {complete_event}")
+            print(f"   📤 Response ready")
             yield complete_event
         except Exception as e:
             yield {"type": "error", "error": str(e), "error_type": type(e).__name__} 

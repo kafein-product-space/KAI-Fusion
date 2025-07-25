@@ -49,19 +49,16 @@ class TavilySearchNode(ProviderNode):
         """
         Creates and returns a configured TavilySearchResults tool.
         """
-        print("🔧 Initializing Tavily Search Node...")
+        print("\n🔍 TAVILY SEARCH SETUP")
 
         # 1. Get API key using the same pattern as OpenAI node
         api_key = self.user_data.get("tavily_api_key")
         if not api_key:
             api_key = os.getenv("TAVILY_API_KEY")
         
-        print(f"[DEBUG Tavily] user_data keys: {list(self.user_data.keys())}")
-        print(f"[DEBUG Tavily] API key from user_data: {self.user_data.get('tavily_api_key') is not None}")
-        print(f"[DEBUG Tavily] API key from env: {os.getenv('TAVILY_API_KEY') is not None}")
-        print(f"[DEBUG Tavily] Final API key present: {api_key is not None}")
+        print(f"   🔑 API Key: {'✅ Found' if api_key else '❌ Missing'}")
         if api_key:
-            print(f"[DEBUG Tavily] API key prefix: {api_key[:10]}...")
+            print(f"   🔑 Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
         
         if not api_key:
             raise ValueError(
@@ -103,22 +100,14 @@ class TavilySearchNode(ProviderNode):
                 
             search_tool = TavilySearch(**tool_params)
             
-            print("✅ Tavily Search Tool created successfully.")
-            print(f"[DEBUG Tavily] Tool description: {search_tool.description}")
-            print(f"[DEBUG Tavily] Tool name: {search_tool.name}")
-            print(f"[DEBUG Tavily] Tool args schema: {search_tool.args_schema}")
+            print(f"   ✅ Tool: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
             
             # Test the API connection with a simple query
             try:
-                print("[DEBUG Tavily] Testing API connection...")
                 test_result = search_tool.run("test query")
-                print(f"[DEBUG Tavily] API test successful: {len(str(test_result))} chars")
+                print(f"   🧪 API Test: ✅ Success ({len(str(test_result))} chars)")
             except Exception as test_error:
-                print(f"[DEBUG Tavily] API test failed: {test_error}")
-                print(f"[DEBUG Tavily] Test error type: {type(test_error).__name__}")
-                if hasattr(test_error, 'response'):
-                    print(f"[DEBUG Tavily] Test response status: {test_error.response.status_code}")
-                    print(f"[DEBUG Tavily] Test response text: {test_error.response.text[:500]}")
+                print(f"   🧪 API Test: ❌ Failed ({str(test_error)[:50]}...)")
             
             return search_tool
             

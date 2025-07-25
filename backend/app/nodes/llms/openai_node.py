@@ -175,7 +175,7 @@ class OpenAINode(BaseNode):
     
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""
-        print(f"🤖 OpenAI Node executing with config: {list(self.user_data.keys())}")
+        print(f"\n🤖 OPENAI LLM SETUP")
         
         # Get configuration from user_data
         model_name = self.user_data.get("model_name", "gpt-4o")
@@ -224,13 +224,8 @@ class OpenAINode(BaseNode):
             llm = ChatOpenAI(**llm_config)
             
             # Log successful creation
-            print(f"✅ OpenAI LLM created successfully:")
-            print(f"   Model: {model_name}")
-            print(f"   Temperature: {temperature}")
-            print(f"   Max Tokens: {max_tokens}")
-            print(f"   Context Window: {model_config['context_window']}")
-            print(f"   Supports Tools: {model_config['supports_tools']}")
-            print(f"   Supports Vision: {model_config['supports_vision']}")
+            print(f"   ✅ Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
+            print(f"   🔧 Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
             
             # Store model info for potential use
             self.model_info = {

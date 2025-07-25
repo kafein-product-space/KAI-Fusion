@@ -73,22 +73,17 @@ class ReactAgentNode(ProcessorNode):
                 
             executor = AgentExecutor(**executor_config)
 
-            # Enhanced debug logging with memory context
-            print(f"[DEBUG ReactAgent] inputs: {inputs}")
-            print(f"[DEBUG ReactAgent] runtime_inputs: {runtime_inputs}")
-            print(f"[DEBUG ReactAgent] tools_list: {[tool.name for tool in tools_list]}")
+            # Enhanced logging
+            print(f"\n🤖 REACT AGENT EXECUTION")
+            print(f"   📝 Input: {str(runtime_inputs)[:60]}...")
+            print(f"   🛠️  Tools: {[tool.name for tool in tools_list]}")
             
-            # Memory context debug (for visibility)
+            # Memory context debug
             if memory and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
                 messages = memory.chat_memory.messages
-                print(f"[DEBUG ReactAgent] memory_messages_count: {len(messages)}")
-                if messages:
-                    recent = messages[-2:] if len(messages) >= 2 else messages
-                    for i, msg in enumerate(recent):
-                        msg_preview = msg.content[:100] + "..." if len(msg.content) > 100 else msg.content
-                        print(f"[DEBUG ReactAgent] recent_message_{i}: {type(msg).__name__}: {msg_preview}")
+                print(f"   💭 Memory: {len(messages)} messages")
             else:
-                print(f"[DEBUG ReactAgent] memory: No chat memory available")
+                print(f"   💭 Memory: None")
             
             # Handle runtime_inputs being either dict or string
             if isinstance(runtime_inputs, str):
@@ -104,8 +99,7 @@ class ReactAgentNode(ProcessorNode):
                 "tool_names": [tool.name for tool in tools_list]
             }
             
-            print(f"[DEBUG ReactAgent] final_input keys: {list(final_input.keys())}")
-            print(f"[DEBUG ReactAgent] final_input['input']: {final_input['input']}")
+            print(f"   ⚙️  Executing with input: '{final_input['input'][:50]}...'")
             
             return executor.invoke(final_input)
 

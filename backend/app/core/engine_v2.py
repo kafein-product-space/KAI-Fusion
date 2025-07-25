@@ -257,37 +257,46 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
     # ------------------------------------------------------------------
     def build(self, flow_data: JSONType, *, user_context: Optional[JSONType] = None) -> None:  # noqa: D401
         """Enhanced build with better error handling and logging"""
-        print("🔨 Building workflow...")
+        print("\n" + "="*60)
+        print("🏗️  WORKFLOW BUILD STARTED")
+        print("="*60)
         
         # Store flow_data for tracing
         self._flow_data = flow_data
         
         # Enhanced validation before build
+        print("🔍 Validating workflow structure...")
         validation_result = self.validate(flow_data)
         if not validation_result["valid"]:
             error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
             print(f"❌ Build validation failed: {error_msg}")
+            print("="*60)
             raise ValueError(error_msg)
         
         # Log warnings if any
         if validation_result["warnings"]:
             for warning in validation_result["warnings"]:
                 print(f"⚠️  {warning}")
+        print("✅ Validation passed")
 
         try:
             # Log build details
             nodes = flow_data.get("nodes", [])
             edges = flow_data.get("edges", [])
-            print(f"📊 Building workflow with {len(nodes)} nodes and {len(edges)} edges")
+            print(f"\n📊 WORKFLOW OVERVIEW")
+            print(f"   📦 Nodes: {len(nodes)}")
+            print(f"   🔗 Edges: {len(edges)}")
             
             # For now we only pass user_id if available
             user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
             if user_id:
-                print(f"👤 Building for user: {user_id}")
+                print(f"   👤 User: {user_id[:8]}...")
             
+            print(f"\n🔧 Building graph structure...")
             self._builder.build_from_flow(flow_data, user_id=user_id)
             self._built = True
             print("✅ Workflow build completed successfully")
+            print("="*60)
             
         except Exception as e:
             error_msg = f"Workflow build failed: {str(e)}"
@@ -314,14 +323,18 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
         session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
-        print(f"🚀 Starting workflow execution (stream={stream})")
+        print("\n" + "="*60)
+        print("🚀 WORKFLOW EXECUTION STARTED")
+        print("="*60)
+        print(f"🎬 Mode: {'Streaming' if stream else 'Synchronous'}")
         if user_id:
-            print(f"👤 Executing for user: {user_id}")
+            print(f"👤 User: {user_id[:8]}...")
         if workflow_id:
-            print(f"🔗 Workflow ID: {workflow_id}")
+            print(f"🔗 Workflow: {workflow_id}")
         if session_id:
-            print(f"🎯 Session ID: {session_id}")
+            print(f"🎯 Session: {session_id[:8]}...")
         print(f"📥 Inputs: {list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)}")
+        print("-"*60)
 
         # Create workflow tracer
         tracer = get_workflow_tracer(session_id=session_id, user_id=user_id)
@@ -337,7 +350,8 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                 stream=stream,
             )
             
-            print("✅ Workflow execution completed successfully")
+            print("\n✅ WORKFLOW EXECUTION COMPLETED")
+            print("="*60)
             tracer.end_workflow(success=True)
             return result
             
