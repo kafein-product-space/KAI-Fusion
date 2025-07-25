@@ -20,19 +20,9 @@ def get_warnings() -> List[str]:
    
 
 def setup_logging():
-    """Setup logging configuration"""
-    logging.basicConfig(
-        level=getattr(logging, LOG_LEVEL),
-        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.StreamHandler(),
-            logging.FileHandler("app.log")
-        ]
-    )
-    
-    # Set specific loggers
-    logging.getLogger("uvicorn").setLevel(logging.INFO)
-    logging.getLogger("fastapi").setLevel(logging.INFO)
+    """Setup logging configuration using comprehensive logging system"""
+    from app.core.logging_config import setup_comprehensive_logging
+    setup_comprehensive_logging()
     
     
 

@@ -15,12 +15,8 @@ PORT = "8000"
 CREATE_DATABASE = os.getenv("CREATE_DATABASE")
 DATABASE_URL = os.getenv("DATABASE_URL")
 POSTGRES_DB = os.getenv("POSTGRES_DB")
-POSTGRES_USER = os.getenv("POSTGRES_USER")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DATABASE_PORT = os.getenv("DATABASE_PORT")
-DATABASE_HOST = os.getenv("DATABASE_HOST")
-DATABASE_SSL = os.getenv("DATABASE_SSL")
-DISABLE_DATABASE = os.getenv("DISABLE_DATABASE")
+DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false")
 # Database Pool Settings
 DB_POOL_SIZE = "30"
 DB_MAX_OVERFLOW = "10"
@@ -31,6 +27,10 @@ DB_POOL_PRE_PING = "true"
 CREDENTIAL_MASTER_KEY = "1234567890"
 # Logging
 LOG_LEVEL = "INFO"
+DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t")
+
+# CORS Settings
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
 # LangSmith Settings
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "true")
 LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")

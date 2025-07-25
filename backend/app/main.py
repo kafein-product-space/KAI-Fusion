@@ -16,8 +16,16 @@ from fastapi import APIRouter
 from app.core.constants import CREATE_DATABASE
 from app.core.node_registry import node_registry
 from app.core.engine_v2 import get_engine
-from app.core.database import create_tables, get_db_session
+from app.core.database import create_tables, get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
+from app.core.error_handlers import register_exception_handlers
+
+# Middleware imports
+from app.middleware import (
+    DetailedLoggingMiddleware,
+    DatabaseQueryLoggingMiddleware,
+    SecurityLoggingMiddleware
+)
 
 # API routers imports
 from app.api.workflows import router as workflows_router
@@ -64,6 +72,14 @@ async def lifespan(app: FastAPI):
         try:
             await create_tables()
             logger.info("✅ Database tables created or already exist.")
+            
+            # Test database connection
+            db_health = await check_database_health()
+            if db_health["healthy"]:
+                logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
+            else:
+                logger.warning(f"⚠️ Database connection test failed: {db_health.get('error', 'Unknown error')}")
+                
         except Exception as e:
             logger.error(f"❌ Database initialization failed: {e}")
     else:
@@ -97,14 +113,25 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add exception handlers (only if database is available)
-# Temporarily disabled due to import issues
-# if not DISABLE_DATABASE and DB_AVAILABLE:
-#     try:
-#         app.add_exception_handler(Exception, agent_flow_exception_handler)
-#         # app.add_exception_handler(DatabaseException, database_exception_handler)
-#     except:
-#         pass
+# Add comprehensive logging middleware
+app.add_middleware(
+    DetailedLoggingMiddleware,
+    log_request_body=False,  # Set to True for debugging
+    log_response_body=False,  # Set to True for debugging
+    max_body_size=1024,
+    exclude_paths=["/health", "/docs", "/openapi.json", "/redoc"]
+)
+
+app.add_middleware(DatabaseQueryLoggingMiddleware)
+
+app.add_middleware(
+    SecurityLoggingMiddleware,
+    enable_suspicious_detection=True,
+    log_all_security_headers=False  # Set to True for security debugging
+)
+
+# Register comprehensive exception handlers
+register_exception_handlers(app)
 
 # Include API routers
 
@@ -122,7 +149,7 @@ app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variable
 # Health checks and info endpoints
 @app.get("/health", tags=["Health"])
 async def health_check():
-    """Health check endpoint."""
+    """Enhanced health check endpoint with comprehensive monitoring."""
     try:
         # Check node registry health
         nodes_healthy = len(node_registry.nodes) > 0
@@ -135,13 +162,35 @@ async def health_check():
             engine_healthy = False
         
         # Database health (conditional based on CREATE_DATABASE setting)
+        db_status = {"enabled": CREATE_DATABASE}
         if CREATE_DATABASE:
-            db_healthy = "enabled"
+            try:
+                db_health = await check_database_health()
+                db_status.update({
+                    "status": "healthy" if db_health["healthy"] else "error",
+                    "response_time_ms": db_health["response_time_ms"],
+                    "connection_test": db_health["connection_test"],
+                    "query_test": db_health["query_test"]
+                })
+                
+                # Add database statistics
+                db_stats = get_database_stats()
+                db_status["statistics"] = db_stats
+                
+            except Exception as e:
+                db_status.update({
+                    "status": "error",
+                    "error": str(e)
+                })
         else:
-            db_healthy = "disabled (CREATE_DATABASE=false)"
+            db_status["status"] = "disabled (CREATE_DATABASE=false)"
+        
+        overall_healthy = nodes_healthy and engine_healthy and (
+            not CREATE_DATABASE or db_status.get("status") == "healthy"
+        )
         
         return {
-            "status": "healthy" if (nodes_healthy and engine_healthy) else "degraded",
+            "status": "healthy" if overall_healthy else "degraded",
             "version": "2.0.0",
             "timestamp": "2025-01-21T12:00:00Z",
             "components": {
@@ -154,9 +203,11 @@ async def health_check():
                     "status": "healthy" if engine_healthy else "error",
                     "type": "LangGraph Unified Engine"
                 },
-                "database": {
-                    "status": db_healthy,
-                    "enabled": CREATE_DATABASE
+                "database": db_status,
+                "logging": {
+                    "status": "healthy",
+                    "middleware_active": True,
+                    "error_handlers_registered": True
                 }
             }
         }
