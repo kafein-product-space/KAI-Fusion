@@ -27,6 +27,10 @@ DB_POOL_PRE_PING = "true"
 CREDENTIAL_MASTER_KEY = "1234567890"
 # Logging
 LOG_LEVEL = "INFO"
+DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t")
+
+# CORS Settings
+ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
 # LangSmith Settings
 LANGCHAIN_TRACING_V2 = os.getenv("LANGCHAIN_TRACING_V2", "true")
 LANGCHAIN_ENDPOINT = os.getenv("LANGCHAIN_ENDPOINT")
