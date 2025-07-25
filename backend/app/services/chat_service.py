@@ -1,20 +1,159 @@
 import uuid
 import base64
+import logging
 from uuid import UUID
+from typing import Dict, Any, Optional
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import delete, select
 from app.models.chat import ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageUpdate
 from app.core.encryption import encrypt_data, decrypt_data
+from app.core.engine_v2 import get_engine
 from collections import defaultdict
 
-# TODO: Import the actual engine and workflow execution services
-# from app.core.engine_v2 import get_engine
-# from app.services.execution_service import ExecutionService
+logger = logging.getLogger(__name__)
 
 class ChatService:
     def __init__(self, db: AsyncSession):
         self.db = db
+        self.engine = get_engine()
+        self._workflow_built = False
+        self._last_workflow_id = None
+    
+    async def _execute_workflow(self, user_input: str, chatflow_id: UUID) -> str:
+        """
+        Execute the actual workflow with user input and return LLM response.
+        """
+        try:
+            logger.info("Starting workflow execution", extra={
+                "user_input_length": len(user_input),
+                "chatflow_id": str(chatflow_id)
+            })
+            
+            # Get a default workflow from the first available workflow
+            # In a real scenario, you'd get the workflow_id from the chat or user preferences
+            default_workflow = await self._get_default_workflow()
+            
+            if not default_workflow:
+                logger.error("No default workflow found")
+                return "I apologize, but no workflow is configured for this chat."
+            
+            # Build the workflow if not already built
+            user_context = {
+                "user_id": str(chatflow_id),  # Using chatflow_id as user_id for now
+                "session_id": str(chatflow_id),
+                "workflow_id": default_workflow.get("id", "default")
+            }
+            
+            # Build workflow only if needed
+            workflow_id = default_workflow.get("id", "default")
+            if not self._workflow_built or self._last_workflow_id != workflow_id:
+                self.engine.build(default_workflow, user_context=user_context)
+                self._workflow_built = True
+                self._last_workflow_id = workflow_id
+            
+            # Execute workflow using the engine
+            execution_result = await self.engine.execute(
+                inputs={"input": user_input},
+                stream=False,
+                user_context=user_context
+            )
+            
+            # Extract the response from execution result
+            if execution_result:
+                if isinstance(execution_result, dict):
+                    # Check for error first
+                    if not execution_result.get("success", True):
+                        error_msg = execution_result.get("error", "Unknown execution error")
+                        logger.error("Workflow execution failed", extra={
+                            "error": error_msg,
+                            "chatflow_id": str(chatflow_id)
+                        })
+                        return f"I encountered an error: {error_msg}"
+                    
+                    # Try to extract meaningful response
+                    response = execution_result.get("output", execution_result.get("result", ""))
+                    if not response:
+                        # Try echo or message fields as fallback
+                        response = execution_result.get("echo", {}).get("input", "") or execution_result.get("message", "")
+                    
+                    if isinstance(response, dict):
+                        response = response.get("content", str(response))
+                    
+                    response = str(response) if response else "No response generated."
+                else:
+                    response = str(execution_result)
+                
+                logger.info("Workflow execution completed successfully", extra={
+                    "response_length": len(response),
+                    "chatflow_id": str(chatflow_id)
+                })
+                
+                return response
+            
+            # Fallback if no result
+            logger.warning("Workflow execution completed but no result returned", extra={
+                "chatflow_id": str(chatflow_id)
+            })
+            return "I apologize, but I couldn't generate a response at this time."
+            
+        except Exception as e:
+            logger.error("Workflow execution failed", extra={
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "chatflow_id": str(chatflow_id),
+                "user_input_length": len(user_input)
+            })
+            return f"I encountered an error while processing your request: {str(e)}"
+    
+    async def _get_default_workflow(self) -> Optional[Dict[str, Any]]:
+        """
+        Get a default workflow configuration.
+        In a real implementation, this would fetch from database or configuration.
+        """
+        try:
+            # For now, return a simple test workflow
+            # In production, you'd query the database for available workflows
+            return {
+                "id": "default-chat-workflow",
+                "nodes": [
+                    {
+                        "id": "start-1",
+                        "type": "StartNode",
+                        "data": {"name": "Start"}
+                    },
+                    {
+                        "id": "llm-1", 
+                        "type": "OpenAIChat",
+                        "data": {
+                            "name": "Chat LLM",
+                            "model_name": "gpt-3.5-turbo",
+                            "temperature": 0.7,
+                            "max_tokens": 1000
+                        }
+                    },
+                    {
+                        "id": "end-1",
+                        "type": "EndNode", 
+                        "data": {"name": "End"}
+                    }
+                ],
+                "edges": [
+                    {
+                        "id": "edge-1",
+                        "source": "start-1",
+                        "target": "llm-1"
+                    },
+                    {
+                        "id": "edge-2", 
+                        "source": "llm-1",
+                        "target": "end-1"
+                    }
+                ]
+            }
+        except Exception as e:
+            logger.error(f"Failed to get default workflow: {e}")
+            return None
     
     def _encrypt_content(self, content: str) -> str:
         """
@@ -124,8 +263,8 @@ class ChatService:
         if new_content is not None:
             db_chat_message.content = self._encrypt_content(new_content)
 
-        # 3. Regenerate a new response from the LLM (placeholder)
-        llm_response_content = f"This is a regenerated response to: '{new_content}'"
+        # 3. Regenerate a new response from the LLM using actual workflow
+        llm_response_content = await self._execute_workflow(new_content, chatflow_id)
         encrypted_llm_content = self._encrypt_content(llm_response_content)
         llm_message = ChatMessage(
             role="assistant",
@@ -171,8 +310,8 @@ class ChatService:
         )
         await self.create_chat_message(user_message)
 
-        # 3. Trigger the LLM workflow (placeholder)
-        llm_response_content = f"This is a simulated LLM response to your first message: '{user_input}'"
+        # 3. Execute the actual workflow
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id)
 
         # 4. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
@@ -194,12 +333,8 @@ class ChatService:
         )
         await self.create_chat_message(user_message)
 
-        # 2. Trigger the LLM workflow (placeholder)
-        # In a real scenario, you would use your engine to run a workflow
-        # that takes the user_input and returns an LLM response.
-        # execution_service = ExecutionService(self.db)
-        # llm_response_content = execution_service.run_workflow(workflow_id, {"input": user_input})
-        llm_response_content = f"This is a simulated LLM response to: '{user_input}'"
+        # 2. Execute the actual workflow
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id)
 
         # 3. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(

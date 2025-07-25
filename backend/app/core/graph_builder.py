@@ -178,8 +178,8 @@ class GraphBuilder:
     # ------------------------------------------------------------------
     def _get_checkpointer(self):
         """Get the appropriate checkpointer for this graph builder."""
-        from app.core.checkpointer import get_default_checkpointer
-        return get_default_checkpointer()
+        # Force use of MemorySaver to avoid PostgreSQL checkpointer issues
+        return MemorySaver()
 
     def _parse_connections(self, edges: List[Dict[str, Any]]):
         """Parse edges into internal connection format with handle support."""
