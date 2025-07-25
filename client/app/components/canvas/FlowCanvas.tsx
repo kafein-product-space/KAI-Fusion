@@ -51,6 +51,8 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
+import CustomNeonEdge from "../common/NeonHandle";
+import ChatBubble from "../common/ChatBubble";
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   Agent: ToolAgentNode,
@@ -387,9 +389,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [activeEdges]
   );
 
-  //const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
+  const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
 
-  /*
   const animateExecution = async () => {
     for (const edgeId of executionPath) {
       setActiveEdges([edgeId]);
@@ -397,7 +398,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
     setActiveEdges([]);
   };
-  */
+
   return (
     <>
       <Navbar
@@ -519,35 +520,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   <div className="text-xs text-red-500">{chatError}</div>
                 )}
                 {chatHistory.map((msg, i) => (
-                  <div
+                  <ChatBubble
                     key={msg.id || i}
-                    className={`text-sm ${
-                      msg.role === "user" ? "text-right" : "text-left"
-                    }`}
-                  >
-                    <div
-                      className={`inline-block max-w-[80%] ${
-                        msg.role === "user"
-                          ? "bg-blue-100 text-blue-900"
-                          : "bg-gray-100 text-gray-900"
-                      } rounded-lg px-3 py-2 mb-1`}
-                    >
-                      {msg.content}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {msg.created_at
-                        ? new Date(msg.created_at).toLocaleTimeString()
-                        : ""}
-                    </div>
-                  </div>
+                    from={msg.role === "user" ? "user" : "assistant"}
+                    message={msg.content}
+                    userInitial={msg.role === "user" ? "U" : undefined}
+                  />
                 ))}
-                <div className="flex items-center justify-center text-center">
-                  {chatLoading && (
-                    <div className="text-xs text-gray-400 text center">
-                      <Loader className="animate-spin" />
-                    </div>
-                  )}
-                </div>
+                {chatLoading && (
+                  <ChatBubble from="assistant" message="" loading />
+                )}
               </div>
               <div className="p-3 border-t flex gap-2">
                 <input
@@ -573,7 +555,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           )}
         </div>
       </div>
-      {/*
+
       <button
         className="fixed bottom-24 right-4 z-50 bg-yellow-400 text-black px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-yellow-500 transition-all"
         onClick={() => {
@@ -592,7 +574,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       >
         Workflow Execute Test
       </button>
-      */}
     </>
   );
 }
