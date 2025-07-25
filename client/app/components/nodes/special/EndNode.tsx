@@ -77,7 +77,7 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
           isConnectable={true}
           size={10}
           color1="#00FFFF"
-          glow={isHandleConnected}
+          glow={isHandleConnected("output", true)}
         />
       </div>
     </>

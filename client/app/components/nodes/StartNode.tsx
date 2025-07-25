@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Play, Trash } from "lucide-react";
-import StartNodeConfigModal from "../modals/StartNodeConfigModal";
+
 import NeonHandle from "../common/NeonHandle";
 
 interface StartNodeProps {
