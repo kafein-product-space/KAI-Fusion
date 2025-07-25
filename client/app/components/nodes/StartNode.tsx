@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Play, Trash } from "lucide-react";
 import StartNodeConfigModal from "../modals/StartNodeConfigModal";
+import NeonHandle from "../common/NeonHandle";
 
 interface StartNodeProps {
   data: any;
@@ -11,7 +12,7 @@ interface StartNodeProps {
 }
 
 function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   // modalRef ve modal ile ilgili kodlar kaldırıldı
 
@@ -19,7 +20,10 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
-
+  const edges = getEdges ? getEdges() : [];
+  const isHandleConnected = edges.some(
+    (edge) => edge.source === id && edge.sourceHandle === "output"
+  );
   return (
     <>
       {/* Ana node kutusu */}
@@ -53,15 +57,14 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
           Start
         </div>
 
-        <Handle
+        <NeonHandle
           type="source"
           position={Position.Right}
           id="output"
-          className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
-          style={{
-            width: 10,
-            height: 10,
-          }}
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+          glow={isHandleConnected}
         />
       </div>
     </>

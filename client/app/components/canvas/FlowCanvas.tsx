@@ -408,7 +408,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         currentWorkflow={currentWorkflow}
         isLoading={isLoading}
       />
-      <div className="w-full h-full relative pt-16 flex">
+      <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar açma butonu */}
         {!isSidebarOpen ? (
           <button

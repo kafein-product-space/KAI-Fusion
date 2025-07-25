@@ -135,11 +135,11 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="w-full h-16 bg-background text foreground shadow-lg shadow-[#616161] fixed top-0 left-0 z-20">
+      <header className="w-full h-16 bg-[#18181B] text-foreground  fixed top-0 left-0 z-20 ">
         <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
           <div className="flex items-center gap-2">
             <ArrowLeft
-              className="text-foreground cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+              className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
               onClick={handleRouteBack}
             />
           </div>
@@ -152,23 +152,23 @@ const Navbar: React.FC<NavbarProps> = ({
               onBlur={handleBlur}
               placeholder="Dosya Adı"
               required
-              className="text-3xl border-b-2 border-[#616161] w-full text-center focus:outline-none bg-transparent text-foreground"
+              className="text-3xl border-b-2 border-[#616161] w-full text-center focus:outline-none bg-transparent text-white"
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
             <div>
               {isLoading ? (
-                <Loader className="animate-spin text-foreground cursor-pointer w-10 h-10 p-2 rounded-4xl" />
+                <Loader className="animate-spin text-white cursor-pointer w-10 h-10 p-2 rounded-4xl" />
               ) : (
                 <Save
-                  className="text-foreground hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                   onClick={onSave}
                 />
               )}
             </div>
             <div className="text-xs text-foreground relative">
               <Settings
-                className="text-foreground hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
                 onClick={() => setIsDropdownOpen((v) => !v)}
               />
               {isDropdownOpen && (
