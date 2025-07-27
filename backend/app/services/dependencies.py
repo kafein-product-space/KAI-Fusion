@@ -12,6 +12,7 @@ from app.services.execution_service import ExecutionService
 from app.services.credential_service import CredentialService
 from app.services.api_key_service import APIKeyService
 from app.services.variable_service import VariableService
+from app.services.chat_service import ChatService
 
 
 @lru_cache
@@ -41,4 +42,6 @@ def get_api_key_service() -> APIKeyService:
 
 @lru_cache
 def get_variable_service_dep() -> VariableService:
-    return VariableService() 
+    return VariableService()
+
+# ChatService requires db at initialization, so we create it inline in the endpoint 

@@ -1,13 +1,17 @@
 # Tools package
 
-from .http_request import (
-    HttpRequestNode,
+from .http_client import (
+    HttpClientNode,
     HttpRequestConfig,
     HttpResponse
 )
+from .tavily_search import TavilySearchNode
+from .reranker import RerankerNode
 
 __all__ = [
-    "HttpRequestNode",
+    "HttpClientNode",
     "HttpRequestConfig", 
-    "HttpResponse"
+    "HttpResponse",
+    "TavilySearchNode",
+    "RerankerNode"
 ]

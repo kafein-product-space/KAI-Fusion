@@ -47,8 +47,15 @@ python-dotenv>=1.0.0
 httpx>=0.25.0
 requests>=2.31.0
 
+# Template Engine
+jinja2>=3.1.0
+
 # Additional utilities
 python-multipart>=0.0.6
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
 
 # HTML Processing
 beautifulsoup4>=4.12.0

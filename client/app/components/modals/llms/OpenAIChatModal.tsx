@@ -82,9 +82,9 @@ const OpenAIChatNodeModal = forwardRef<
   );
 
   const initialValues: OpenAIChatConfig = {
-    model_name: nodeData?.model_name || "gpt-3.5-turbo",
-    temperature: nodeData?.temperature ?? 0.7,
-    max_tokens: nodeData?.max_tokens ?? 500,
+    model_name: nodeData?.model_name || "gpt-4o",
+    temperature: nodeData?.temperature ?? 0.1,
+    max_tokens: nodeData?.max_tokens ?? 10000,
     credential_name:
       selectedCredential?.name || nodeData?.credential_name || "",
     api_key: selectedCredentialId ? apiKeyOverride : nodeData?.api_key || "",
@@ -104,9 +104,9 @@ const OpenAIChatNodeModal = forwardRef<
     }
     if (
       values.max_tokens !== undefined &&
-      (values.max_tokens < 1 || values.max_tokens > 32000)
+      (values.max_tokens < 1 || values.max_tokens > 200000)
     ) {
-      errors.max_tokens = "Max tokens must be between 1 and 32000";
+      errors.max_tokens = "Max tokens must be between 1 and 200000";
     }
     return errors;
   };
@@ -149,9 +149,15 @@ const OpenAIChatNodeModal = forwardRef<
                   name="model_name"
                   className="select select-bordered w-full bg-background text-foreground"
                 >
-                  <option value="gpt-3.5-turbo">gpt-3.5-turbo</option>
-                  <option value="gpt-4">gpt-4</option>
+                  <option value="o3-mini">o3-mini</option>
+                  <option value="o3">o3</option>
                   <option value="gpt-4o">gpt-4o</option>
+                  <option value="gpt-4o-mini">gpt-4o-mini</option>
+                  <option value="gpt-4.1-nano">gpt-4.1-nano</option>
+                  <option value="gpt-4-turbo">gpt-4-turbo</option>
+                  <option value="gpt-4-turbo-preview">gpt-4-turbo-preview</option>
+                  <option value="gpt-4">gpt-4</option>
+                  <option value="gpt-4-32k">gpt-4-32k</option>
                 </Field>
                 <ErrorMessage
                   name="model_name"

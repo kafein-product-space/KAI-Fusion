@@ -18,6 +18,10 @@ async def get_all_nodes():
     """
     nodes_list = []
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             metadata = instance.metadata.dict()
@@ -38,6 +42,10 @@ async def get_node_categories():
     """
     categories = set()
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             metadata_dict = instance.metadata.dict()
@@ -179,6 +187,10 @@ async def get_registry_statistics():
     total_nodes = len(node_registry.nodes)
     
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             category = instance.metadata.category
@@ -204,6 +216,10 @@ async def search_nodes(query: str):
     query_lower = query.lower()
     
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             metadata = instance.metadata.dict()

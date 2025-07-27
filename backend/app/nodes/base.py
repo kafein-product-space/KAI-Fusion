@@ -1,3 +1,57 @@
+"""
+KAI-Fusion Node Architecture Foundation
+=====================================
+
+This module defines the fundamental architecture for all nodes in the KAI-Fusion platform.
+It provides a sophisticated, type-safe, and highly extensible node system that seamlessly 
+integrates with LangChain's ecosystem while adding enterprise-grade features.
+
+Core Philosophy:
+- Type Safety: Comprehensive type hints and Pydantic validation
+- Extensibility: Abstract base classes with clear inheritance patterns  
+- Composability: Seamless integration with LangChain Runnables
+- Observability: Built-in tracing, logging, and state management
+- Scalability: Designed for complex, multi-node workflow orchestration
+
+Architecture Overview:
+┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
+│  ProviderNode   │    │ ProcessorNode   │    │ TerminatorNode  │
+│                 │    │                 │    │                 │
+│ • Creates LLMs  │    │ • Orchestrates  │    │ • Transforms    │
+│ • Creates Tools │    │ • Composes      │    │ • Finalizes     │
+│ • Creates Memory│    │ • Chains        │    │ • Outputs       │
+└─────────────────┘    └─────────────────┘    └─────────────────┘
+        │                       │                       │
+        └───────────────────────┼───────────────────────┘
+                                │
+                    ┌─────────────────┐
+                    │    BaseNode     │
+                    │                 │
+                    │ • State Mgmt    │
+                    │ • Type System   │
+                    │ • LangGraph API │
+                    │ • Error Handle  │
+                    └─────────────────┘
+
+Node Types Explained:
+1. PROVIDER: Source nodes that create/provide LangChain objects (LLMs, Tools, Memory)
+2. PROCESSOR: Orchestration nodes that combine multiple inputs (Agents, Chains)  
+3. TERMINATOR: Output nodes that finalize/transform results (Parsers, Formatters)
+4. MEMORY: Specialized nodes for conversation/context persistence
+
+Key Features:
+- Metadata-driven configuration with Pydantic validation
+- Connection-aware input/output management
+- LangGraph state compatibility for complex workflows
+- Built-in error handling and graceful degradation
+- LangSmith tracing integration for observability
+- Type-safe input/output contracts
+
+Authors: KAI-Fusion Development Team
+Version: 2.0.0
+License: Proprietary
+"""
+
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 from pydantic import BaseModel, Field, field_validator
@@ -7,47 +61,377 @@ from enum import Enum
 # Import FlowState for LangGraph compatibility
 from app.core.state import FlowState
 
-# 1. Node'un türünü belirten bir Enum tanımlıyoruz.
+# ================================================================================
+# NODE TYPE CLASSIFICATION SYSTEM
+# ================================================================================
 class NodeType(str, Enum):
-    PROVIDER = "provider"    # Bir LangChain nesnesi SAĞLAR (LLM, Tool, Prompt)
-    PROCESSOR = "processor"  # Birden fazla nesneyi İŞLER (Agent gibi)
-    TERMINATOR = "terminator" # Bir zincirin sonunu DÖNÜŞTÜRÜR (Output Parser gibi)
-    MEMORY = "memory"        # Konuşma hafızası SAĞLAR
+    """
+    Comprehensive node type classification system for the KAI-Fusion platform.
+    
+    This enum defines the four fundamental node types that form the backbone of
+    our workflow orchestration system. Each type has specific responsibilities,
+    input/output contracts, and execution patterns.
+    
+    Design Rationale:
+    - PROVIDER: Factory pattern - creates LangChain objects
+    - PROCESSOR: Orchestrator pattern - combines multiple inputs  
+    - TERMINATOR: Transformer pattern - finalizes output
+    - MEMORY: Persistence pattern - manages conversation state
+    """
+    
+    PROVIDER = "provider"
+    """
+    Factory Pattern Nodes
+    
+    Purpose: Create and configure LangChain objects from user inputs
+    Characteristics:
+    - Zero dependencies on other nodes
+    - Pure configuration-to-object transformation
+    - Stateless execution
+    - High reusability across workflows
+    
+    Examples: OpenAI LLM, Tavily Search Tool, PGVector Store
+    Input Sources: User configuration only (no node connections)
+    Output Type: LangChain objects (Runnable, BaseTool, BaseRetriever)
+    """
+    
+    PROCESSOR = "processor"  
+    """
+    Orchestrator Pattern Nodes
+    
+    Purpose: Combine and orchestrate multiple LangChain objects
+    Characteristics:
+    - Multi-input dependency management
+    - Complex business logic orchestration
+    - Stateful execution with memory
+    - Context-aware processing
+    
+    Examples: ReactAgent, RetrievalQA Chain, Custom Workflows
+    Input Sources: Connected nodes + user configuration
+    Output Type: Composed Runnable or execution results
+    """
+    
+    TERMINATOR = "terminator"
+    """
+    Transformer Pattern Nodes
+    
+    Purpose: Transform, format, or finalize workflow outputs
+    Characteristics:
+    - Single input focus (previous node output)
+    - Output formatting and transformation
+    - Result validation and sanitization
+    - Chain termination logic
+    
+    Examples: JSON Parser, Text Formatter, Response Validator
+    Input Sources: Previous node output + formatting rules
+    Output Type: Formatted/transformed final results
+    """
+    
+    MEMORY = "memory"
+    """
+    Persistence Pattern Nodes
+    
+    Purpose: Manage conversation state and context persistence
+    Characteristics:
+    - Session-aware state management
+    - Conversation history persistence
+    - Context injection capabilities
+    - Multi-turn conversation support
+    
+    Examples: ConversationMemory, BufferMemory, VectorMemory
+    Input Sources: Session context + memory configuration
+    Output Type: Memory objects with conversation state
+    """
 
-# 2. Metadata için Pydantic modelleri, standartları zorunlu kılar.
+# ================================================================================
+# METADATA SYSTEM - TYPE-SAFE NODE CONFIGURATION
+# ================================================================================
+
 class NodeInput(BaseModel):
-    name: str
-    type: str
-    description: str
-    required: bool = True
-    # Bu alan, girdinin başka bir node'dan mı (bağlantı) yoksa kullanıcıdan mı geleceğini belirtir.
-    is_connection: bool = False 
-    default: Any = None
+    """
+    Comprehensive input specification for node configuration.
+    
+    This model defines the contract for node inputs, enabling type-safe configuration,
+    validation, and automatic UI generation. It supports both user inputs (form fields)
+    and connection inputs (from other nodes).
+    
+    Design Patterns:
+    - Factory Pattern: User inputs create objects
+    - Observer Pattern: Connection inputs receive data from other nodes
+    - Validation Pattern: Type checking and constraint enforcement
+    """
+    
+    name: str = Field(
+        ..., 
+        description="Unique identifier for this input within the node",
+        min_length=1,
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$"  # Valid Python identifier
+    )
+    
+    type: str = Field(
+        ...,
+        description="Expected data type (BaseLanguageModel, str, int, bool, etc.)"
+    )
+    
+    description: str = Field(
+        ...,
+        description="Human-readable description for UI tooltips and documentation",
+        min_length=10
+    )
+    
+    required: bool = Field(
+        default=True,
+        description="Whether this input must be provided for node execution"
+    )
+    
+    is_connection: bool = Field(
+        default=False,
+        description="True if input comes from node connections, False if from user form"
+    )
+    
+    default: Any = Field(
+        default=None,
+        description="Default value used when input is not provided (only for non-required inputs)"
+    )
+    
+    # Advanced input configuration
+    validation_rules: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Custom validation rules (min, max, regex, choices, etc.)"
+    )
+    
+    ui_config: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Frontend UI configuration (widget type, placeholder, etc.)"
+    )
 
 class NodeOutput(BaseModel):
-    """Defines what a node outputs"""
-    name: str
-    type: str
-    description: str
+    """
+    Comprehensive output specification for node results.
+    
+    This model defines what a node produces, enabling type checking,
+    automatic connection validation, and documentation generation.
+    """
+    
+    name: str = Field(
+        ...,
+        description="Unique identifier for this output",
+        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$"
+    )
+    
+    type: str = Field(
+        ...,
+        description="Output data type (str, BaseRetriever, Dict[str, Any], etc.)"
+    )
+    
+    description: str = Field(
+        ...,
+        description="Human-readable description of what this output contains",
+        min_length=10
+    )
+    
+    # Optional output metadata
+    format: Optional[str] = Field(
+        default=None,
+        description="Expected format (json, text, html, etc.)"
+    )
+    
+    output_schema: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="JSON schema for structured outputs",
+        alias="schema"  # Keep backward compatibility if needed
+    )
 
 class NodeMetadata(BaseModel):
-    name: str
-    description: str
-    display_name: str | None = None
-    icon: str | None = None
-    color: str | None = None
-    category: str = "Other"
-    node_type: NodeType # Her node türünü belirtmek zorunda.
-    inputs: List[NodeInput] = []
-    outputs: List[NodeOutput] = []  # Now we track outputs too!
+    """
+    Comprehensive metadata specification for complete node definition.
+    
+    This is the heart of the node system - it defines everything needed
+    to understand, validate, execute, and display a node in the UI.
+    
+    Design Philosophy:
+    - Self-Documenting: All information needed is contained here
+    - Validation-First: Strict type checking and constraint enforcement
+    - UI-Aware: Contains everything needed for automatic UI generation
+    - Version-Safe: Structured for backward compatibility
+    """
+    
+    # Core Identity
+    name: str = Field(
+        ...,
+        description="Internal node identifier (must be unique per class)",
+        pattern=r"^[A-Za-z][A-Za-z0-9]*$"  # PascalCase recommended
+    )
+    
+    description: str = Field(
+        ...,
+        description="Comprehensive description of node functionality and use cases",
+        min_length=20
+    )
+    
+    display_name: Optional[str] = Field(
+        default=None,
+        description="Human-friendly name displayed in UI (auto-generated from name if not provided)"
+    )
+    
+    # Visual Configuration
+    icon: Optional[str] = Field(
+        default=None,
+        description="Icon identifier for UI display (from icon library)"
+    )
+    
+    color: Optional[str] = Field(
+        default=None,
+        description="Hex color code for node visual theming (#RRGGBB)"
+    )
+    
+    category: str = Field(
+        default="Other",
+        description="Category for node organization in UI (LLMs, Tools, Agents, etc.)"
+    )
+    
+    # Type System
+    node_type: NodeType = Field(
+        ...,
+        description="Fundamental node type determining execution pattern"
+    )
+    
+    # Input/Output Contracts
+    inputs: List[NodeInput] = Field(
+        default_factory=list,
+        description="Complete specification of all node inputs"
+    )
+    
+    outputs: List[NodeOutput] = Field(
+        default_factory=list,
+        description="Complete specification of all node outputs"
+    )
+    
+    # Advanced Configuration
+    version: str = Field(
+        default="1.0.0",
+        description="Node version for compatibility tracking"
+    )
+    
+    tags: List[str] = Field(
+        default_factory=list,
+        description="Tags for search and categorization"
+    )
+    
+    documentation_url: Optional[str] = Field(
+        default=None,
+        description="URL to detailed documentation"
+    )
+    
+    examples: List[Dict[str, Any]] = Field(
+        default_factory=list,
+        description="Usage examples with input/output samples"
+    )
 
     @field_validator('display_name', mode='before')
     def default_display_name(cls, v, info):  # noqa: N805 – Pydantic validator signature
         """Provide a default display_name equal to the node *name* if omitted."""
         return v or info.data.get('name')
 
-# 3. Ana Soyut Sınıf (Tüm node'ların atası)
+# ================================================================================
+# BASE NODE ARCHITECTURE - THE FOUNDATION OF ALL NODES
+# ================================================================================
+
 class BaseNode(ABC):
+    """
+    The Foundation of KAI-Fusion's Node Architecture
+    ===============================================
+    
+    This abstract base class defines the core contract and implementation for all nodes
+    in the KAI-Fusion platform. It provides a sophisticated, enterprise-grade foundation
+    that seamlessly integrates with LangChain's ecosystem while adding advanced features
+    for complex workflow orchestration.
+    
+    ARCHITECTURAL PRINCIPLES:
+    ========================
+    
+    1. **Type Safety First**: Every input/output is strictly typed and validated
+    2. **State Management**: Full integration with LangGraph's FlowState system
+    3. **Connection Awareness**: Sophisticated input/output connection management
+    4. **Error Resilience**: Graceful error handling with detailed diagnostics
+    5. **Observability**: Built-in tracing, logging, and performance monitoring
+    6. **Composability**: Seamless LangChain Runnable integration
+    7. **Extensibility**: Clear inheritance patterns for custom nodes
+    
+    EXECUTION FLOW:
+    ==============
+    
+    1. **Initialization**: Node created with metadata and configuration
+    2. **Connection Setup**: Input/output connections established by GraphBuilder
+    3. **State Preparation**: FlowState provides execution context
+    4. **Input Resolution**: User inputs and connected node outputs resolved
+    5. **Execution**: Node-specific logic executed via execute() method
+    6. **Result Processing**: Output processed and stored in state
+    7. **Error Handling**: Any errors caught and handled gracefully
+    
+    STATE INTEGRATION:
+    =================
+    
+    BaseNode integrates deeply with LangGraph's state management:
+    - FlowState provides execution context and variable storage
+    - Connection mappings track node relationships
+    - Execution history maintains workflow progress
+    - Error tracking enables debugging and recovery
+    
+    EXTENSIBILITY PATTERNS:
+    ======================
+    
+    To create custom nodes, inherit from one of the specialized base classes:
+    - ProviderNode: For creating LangChain objects (LLMs, Tools, etc.)
+    - ProcessorNode: For orchestrating multiple inputs (Agents, Chains)
+    - TerminatorNode: For finalizing outputs (Parsers, Formatters)
+    
+    Each pattern provides specific execution semantics optimized for its use case.
+    
+    EXAMPLE USAGE:
+    =============
+    
+    ```python
+    class CustomLLMNode(ProviderNode):
+        def __init__(self):
+            super().__init__()
+            self._metadata = {
+                "name": "CustomLLM",
+                "description": "Custom language model provider",
+                "category": "LLMs",
+                "node_type": NodeType.PROVIDER,
+                "inputs": [
+                    NodeInput(name="api_key", type="str", description="API key for authentication"),
+                    NodeInput(name="model", type="str", description="Model name to use"),
+                ],
+                "outputs": [
+                    NodeOutput(name="llm", type="BaseLanguageModel", description="Configured LLM instance")
+                ]
+            }
+        
+        def execute(self, api_key: str, model: str) -> BaseLanguageModel:
+            # Implementation here
+            return configured_llm
+    ```
+    
+    PERFORMANCE CONSIDERATIONS:
+    ==========================
+    
+    - Metadata validation is cached to avoid repeated processing
+    - State operations are optimized for large workflow graphs
+    - Connection resolution uses efficient mapping structures
+    - Error handling minimizes performance impact during normal execution
+    
+    THREAD SAFETY:
+    =============
+    
+    BaseNode instances are NOT thread-safe by design. Each execution context
+    should use separate node instances to avoid state corruption in concurrent
+    environments.
+    
+    AUTHORS: KAI-Fusion Development Team
+    VERSION: 2.0.0
+    """
     _metadata: Dict[str, Any]  # Node configuration provided by subclasses
     
     # Class-level attribute declarations for linter

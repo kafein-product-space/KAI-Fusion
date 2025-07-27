@@ -1,0 +1,60 @@
+{
+  "name": "Agent-Based Chatbot - Ready for Chat",
+  "description": "Complete chatbot workflow with Agent node connected to OpenAI GPT model",
+  "nodes": [
+    {
+      "id": "start_1",
+      "type": "StartNode", 
+      "position": {"x": 100, "y": 200},
+      "data": {"name": "Start"}
+    },
+    {
+      "id": "agent_1",
+      "type": "Agent",
+      "position": {"x": 400, "y": 200}, 
+      "data": {
+        "name": "Chatbot Agent",
+        "system_prompt": "Sen yardımsever bir AI asistanısın. Kullanıcılarla Türkçe konuşuyorsun. Kısa ve net cevaplar vermeye odaklan. Sorulan soruları detaylı ama anlaşılır şekilde cevapla.",
+        "max_iterations": 5,
+        "tools": []
+      }
+    },
+    {
+      "id": "openai_1", 
+      "type": "OpenAIChat",
+      "position": {"x": 400, "y": 350},
+      "data": {
+        "name": "GPT Model",
+        "model_name": "gpt-4o", 
+        "temperature": 0.7,
+        "max_tokens": 1000,
+        "credential_id": "63989c5e-f754-4e49-9829-42513afb9d0f"
+      }
+    },
+    {
+      "id": "end_1",
+      "type": "EndNode",
+      "position": {"x": 700, "y": 200},
+      "data": {"name": "End"}
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1", 
+      "source": "start_1",
+      "target": "agent_1"
+    },
+    {
+      "id": "e2",
+      "source": "agent_1", 
+      "target": "end_1"
+    },
+    {
+      "id": "e3",
+      "source": "openai_1",
+      "target": "agent_1",
+      "sourceHandle": "output",
+      "targetHandle": "llm"
+    }
+  ]
+}
