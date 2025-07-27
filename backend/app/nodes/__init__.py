@@ -34,11 +34,13 @@ from .vector_stores.pgvector_store import PGVectorStoreNode
 # Chains
 from .chains.retrieval_qa import RetrievalQANode
 
-# Default Nodes (including new trigger nodes)
+# Default Nodes
 from .default.start_node import StartNode
 from .default.end_node import EndNode
-from .default.webhook_start_node import WebhookStartNode
-from .default.timer_start_node import TimerStartNode
+
+# Trigger Nodes
+from .triggers.webhook_trigger import WebhookTriggerNode
+from .triggers.timer_start_node import TimerStartNode
 
 
 # ================================================================
@@ -80,5 +82,5 @@ __all__ = [
     "RetrievalQANode",
     
     # Default & Triggers
-    "StartNode", "EndNode", "WebhookStartNode", "TimerStartNode",
+    "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",
 ]

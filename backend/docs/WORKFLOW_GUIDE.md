@@ -48,13 +48,11 @@ KAI-Fusion is an enterprise AI workflow automation platform that allows you to c
 - **PGVectorStore**: PostgreSQL vector database
 
 ### **Triggers**
-- **WebhookStartNode**: Start workflows via webhooks
+- **WebhookTrigger**: Unified webhook node (start workflows or trigger mid-flow)
 - **TimerStartNode**: Schedule-based workflow execution
 
 ### **Utilities**
 - **RetrievalQA**: Question answering with retrieval
-- **SchedulerTrigger**: Advanced scheduling
-- **WebhookTrigger**: Webhook handling
 
 ## 🏗️ Workflow Architecture
 

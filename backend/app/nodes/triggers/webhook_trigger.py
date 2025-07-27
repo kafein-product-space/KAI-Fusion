@@ -26,13 +26,24 @@ from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
 from langchain_core.runnables.utils import Input, Output
 
-from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
+from ..base import ProviderNode, TerminatorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
 
 # Global webhook router (will be included in main FastAPI app)
 webhook_router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+
+# Health check endpoint for webhook router
+@webhook_router.get("/")
+async def webhook_router_health():
+    """Webhook router health check"""
+    return {
+        "status": "healthy",
+        "router": "webhook_trigger",
+        "active_webhooks": len(webhook_events),
+        "message": "Webhook router is operational"
+    }
 
 # Security
 security = HTTPBearer(auto_error=False)
@@ -57,9 +68,12 @@ class WebhookResponse(BaseModel):
     received_at: str
     correlation_id: Optional[str] = None
 
-class WebhookTriggerNode(ProviderNode):
+class WebhookTriggerNode(TerminatorNode):
     """
-    Webhook trigger node that exposes REST endpoints for external integrations.
+    Unified webhook trigger node that can:
+    1. Start workflows (as entry point)
+    2. Trigger workflows mid-flow (as intermediate node)
+    3. Expose REST endpoints for external integrations
     """
     
     def __init__(self):
@@ -78,13 +92,13 @@ class WebhookTriggerNode(ProviderNode):
             "name": "WebhookTrigger",
             "display_name": "Webhook Trigger",
             "description": (
-                "Exposes REST API endpoint to trigger workflows from external services. "
+                "Unified webhook node that can start workflows or trigger mid-flow. "
                 f"POST to /api/webhooks{self.endpoint_path} with JSON payload."
             ),
-            "category": NodeCategory.UTILITY,
-            "node_type": NodeType.PROVIDER,
+            "category": NodeCategory.TRIGGER,
+            "node_type": NodeType.TERMINATOR,
             "icon": "webhook",
-            "color": "#f59e0b",
+            "color": "#3b82f6",
             
             # Webhook configuration inputs
             "inputs": [
@@ -264,6 +278,70 @@ class WebhookTriggerNode(ProviderNode):
                 except Exception as e:
                     logger.warning(f"Failed to notify subscriber: {e}")
     
+    def _execute(self, state) -> Dict[str, Any]:
+        """
+        Execute webhook trigger in LangGraph workflow.
+        
+        Args:
+            state: Current workflow state
+            
+        Returns:
+            Dict containing webhook data and configuration
+        """
+        from app.core.state import FlowState
+        
+        logger.info(f"🔧 Executing Webhook Trigger: {self.webhook_id}")
+        
+        # Get webhook payload from user data or latest event
+        webhook_payload = self.user_data.get("webhook_payload", {})
+        
+        # If no payload in user_data, get latest webhook event
+        if not webhook_payload:
+            events = webhook_events.get(self.webhook_id, [])
+            if events:
+                webhook_payload = events[-1].get("data", {})
+        
+        # Generate webhook configuration
+        base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
+        full_endpoint = urljoin(base_url, f"/api/webhooks{self.endpoint_path}")
+        
+        webhook_data = {
+            "payload": webhook_payload,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "webhook_id": self.webhook_id,
+            "source": webhook_payload.get("source", "external"),
+            "event_type": webhook_payload.get("event_type", "webhook.received")
+        }
+        
+        # Set initial input from webhook data
+        if webhook_payload:
+            initial_input = webhook_payload.get("data", webhook_payload.get("message", "Webhook triggered"))
+        else:
+            initial_input = f"Webhook endpoint ready: {full_endpoint}"
+        
+        # Update state
+        state.last_output = str(initial_input)
+        
+        # Add this node to executed nodes list
+        if self.node_id and self.node_id not in state.executed_nodes:
+            state.executed_nodes.append(self.node_id)
+        
+        logger.info(f"[WebhookTrigger] {self.webhook_id} executed with: {initial_input}")
+        
+        return {
+            "webhook_data": webhook_data,
+            "webhook_endpoint": full_endpoint,
+            "webhook_token": self.secret_token if self.user_data.get("authentication_required", True) else None,
+            "webhook_config": {
+                "webhook_id": self.webhook_id,
+                "endpoint_url": full_endpoint,
+                "authentication_required": self.user_data.get("authentication_required", True),
+                "created_at": datetime.now(timezone.utc).isoformat(),
+            },
+            "output": initial_input,
+            "status": "webhook_ready"
+        }
+
     def execute(self, **kwargs) -> Dict[str, Any]:
         """
         Configure webhook trigger and return webhook details.

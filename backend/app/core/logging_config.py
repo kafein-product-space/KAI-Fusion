@@ -134,18 +134,13 @@ def create_rotating_file_handler(
 
 def setup_comprehensive_logging():
     """
-    Setup comprehensive logging system with multiple handlers and filters.
+    Setup comprehensive logging system with console output.
     
-    Creates separate log files for:
-    - app.log: General application logs
-    - database.log: Database-specific logs
-    - api.log: API endpoint logs
-    - errors.log: Error-only logs
-    - security.log: Security-related logs
+    Optimized for development and production environments:
+    - Console output with appropriate formatting
+    - File logging disabled to prevent disk usage issues
+    - Structured JSON logs in production
     """
-    
-    # Ensure log directory exists
-    log_dir = setup_log_directories()
     
     # Configure root logger
     root_logger = logging.getLogger()
@@ -158,59 +153,21 @@ def setup_comprehensive_logging():
     console_handler = logging.StreamHandler(sys.stdout)
     if ENVIRONMENT == "production":
         console_handler.setFormatter(JSONFormatter())
-        console_handler.setLevel(logging.WARNING)  # Only warnings and errors to console in production
+        console_handler.setLevel(logging.INFO)
     else:
         console_handler.setFormatter(HumanReadableFormatter())
         console_handler.setLevel(logging.DEBUG)
     
     root_logger.addHandler(console_handler)
     
-    # Main application log file
-    app_handler = create_rotating_file_handler(log_dir / "app.log")
-    app_handler.setLevel(logging.INFO)
-    root_logger.addHandler(app_handler)
-    
-    # Database-specific log file
-    db_handler = create_rotating_file_handler(
-        log_dir / "database.log", 
-        log_filter=DatabaseFilter()
-    )
-    db_handler.setLevel(logging.DEBUG)
-    root_logger.addHandler(db_handler)
-    
-    # API-specific log file
-    api_handler = create_rotating_file_handler(
-        log_dir / "api.log", 
-        log_filter=APIFilter()
-    )
-    api_handler.setLevel(logging.INFO)
-    root_logger.addHandler(api_handler)
-    
-    # Error-only log file
-    error_handler = create_rotating_file_handler(
-        log_dir / "errors.log", 
-        log_filter=ErrorFilter()
-    )
-    error_handler.setLevel(logging.WARNING)
-    root_logger.addHandler(error_handler)
-    
-    # Security log file
-    security_handler = create_rotating_file_handler(
-        log_dir / "security.log", 
-        log_filter=SecurityFilter()
-    )
-    security_handler.setLevel(logging.INFO)
-    root_logger.addHandler(security_handler)
-    
     # Configure specific loggers
     configure_third_party_loggers()
     
     # Log startup message
     logger = logging.getLogger(__name__)
-    logger.info("📊 Comprehensive logging system initialized", extra={
+    logger.info("📊 Console logging system initialized", extra={
         "environment": ENVIRONMENT,
         "log_level": LOG_LEVEL,
-        "log_directory": str(log_dir),
         "handlers_count": len(root_logger.handlers)
     })
 

@@ -425,8 +425,8 @@ app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Cred
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
 
-# Include webhook router
-app.include_router(webhook_router, prefix="/api", tags=["Webhooks"])
+# Include webhook router (already has /api/webhooks prefix)
+app.include_router(webhook_router, tags=["Webhooks"])
 app.include_router(export_router, prefix="/api", tags=["Export"])
 
 

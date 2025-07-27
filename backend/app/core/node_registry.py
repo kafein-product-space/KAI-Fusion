@@ -533,13 +533,6 @@ class NodeRegistry:
                 self.nodes[metadata.name] = node_class
                 self.node_configs[metadata.name] = metadata
                 print(f"✅ Registered node: {metadata.name}")
-                
-                # Add ReactAgent alias for backward compatibility (hidden from UI)
-                if metadata.name == "Agent" and node_class.__name__ == "ReactAgentNode":
-                    self.nodes["ReactAgent"] = node_class
-                    self.node_configs["ReactAgent"] = metadata
-                    self.hidden_aliases.add("ReactAgent")  # Mark as hidden alias
-                    print(f"✅ Registered node alias: ReactAgent -> Agent (hidden from UI)")
             else:
                 # Node already registered, skip silently
                 pass
