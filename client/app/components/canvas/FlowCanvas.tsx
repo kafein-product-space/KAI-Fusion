@@ -51,9 +51,16 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
-import CustomNeonEdge from "../common/NeonHandle";
 import ChatBubble from "../common/ChatBubble";
 import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
+import RetrievalQANode from "../nodes/chains/RetrievalQANode";
+import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedderNode";
+import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitterNode";
+import HTTPClientNode from "../nodes/tools/HTTPClientNode";
+import DocumentRerankerNode from "../nodes/tools/DocumentRerankerNode";
+import TimerStartNode from "../nodes/triggers/TimerStartNode";
+import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
+import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   Agent: ToolAgentNode,
@@ -70,6 +77,14 @@ const baseNodeTypes = {
   WebScraper: WebScraperNode,
   EndNode: EndNode,
   RouterChain: RouterChainNode,
+  RetrievalQA: RetrievalQANode,
+  OpenAIEmbedder: OpenAIDocumentEmbedderNode,
+  ChunkSplitter: DocumentChunkSplitterNode,
+  HttpRequest: HTTPClientNode,
+  Reranker: DocumentRerankerNode,
+  TimerStartNode: TimerStartNode,
+  WebhookTrigger: WebhookTriggerNode,
+  PGVectorStore: PostgreSQLVectorStoreNode,
 };
 
 interface FlowCanvasProps {

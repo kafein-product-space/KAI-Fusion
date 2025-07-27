@@ -102,6 +102,10 @@ function WorkflowsLayout() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
+  const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(
+    null
+  );
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(7);
   const [page, setPage] = useState(1);
 
@@ -128,21 +132,35 @@ function WorkflowsLayout() {
   );
 
   const handleDelete = async (workflow: Workflow) => {
-    if (
-      !window.confirm(
-        `Are you sure you want to delete "${workflow.name}"? This action cannot be undone.`
-      )
-    )
-      return;
+    setWorkflowToDelete(workflow);
+    setShowDeleteConfirm(true);
+  };
 
-    setIsDeleting(workflow.id);
+  const handleFinalDeleteConfirm = async () => {
+    if (!workflowToDelete) return;
+
+    setIsDeleting(workflowToDelete.id);
     try {
-      await deleteWorkflow(workflow.id);
-    } catch (error) {
-      enqueueSnackbar("Failed to delete workflow", { variant: "error" });
+      await deleteWorkflow(workflowToDelete.id);
+      enqueueSnackbar("Workflow deleted successfully", { variant: "success" });
+    } catch (error: any) {
+      console.error("Delete workflow error:", error);
+
+      // API'den gelen error mesajını al
+      const errorMessage =
+        error?.message || error?.detail || "Failed to delete workflow";
+
+      enqueueSnackbar(errorMessage, { variant: "error" });
     } finally {
       setIsDeleting(null);
+      setWorkflowToDelete(null);
+      setShowDeleteConfirm(false);
     }
+  };
+
+  const handleCancelDelete = () => {
+    setShowDeleteConfirm(false);
+    setWorkflowToDelete(null);
   };
 
   const handleRetry = () => {
@@ -530,6 +548,30 @@ function WorkflowsLayout() {
           </div>
         </dialog>
       </main>
+
+      {/* İlk Delete Confirm Modal */}
+      <dialog
+        open={showDeleteConfirm}
+        className="modal modal-bottom sm:modal-middle"
+      >
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Delete Workflow</h3>
+          <p className="py-4">
+            Are you sure you want to delete "{workflowToDelete?.name}"?
+          </p>
+          <div className="modal-action">
+            <button className="btn btn-outline" onClick={handleCancelDelete}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-error"
+              onClick={handleFinalDeleteConfirm}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      </dialog>
     </div>
   );
 }

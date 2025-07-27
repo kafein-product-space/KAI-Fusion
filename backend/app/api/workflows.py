@@ -469,17 +469,34 @@ async def delete_workflow(
         if workflow.user_id != user_id:
             raise HTTPException(status_code=403, detail="Only workflow owner can delete")
         
+        # First, delete all executions for this workflow
+        from app.models.execution import WorkflowExecution, ExecutionCheckpoint
+        from sqlalchemy import delete
+        
+        # Delete execution checkpoints first (due to foreign key)
+        checkpoint_delete = delete(ExecutionCheckpoint).where(
+            ExecutionCheckpoint.execution_id.in_(
+                select(WorkflowExecution.id).where(WorkflowExecution.workflow_id == workflow_id)
+            )
+        )
+        await db.execute(checkpoint_delete)
+        
+        # Delete executions
+        execution_delete = delete(WorkflowExecution).where(WorkflowExecution.workflow_id == workflow_id)
+        await db.execute(execution_delete)
+        
+        # Now delete the workflow
         await db.delete(workflow)
         await db.commit()
         
-        logger.info(f"Deleted workflow {workflow_id} for user {user_id}")
+        logger.info(f"Successfully deleted workflow {workflow_id} for user {user_id}")
         return {"message": f"Workflow {workflow_id} deleted successfully"}
     except HTTPException:
         raise
     except Exception as e:
         await db.rollback()
         logger.error(f"Error deleting workflow {workflow_id}: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Failed to delete workflow")
+        raise HTTPException(status_code=500, detail=f"Failed to delete workflow: {str(e)}")
 
 
 @router.post("/validate")
