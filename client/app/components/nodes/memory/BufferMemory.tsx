@@ -1,7 +1,16 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import BufferMemoryConfigModal from "../../modals/memory/BufferMemoryConfigModal";
-import { Archive, Trash } from "lucide-react";
+import {
+  Archive,
+  Trash,
+  Database,
+  Activity,
+  Clock,
+  Brain,
+  Zap,
+  HardDrive,
+} from "lucide-react";
 import NeonHandle from "~/components/common/NeonHandle";
 
 interface BufferMemoryNodeProps {
@@ -39,47 +48,87 @@ function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
         ? edge.source === id && edge.sourceHandle === handleId
         : edge.target === id && edge.targetHandle === handleId
     );
+
+  const getStatusColor = () => {
+    switch (data.validationStatus) {
+      case "success":
+        return "from-emerald-500 to-green-600";
+      case "error":
+        return "from-red-500 to-rose-600";
+      default:
+        return "from-blue-500 to-indigo-600";
+    }
+  };
+
+  const getGlowColor = () => {
+    switch (data.validationStatus) {
+      case "success":
+        return "shadow-emerald-500/30";
+      case "error":
+        return "shadow-red-500/30";
+      default:
+        return "shadow-blue-500/30";
+    }
+  };
+
   return (
     <>
       {/* Ana node kutusu */}
       <div
-        className={`flex w-20 h-20 rounded-full items-center gap-3 px-4 py-4 justify-center border-2 text-gray-700 font-medium cursor-pointer transition-all
+        className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
+          cursor-pointer transition-all duration-300 transform
+          ${isHovered ? "scale-105" : "scale-100"}
+          bg-gradient-to-br ${getStatusColor()}
           ${
-            data.validationStatus === "success"
-              ? "border-green-500"
-              : data.validationStatus === "error"
-              ? "border-red-500"
-              : "border-gray-400"
+            isHovered
+              ? `shadow-2xl ${getGlowColor()}`
+              : "shadow-lg shadow-black/50"
           }
-          bg-gray-100`}
+          border border-white/20 backdrop-blur-sm
+          hover:border-white/40`}
         onDoubleClick={handleOpenModal}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        title="Çift tıklayarak konfigüre edin"
+        title="Double click to configure"
       >
-        <div className=" rounded-2xl">
-          <Archive className="size-6" />
+        {/* Background pattern */}
+        <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
+
+        {/* Main icon */}
+        <div className="relative z-10 mb-2">
+          <div className="relative">
+            <Database className="w-10 h-10 text-white drop-shadow-lg" />
+            {/* Activity indicator */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
+              <HardDrive className="w-2 h-2 text-white" />
+            </div>
+          </div>
         </div>
 
+        {/* Node title */}
+        <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
+          {data?.displayName || data?.name || "Memory"}
+        </div>
+
+        {/* Hover effects */}
         {isHovered && (
-          <button
-            className="absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full border-2 border-white shadow-lg transition-all duration-200 hover:scale-110 flex items-center justify-center z-10"
-            onClick={handleDeleteNode}
-            title="Delete Node"
-          >
-            <Trash size={8} />
-          </button>
+          <>
+            {/* Delete button */}
+            <button
+              className="absolute -top-3 -right-3 w-8 h-8 
+                bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500
+                text-white rounded-full border border-white/30 shadow-xl 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+              onClick={handleDeleteNode}
+              title="Delete Node"
+            >
+              <Trash size={14} />
+            </button>
+          </>
         )}
-        <div
-          className="absolute text-xs text-gray-600 font-medium pointer-events-none whitespace-nowrap"
-          style={{
-            bottom: "-30%",
-            transform: "translateY(-50%)",
-          }}
-        >
-          {data?.displayName || data?.name || "Buffer Memory"}
-        </div>
 
+        {/* Output Handle */}
         <NeonHandle
           type="source"
           position={Position.Top}
@@ -89,6 +138,100 @@ function BufferMemoryNode({ data, id }: BufferMemoryNodeProps) {
           color1="#00FFFF"
           glow={isHandleConnected("output", true)}
         />
+
+        {/* Top side label for output */}
+        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 font-medium">
+          Memory
+        </div>
+
+        {/* Buffer Memory Type Badge */}
+        {data?.memory_type && (
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg">
+              {data.memory_type === "buffer"
+                ? "Buffer"
+                : data.memory_type === "conversation"
+                ? "Conversation"
+                : data.memory_type === "summary"
+                ? "Summary"
+                : "Memory"}
+            </div>
+          </div>
+        )}
+
+        {/* Connection Status Indicator */}
+        {data?.memory_type && (
+          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
+          </div>
+        )}
+
+        {/* Memory Capacity Indicator */}
+        {data?.max_token_limit && (
+          <div className="absolute top-1 left-1 z-10">
+            <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+              <Brain className="w-2 h-2 text-white" />
+            </div>
+          </div>
+        )}
+
+        {/* Memory Activity Indicator */}
+        {data?.is_active && (
+          <div className="absolute top-1 right-1 z-10">
+            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+              <Activity className="w-2 h-2 text-white" />
+            </div>
+          </div>
+        )}
+
+        {/* Memory Usage Indicator */}
+        {data?.current_usage && (
+          <div className="absolute bottom-1 left-1 z-10">
+            <div className="w-3 h-3 bg-purple-400 rounded-full shadow-lg animate-pulse"></div>
+          </div>
+        )}
+
+        {/* Performance Indicator */}
+        {data?.performance_metrics && (
+          <div className="absolute bottom-1 right-1 z-10">
+            <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
+          </div>
+        )}
+
+        {/* Memory Size Badge */}
+        {data?.max_token_limit && (
+          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow-lg transform rotate-90">
+              {data.max_token_limit > 1000
+                ? `${Math.round(data.max_token_limit / 1000)}K`
+                : data.max_token_limit}
+            </div>
+          </div>
+        )}
+
+        {/* Memory Type Indicator */}
+        {data?.memory_type === "buffer" && (
+          <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg transform -rotate-90">
+              Buffer
+            </div>
+          </div>
+        )}
+
+        {/* Memory Status Badge */}
+        {data?.memory_status && (
+          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xs font-bold shadow-lg">
+              {data.memory_status === "active"
+                ? "Active"
+                : data.memory_status === "full"
+                ? "Full"
+                : data.memory_status === "empty"
+                ? "Empty"
+                : "Ready"}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* DaisyUI dialog modal */}
