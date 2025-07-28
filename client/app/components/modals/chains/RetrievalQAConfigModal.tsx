@@ -159,7 +159,7 @@ const RetrievalQAConfigModal = forwardRef<
               RAG Question Answering
             </h3>
             <p className="text-slate-400 text-sm">
-              Configure your retrieval-augmented generation settings
+              Configure retrieval-augmented generation settings
             </p>
           </div>
         </div>
