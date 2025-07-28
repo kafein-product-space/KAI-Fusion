@@ -14,8 +14,7 @@ from ..schemas.node_configuration import (
 from ..auth.dependencies import get_current_user
 from ..models.user import User
 
-router = APIRouter(prefix="/api/v1/node-configurations", tags=["node-configurations"])
-
+router = APIRouter()
 
 @router.post("/", response_model=NodeConfigurationResponse)
 async def create_node_configuration(
