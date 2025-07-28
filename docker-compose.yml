@@ -44,16 +44,22 @@ services:
       context: ./client
       dockerfile: Dockerfile
       target: production
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+        VITE_API_VERSION: ${VITE_API_VERSION}
+        VITE_NODE_ENV: ${VITE_NODE_ENV}
+        VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
     container_name: kai-fusion-client
+
     ports:
       - "3000:3000"
     env_file:
       - .env
     environment:
-      - VITE_API_BASE_URL=${VITE_API_BASE_URL}
-      - VITE_API_VERSION=${VITE_API_VERSION}
-      - VITE_NODE_ENV=${VITE_NODE_ENV}
-      - VITE_ENABLE_LOGGING=${VITE_ENABLE_LOGGING}
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_API_VERSION: ${VITE_API_VERSION}
+      VITE_NODE_ENV: ${VITE_NODE_ENV}
+      VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
     networks:
       - kaifusion-network
     restart: unless-stopped

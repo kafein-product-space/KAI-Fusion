@@ -1,7 +1,6 @@
 # 1. Bağımlılıkların kurulumu (prod ve dev)
 FROM node:22-alpine AS deps
 WORKDIR /app
-
 COPY package*.json ./
 RUN npm ci
 
@@ -9,26 +8,33 @@ RUN npm ci
 FROM node:22-alpine AS build
 WORKDIR /app
 
+# ✅ Build-time env değişkenleri tanımlanıyor
+ARG VITE_API_BASE_URL
+ARG VITE_API_VERSION
+ARG VITE_NODE_ENV
+ARG VITE_ENABLE_LOGGING
+
+# ✅ Build ortamına geçiriliyor
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_API_VERSION=$VITE_API_VERSION
+ENV VITE_NODE_ENV=$VITE_NODE_ENV
+ENV VITE_ENABLE_LOGGING=$VITE_ENABLE_LOGGING
+
 COPY . .
 COPY --from=deps /app/node_modules ./node_modules
+
+# ✅ Build sırasında env'ler gömülmüş olacak
 RUN npm run build
 
 # 3. Prod sunucu (react-router-serve ile SSR)
 FROM node:22-alpine AS production
 WORKDIR /app
 
-# Yalnızca prod bağımlılıkları kuruluyor
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Build edilmiş uygulama kopyalanıyor
 COPY --from=build /app/build ./build
 
-# react-router-serve CLI globalde çalıştırılmak isteniyorsa (opsiyonel)
-# RUN npm install -g @react-router/serve
-
-# Port dışa açılıyor
 EXPOSE 3000
 
-# SSR server başlatılıyor
 CMD ["npm", "run", "start"]
