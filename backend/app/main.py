@@ -312,6 +312,7 @@ from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
+from app.api.node_configurations import router as node_configurations_router
 
 # Import webhook router
 from app.nodes.triggers.webhook_trigger import webhook_router
@@ -424,6 +425,7 @@ app.include_router(executions_router, prefix="/api/v1/executions", tags=["Execut
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
+app.include_router(node_configurations_router, tags=["Node Configurations"])
 
 # Include webhook router (already has /api/webhooks prefix)
 app.include_router(webhook_router, tags=["Webhooks"])

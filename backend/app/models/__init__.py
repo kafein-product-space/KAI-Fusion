@@ -8,6 +8,7 @@ from .auth import LoginMethod, LoginActivity
 from .chat import ChatMessage
 from .variable import Variable
 from .memory import Memory
+from .node_configuration import NodeConfiguration
 
 __all__ = [
     "Base",
@@ -24,6 +25,7 @@ __all__ = [
     "LoginActivity",
     "ChatMessage",
     "Variable",
-    "Memory"
+    "Memory",
+    "NodeConfiguration"
 ]
 

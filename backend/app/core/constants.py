@@ -260,10 +260,6 @@ IMPLEMENTATION DETAILS:
 ──────────────────────────────────────────────────────────────
 """
 import os
-from dotenv import load_dotenv
-
-# Load environment variables from .env file
-load_dotenv()
 
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
