@@ -4,7 +4,7 @@ services:
     build: .
     image: kaifusion:latest
     ports:
-      - 0.0.0.0:${PORT}:8000
+      - "8000:8000"
     environment:
       # Core Application Settings
       SECRET_KEY: ${SECRET_KEY}
