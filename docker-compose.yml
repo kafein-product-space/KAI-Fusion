@@ -50,7 +50,6 @@ services:
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
     container_name: kai-fusion-client
-
     ports:
       - "3000:3000"
     environment:
