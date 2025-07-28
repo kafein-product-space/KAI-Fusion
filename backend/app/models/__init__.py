@@ -9,6 +9,7 @@ from .chat import ChatMessage
 from .variable import Variable
 from .memory import Memory
 from .node_configuration import NodeConfiguration
+from .node_registry import NodeRegistry
 
 __all__ = [
     "Base",
@@ -26,6 +27,7 @@ __all__ = [
     "ChatMessage",
     "Variable",
     "Memory",
-    "NodeConfiguration"
+    "NodeConfiguration",
+    "NodeRegistry"
 ]
 

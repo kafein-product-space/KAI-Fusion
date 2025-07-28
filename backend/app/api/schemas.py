@@ -66,3 +66,38 @@ class AuthResponse(BaseModel):
 class ErrorResponse(BaseModel):
     detail: str = Field(description="Error description")
     error_code: Optional[str] = Field(default=None, description="Machine-readable error code")
+
+# Node Registry Schemas
+class NodeRegistryCreate(BaseModel):
+    node_type: str = Field(description="Unique identifier for the node type")
+    node_class: str = Field(description="Python class name for the node")
+    category: str = Field(description="Node category (llm, tool, agent, etc.)")
+    version: str = Field(default="1.0.0", description="Node version")
+    schema_definition: Dict[str, Any] = Field(description="Input/output schema definition")
+    ui_schema: Dict[str, Any] = Field(description="UI configuration schema")
+    is_active: bool = Field(default=True, description="Whether the node is active")
+
+class NodeRegistryUpdate(BaseModel):
+    node_class: Optional[str] = Field(default=None, description="Python class name for the node")
+    category: Optional[str] = Field(default=None, description="Node category")
+    version: Optional[str] = Field(default=None, description="Node version")
+    schema_definition: Optional[Dict[str, Any]] = Field(default=None, description="Input/output schema definition")
+    ui_schema: Optional[Dict[str, Any]] = Field(default=None, description="UI configuration schema")
+    is_active: Optional[bool] = Field(default=None, description="Whether the node is active")
+
+class NodeRegistryResponse(BaseModel):
+    id: str = Field(description="Node registry entry ID")
+    node_type: str = Field(description="Unique identifier for the node type")
+    node_class: str = Field(description="Python class name for the node")
+    category: str = Field(description="Node category")
+    version: str = Field(description="Node version")
+    schema_definition: Dict[str, Any] = Field(description="Input/output schema definition")
+    ui_schema: Dict[str, Any] = Field(description="UI configuration schema")
+    is_active: bool = Field(description="Whether the node is active")
+    created_at: str = Field(description="Creation timestamp")
+
+class NodeRegistryListResponse(BaseModel):
+    nodes: List[NodeRegistryResponse] = Field(description="List of node registry entries")
+    total: int = Field(description="Total number of entries")
+    page: int = Field(description="Current page number")
+    size: int = Field(description="Page size")

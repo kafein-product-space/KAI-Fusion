@@ -18,6 +18,7 @@ from .workflow_service import WorkflowService
 from .execution_service import ExecutionService
 from .credential_service import CredentialService
 from .variable_service import VariableService
+from .node_registry_service import NodeRegistryService
 
 __all__ = [
     "BaseService",
@@ -26,4 +27,6 @@ __all__ = [
     "ExecutionService",
     "CredentialService",
     "VariableService",
+    "NodeRegistryService",
+    "NodeConfigurationService",
 ] 
