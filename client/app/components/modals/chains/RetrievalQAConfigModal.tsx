@@ -206,7 +206,7 @@ const RetrievalQAConfigModal = forwardRef<
                 />
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-6">
                 {/* Credentials Section */}
                 <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-4">
@@ -407,7 +407,7 @@ const RetrievalQAConfigModal = forwardRef<
               </div>
 
               {/* Advanced Settings */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="flex flex-col gap-6">
                 {/* Response Settings */}
                 <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-4">

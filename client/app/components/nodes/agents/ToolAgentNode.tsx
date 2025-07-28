@@ -56,7 +56,7 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
 
   const bottomInputHandles = [
     { id: "llm", label: "LLM", required: true, position: 20 },
-    { id: "memory", label: "Memory", required: false, position: 50 },
+    { id: "memory", label: "Memory", required: true, position: 50 },
     { id: "tools", label: "Tools", required: false, position: 80 },
   ];
 

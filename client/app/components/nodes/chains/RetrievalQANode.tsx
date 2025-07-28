@@ -67,7 +67,7 @@ function RetrievalQANode({ data, id }: RetrievalQANodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`relative group w-32 h-32 rounded-2xl flex flex-col items-center justify-center 
+        className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
           cursor-pointer transition-all duration-300 transform
           ${isHovered ? "scale-105" : "scale-100"}
           bg-gradient-to-br ${getStatusColor()}
@@ -102,35 +102,9 @@ function RetrievalQANode({ data, id }: RetrievalQANodeProps) {
           {data?.displayName || data?.name || "RAG QA"}
         </div>
 
-        {/* Status indicator */}
-        <div className="absolute top-2 right-2 z-20">
-          <div
-            className={`w-2 h-2 rounded-full ${
-              data.validationStatus === "success"
-                ? "bg-emerald-400"
-                : data.validationStatus === "error"
-                ? "bg-red-400"
-                : "bg-blue-400"
-            } shadow-lg`}
-          ></div>
-        </div>
-
         {/* Hover effects */}
         {isHovered && (
           <>
-            {/* Settings button */}
-            <button
-              className="absolute -top-3 left-1/2 transform -translate-x-1/2 w-8 h-8 
-                bg-gradient-to-r from-slate-700 to-slate-800 hover:from-slate-600 hover:to-slate-700
-                text-white rounded-full border border-white/30 shadow-xl 
-                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
-                backdrop-blur-sm"
-              onClick={handleOpenModal}
-              title="Configure Node"
-            >
-              <Settings size={14} />
-            </button>
-
             {/* Delete button */}
             <button
               className="absolute -top-3 -right-3 w-8 h-8 
@@ -146,107 +120,46 @@ function RetrievalQANode({ data, id }: RetrievalQANodeProps) {
           </>
         )}
 
-        {/* Connection indicators */}
-        <div className="absolute -bottom-6 left-0 right-0 flex justify-center space-x-1">
-          <div
-            className={`w-1 h-1 rounded-full transition-all ${
-              isHandleConnected("retriever")
-                ? "bg-cyan-400 shadow-cyan-400/50 shadow-sm"
-                : "bg-gray-600"
-            }`}
-          ></div>
-          <div
-            className={`w-1 h-1 rounded-full transition-all ${
-              isHandleConnected("question")
-                ? "bg-cyan-400 shadow-cyan-400/50 shadow-sm"
-                : "bg-gray-600"
-            }`}
-          ></div>
-          <div
-            className={`w-1 h-1 rounded-full transition-all ${
-              isHandleConnected("answer", true)
-                ? "bg-blue-400 shadow-blue-400/50 shadow-sm"
-                : "bg-gray-600"
-            }`}
-          ></div>
-        </div>
-
-        {/* Input Handles */}
         <NeonHandle
           type="target"
           position={Position.Left}
           id="retriever"
           isConnectable={true}
+          size={10}
           color1="#00FFFF"
           glow={isHandleConnected("retriever")}
-          className="absolute w-4 h-4 transition-all z-20 border-2 border-white/30"
-          style={{
-            left: -8,
-            top: "60%",
-            transform: "translateY(-50%)",
-            background: "linear-gradient(135deg, #00FFFF, #0080FF)",
-            borderRadius: "50%",
-            boxShadow: isHandleConnected("retriever")
-              ? "0 0 15px #00FFFF, 0 0 25px #00FFFF50"
-              : "0 0 8px rgba(0,0,0,0.5)",
-          }}
-          title="Retriever (Required)"
         />
 
-        {/* Question handle with icon indicator */}
-        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 flex flex-col items-center z-20">
-          <Database className="w-3 h-3 text-cyan-400 mb-1 drop-shadow-lg" />
-          <NeonHandle
-            type="target"
-            position={Position.Top}
-            id="question"
-            isConnectable={true}
-            color1="#00FFFF"
-            glow={isHandleConnected("question")}
-            className="w-4 h-4 transition-all border-2 border-white/30"
-            style={{
-              background: "linear-gradient(135deg, #00FFFF, #0080FF)",
-              borderRadius: "50%",
-              boxShadow: isHandleConnected("question")
-                ? "0 0 15px #00FFFF, 0 0 25px #00FFFF50"
-                : "0 0 8px rgba(0,0,0,0.5)",
-            }}
-            title="Question (Required)"
-          />
-        </div>
+        <NeonHandle
+          type="target"
+          position={Position.Top}
+          id="question"
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+          glow={isHandleConnected("question")}
+        />
 
-        {/* Output Handle */}
         <NeonHandle
           type="source"
           position={Position.Right}
           id="answer"
           isConnectable={true}
-          color1="#0ea5e9"
+          size={10}
+          color1="#00FFFF"
           glow={isHandleConnected("answer", true)}
-          className="absolute w-4 h-4 transition-all z-20 border-2 border-white/30"
-          style={{
-            right: -8,
-            top: "50%",
-            transform: "translateY(-50%)",
-            background: "linear-gradient(135deg, #0ea5e9, #3b82f6)",
-            borderRadius: "50%",
-            boxShadow: isHandleConnected("answer", true)
-              ? "0 0 15px #0ea5e9, 0 0 25px #0ea5e950"
-              : "0 0 8px rgba(0,0,0,0.5)",
-          }}
-          title="Answer"
         />
 
-        {/* Animated border */}
-        <div
-          className={`absolute inset-0 rounded-2xl border-2 border-transparent
-          ${isHovered ? "animate-pulse" : ""}
-          bg-gradient-to-r ${getStatusColor()} opacity-20`}
-          style={{
-            mask: "linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0)",
-            maskComposite: "xor",
-          }}
-        ></div>
+        {/* Handle labels */}
+        <div className="absolute -left-16 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
+          Retriever
+        </div>
+        <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 font-medium">
+          Question
+        </div>
+        <div className="absolute -right-15 top-1/2 transform -translate-y-1/2 text-xs text-gray-500  font-medium">
+          Answer
+        </div>
       </div>
 
       {/* Modal */}

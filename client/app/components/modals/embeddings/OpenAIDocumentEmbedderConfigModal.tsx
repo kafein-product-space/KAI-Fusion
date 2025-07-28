@@ -8,6 +8,16 @@ import React, {
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
+import {
+  Brain,
+  Key,
+  Lock,
+  Settings,
+  BarChart3,
+  Sliders,
+  CheckCircle,
+  Activity,
+} from "lucide-react";
 
 interface OpenAIDocumentEmbedderConfigModalProps {
   nodeData: any;
@@ -26,7 +36,6 @@ interface OpenAIDocumentEmbedderConfig {
   enable_cost_estimation: boolean;
 }
 
-// Embedding Model Options
 const EMBEDDING_MODELS = [
   {
     value: "text-embedding-3-small",
@@ -76,18 +85,31 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
   };
 
   return (
-    <dialog ref={dialogRef} className="modal modal-bottom sm:modal-middle">
-      <div className="modal-box max-w-2xl">
-        <h3 className="font-bold text-lg mb-2">
-          OpenAI Document Embedder Ayarları
-        </h3>
+    <dialog
+      ref={dialogRef}
+      className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+    >
+      <div className="modal-box max-w-3xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl shadow-purple-500/10">
+        {/* Header */}
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-700/50">
+          <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-pink-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Brain className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-xl text-white">Document Embedder</h3>
+            <p className="text-slate-400 text-sm">
+              Configure OpenAI-based document embedding pipeline
+            </p>
+          </div>
+        </div>
+
         <Formik
           initialValues={initialValues}
           enableReinitialize
           validate={(values) => {
             const errors: Record<string, string> = {};
             if (!values.openai_api_key) {
-              errors.openai_api_key = "OpenAI API key gereklidir.";
+              errors.openai_api_key = "OpenAI API key is required.";
             }
             return errors;
           }}
@@ -98,12 +120,16 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
           }}
         >
           {({ isSubmitting, setFieldValue, values }) => (
-            <Form className="space-y-4 mt-4">
-              {/* Credential Seçici */}
-              <div className="form-control">
-                <label className="label">Credential Seç (Opsiyonel)</label>
+            <Form className="space-y-6">
+              {/* Credential Section */}
+              <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                <label className="text-white font-semibold flex items-center space-x-2 mb-4">
+                  <Key className="w-5 h-5 text-emerald-400" />
+                  <span>API Credential</span>
+                </label>
+
                 <select
-                  className="select select-bordered w-full"
+                  className="select w-full bg-slate-900/80 text-white border border-slate-600/50 rounded-lg mb-4"
                   value={selectedCredentialId}
                   onChange={async (e) => {
                     const credId = e.target.value;
@@ -127,43 +153,46 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
                   }}
                   disabled={isLoading || loadingCredential}
                 >
-                  <option value="">Bir credential seçin...</option>
+                  <option value="">Choose a credential...</option>
                   {userCredentials.map((cred) => (
                     <option key={cred.id} value={cred.id}>
                       {cred.name}
                     </option>
                   ))}
                 </select>
-                {loadingCredential && (
-                  <span className="text-xs text-gray-500">
-                    Credential yükleniyor...
-                  </span>
-                )}
-              </div>
 
-              {/* OpenAI API Key */}
-              <div className="form-control">
-                <label className="label">OpenAI API Key</label>
-                <Field
-                  className="input input-bordered w-full"
-                  type="password"
-                  name="openai_api_key"
-                  placeholder="sk-..."
-                  value={values.openai_api_key}
-                />
+                {loadingCredential && (
+                  <div className="text-sm text-emerald-400">
+                    Loading credential...
+                  </div>
+                )}
+
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+                  <Field
+                    className="input w-full bg-slate-900/80 text-white pl-10 pr-4 py-3 rounded-lg border border-slate-600/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
+                    type="password"
+                    name="openai_api_key"
+                    placeholder="sk-..."
+                  />
+                </div>
                 <ErrorMessage
                   name="openai_api_key"
                   component="div"
-                  className="text-red-500 text-xs"
+                  className="text-red-400 text-sm mt-2"
                 />
               </div>
 
-              {/* Embedding Model Selection */}
-              <div className="form-control">
-                <label className="label">Embedding Model</label>
+              {/* Model Selection */}
+              <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
+                <label className="text-white font-semibold flex items-center space-x-2 mb-4">
+                  <Settings className="w-5 h-5 text-purple-400" />
+                  <span>Embedding Model</span>
+                </label>
+
                 <Field
                   as="select"
-                  className="select select-bordered w-full"
+                  className="select w-full bg-slate-900/80 text-white border border-slate-600/50 rounded-lg"
                   name="embed_model"
                 >
                   {EMBEDDING_MODELS.map((model) => (
@@ -172,7 +201,8 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
                     </option>
                   ))}
                 </Field>
-                <div className="text-xs text-gray-500 mt-1">
+
+                <div className="mt-2 text-xs text-slate-400">
                   {
                     EMBEDDING_MODELS.find((m) => m.value === values.embed_model)
                       ?.description
@@ -180,106 +210,98 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
                 </div>
               </div>
 
-              {/* Batch Size */}
-              <div className="form-control">
-                <label className="label">Batch Size: {values.batch_size}</label>
-                <Field
-                  type="range"
-                  className="range range-primary"
-                  name="batch_size"
-                  min="1"
-                  max="500"
-                  step="10"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Her batch'te işlenecek chunk sayısı
-                </div>
+              {/* Advanced Parameters */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {[
+                  {
+                    label: "Batch Size",
+                    name: "batch_size",
+                    min: 10,
+                    max: 500,
+                    icon: <Sliders className="w-4 h-4" />,
+                  },
+                  {
+                    label: "Max Retries",
+                    name: "max_retries",
+                    min: 0,
+                    max: 5,
+                    icon: <Activity className="w-4 h-4" />,
+                  },
+                  {
+                    label: "Timeout (s)",
+                    name: "request_timeout",
+                    min: 10,
+                    max: 300,
+                    icon: <BarChart3 className="w-4 h-4" />,
+                  },
+                ].map(({ label, name, min, max, icon }) => (
+                  <div
+                    key={name}
+                    className="bg-slate-800/50 p-4 rounded-xl border border-slate-700/50"
+                  >
+                    <label className="text-slate-300 text-sm flex items-center gap-2 mb-2">
+                      {icon} {label}:{" "}
+                      <span className="text-orange-400 font-mono ml-auto">
+                        {values[name as keyof typeof values]}
+                      </span>
+                    </label>
+                    <Field
+                      type="range"
+                      name={name}
+                      min={min}
+                      max={max}
+                      step="1"
+                      className="w-full"
+                    />
+                  </div>
+                ))}
               </div>
 
-              {/* Max Retries */}
-              <div className="form-control">
-                <label className="label">
-                  Max Retries: {values.max_retries}
-                </label>
-                <Field
-                  type="range"
-                  className="range range-primary"
-                  name="max_retries"
-                  min="0"
-                  max="5"
-                  step="1"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  Başarısız istekler için maksimum yeniden deneme sayısı
-                </div>
+              {/* Toggles */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+                {[
+                  {
+                    name: "include_metadata_in_embedding",
+                    label: "Include Metadata",
+                    description: "Append metadata to text before embedding",
+                  },
+                  {
+                    name: "normalize_vectors",
+                    label: "Normalize Vectors",
+                    description: "Make embeddings unit length",
+                  },
+                  {
+                    name: "enable_cost_estimation",
+                    label: "Estimate Cost",
+                    description: "Calculate and show OpenAI embedding cost",
+                  },
+                ].map(({ name, label, description }) => (
+                  <label
+                    key={name}
+                    className="flex items-center justify-between p-4 bg-slate-900/30 rounded-lg border border-slate-600/20"
+                  >
+                    <div>
+                      <div className="text-white text-sm font-medium">
+                        {label}
+                      </div>
+                      <div className="text-slate-400 text-xs">
+                        {description}
+                      </div>
+                    </div>
+                    <Field
+                      type="checkbox"
+                      name={name}
+                      className="toggle toggle-primary"
+                    />
+                  </label>
+                ))}
               </div>
 
-              {/* Request Timeout */}
-              <div className="form-control">
-                <label className="label">
-                  Request Timeout: {values.request_timeout}s
-                </label>
-                <Field
-                  type="range"
-                  className="range range-primary"
-                  name="request_timeout"
-                  min="10"
-                  max="300"
-                  step="10"
-                />
-                <div className="text-xs text-gray-500 mt-1">
-                  API istekleri için timeout süresi (saniye)
-                </div>
-              </div>
-
-              {/* Processing Options */}
-              <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span>Metadata'yı Embedding'e Dahil Et</span>
-                  <Field
-                    type="checkbox"
-                    className="checkbox checkbox-primary ml-2"
-                    name="include_metadata_in_embedding"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  Chunk metadata'sını embedding metnine dahil et
-                </div>
-              </div>
-
-              <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span>Vektörleri Normalize Et</span>
-                  <Field
-                    type="checkbox"
-                    className="checkbox checkbox-primary ml-2"
-                    name="normalize_vectors"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  Embedding vektörlerini birim uzunluğa normalize et
-                </div>
-              </div>
-
-              <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span>Maliyet Tahmini</span>
-                  <Field
-                    type="checkbox"
-                    className="checkbox checkbox-primary ml-2"
-                    name="enable_cost_estimation"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  Embedding maliyetini hesapla ve göster
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="modal-action">
+              {/* Footer Buttons */}
+              <div className="flex justify-end space-x-4 pt-6 border-t border-slate-700/50">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg border border-slate-600 transition-all hover:scale-105"
                   onClick={() => dialogRef.current?.close()}
                   disabled={isSubmitting}
                 >
@@ -287,10 +309,10 @@ const OpenAIDocumentEmbedderConfigModal = forwardRef<
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="px-8 py-3 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-400 hover:to-pink-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-all hover:scale-105 disabled:opacity-50"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Save"}
+                  {isSubmitting ? "Saving..." : "Save Configuration"}
                 </button>
               </div>
             </Form>
