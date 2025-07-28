@@ -27,4 +27,6 @@ class User(Base):
     executions = relationship("WorkflowExecution", back_populates="user")
     organization_associations = relationship("OrganizationUser", back_populates="user", foreign_keys="[OrganizationUser.user_id]") 
     api_keys = relationship("APIKey", back_populates="user") 
-    memories = relationship("Memory", back_populates="user") 
+    memories = relationship("Memory", back_populates="user")
+    variables = relationship("Variable", back_populates="user", cascade="all, delete-orphan")
+    chat_messages = relationship("ChatMessage", back_populates="user", cascade="all, delete-orphan") 
