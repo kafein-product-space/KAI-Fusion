@@ -42,7 +42,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           maxSnack={3}
           anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         >
-          <ReactFlowProvider>{children}</ReactFlowProvider>
+          {children}
           <ScrollRestoration />
           <Scripts />
         </SnackbarProvider>

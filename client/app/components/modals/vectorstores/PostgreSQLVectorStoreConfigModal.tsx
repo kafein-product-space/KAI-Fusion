@@ -5,7 +5,8 @@ import React, {
   useState,
   useEffect,
 } from "react";
-import { Formik, Form, Field, ErrorMessage } from "formik";
+import { Formik, Form, Field } from "formik";
+import { Database, Trash, Settings } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 
 interface PostgreSQLVectorStoreConfigModalProps {
@@ -27,10 +28,46 @@ interface PostgreSQLVectorStoreConfig {
   enable_hnsw_index: boolean;
 }
 
+const embeddingModels = [
+  {
+    value: "text-embedding-3-small",
+    label: "Text Embedding 3 Small",
+    description: "1536D, $0.00002/1K tokens",
+  },
+  {
+    value: "text-embedding-3-large",
+    label: "Text Embedding 3 Large",
+    description: "3072D, $0.00013/1K tokens",
+  },
+  {
+    value: "text-embedding-ada-002",
+    label: "Text Embedding Ada 002",
+    description: "1536D, $0.00010/1K tokens",
+  },
+];
+
+const searchAlgorithms = [
+  {
+    value: "cosine",
+    label: "Cosine Similarity",
+    description: "Most common, good for normalized vectors",
+  },
+  {
+    value: "euclidean",
+    label: "Euclidean Distance",
+    description: "Direct distance measurement",
+  },
+  {
+    value: "dot_product",
+    label: "Dot Product",
+    description: "Fast but requires normalized vectors",
+  },
+];
+
 const PostgreSQLVectorStoreConfigModal = forwardRef<
   HTMLDialogElement,
   PostgreSQLVectorStoreConfigModalProps
->(({ nodeData, onSave, nodeId }, ref) => {
+>(({ nodeData, onSave }, ref) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { userCredentials } = useUserCredentialStore();
   const [selectedCredential, setSelectedCredential] = useState<string>("");
@@ -51,61 +88,26 @@ const PostgreSQLVectorStoreConfigModal = forwardRef<
     enable_hnsw_index: nodeData?.enable_hnsw_index !== false,
   };
 
-  // Handle credential selection
-  useEffect(() => {
-    if (selectedCredential && userCredentials) {
-      const credential = userCredentials.find(
-        (c: any) => c.id === selectedCredential
-      );
-      if (credential && credential.credential_type === "openai") {
-        // Update the form with the selected credential
-        // This would need to be handled through Formik's setFieldValue
-      }
-    }
-  }, [selectedCredential, userCredentials]);
-
-  const searchAlgorithms = [
-    {
-      value: "cosine",
-      label: "Cosine Similarity",
-      description: "Most common, good for normalized vectors",
-    },
-    {
-      value: "euclidean",
-      label: "Euclidean Distance",
-      description: "Direct distance measurement",
-    },
-    {
-      value: "dot_product",
-      label: "Dot Product",
-      description: "Fast but requires normalized vectors",
-    },
-  ];
-
-  const embeddingModels = [
-    {
-      value: "text-embedding-3-small",
-      label: "Text Embedding 3 Small",
-      description: "1536D, $0.00002/1K tokens",
-    },
-    {
-      value: "text-embedding-3-large",
-      label: "Text Embedding 3 Large",
-      description: "3072D, $0.00013/1K tokens",
-    },
-    {
-      value: "text-embedding-ada-002",
-      label: "Text Embedding Ada 002",
-      description: "1536D, $0.00010/1K tokens",
-    },
-  ];
-
   return (
-    <dialog ref={dialogRef} className="modal modal-bottom sm:modal-middle">
-      <div className="modal-box max-w-4xl max-h-[90vh] overflow-y-auto">
-        <h3 className="font-bold text-lg mb-2">
-          PostgreSQL Vector Store Ayarları
-        </h3>
+    <dialog
+      ref={dialogRef}
+      className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+    >
+      <div className="modal-box max-w-4xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl shadow-purple-500/10 backdrop-blur-xl">
+        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-700/50">
+          <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Database className="w-6 h-6 text-white" />
+          </div>
+          <div>
+            <h3 className="font-bold text-xl text-white">
+              PostgreSQL Vector Store
+            </h3>
+            <p className="text-slate-400 text-sm">
+              Configure your vector DB and retrieval settings
+            </p>
+          </div>
+        </div>
+
         <Formik
           initialValues={initialValues}
           enableReinitialize
@@ -115,225 +117,91 @@ const PostgreSQLVectorStoreConfigModal = forwardRef<
             setSubmitting(false);
           }}
         >
-          {({ isSubmitting, values, setFieldValue }) => (
-            <Form className="space-y-4 mt-4">
-              {/* Database Configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <label className="label">PostgreSQL Connection String</label>
-                  <Field
-                    className="input input-bordered w-full"
-                    name="connection_string"
-                    placeholder="postgresql://user:pass@host:port/db"
-                    type="password"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Full connection string with credentials
-                  </div>
+          {({ isSubmitting, values }) => (
+            <Form className="space-y-6">
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
+                <label className="text-white font-semibold mb-2 block">
+                  PostgreSQL Connection String
+                </label>
+                <Field
+                  name="connection_string"
+                  type="password"
+                  placeholder="postgresql://user:pass@host:port/db"
+                  className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg text-white px-4 py-3 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
+                />
+                <div className="text-xs text-slate-400 mt-2">
+                  Full connection string with credentials
                 </div>
+              </div>
 
-                <div className="form-control">
-                  <label className="label">Collection Name</label>
+              <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50 space-y-4">
+                <div>
+                  <label className="text-white font-semibold mb-2 block">
+                    Collection Name
+                  </label>
                   <Field
-                    className="input input-bordered w-full"
                     name="collection_name"
+                    className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg text-white px-4 py-3 placeholder-slate-400 focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all"
                     placeholder="rag_collection_123"
                   />
-                  <div className="text-xs text-gray-500 mt-1">
+                  <div className="text-xs text-slate-400 mt-2">
                     Vector collection name (auto-generated if empty)
                   </div>
                 </div>
-              </div>
 
-              {/* Collection Management */}
-              <div className="form-control">
-                <label className="label cursor-pointer">
-                  <span>Pre-delete Collection</span>
-                  <Field
-                    type="checkbox"
-                    className="checkbox checkbox-primary ml-2"
-                    name="pre_delete_collection"
-                  />
-                </label>
-                <div className="text-xs text-gray-500 mt-1">
-                  Delete existing collection before storing new documents
-                </div>
-              </div>
-
-              {/* Embedding Configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <label className="label">Fallback Embedding Model</label>
-                  <Field
-                    as="select"
-                    className="select select-bordered w-full"
-                    name="fallback_embed_model"
-                  >
-                    {embeddingModels.map((model) => (
-                      <option key={model.value} value={model.value}>
-                        {model.label} - {model.description}
-                      </option>
-                    ))}
+                <div className="flex items-center justify-between p-3 bg-slate-900/30 rounded-lg border border-slate-600/20">
+                  <div className="flex items-center space-x-3">
+                    <Trash className="w-4 h-4 text-slate-400" />
+                    <div>
+                      <div className="text-white text-sm font-medium">
+                        Pre-delete Collection
+                      </div>
+                      <div className="text-slate-400 text-xs">
+                        Delete existing collection before storing new documents
+                      </div>
+                    </div>
+                  </div>
+                  <Field name="pre_delete_collection">
+                    {({ field }: any) => (
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          {...field}
+                          type="checkbox"
+                          checked={field.value}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gradient-to-r peer-checked:from-blue-500 peer-checked:to-purple-600"></div>
+                      </label>
+                    )}
                   </Field>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Model for documents without embeddings
-                  </div>
-                </div>
-
-                <div className="form-control">
-                  <label className="label">OpenAI API Key</label>
-                  <Field
-                    className="input input-bordered w-full"
-                    name="openai_api_key"
-                    placeholder="sk-..."
-                    type="password"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    For fallback embedding generation
-                  </div>
                 </div>
               </div>
 
-              {/* Search Configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <div className="form-control">
-                  <label className="label">Search Algorithm</label>
-                  <Field
-                    as="select"
-                    className="select select-bordered w-full"
-                    name="search_algorithm"
-                  >
-                    {searchAlgorithms.map((algo) => (
-                      <option key={algo.value} value={algo.value}>
-                        {algo.label}
-                      </option>
-                    ))}
-                  </Field>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Vector similarity search method
-                  </div>
-                </div>
-
-                <div className="form-control">
-                  <label className="label">Search K: {values.search_k}</label>
-                  <Field
-                    type="range"
-                    className="range range-primary"
-                    name="search_k"
-                    min="1"
-                    max="50"
-                    step="1"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Number of documents to retrieve (1-50)
-                  </div>
-                </div>
-
-                <div className="form-control">
-                  <label className="label">
-                    Score Threshold: {values.score_threshold.toFixed(2)}
-                  </label>
-                  <Field
-                    type="range"
-                    className="range range-primary"
-                    name="score_threshold"
-                    min="0.0"
-                    max="1.0"
-                    step="0.05"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Minimum similarity score (0.0-1.0)
-                  </div>
-                </div>
-              </div>
-
-              {/* Performance Configuration */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="form-control">
-                  <label className="label">
-                    Batch Size: {values.batch_size}
-                  </label>
-                  <Field
-                    type="range"
-                    className="range range-primary"
-                    name="batch_size"
-                    min="10"
-                    max="1000"
-                    step="10"
-                  />
-                  <div className="text-xs text-gray-500 mt-1">
-                    Batch size for storing embeddings (10-1000)
-                  </div>
-                </div>
-
-                <div className="form-control">
-                  <label className="label cursor-pointer">
-                    <span>Enable HNSW Index</span>
-                    <Field
-                      type="checkbox"
-                      className="checkbox checkbox-primary ml-2"
-                      name="enable_hnsw_index"
-                    />
-                  </label>
-                  <div className="text-xs text-gray-500 mt-1">
-                    Create HNSW index for faster similarity search
-                  </div>
-                </div>
-              </div>
-
-              {/* Database Information */}
-              <div className="alert alert-info">
-                <div>
-                  <h4 className="font-bold">
-                    PostgreSQL + pgvector Requirements
-                  </h4>
-                  <div className="text-xs mt-1">
-                    • PostgreSQL 11+ with pgvector extension •{" "}
-                    <strong>CREATE EXTENSION vector;</strong> • Sufficient
-                    storage for embeddings • Network access to database
-                  </div>
-                </div>
-              </div>
-
-              {/* Example Connection String */}
-              <div className="form-control">
-                <label className="label">Example Connection String</label>
-                <div className="bg-gray-100 p-3 rounded-lg text-xs font-mono">
-                  postgresql://username:password@localhost:5432/vectordb
-                </div>
-                <div className="text-xs text-gray-500 mt-1">
-                  Standard PostgreSQL connection format
-                </div>
-              </div>
-
-              {/* Performance Tips */}
-              <div className="alert alert-warning">
-                <div>
-                  <h4 className="font-bold">Performance Tips</h4>
-                  <div className="text-xs mt-1">
-                    • Use HNSW index for large collections • Batch size affects
-                    memory usage • Monitor connection pool • Consider read
-                    replicas for high traffic
-                  </div>
-                </div>
-              </div>
-
-              {/* Buttons */}
-              <div className="modal-action">
+              <div className="flex justify-end space-x-4 pt-6 border-t border-slate-700/50">
                 <button
                   type="button"
-                  className="btn btn-outline"
+                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg border border-slate-600 transition-all duration-200 hover:scale-105 flex items-center space-x-2"
                   onClick={() => dialogRef.current?.close()}
                   disabled={isSubmitting}
                 >
-                  Cancel
+                  <span>Cancel</span>
                 </button>
                 <button
                   type="submit"
-                  className="btn btn-primary"
+                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-400 hover:to-purple-500 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   disabled={isSubmitting}
                 >
-                  {isSubmitting ? "Saving..." : "Save"}
+                  {isSubmitting ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Settings className="w-4 h-4" />
+                      <span>Save Configuration</span>
+                    </>
+                  )}
                 </button>
               </div>
             </Form>
