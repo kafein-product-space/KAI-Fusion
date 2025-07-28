@@ -47,6 +47,8 @@ services:
     container_name: kai-fusion-client
     ports:
       - "3000:3000"
+    env_file:
+      - .env
     environment:
       - VITE_API_BASE_URL=${VITE_API_BASE_URL}
       - VITE_API_VERSION=${VITE_API_VERSION}
