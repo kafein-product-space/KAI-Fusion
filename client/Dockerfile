@@ -1,30 +1,34 @@
-FROM node:20-alpine AS development-dependencies-env
-COPY . /app
+# 1. Bağımlılıkların kurulumu (prod ve dev)
+FROM node:22-alpine AS deps
 WORKDIR /app
+
+COPY package*.json ./
 RUN npm ci
 
-FROM node:20-alpine AS production-dependencies-env
-COPY ./package.json package-lock.json /app/
+# 2. Uygulama dosyaları ve build
+FROM node:22-alpine AS build
 WORKDIR /app
-RUN npm ci --omit=dev
 
-FROM node:20-alpine AS build-env
-COPY . /app/
-COPY --from=development-dependencies-env /app/node_modules /app/node_modules
-WORKDIR /app
+COPY . .
+COPY --from=deps /app/node_modules ./node_modules
 RUN npm run build
 
-FROM node:20-alpine AS production
-# Install only production dependencies
-COPY ./package.json package-lock.json /app/
+# 3. Prod sunucu (react-router-serve ile SSR)
+FROM node:22-alpine AS production
 WORKDIR /app
+
+# Yalnızca prod bağımlılıkları kuruluyor
+COPY package*.json ./
 RUN npm ci --omit=dev
 
-# Copy built application
-COPY --from=build-env /app/build /app/build
+# Build edilmiş uygulama kopyalanıyor
+COPY --from=build /app/build ./build
 
-# Expose port
+# react-router-serve CLI globalde çalıştırılmak isteniyorsa (opsiyonel)
+# RUN npm install -g @react-router/serve
+
+# Port dışa açılıyor
 EXPOSE 3000
 
-# Start the application
+# SSR server başlatılıyor
 CMD ["npm", "run", "start"]
