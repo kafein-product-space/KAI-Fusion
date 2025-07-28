@@ -34,13 +34,13 @@ CREATE TABLE node_configurations (
     configuration JSONB NOT NULL, -- Node-specific config
     position JSONB, -- UI position data
     created_at TIMESTAMP DEFAULT NOW(),
-    updated_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_node_config_workflow (workflow_id),
-    INDEX idx_node_config_type (node_type),
-    INDEX idx_node_config_node_id (node_id)
+    updated_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_node_config_workflow ON node_configurations (workflow_id);
+CREATE INDEX idx_node_config_type ON node_configurations (node_type);
+CREATE INDEX idx_node_config_node_id ON node_configurations (node_id);
 ```
 
 #### **Node Registry Table**
@@ -54,13 +54,13 @@ CREATE TABLE node_registry (
     schema_definition JSONB NOT NULL, -- Input/output schema
     ui_schema JSONB NOT NULL, -- UI configuration schema
     is_active BOOLEAN DEFAULT true,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_registry_type (node_type),
-    INDEX idx_registry_category (category),
-    INDEX idx_registry_active (is_active)
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_registry_type ON node_registry (node_type);
+CREATE INDEX idx_registry_category ON node_registry (category);
+CREATE INDEX idx_registry_active ON node_registry (is_active);
 ```
 
 ### 2. Unified Webhook System Tables
@@ -95,14 +95,14 @@ CREATE TABLE webhook_endpoints (
     
     -- Performance tracking
     avg_response_time_ms INTEGER DEFAULT 0,
-    error_count BIGINT DEFAULT 0,
-    
-    -- Indexes
-    INDEX idx_webhook_id (webhook_id),
-    INDEX idx_webhook_workflow (workflow_id),
-    INDEX idx_webhook_active (is_active),
-    INDEX idx_webhook_behavior (node_behavior)
+    error_count BIGINT DEFAULT 0
 );
+
+-- Indexes
+CREATE INDEX idx_webhook_id ON webhook_endpoints (webhook_id);
+CREATE INDEX idx_webhook_workflow ON webhook_endpoints (workflow_id);
+CREATE INDEX idx_webhook_active ON webhook_endpoints (is_active);
+CREATE INDEX idx_webhook_behavior ON webhook_endpoints (node_behavior);
 ```
 
 #### **Webhook Events Table** (Updated for unified system)
@@ -126,13 +126,13 @@ CREATE TABLE webhook_events (
     response_body JSONB,
     execution_time_ms INTEGER,
     error_message TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_webhook_logs_webhook (webhook_id),
-    INDEX idx_webhook_logs_created (created_at),
-    INDEX idx_webhook_logs_status (response_status)
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_webhook_logs_webhook ON webhook_events (webhook_id);
+CREATE INDEX idx_webhook_logs_created ON webhook_events (created_at);
+CREATE INDEX idx_webhook_logs_status ON webhook_events (response_status);
 
 -- Partition by month for performance
 CREATE TABLE webhook_logs_2024_01 PARTITION OF webhook_logs
@@ -158,14 +158,14 @@ CREATE TABLE scheduled_jobs (
     is_enabled BOOLEAN DEFAULT true,
     next_run_at TIMESTAMP,
     last_run_at TIMESTAMP,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_scheduled_jobs_workflow (workflow_id),
-    INDEX idx_scheduled_jobs_next_run (next_run_at),
-    INDEX idx_scheduled_jobs_enabled (is_enabled),
-    INDEX idx_scheduled_jobs_type (timer_type)
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_scheduled_jobs_workflow ON scheduled_jobs (workflow_id);
+CREATE INDEX idx_scheduled_jobs_next_run ON scheduled_jobs (next_run_at);
+CREATE INDEX idx_scheduled_jobs_enabled ON scheduled_jobs (is_enabled);
+CREATE INDEX idx_scheduled_jobs_type ON scheduled_jobs (timer_type);
 ```
 
 #### **Job Execution History**
@@ -179,13 +179,13 @@ CREATE TABLE job_executions (
     status VARCHAR(20) DEFAULT 'running', -- 'running', 'completed', 'failed'
     result JSONB,
     error_message TEXT,
-    execution_time_ms INTEGER,
-    
-    -- Indexes
-    INDEX idx_job_exec_job (job_id),
-    INDEX idx_job_exec_started (started_at),
-    INDEX idx_job_exec_status (status)
+    execution_time_ms INTEGER
 );
+
+-- Indexes
+CREATE INDEX idx_job_exec_job ON job_executions (job_id);
+CREATE INDEX idx_job_exec_started ON job_executions (started_at);
+CREATE INDEX idx_job_exec_status ON job_executions (status);
 
 -- Partition by month
 CREATE TABLE job_executions_2024_01 PARTITION OF job_executions
@@ -209,12 +209,12 @@ CREATE TABLE vector_collections (
     updated_at TIMESTAMP DEFAULT NOW(),
     
     -- Constraints
-    CONSTRAINT unique_workflow_collection UNIQUE (workflow_id, collection_name),
-    
-    -- Indexes
-    INDEX idx_vector_collections_workflow (workflow_id),
-    INDEX idx_vector_collections_name (collection_name)
+    CONSTRAINT unique_workflow_collection UNIQUE (workflow_id, collection_name)
 );
+
+-- Indexes
+CREATE INDEX idx_vector_collections_workflow ON vector_collections (workflow_id);
+CREATE INDEX idx_vector_collections_name ON vector_collections (collection_name);
 ```
 
 #### **Dynamic Vector Documents Tables**
@@ -257,14 +257,14 @@ CREATE TABLE http_request_logs (
     execution_time_ms INTEGER,
     error_message TEXT,
     retry_count INTEGER DEFAULT 0,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_http_logs_execution (workflow_execution_id),
-    INDEX idx_http_logs_node (node_id),
-    INDEX idx_http_logs_created (created_at),
-    INDEX idx_http_logs_status (response_status)
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_http_logs_execution ON http_request_logs (workflow_execution_id);
+CREATE INDEX idx_http_logs_node ON http_request_logs (node_id);
+CREATE INDEX idx_http_logs_created ON http_request_logs (created_at);
+CREATE INDEX idx_http_logs_status ON http_request_logs (response_status);
 
 -- Partition by month
 CREATE TABLE http_request_logs_2024_01 PARTITION OF http_request_logs
@@ -285,13 +285,13 @@ CREATE TABLE document_sources (
     document_count INTEGER DEFAULT 0,
     processing_status VARCHAR(20) DEFAULT 'pending',
     error_message TEXT,
-    created_at TIMESTAMP DEFAULT NOW(),
-    
-    -- Indexes
-    INDEX idx_doc_sources_workflow (workflow_id),
-    INDEX idx_doc_sources_type (source_type),
-    INDEX idx_doc_sources_status (processing_status)
+    created_at TIMESTAMP DEFAULT NOW()
 );
+
+-- Indexes
+CREATE INDEX idx_doc_sources_workflow ON document_sources (workflow_id);
+CREATE INDEX idx_doc_sources_type ON document_sources (source_type);
+CREATE INDEX idx_doc_sources_status ON document_sources (processing_status);
 ```
 
 #### **Document Processing Jobs**
@@ -307,13 +307,13 @@ CREATE TABLE document_processing_jobs (
     failed_items INTEGER DEFAULT 0,
     started_at TIMESTAMP,
     completed_at TIMESTAMP,
-    error_details JSONB,
-    
-    -- Indexes
-    INDEX idx_doc_jobs_source (source_id),
-    INDEX idx_doc_jobs_type (job_type),
-    INDEX idx_doc_jobs_status (status)
+    error_details JSONB
 );
+
+-- Indexes
+CREATE INDEX idx_doc_jobs_source ON document_processing_jobs (source_id);
+CREATE INDEX idx_doc_jobs_type ON document_processing_jobs (job_type);
+CREATE INDEX idx_doc_jobs_status ON document_processing_jobs (status);
 ```
 
 ---
