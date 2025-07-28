@@ -198,20 +198,20 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
         />
 
         {/* Left side label for input */}
-        <div className="absolute -left-20 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
+        <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
           Start
         </div>
 
         {/* Bottom side labels for inputs */}
         <div
           className="absolute -bottom-8 text-xs text-gray-500 font-medium"
-          style={{ left: "15%" }}
+          style={{ left: "10%" }}
         >
           LLM
         </div>
         <div
           className="absolute -bottom-8 text-xs text-gray-500 font-medium"
-          style={{ left: "45%" }}
+          style={{ left: "35%" }}
         >
           Memory
         </div>
@@ -223,7 +223,7 @@ const ToolAgentNode = React.memo(function ToolAgentNode({
         </div>
 
         {/* Right side label for output */}
-        <div className="absolute -right-20 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
+        <div className="absolute -right-15 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
           Output
         </div>
 

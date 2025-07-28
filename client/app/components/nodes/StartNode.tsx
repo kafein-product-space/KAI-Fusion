@@ -124,7 +124,7 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
         />
 
         {/* Right side label for output */}
-        <div className="absolute -right-20 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
+        <div className="absolute -right-15 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
           Execute
         </div>
 
