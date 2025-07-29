@@ -53,6 +53,7 @@ import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import ChatBubble from "../common/ChatBubble";
 import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
+import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoaderNode";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
 import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedderNode";
 import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitterNode";
@@ -75,6 +76,7 @@ const baseNodeTypes = {
   ConversationMemory: ConversationMemoryNode,
   TavilySearch: TavilySearchNode,
   WebScraper: WebScraperNode,
+  DocumentLoader: DocumentLoaderNode,
   EndNode: EndNode,
   RouterChain: RouterChainNode,
   RetrievalQA: RetrievalQANode,
