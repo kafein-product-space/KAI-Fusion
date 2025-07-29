@@ -311,6 +311,7 @@ class Workflow(Base):
     variables = relationship("Variable", back_populates="workflow", cascade="all, delete-orphan")
     chat_messages = relationship("ChatMessage", back_populates="workflow", cascade="all, delete-orphan")
     scheduled_jobs = relationship("ScheduledJob", back_populates="workflow", cascade="all, delete-orphan")
+    webhook_endpoints = relationship("WebhookEndpoint", back_populates="workflow", cascade="all, delete-orphan")
     
     # Composite indexes for common query patterns
     __table_args__ = (

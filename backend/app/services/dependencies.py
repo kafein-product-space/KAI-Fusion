@@ -16,6 +16,7 @@ from app.services.api_key_service import APIKeyService
 from app.services.variable_service import VariableService
 from app.services.chat_service import ChatService
 from app.services.scheduled_job_service import ScheduledJobService
+from app.services.webhook_service import WebhookService
 
 
 @lru_cache
@@ -49,5 +50,8 @@ def get_variable_service_dep() -> VariableService:
 
 async def get_scheduled_job_service_dep(db: AsyncSession = Depends(get_db_session)) -> ScheduledJobService:
     return ScheduledJobService(db)
+@lru_cache
+def get_webhook_service_dep() -> WebhookService:
+    return WebhookService()
 
 # ChatService requires db at initialization, so we create it inline in the endpoint 

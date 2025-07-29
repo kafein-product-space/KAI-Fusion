@@ -10,6 +10,7 @@ from .variable import Variable
 from .memory import Memory
 from .node_configuration import NodeConfiguration
 from .node_registry import NodeRegistry
+from .webhook import WebhookEndpoint, WebhookEvent
 from .api_key import APIKey
 from .scheduled_job import ScheduledJob, JobExecution
 
@@ -33,6 +34,9 @@ __all__ = [
     "NodeRegistry",
     "APIKey",
     "ScheduledJob",
-    "JobExecution"
+    "JobExecution",
+    "WebhookEndpoint",
+    "WebhookEvent"
+    "APIKey"
 ]
 

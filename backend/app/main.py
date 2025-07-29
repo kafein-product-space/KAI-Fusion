@@ -314,11 +314,10 @@ from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
+from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 
-# Import webhook router
-from app.nodes.triggers.webhook_trigger import webhook_router
 from app.routes.export import router as export_router
 
 logger = logging.getLogger(__name__)
@@ -433,8 +432,9 @@ app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=[
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
 app.include_router(scheduled_jobs_router, tags=["Scheduled Jobs"])
 
-# Include webhook router (already has /api/webhooks prefix)
-app.include_router(webhook_router, tags=["Webhooks"])
+# Include webhook routers
+app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
+app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
 app.include_router(export_router, prefix="/api", tags=["Export"])
 
 
