@@ -71,6 +71,13 @@ class DatabaseSetup:
             "node_configurations",
             "node_registry",
             "api_keys",
+            "scheduled_jobs",
+            "job_executions",
+            "document_collections",
+            "documents",
+            "document_chunks",
+            "document_access_logs",
+            "document_versions",
             "webhook_endpoints",
             "webhook_events"
         ]
@@ -143,14 +150,23 @@ class DatabaseSetup:
             
         try:
             async with self.engine.begin() as conn:
-                # PostgreSQL için tablo listesi sorgusu
+                # PostgreSQL için tablo listesi sorgusu - DISTINCT ile tekrarları önle
                 result = await conn.execute(text("""
-                    SELECT tablename 
+                    SELECT DISTINCT tablename 
                     FROM pg_tables 
                     WHERE schemaname = 'public'
                     ORDER BY tablename
                 """))
                 tables = [row[0] for row in result.fetchall()]
+                
+                # Tekrarlanan tabloları kontrol et
+                if len(tables) != len(set(tables)):
+                    logger.warning("⚠️ Tekrarlanan tablo isimleri tespit edildi!")
+                    logger.warning(f"Ham liste: {tables}")
+                    # Tekrarları kaldır
+                    tables = list(dict.fromkeys(tables))  # Sırayı koruyarak tekrarları kaldır
+                    logger.info(f"Tekrarlar kaldırıldı: {tables}")
+                
                 logger.info(f"📋 Mevcut tablolar: {', '.join(tables) if tables else 'Hiç tablo yok'}")
                 return tables
         except Exception as e:
@@ -217,7 +233,10 @@ class DatabaseSetup:
                 WorkflowExecution, ExecutionCheckpoint, Role, Organization,
                 OrganizationUser, LoginMethod, LoginActivity, ChatMessage,
                 Variable, Memory, NodeConfiguration, NodeRegistry,
+                ScheduledJob, JobExecution,
+                DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
                 WebhookEndpoint, WebhookEvent
+            )
             
             # API Key modelini kontrol et
             try:
@@ -352,7 +371,16 @@ class DatabaseSetup:
         else:
             logger.info("✅ Tüm beklenen tablolar mevcut")
         
-        logger.info(f"📋 Mevcut tablolar: {', '.join(validation['existing_tables'])}")
+        # Mevcut tabloları düzenli şekilde göster
+        if validation['existing_tables']:
+            logger.info("📋 Mevcut tablolar:")
+            # Tabloları alfabetik sıraya göre grupla
+            sorted_tables = sorted(validation['existing_tables'])
+            for i, table in enumerate(sorted_tables, 1):
+                logger.info(f"   {i:2d}. {table}")
+        else:
+            logger.info("📋 Mevcut tablo yok")
+        
         logger.info("=" * 60)
 
 async def main():

@@ -12,6 +12,7 @@ from .node_configuration import NodeConfiguration
 from .node_registry import NodeRegistry
 from .webhook import WebhookEndpoint, WebhookEvent
 from .api_key import APIKey
+from .scheduled_job import ScheduledJob, JobExecution
 
 __all__ = [
     "Base",
@@ -31,6 +32,9 @@ __all__ = [
     "Memory",
     "NodeConfiguration",
     "NodeRegistry",
+    "APIKey",
+    "ScheduledJob",
+    "JobExecution",
     "WebhookEndpoint",
     "WebhookEvent"
     "APIKey"
