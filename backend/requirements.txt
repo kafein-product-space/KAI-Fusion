@@ -39,6 +39,7 @@ rank-bm25>=0.2.2
 # Scheduling and Triggers
 croniter>=1.4.0
 APScheduler>=3.10.0
+pytz>=2023.3
 
 # Environment
 python-dotenv>=1.0.0

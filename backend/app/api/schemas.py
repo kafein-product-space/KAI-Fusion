@@ -1,6 +1,7 @@
 import uuid
 from pydantic import BaseModel, Field
 from typing import List, Dict, Any, Optional
+from datetime import datetime
 
 class WorkflowNode(BaseModel):
     id: str = Field(description="Unique identifier for the node")
@@ -101,3 +102,59 @@ class NodeRegistryListResponse(BaseModel):
     total: int = Field(description="Total number of entries")
     page: int = Field(description="Current page number")
     size: int = Field(description="Page size")
+
+# Scheduled Jobs Schemas
+class ScheduledJobCreate(BaseModel):
+    workflow_id: uuid.UUID = Field(description="Workflow ID to schedule")
+    node_id: str = Field(description="Node ID to execute")
+    job_name: str = Field(description="Name of the scheduled job")
+    timer_type: str = Field(description="Timer type: cron, interval, or once")
+    cron_expression: Optional[str] = Field(default=None, description="Cron expression for cron type")
+    interval_seconds: Optional[int] = Field(default=None, description="Interval in seconds for interval type")
+    delay_seconds: Optional[int] = Field(default=None, description="Delay in seconds for once type")
+    timezone: str = Field(default="UTC", description="Timezone for scheduling")
+    max_executions: int = Field(default=0, description="Maximum executions (0 = unlimited)")
+    is_enabled: bool = Field(default=True, description="Whether the job is enabled")
+
+class ScheduledJobUpdate(BaseModel):
+    job_name: Optional[str] = Field(default=None, description="Name of the scheduled job")
+    timer_type: Optional[str] = Field(default=None, description="Timer type: cron, interval, or once")
+    cron_expression: Optional[str] = Field(default=None, description="Cron expression for cron type")
+    interval_seconds: Optional[int] = Field(default=None, description="Interval in seconds for interval type")
+    delay_seconds: Optional[int] = Field(default=None, description="Delay in seconds for once type")
+    timezone: Optional[str] = Field(default=None, description="Timezone for scheduling")
+    max_executions: Optional[int] = Field(default=None, description="Maximum executions (0 = unlimited)")
+    is_enabled: Optional[bool] = Field(default=None, description="Whether the job is enabled")
+
+class ScheduledJobResponse(BaseModel):
+    id: uuid.UUID = Field(description="Scheduled job ID")
+    workflow_id: uuid.UUID = Field(description="Workflow ID")
+    node_id: str = Field(description="Node ID to execute")
+    job_name: str = Field(description="Name of the scheduled job")
+    timer_type: str = Field(description="Timer type")
+    cron_expression: Optional[str] = Field(default=None, description="Cron expression")
+    interval_seconds: Optional[int] = Field(default=None, description="Interval in seconds")
+    delay_seconds: Optional[int] = Field(default=None, description="Delay in seconds")
+    timezone: str = Field(description="Timezone")
+    max_executions: int = Field(description="Maximum executions")
+    current_executions: int = Field(description="Current execution count")
+    is_enabled: bool = Field(description="Whether the job is enabled")
+    next_run_at: Optional[datetime] = Field(default=None, description="Next scheduled run")
+    last_run_at: Optional[datetime] = Field(default=None, description="Last execution time")
+    created_at: datetime = Field(description="Creation timestamp")
+
+class JobExecutionResponse(BaseModel):
+    id: uuid.UUID = Field(description="Job execution ID")
+    job_id: uuid.UUID = Field(description="Scheduled job ID")
+    execution_id: Optional[uuid.UUID] = Field(default=None, description="Workflow execution ID")
+    started_at: datetime = Field(description="Execution start time")
+    completed_at: Optional[datetime] = Field(default=None, description="Execution completion time")
+    status: str = Field(description="Execution status")
+    result: Optional[Dict[str, Any]] = Field(default=None, description="Execution result")
+    error_message: Optional[str] = Field(default=None, description="Error message if failed")
+    execution_time_ms: Optional[int] = Field(default=None, description="Execution time in milliseconds")
+
+class JobTriggerResponse(BaseModel):
+    success: bool = Field(description="Whether manual trigger was successful")
+    execution_id: Optional[uuid.UUID] = Field(default=None, description="Created execution ID")
+    message: str = Field(description="Trigger result message")

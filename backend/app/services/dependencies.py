@@ -5,6 +5,8 @@ for the Agent-Flow V2 service layer.
 """
 
 from functools import lru_cache
+from fastapi import Depends
+from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db_session
 from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService, WorkflowTemplateService
@@ -13,6 +15,7 @@ from app.services.credential_service import CredentialService
 from app.services.api_key_service import APIKeyService
 from app.services.variable_service import VariableService
 from app.services.chat_service import ChatService
+from app.services.scheduled_job_service import ScheduledJobService
 
 
 @lru_cache
@@ -43,5 +46,8 @@ def get_api_key_service() -> APIKeyService:
 @lru_cache
 def get_variable_service_dep() -> VariableService:
     return VariableService()
+
+async def get_scheduled_job_service_dep(db: AsyncSession = Depends(get_db_session)) -> ScheduledJobService:
+    return ScheduledJobService(db)
 
 # ChatService requires db at initialization, so we create it inline in the endpoint 

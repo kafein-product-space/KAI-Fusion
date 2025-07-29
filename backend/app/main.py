@@ -315,6 +315,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.documents import router as documents_router
+from app.api.scheduled_jobs import router as scheduled_jobs_router
 
 # Import webhook router
 from app.nodes.triggers.webhook_trigger import webhook_router
@@ -430,6 +431,7 @@ app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variable
 app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
 app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
+app.include_router(scheduled_jobs_router, tags=["Scheduled Jobs"])
 
 # Include webhook router (already has /api/webhooks prefix)
 app.include_router(webhook_router, tags=["Webhooks"])

@@ -11,6 +11,7 @@ from .memory import Memory
 from .node_configuration import NodeConfiguration
 from .node_registry import NodeRegistry
 from .api_key import APIKey
+from .scheduled_job import ScheduledJob, JobExecution
 
 __all__ = [
     "Base",
@@ -30,6 +31,8 @@ __all__ = [
     "Memory",
     "NodeConfiguration",
     "NodeRegistry",
-    "APIKey"
+    "APIKey",
+    "ScheduledJob",
+    "JobExecution"
 ]
 
