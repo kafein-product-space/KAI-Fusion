@@ -68,7 +68,7 @@ async def lifespan(app: FastAPI):
         logger.error(f"❌ Failed to initialize tracing: {e}")
     
     # Initialize database only if CREATE_DATABASE is enabled
-    if CREATE_DATABASE:
+    if CREATE_DATABASE == "true":
         try:
             await create_tables()
             logger.info("✅ Database tables created or already exist.")
@@ -163,7 +163,7 @@ async def health_check():
         
         # Database health (conditional based on CREATE_DATABASE setting)
         db_status = {"enabled": CREATE_DATABASE}
-        if CREATE_DATABASE:
+        if CREATE_DATABASE == "true":
             try:
                 db_health = await check_database_health()
                 db_status.update({
@@ -186,7 +186,7 @@ async def health_check():
             db_status["status"] = "disabled (CREATE_DATABASE=false)"
         
         overall_healthy = nodes_healthy and engine_healthy and (
-            not CREATE_DATABASE or db_status.get("status") == "healthy"
+            not CREATE_DATABASE == "true"  or db_status.get("status") == "healthy"
         )
         
         return {
