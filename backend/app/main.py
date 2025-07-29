@@ -289,10 +289,9 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter
 
 # Core imports
-from app.core.constants import CREATE_DATABASE
 from app.core.node_registry import node_registry
 from app.core.engine_v2 import get_engine
-from app.core.database import create_tables, get_db_session, check_database_health, get_database_stats
+from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
 
@@ -351,23 +350,17 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to initialize tracing: {e}")
     
-    # Initialize database only if CREATE_DATABASE is enabled
-    if CREATE_DATABASE:
-        try:
-            await create_tables()
-            logger.info("✅ Database tables created or already exist.")
+    # Initialize database
+    try:
+        # Test database connection
+        db_health = await check_database_health()
+        if db_health["healthy"]:
+            logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
+        else:
+            logger.warning(f"⚠️ Database connection test failed: {db_health.get('error', 'Unknown error')}")
             
-            # Test database connection
-            db_health = await check_database_health()
-            if db_health["healthy"]:
-                logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
-            else:
-                logger.warning(f"⚠️ Database connection test failed: {db_health.get('error', 'Unknown error')}")
-                
-        except Exception as e:
-            logger.error(f"❌ Database initialization failed: {e}")
-    else:
-        logger.info("ℹ️ Database creation/validation skipped (CREATE_DATABASE=false or not set)")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
     
     logger.info("✅ Backend initialization complete - KAI Fusion Ready!")
     
@@ -455,33 +448,28 @@ async def health_check():
         except Exception:
             engine_healthy = False
         
-        # Database health (conditional based on CREATE_DATABASE setting)
-        db_status = {"enabled": CREATE_DATABASE}
-        if CREATE_DATABASE:
-            try:
-                db_health = await check_database_health()
-                db_status.update({
-                    "status": "healthy" if db_health["healthy"] else "error",
-                    "response_time_ms": db_health["response_time_ms"],
-                    "connection_test": db_health["connection_test"],
-                    "query_test": db_health["query_test"]
-                })
-                
-                # Add database statistics
-                db_stats = get_database_stats()
-                db_status["statistics"] = db_stats
-                
-            except Exception as e:
-                db_status.update({
-                    "status": "error",
-                    "error": str(e)
-                })
-        else:
-            db_status["status"] = "disabled (CREATE_DATABASE=false)"
+        # Database health check
+        db_status = {"enabled": True}
+        try:
+            db_health = await check_database_health()
+            db_status.update({
+                "status": "healthy" if db_health["healthy"] else "error",
+                "response_time_ms": db_health["response_time_ms"],
+                "connection_test": db_health["connection_test"],
+                "query_test": db_health["query_test"]
+            })
+            
+            # Add database statistics
+            db_stats = get_database_stats()
+            db_status["statistics"] = db_stats
+            
+        except Exception as e:
+            db_status.update({
+                "status": "error",
+                "error": str(e)
+            })
         
-        overall_healthy = nodes_healthy and engine_healthy and (
-            not CREATE_DATABASE or db_status.get("status") == "healthy"
-        )
+        overall_healthy = nodes_healthy and engine_healthy and db_status.get("status") == "healthy"
         
         return {
             "status": "healthy" if overall_healthy else "degraded",
@@ -537,7 +525,7 @@ async def get_info():
                 "total_nodes": len(node_registry.nodes),
                 "node_types": list(set(node.__name__ for node in node_registry.nodes.values())),
                 "api_endpoints": 25,  # Approximate count
-                "database_enabled": CREATE_DATABASE
+                "database_enabled": True
             },
             "engine": {
                 "type": "LangGraph Unified Engine",
@@ -588,7 +576,7 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
         "info": "/api/v1/info",
-        "database_enabled": CREATE_DATABASE
+        "database_enabled": True
     }
 
 if __name__ == "__main__":

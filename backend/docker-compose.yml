@@ -1,6 +1,6 @@
 version: '3'
 services:
-  kaifusion:d
+  kaifusion:
     build:
       context: .
       dockerfile: Dockerfile
