@@ -81,17 +81,12 @@ function DocumentLoaderNode({ data, id }: DocumentLoaderNodeProps) {
     }
   };
 
+  const getSourceTypeIcon = () => {
+    return <File className="w-4 h-4 text-emerald-400" />;
+  };
+
   const getSourceTypeLabel = () => {
-    switch (data.source_type) {
-      case "web_only":
-        return "Web";
-      case "files_only":
-        return "Files";
-      case "mixed":
-        return "Mixed";
-      default:
-        return "Loader";
-    }
+    return "Files";
   };
 
   const getFormatsCount = () => {
@@ -162,6 +157,22 @@ function DocumentLoaderNode({ data, id }: DocumentLoaderNodeProps) {
             </button>
           </>
         )}
+
+        {/* Input Handle */}
+        <NeonHandle
+          type="target"
+          position={Position.Bottom}
+          id="input"
+          size={10}
+          isConnectable={true}
+          color1="#3b82f6"
+          glow={isHandleConnected("input", false)}
+        />
+
+        {/* Bottom side label for input */}
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-xs text-gray-500 font-medium">
+          Trigger
+        </div>
 
         {/* Output Handle */}
         <NeonHandle

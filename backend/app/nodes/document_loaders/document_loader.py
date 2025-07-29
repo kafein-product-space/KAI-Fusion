@@ -285,12 +285,9 @@ import logging
 import mimetypes
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
-from urllib.parse import urlparse
 from datetime import datetime
 
 from langchain_core.documents import Document
-from langchain_tavily import TavilySearch
-from bs4 import BeautifulSoup
 import re
 
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
@@ -416,11 +413,11 @@ class DocumentLoaderNode(ProviderNode):
         super().__init__()
         self._metadata = {
             "name": "DocumentLoader",
-            "display_name": "Universal Document Loader",
+            "display_name": "Document Loader",
             "description": (
-                "Universal document loader supporting multiple formats (TXT, JSON, Word, PDF) "
-                "and sources (web URLs via Tavily, local files). Processes and normalizes "
-                "documents for downstream AI workflows with quality validation and storage."
+                "Document loader supporting multiple formats (TXT, JSON, Word, PDF) "
+                "for local files. Processes and normalizes documents for downstream AI workflows "
+                "with quality validation and storage."
             ),
             "category": NodeCategory.DOCUMENT_LOADER,
             "node_type": NodeType.PROVIDER,
@@ -428,35 +425,16 @@ class DocumentLoaderNode(ProviderNode):
             "color": "#059669",
             "inputs": [
                 NodeInput(
-                    name="source_type",
-                    type="select",
-                    description="Type of document sources to process",
-                    choices=[
-                        {"value": "web_only", "label": "Web URLs Only", "description": "Process only web URLs via Tavily"},
-                        {"value": "files_only", "label": "Local Files Only", "description": "Process only local file paths"},
-                        {"value": "mixed", "label": "Mixed Sources", "description": "Process both web URLs and local files"},
-                    ],
-                    default="mixed",
-                    required=True,
-                ),
-                NodeInput(
-                    name="web_urls",
-                    type="textarea",
-                    description="Web URLs to fetch and process (one per line, only used if source_type includes web)",
+                    name="trigger",
+                    type="any",
+                    description="Trigger signal to start document processing (optional)",
                     required=False,
                 ),
                 NodeInput(
                     name="file_paths",
                     type="textarea", 
-                    description="Local file paths to process (one per line, only used if source_type includes files)",
+                    description="Local file paths to process (one per line)",
                     required=False,
-                ),
-                NodeInput(
-                    name="tavily_api_key",
-                    type="str",
-                    description="Tavily API Key for web content (leave empty to use environment variable)",
-                    required=False,
-                    is_secret=True
                 ),
                 NodeInput(
                     name="supported_formats",
@@ -467,9 +445,8 @@ class DocumentLoaderNode(ProviderNode):
                         {"value": "json", "label": "JSON (.json)", "description": "Process JSON documents"},
                         {"value": "docx", "label": "Word (.docx)", "description": "Process Microsoft Word documents"},
                         {"value": "pdf", "label": "PDF (.pdf)", "description": "Process PDF documents"},
-                        {"value": "web", "label": "Web Content", "description": "Process web URLs"},
                     ],
-                    default=["txt", "json", "docx", "pdf", "web"],
+                    default=["txt", "json", "docx", "pdf"],
                     required=False,
                 ),
                 NodeInput(
@@ -772,79 +749,7 @@ class DocumentLoaderNode(ProviderNode):
         except Exception as e:
             raise ValueError(f"Failed to process PDF file {file_path}: {str(e)}") from e
 
-    def _process_web_content(self, url: str, tavily_api_key: str) -> Document:
-        """Process web content using Tavily API."""
-        try:
-            # Initialize Tavily
-            tavily_tool = TavilySearch(
-                tavily_api_key=tavily_api_key,
-                max_results=1,
-                search_depth="url",
-                include_raw_content=True,
-                include_answer=False,
-            )
-            
-            # Fetch content
-            result = tavily_tool.run(url)
-            
-            # Extract HTML content
-            html_content = ""
-            if isinstance(result, dict):
-                html_content = result.get("raw_content", "")
-            elif isinstance(result, str):
-                html_content = result
-            else:
-                html_content = str(result)
-            
-            if not html_content:
-                raise ValueError(f"No content retrieved from {url}")
-            
-            # Clean HTML content
-            clean_text = self._clean_html_content(html_content)
-            
-            # Extract domain for metadata
-            parsed_url = urlparse(url)
-            domain = parsed_url.netloc
-            
-            return Document(
-                page_content=clean_text,
-                metadata={
-                    "source": url,
-                    "domain": domain,
-                    "format": "web",
-                    "doc_id": uuid.uuid4().hex[:8],
-                    "content_length": len(clean_text),
-                    "fetch_timestamp": datetime.now().isoformat(),
-                }
-            )
-            
-        except Exception as e:
-            raise ValueError(f"Failed to process web content from {url}: {str(e)}") from e
 
-    def _clean_html_content(self, html: str) -> str:
-        """Clean HTML content and extract readable text."""
-        try:
-            soup = BeautifulSoup(html, 'html.parser')
-            
-            # Remove unwanted elements
-            for element in soup(['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript']):
-                element.decompose()
-            
-            # Extract text
-            text = soup.get_text(separator=' ', strip=True)
-            
-            # Clean up text
-            text = re.sub(r'\s+', ' ', text)
-            text = re.sub(r'[`"\'<>{}[\]]+', ' ', text)
-            text = re.sub(r'\b(function|var|const|let|if|else|for|while|return)\b', ' ', text)
-            text = re.sub(r'[{}();,]+', ' ', text)
-            text = re.sub(r'\s+', ' ', text)
-            
-            return text.strip()
-            
-        except Exception as e:
-            logger.error(f"Error cleaning HTML content: {e}")
-            return ""
 
     def _calculate_quality_score(self, document: Document) -> float:
         """Calculate quality score for a document."""
@@ -912,44 +817,35 @@ class DocumentLoaderNode(ProviderNode):
         """
         logger.info("📚 Starting Universal Document Loader execution")
         
+        # Check for trigger input (optional)
+        trigger = kwargs.get("trigger")
+        if trigger is not None:
+            logger.info(f"🎯 Document loader triggered with signal: {type(trigger).__name__}")
+        
         # Get configuration
-        source_type = kwargs.get("source_type", "mixed")
-        web_urls_str = kwargs.get("web_urls", "")
         file_paths_str = kwargs.get("file_paths", "")
-        supported_formats = kwargs.get("supported_formats", ["txt", "json", "docx", "pdf", "web"])
+        supported_formats = kwargs.get("supported_formats", ["txt", "json", "docx", "pdf"])
         min_content_length = int(kwargs.get("min_content_length", 50))
         max_file_size_mb = int(kwargs.get("max_file_size_mb", 50))
         storage_enabled = kwargs.get("storage_enabled", False)
         deduplicate = kwargs.get("deduplicate", True)
         quality_threshold = float(kwargs.get("quality_threshold", 0.5))
         
-        # Get Tavily API key if needed
-        tavily_api_key = kwargs.get("tavily_api_key") or os.getenv("TAVILY_API_KEY")
-        
-        # Parse sources
-        web_urls = []
+        # Parse file paths
         file_paths = []
         
-        if source_type in ["web_only", "mixed"] and web_urls_str:
-            web_urls = [url.strip() for url in web_urls_str.splitlines() if url.strip()]
-            
-        if source_type in ["files_only", "mixed"] and file_paths_str:
+        if file_paths_str:
             file_paths = [path.strip() for path in file_paths_str.splitlines() if path.strip()]
         
-        if not web_urls and not file_paths:
-            raise ValueError("No sources provided. Please specify web URLs or file paths based on source_type.")
+        if not file_paths:
+            raise ValueError("No file paths provided. Please specify local file paths to process.")
         
-        # Validate Tavily key for web sources
-        if web_urls and "web" in supported_formats and not tavily_api_key:
-            raise ValueError("Tavily API key required for web content processing.")
-        
-        logger.info(f"🎯 Processing {len(web_urls)} web URLs and {len(file_paths)} local files")
+        logger.info(f"🎯 Processing {len(file_paths)} local files")
         
         # Process sources
         documents = []
         stats = {
-            "total_sources": len(web_urls) + len(file_paths),
-            "web_sources": len(web_urls),
+            "total_sources": len(file_paths),
             "file_sources": len(file_paths),
             "successful_processed": 0,
             "failed_processed": 0,
@@ -957,31 +853,6 @@ class DocumentLoaderNode(ProviderNode):
             "processing_errors": [],
             "start_time": datetime.now().isoformat(),
         }
-        
-        # Process web URLs
-        for url in web_urls:
-            if "web" not in supported_formats:
-                logger.info(f"⏭️ Skipping web URL (format not enabled): {url}")
-                continue
-                
-            try:
-                logger.info(f"🌐 Processing web URL: {url}")
-                doc = self._process_web_content(url, tavily_api_key)
-                
-                if len(doc.page_content) >= min_content_length:
-                    documents.append(doc)
-                    stats["successful_processed"] += 1
-                    stats["formats_processed"]["web"] = stats["formats_processed"].get("web", 0) + 1
-                    logger.info(f"✅ Successfully processed web URL: {url}")
-                else:
-                    logger.warning(f"⚠️ Web content too short: {url} ({len(doc.page_content)} chars)")
-                    stats["failed_processed"] += 1
-                    
-            except Exception as e:
-                error_msg = f"Failed to process web URL {url}: {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                stats["failed_processed"] += 1
-                stats["processing_errors"].append(error_msg)
         
         # Process local files
         for file_path in file_paths:

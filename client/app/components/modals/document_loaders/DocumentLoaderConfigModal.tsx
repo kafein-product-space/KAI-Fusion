@@ -6,19 +6,7 @@ import React, {
   useState,
 } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { useUserCredentialStore } from "~/stores/userCredential";
-import { getUserCredentialSecret } from "~/services/userCredentialService";
-import {
-  FileText,
-  Key,
-  Lock,
-  Settings,
-  Trash2,
-  Globe,
-  Upload,
-  FolderOpen,
-  X,
-} from "lucide-react";
+import { FileText, Settings, Upload, FolderOpen, X } from "lucide-react";
 
 interface DocumentLoaderConfigModalProps {
   nodeData: any;
@@ -27,10 +15,7 @@ interface DocumentLoaderConfigModalProps {
 }
 
 interface DocumentLoaderConfig {
-  source_type: string;
-  web_urls: string;
   file_paths: string;
-  tavily_api_key: string;
   supported_formats: string[];
   min_content_length: number;
   max_file_size_mb: number;
@@ -53,29 +38,17 @@ const DocumentLoaderConfigModal = forwardRef<
   const dialogRef = useRef<HTMLDialogElement>(null);
   useImperativeHandle(ref, () => dialogRef.current!);
 
-  const { userCredentials, fetchCredentials, isLoading } =
-    useUserCredentialStore();
-  const [selectedCredentialId, setSelectedCredentialId] = useState<string>("");
-  const [loadingCredential, setLoadingCredential] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
-  useEffect(() => {
-    fetchCredentials();
-  }, [fetchCredentials]);
-
   const initialValues: DocumentLoaderConfig = {
-    source_type: nodeData?.source_type || "mixed",
-    web_urls: nodeData?.web_urls || "",
     file_paths: nodeData?.file_paths || "",
-    tavily_api_key: nodeData?.tavily_api_key || "",
     supported_formats: nodeData?.supported_formats || [
       "txt",
       "json",
       "docx",
       "pdf",
-      "web",
     ],
     min_content_length: nodeData?.min_content_length || 50,
     max_file_size_mb: nodeData?.max_file_size_mb || 50,
@@ -214,25 +187,6 @@ const DocumentLoaderConfigModal = forwardRef<
       description: "Process Microsoft Word documents",
     },
     { value: "pdf", label: "PDF (.pdf)", description: "Process PDF documents" },
-    { value: "web", label: "Web Content", description: "Process web URLs" },
-  ];
-
-  const sourceTypeOptions = [
-    {
-      value: "web_only",
-      label: "Web URLs Only",
-      description: "Process only web URLs via Tavily",
-    },
-    {
-      value: "files_only",
-      label: "Local Files Only",
-      description: "Process only local file paths",
-    },
-    {
-      value: "mixed",
-      label: "Mixed Sources",
-      description: "Process both web URLs and local files",
-    },
   ];
 
   return (
@@ -247,11 +201,9 @@ const DocumentLoaderConfigModal = forwardRef<
             <FileText className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-xl text-white">
-              Universal Document Loader
-            </h3>
+            <h3 className="font-bold text-xl text-white">Document Loader</h3>
             <p className="text-slate-400 text-sm">
-              Process multiple document formats and sources
+              Process local document files (TXT, JSON, DOCX, PDF)
             </p>
           </div>
         </div>
@@ -261,21 +213,8 @@ const DocumentLoaderConfigModal = forwardRef<
           enableReinitialize
           validate={(values) => {
             const errors: Record<string, string> = {};
-            if (values.source_type === "web_only" && !values.web_urls) {
-              errors.web_urls =
-                "Please enter at least one URL for web-only mode.";
-            }
-            if (values.source_type === "files_only" && !values.file_paths) {
-              errors.file_paths =
-                "Please enter at least one file path for files-only mode.";
-            }
-            if (
-              values.source_type === "mixed" &&
-              !values.web_urls &&
-              !values.file_paths
-            ) {
-              errors.web_urls =
-                "Please enter at least one URL or file path for mixed mode.";
+            if (!values.file_paths && selectedFiles.length === 0) {
+              errors.file_paths = "Please provide file paths or upload files.";
             }
             return errors;
           }}
@@ -296,238 +235,131 @@ const DocumentLoaderConfigModal = forwardRef<
         >
           {({ isSubmitting, setFieldValue, values }) => (
             <Form className="space-y-6">
-              {/* Source Type Selection */}
+              {/* File Upload Section */}
               <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <label className="text-white font-semibold flex items-center space-x-2 mb-4">
-                  <Settings className="w-5 h-5 text-blue-400" />
-                  <span>Source Type</span>
+                  <Upload className="w-5 h-5 text-emerald-400" />
+                  <span>File Upload</span>
                 </label>
-                <select
-                  className="select w-full bg-slate-900/80 text-white border border-slate-600/50 rounded-lg"
-                  value={values.source_type}
-                  onChange={(e) => setFieldValue("source_type", e.target.value)}
-                >
-                  {sourceTypeOptions.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
 
-              {/* Web URLs Section */}
-              {(values.source_type === "web_only" ||
-                values.source_type === "mixed") && (
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                  <label className="text-white font-semibold flex items-center space-x-2 mb-2">
-                    <Globe className="w-5 h-5 text-indigo-400" />
-                    <span>Web URLs</span>
+                {/* File Upload Area */}
+                <div
+                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
+                    isDragOver
+                      ? "border-emerald-500 bg-emerald-500/10"
+                      : "border-slate-600/50 hover:border-emerald-500/50"
+                  }`}
+                  onDragOver={handleDragOver}
+                  onDragLeave={handleDragLeave}
+                  onDrop={handleDrop}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    multiple
+                    accept=".txt,.json,.docx,.pdf"
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex flex-col items-center space-y-3 w-full"
+                  >
+                    <div
+                      className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 ${
+                        isDragOver
+                          ? "bg-gradient-to-br from-emerald-400 to-green-500 scale-110"
+                          : "bg-gradient-to-br from-emerald-500 to-green-600"
+                      }`}
+                    >
+                      <FolderOpen
+                        className={`w-8 h-8 text-white transition-all duration-200 ${
+                          isDragOver ? "scale-110" : ""
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <p className="text-white font-medium">
+                        {isDragOver
+                          ? "Dosyaları Buraya Bırak"
+                          : "Dosya Seç veya Sürükle"}
+                      </p>
+                      <p className="text-slate-400 text-sm mt-1">
+                        TXT, JSON, DOCX, PDF dosyaları desteklenir
+                      </p>
+                    </div>
+                  </button>
+                </div>
+
+                {/* Selected Files List */}
+                {selectedFiles.length > 0 && (
+                  <div className="mt-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-white font-medium text-sm">
+                        Seçilen Dosyalar:
+                      </h4>
+                      <span className="text-slate-400 text-xs">
+                        {selectedFiles.length} dosya seçildi
+                      </span>
+                    </div>
+                    <div className="space-y-2 max-h-40 overflow-y-auto">
+                      {selectedFiles.map((file, index) => (
+                        <div
+                          key={index}
+                          className="flex items-center justify-between bg-slate-900/80 p-3 rounded-lg border border-slate-600/50 hover:border-emerald-500/50 transition-colors duration-200"
+                        >
+                          <div className="flex items-center space-x-3">
+                            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
+                              <FileText className="w-4 h-4 text-white" />
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-white text-sm font-medium truncate">
+                                {file.name}
+                              </p>
+                              <p className="text-slate-400 text-xs">
+                                {formatFileSize(file.size)} •{" "}
+                                {formatDate(file.lastModified)}
+                              </p>
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveFile(index)}
+                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors duration-200 group"
+                            title="Dosyayı kaldır"
+                          >
+                            <X className="w-4 h-4 text-red-400 group-hover:text-red-300" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                    <div className="text-slate-400 text-xs text-center">
+                      Toplam:{" "}
+                      {formatFileSize(
+                        selectedFiles.reduce((sum, file) => sum + file.size, 0)
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Legacy File Paths (for manual entry) */}
+                <div className="mt-4">
+                  <label className="text-slate-300 text-sm mb-2 block">
+                    Manuel Dosya Yolları (Opsiyonel)
                   </label>
                   <Field
                     as="textarea"
-                    className="textarea textarea-bordered w-full h-28 bg-slate-900/80 text-white placeholder-slate-400 rounded-lg px-4 py-3 border border-slate-600/50 focus:ring-2 focus:ring-indigo-500/20"
-                    name="web_urls"
-                    placeholder={`https://example.com\nhttps://example.org`}
+                    className="textarea textarea-bordered w-full h-20 bg-slate-900/80 text-white placeholder-slate-400 rounded-lg px-4 py-3 border border-slate-600/50 focus:ring-2 focus:ring-emerald-500/20"
+                    name="file_paths"
+                    placeholder={`/path/to/document1.txt\n/path/to/document2.pdf`}
                   />
-                  <ErrorMessage
-                    name="web_urls"
-                    component="div"
-                    className="text-red-400 text-sm mt-2"
-                  />
+                  <p className="text-slate-400 text-xs mt-1">
+                    Sunucu üzerindeki dosya yollarını manuel olarak
+                    girebilirsiniz
+                  </p>
                 </div>
-              )}
-
-              {/* File Upload Section */}
-              {(values.source_type === "files_only" ||
-                values.source_type === "mixed") && (
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                  <label className="text-white font-semibold flex items-center space-x-2 mb-4">
-                    <Upload className="w-5 h-5 text-emerald-400" />
-                    <span>File Upload</span>
-                  </label>
-
-                  {/* File Upload Area */}
-                  <div
-                    className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
-                      isDragOver
-                        ? "border-emerald-500 bg-emerald-500/10"
-                        : "border-slate-600/50 hover:border-emerald-500/50"
-                    }`}
-                    onDragOver={handleDragOver}
-                    onDragLeave={handleDragLeave}
-                    onDrop={handleDrop}
-                  >
-                    <input
-                      ref={fileInputRef}
-                      type="file"
-                      multiple
-                      accept=".txt,.json,.docx,.pdf"
-                      onChange={handleFileSelect}
-                      className="hidden"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => fileInputRef.current?.click()}
-                      className="flex flex-col items-center space-y-3 w-full"
-                    >
-                      <div
-                        className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 ${
-                          isDragOver
-                            ? "bg-gradient-to-br from-emerald-400 to-green-500 scale-110"
-                            : "bg-gradient-to-br from-emerald-500 to-green-600"
-                        }`}
-                      >
-                        <FolderOpen
-                          className={`w-8 h-8 text-white transition-all duration-200 ${
-                            isDragOver ? "scale-110" : ""
-                          }`}
-                        />
-                      </div>
-                      <div>
-                        <p className="text-white font-medium">
-                          {isDragOver
-                            ? "Dosyaları Buraya Bırak"
-                            : "Dosya Seç veya Sürükle"}
-                        </p>
-                        <p className="text-slate-400 text-sm mt-1">
-                          TXT, JSON, DOCX, PDF dosyaları desteklenir
-                        </p>
-                      </div>
-                    </button>
-                  </div>
-
-                  {/* Selected Files List */}
-                  {selectedFiles.length > 0 && (
-                    <div className="mt-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <h4 className="text-white font-medium text-sm">
-                          Seçilen Dosyalar:
-                        </h4>
-                        <span className="text-slate-400 text-xs">
-                          {selectedFiles.length} dosya seçildi
-                        </span>
-                      </div>
-                      <div className="space-y-2 max-h-40 overflow-y-auto">
-                        {selectedFiles.map((file, index) => (
-                          <div
-                            key={index}
-                            className="flex items-center justify-between bg-slate-900/80 p-3 rounded-lg border border-slate-600/50 hover:border-emerald-500/50 transition-colors duration-200"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                                <FileText className="w-4 h-4 text-white" />
-                              </div>
-                              <div className="flex-1">
-                                <p className="text-white text-sm font-medium truncate">
-                                  {file.name}
-                                </p>
-                                <p className="text-slate-400 text-xs">
-                                  {formatFileSize(file.size)} •{" "}
-                                  {formatDate(file.lastModified)}
-                                </p>
-                              </div>
-                            </div>
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveFile(index)}
-                              className="p-2 hover:bg-red-500/20 rounded-lg transition-colors duration-200 group"
-                              title="Dosyayı kaldır"
-                            >
-                              <X className="w-4 h-4 text-red-400 group-hover:text-red-300" />
-                            </button>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="text-slate-400 text-xs text-center">
-                        Toplam:{" "}
-                        {formatFileSize(
-                          selectedFiles.reduce(
-                            (sum, file) => sum + file.size,
-                            0
-                          )
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Legacy File Paths (for manual entry) */}
-                  <div className="mt-4">
-                    <label className="text-slate-300 text-sm mb-2 block">
-                      Manuel Dosya Yolları (Opsiyonel)
-                    </label>
-                    <Field
-                      as="textarea"
-                      className="textarea textarea-bordered w-full h-20 bg-slate-900/80 text-white placeholder-slate-400 rounded-lg px-4 py-3 border border-slate-600/50 focus:ring-2 focus:ring-emerald-500/20"
-                      name="file_paths"
-                      placeholder={`/path/to/document1.txt\n/path/to/document2.pdf`}
-                    />
-                    <p className="text-slate-400 text-xs mt-1">
-                      Sunucu üzerindeki dosya yollarını manuel olarak
-                      girebilirsiniz
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {/* Credential Section */}
-              {(values.source_type === "web_only" ||
-                values.source_type === "mixed") && (
-                <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
-                  <label className="text-white font-semibold flex items-center space-x-2 mb-4">
-                    <Key className="w-5 h-5 text-emerald-400" />
-                    <span>API Credential</span>
-                  </label>
-
-                  <select
-                    className="select w-full bg-slate-900/80 text-white border border-slate-600/50 rounded-lg mb-4"
-                    value={selectedCredentialId}
-                    onChange={async (e) => {
-                      const credId = e.target.value;
-                      setSelectedCredentialId(credId);
-                      if (credId) {
-                        setLoadingCredential(true);
-                        try {
-                          const result = await getUserCredentialSecret(credId);
-                          if (result?.secret?.api_key) {
-                            setFieldValue(
-                              "tavily_api_key",
-                              result.secret.api_key
-                            );
-                          }
-                        } finally {
-                          setLoadingCredential(false);
-                        }
-                      } else {
-                        setFieldValue("tavily_api_key", "");
-                      }
-                    }}
-                    disabled={isLoading || loadingCredential}
-                  >
-                    <option value="">Choose a credential...</option>
-                    {userCredentials.map((cred) => (
-                      <option key={cred.id} value={cred.id}>
-                        {cred.name}
-                      </option>
-                    ))}
-                  </select>
-
-                  {loadingCredential && (
-                    <div className="text-sm text-emerald-400">
-                      Loading credential...
-                    </div>
-                  )}
-
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <Field
-                      className="input w-full bg-slate-900/80 text-white pl-10 pr-4 py-3 rounded-lg border border-slate-600/50 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20"
-                      type="password"
-                      name="tavily_api_key"
-                      placeholder="your-tavily-api-key"
-                    />
-                  </div>
-                </div>
-              )}
+              </div>
 
               {/* Supported Formats */}
               <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
