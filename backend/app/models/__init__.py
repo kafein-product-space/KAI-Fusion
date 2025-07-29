@@ -10,6 +10,7 @@ from .variable import Variable
 from .memory import Memory
 from .node_configuration import NodeConfiguration
 from .node_registry import NodeRegistry
+from .api_key import APIKey
 
 __all__ = [
     "Base",
@@ -28,6 +29,7 @@ __all__ = [
     "Variable",
     "Memory",
     "NodeConfiguration",
-    "NodeRegistry"
+    "NodeRegistry",
+    "APIKey"
 ]
 
