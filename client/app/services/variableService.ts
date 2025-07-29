@@ -18,5 +18,5 @@ export const removeVariable = async(variable_id:string)=>{
     return apiClient.delete(API_ENDPOINTS.VARIABLES.DELETE(variable_id));
 }
 export const updateVariable = async(variable_id:string,inputs:Record<string, any>)=>{
-    return apiClient.put(API_ENDPOINTS.VARIABLES.UPDATE(variable_id),{inputs});
+    return apiClient.put(API_ENDPOINTS.VARIABLES.UPDATE(variable_id),inputs);
 }
