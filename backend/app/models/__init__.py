@@ -10,6 +10,7 @@ from .variable import Variable
 from .memory import Memory
 from .node_configuration import NodeConfiguration
 from .node_registry import NodeRegistry
+from .webhook import WebhookEndpoint, WebhookEvent
 from .api_key import APIKey
 
 __all__ = [
@@ -30,6 +31,8 @@ __all__ = [
     "Memory",
     "NodeConfiguration",
     "NodeRegistry",
+    "WebhookEndpoint",
+    "WebhookEvent"
     "APIKey"
 ]
 

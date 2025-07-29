@@ -70,7 +70,9 @@ class DatabaseSetup:
             "memories",
             "node_configurations",
             "node_registry",
-            "api_keys"
+            "api_keys",
+            "webhook_endpoints",
+            "webhook_events"
         ]
         
     async def initialize(self):
@@ -214,8 +216,8 @@ class DatabaseSetup:
                 User, UserCredential, Workflow, WorkflowTemplate,
                 WorkflowExecution, ExecutionCheckpoint, Role, Organization,
                 OrganizationUser, LoginMethod, LoginActivity, ChatMessage,
-                Variable, Memory, NodeConfiguration, NodeRegistry
-            )
+                Variable, Memory, NodeConfiguration, NodeRegistry,
+                WebhookEndpoint, WebhookEvent
             
             # API Key modelini kontrol et
             try:
