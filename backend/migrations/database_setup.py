@@ -6,6 +6,14 @@ KAI-Fusion Database Setup Script
 Bu script, KAI-Fusion platformu için veritabanını oluşturur ve günceller.
 Mevcut tabloları kontrol eder ve eksik olanları oluşturur.
 
+Desteklenen Tablolar:
+- Temel kullanıcı ve organizasyon tabloları
+- Workflow ve template tabloları
+- Node ve konfigürasyon tabloları
+- Document ve chunk tabloları
+- Webhook ve event tabloları
+- Vector storage tabloları (vector_collections, vector_documents)
+
 Kullanım:
     python database_setup.py [--force] [--check-only] [--drop-all]
 
@@ -29,7 +37,8 @@ from dotenv import load_dotenv
 load_dotenv()
 
 # Backend dizinini Python path'ine ekle
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, backend_dir)
 
 # Logging konfigürasyonu
 logging.basicConfig(
@@ -79,7 +88,9 @@ class DatabaseSetup:
             "document_access_logs",
             "document_versions",
             "webhook_endpoints",
-            "webhook_events"
+            "webhook_events",
+            "vector_collections",
+            "vector_documents"
         ]
         
     async def initialize(self):
@@ -235,7 +246,8 @@ class DatabaseSetup:
                 Variable, Memory, NodeConfiguration, NodeRegistry,
                 ScheduledJob, JobExecution,
                 DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
-                WebhookEndpoint, WebhookEvent
+                WebhookEndpoint, WebhookEvent,
+                VectorCollection, VectorDocument
             )
             
             # API Key modelini kontrol et
