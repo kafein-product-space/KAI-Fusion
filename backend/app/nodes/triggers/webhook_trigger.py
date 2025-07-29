@@ -95,7 +95,7 @@ class WebhookTriggerNode(TerminatorNode):
                 "Unified webhook node that can start workflows or trigger mid-flow. "
                 f"POST to /api/webhooks{self.endpoint_path} with JSON payload."
             ),
-            "category": NodeCategory.TRIGGER,
+            "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
             "icon": "webhook",
             "color": "#3b82f6",

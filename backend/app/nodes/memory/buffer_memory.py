@@ -655,6 +655,3 @@ class EnhancedBufferMemoryNode(ProviderNode):
             return False
 
 
-# Backward compatibility alias
-BufferMemoryNode = EnhancedBufferMemoryNode
-
