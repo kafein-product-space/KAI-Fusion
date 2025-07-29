@@ -653,5 +653,3 @@ class EnhancedBufferMemoryNode(ProviderNode):
         except Exception as e:
             logger.error(f"Failed to cleanup memory: {e}")
             return False
-
-
