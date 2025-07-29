@@ -623,6 +623,92 @@ async def general_exception_handler(request: Request, exc: Exception) -> JSONRes
     )
 
 
+async def database_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    """Handle database-related exceptions."""
+    
+    request_id = str(uuid.uuid4())
+    
+    # Detaylı hata bilgisi topla
+    error_details = {
+        "exception_type": exc.__class__.__name__,
+        "error_message": str(exc),
+        "request_path": request.url.path,
+        "request_method": request.method,
+        "request_id": request_id
+    }
+    
+    # SQLAlchemy hatalarını detaylandır
+    if hasattr(exc, 'orig'):
+        error_details["original_error"] = str(exc.orig)
+        error_details["original_error_type"] = exc.orig.__class__.__name__
+    
+    # Constraint violation'ları özel olarak handle et
+    if "constraint" in str(exc).lower() or "foreign key" in str(exc).lower():
+        error_details["error_category"] = "CONSTRAINT_VIOLATION"
+        logger.error(f"Database constraint violation [{request_id}]: {exc}", extra=error_details)
+        
+        return JSONResponse(
+            status_code=409,
+            content={
+                "success": False,
+                "error": "CONSTRAINT_VIOLATION",
+                "message": "Database constraint violation occurred",
+                "details": error_details,
+                "request_id": request_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    # Foreign key violation'ları
+    if "foreign key" in str(exc).lower():
+        error_details["error_category"] = "FOREIGN_KEY_VIOLATION"
+        logger.error(f"Foreign key violation [{request_id}]: {exc}", extra=error_details)
+        
+        return JSONResponse(
+            status_code=409,
+            content={
+                "success": False,
+                "error": "FOREIGN_KEY_VIOLATION", 
+                "message": "Referenced record does not exist",
+                "details": error_details,
+                "request_id": request_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    # Unique constraint violation'ları
+    if "unique" in str(exc).lower():
+        error_details["error_category"] = "UNIQUE_CONSTRAINT_VIOLATION"
+        logger.error(f"Unique constraint violation [{request_id}]: {exc}", extra=error_details)
+        
+        return JSONResponse(
+            status_code=409,
+            content={
+                "success": False,
+                "error": "UNIQUE_CONSTRAINT_VIOLATION",
+                "message": "Record already exists",
+                "details": error_details,
+                "request_id": request_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+        )
+    
+    # Genel database hatası
+    logger.error(f"Database error [{request_id}]: {exc}", extra=error_details)
+    
+    return JSONResponse(
+        status_code=500,
+        content={
+            "success": False,
+            "error": "DATABASE_ERROR",
+            "message": "Database operation failed",
+            "details": error_details,
+            "request_id": request_id,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    )
+
+
 def register_exception_handlers(app) -> None:
     """
     Register all exception handlers with the FastAPI application.

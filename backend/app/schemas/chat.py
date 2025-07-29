@@ -12,6 +12,8 @@ class ChatMessageBase(BaseModel):
 # Schema for creating a chat message
 class ChatMessageCreate(ChatMessageBase):
     chatflow_id: uuid.UUID
+    user_id: Optional[uuid.UUID] = None
+    workflow_id: Optional[uuid.UUID] = None
 
 # Schema for updating a chat message
 class ChatMessageUpdate(BaseModel):

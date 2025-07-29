@@ -15,6 +15,7 @@ from .api_key import APIKey
 from .scheduled_job import ScheduledJob, JobExecution
 from .vector_collection import VectorCollection
 from .vector_document import VectorDocument
+from .document import DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion
 
 __all__ = [
     "Base",
@@ -40,6 +41,11 @@ __all__ = [
     "WebhookEndpoint",
     "WebhookEvent",
     "VectorCollection",
-    "VectorDocument"
+    "VectorDocument",
+    "DocumentCollection",
+    "Document",
+    "DocumentChunk",
+    "DocumentAccessLog",
+    "DocumentVersion"
 ]
 
