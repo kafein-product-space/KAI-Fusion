@@ -8,6 +8,9 @@ import {
   Trash,
   ChevronLeft,
   ChevronRight,
+  X,
+  Save,
+  Edit,
 } from "lucide-react";
 import AuthGuard from "~/components/AuthGuard";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
@@ -56,6 +59,36 @@ function VariablesLayout() {
     } catch (error) {
       enqueueSnackbar("Failed to create variable", { variant: "error" });
     }
+  };
+
+  const handleVariableUpdate = async (
+    values: VariableFormValues,
+    { resetForm }: any
+  ) => {
+    try {
+      if (editingVariable) {
+        await updateVariable(editingVariable.id, values);
+        enqueueSnackbar("Variable updated successfully", {
+          variant: "success",
+        });
+        const modal = document.getElementById(
+          "modalUpdateVariable"
+        ) as HTMLDialogElement;
+        modal?.close();
+        setEditingVariable(null);
+        resetForm();
+      }
+    } catch (error) {
+      enqueueSnackbar("Failed to update variable", { variant: "error" });
+    }
+  };
+
+  const handleEditClick = (variable: any) => {
+    setEditingVariable(variable);
+    const modal = document.getElementById(
+      "modalUpdateVariable"
+    ) as HTMLDialogElement;
+    modal?.showModal();
   };
 
   const validateVariable = (values: VariableFormValues) => {
@@ -192,13 +225,22 @@ function VariablesLayout() {
                           {timeAgo(variable.updated_at)}
                         </td>
                         <td className="p-6">
-                          <button
-                            className="p-2 rounded-lg hover:bg-red-50 group"
-                            title="Delete variable"
-                            onClick={() => handleDelete(variable.id)}
-                          >
-                            <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                          </button>
+                          <div className="flex items-center gap-2">
+                            <button
+                              className="p-2 rounded-lg hover:bg-blue-50 group"
+                              title="Edit variable"
+                              onClick={() => handleEditClick(variable)}
+                            >
+                              <Edit className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
+                            </button>
+                            <button
+                              className="p-2 rounded-lg hover:bg-red-50 group"
+                              title="Delete variable"
+                              onClick={() => handleDelete(variable.id)}
+                            >
+                              <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -264,6 +306,247 @@ function VariablesLayout() {
             </>
           )}
         </div>
+
+        {/* Create Variable Modal */}
+        <dialog
+          id="modalCreateVariable"
+          className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+        >
+          <div className="modal-box max-w-md bg-white shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Create Variable</h3>
+              <button
+                className="btn btn-sm btn-circle btn-ghost"
+                onClick={() => {
+                  const modal = document.getElementById(
+                    "modalCreateVariable"
+                  ) as HTMLDialogElement;
+                  modal?.close();
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <Formik
+              initialValues={{
+                name: "",
+                type: "static",
+                value: "",
+              }}
+              validate={validateVariable}
+              onSubmit={handleVariableSubmit}
+            >
+              {({ isSubmitting }) => (
+                <Form className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Variable Name
+                    </label>
+                    <Field
+                      name="name"
+                      className="input input-bordered w-full"
+                      placeholder="VARIABLE_NAME"
+                    />
+                    <ErrorMessage
+                      name="name"
+                      component="div"
+                      className="text-red-500 text-sm mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Type
+                    </label>
+                    <Field
+                      as="select"
+                      name="type"
+                      className="select select-bordered w-full"
+                    >
+                      <option value="static">Static</option>
+                      <option value="dynamic">Dynamic</option>
+                    </Field>
+                    <ErrorMessage
+                      name="type"
+                      component="div"
+                      className="text-red-500 text-sm mt-1"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Value
+                    </label>
+                    <Field
+                      as="textarea"
+                      name="value"
+                      className="textarea textarea-bordered w-full h-24"
+                      placeholder="Enter variable value..."
+                    />
+                    <ErrorMessage
+                      name="value"
+                      component="div"
+                      className="text-red-500 text-sm mt-1"
+                    />
+                  </div>
+
+                  <div className="flex justify-end gap-2 pt-4">
+                    <button
+                      type="button"
+                      className="btn btn-outline"
+                      onClick={() => {
+                        const modal = document.getElementById(
+                          "modalCreateVariable"
+                        ) as HTMLDialogElement;
+                        modal?.close();
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? (
+                        <div className="loading loading-spinner loading-sm"></div>
+                      ) : (
+                        <>
+                          <Save className="w-4 h-4" />
+                          Create
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
+          </div>
+        </dialog>
+
+        {/* Update Variable Modal */}
+        <dialog
+          id="modalUpdateVariable"
+          className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+        >
+          <div className="modal-box max-w-md bg-white shadow-xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold">Update Variable</h3>
+              <button
+                className="btn btn-sm btn-circle btn-ghost"
+                onClick={() => {
+                  const modal = document.getElementById(
+                    "modalUpdateVariable"
+                  ) as HTMLDialogElement;
+                  modal?.close();
+                  setEditingVariable(null);
+                }}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            {editingVariable && (
+              <Formik
+                initialValues={{
+                  name: editingVariable.name,
+                  type: editingVariable.type,
+                  value: editingVariable.value,
+                }}
+                validate={validateVariable}
+                onSubmit={handleVariableUpdate}
+                enableReinitialize
+              >
+                {({ isSubmitting }) => (
+                  <Form className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Variable Name
+                      </label>
+                      <Field
+                        name="name"
+                        className="input input-bordered w-full"
+                        placeholder="VARIABLE_NAME"
+                      />
+                      <ErrorMessage
+                        name="name"
+                        component="div"
+                        className="text-red-500 text-sm mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Type
+                      </label>
+                      <Field
+                        as="select"
+                        name="type"
+                        className="select select-bordered w-full"
+                      >
+                        <option value="static">Static</option>
+                        <option value="dynamic">Dynamic</option>
+                      </Field>
+                      <ErrorMessage
+                        name="type"
+                        component="div"
+                        className="text-red-500 text-sm mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Value
+                      </label>
+                      <Field
+                        as="textarea"
+                        name="value"
+                        className="textarea textarea-bordered w-full h-24"
+                        placeholder="Enter variable value..."
+                      />
+                      <ErrorMessage
+                        name="value"
+                        component="div"
+                        className="text-red-500 text-sm mt-1"
+                      />
+                    </div>
+
+                    <div className="flex justify-end gap-2 pt-4">
+                      <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={() => {
+                          const modal = document.getElementById(
+                            "modalUpdateVariable"
+                          ) as HTMLDialogElement;
+                          modal?.close();
+                          setEditingVariable(null);
+                        }}
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="submit"
+                        className="btn btn-primary"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <div className="loading loading-spinner loading-sm"></div>
+                        ) : (
+                          <>
+                            <Save className="w-4 h-4" />
+                            Update
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </Form>
+                )}
+              </Formik>
+            )}
+          </div>
+        </dialog>
       </main>
     </div>
   );

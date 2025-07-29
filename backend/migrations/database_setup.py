@@ -218,7 +218,6 @@ class DatabaseSetup:
                 OrganizationUser, LoginMethod, LoginActivity, ChatMessage,
                 Variable, Memory, NodeConfiguration, NodeRegistry,
                 WebhookEndpoint, WebhookEvent
-            )
             
             # API Key modelini kontrol et
             try:

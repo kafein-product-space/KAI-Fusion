@@ -315,6 +315,8 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.api.documents import router as documents_router
+
 from app.routes.export import router as export_router
 
 logger = logging.getLogger(__name__)
@@ -426,6 +428,7 @@ app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
 app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
 app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
+app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
 
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])

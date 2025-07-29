@@ -1,0 +1,48 @@
+version: '3'
+services:
+  kaifusion:d
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: kaifusion:latest
+    ports:
+      - 0.0.0.0:${PORT}:8000
+    environment:
+      # Core Application Settings
+      SECRET_KEY: ${SECRET_KEY}
+
+      # Database Settings
+      CREATE_DATABASE: ${CREATE_DATABASE}
+      DATABASE_URL: ${DATABASE_URL}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_SSL: ${DATABASE_SSL}
+      DISABLE_DATABASE: ${DISABLE_DATABASE}
+
+      # Security
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+
+      # LangSmith Settings
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
+      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
+
+      # Async Database
+      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
+
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+    volumes:
+      - ./:/app
+    networks:
+      - kaifusion-network
+    stdin_open: true
+    restart: always
+    tty: true
+
+networks:
+  kaifusion-network:
+    driver: bridge
