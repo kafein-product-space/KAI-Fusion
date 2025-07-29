@@ -224,21 +224,6 @@ function DocumentRerankerNode({ data, id }: DocumentRerankerNodeProps) {
           Quality
         </div>
 
-        {/* Reranker Type Badge */}
-        {data?.rerank_strategy && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-orange-600 text-white text-xs font-bold shadow-lg">
-              {data.rerank_strategy === "cohere"
-                ? "Cohere"
-                : data.rerank_strategy === "hybrid"
-                ? "Hybrid"
-                : data.rerank_strategy === "bm25"
-                ? "BM25"
-                : "Reranker"}
-            </div>
-          </div>
-        )}
-
         {/* Connection Status Indicator */}
         {data?.rerank_strategy && (
           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
