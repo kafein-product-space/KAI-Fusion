@@ -16,7 +16,7 @@ from .schemas import (
     JobTriggerResponse
 )
 
-router = APIRouter(prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
+router = APIRouter()
 
 
 @router.get("/", response_model=List[ScheduledJobResponse])

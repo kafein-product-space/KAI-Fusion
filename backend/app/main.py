@@ -317,6 +317,7 @@ from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
+from app.api.vectors import router as vectors_router
 
 from app.routes.export import router as export_router
 
@@ -430,7 +431,8 @@ app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variable
 app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
 app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
-app.include_router(scheduled_jobs_router, tags=["Scheduled Jobs"])
+app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
+app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
 
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])

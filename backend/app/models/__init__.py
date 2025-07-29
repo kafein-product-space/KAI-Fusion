@@ -13,6 +13,8 @@ from .node_registry import NodeRegistry
 from .webhook import WebhookEndpoint, WebhookEvent
 from .api_key import APIKey
 from .scheduled_job import ScheduledJob, JobExecution
+from .vector_collection import VectorCollection
+from .vector_document import VectorDocument
 
 __all__ = [
     "Base",
@@ -36,7 +38,8 @@ __all__ = [
     "ScheduledJob",
     "JobExecution",
     "WebhookEndpoint",
-    "WebhookEvent"
-    "APIKey"
+    "WebhookEvent",
+    "VectorCollection",
+    "VectorDocument"
 ]
 
