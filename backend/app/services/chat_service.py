@@ -465,6 +465,8 @@ class ChatService:
             chatflow_id=chat_message.chatflow_id,
             content=encrypted_content,
             source_documents=chat_message.source_documents,
+            user_id=chat_message.user_id,  # user_id ekle
+            workflow_id=chat_message.workflow_id,  # workflow_id ekle
         )
         self.db.add(db_chat_message)
         await self.db.commit()

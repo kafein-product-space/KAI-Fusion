@@ -317,6 +317,7 @@ from app.services.execution_service import ExecutionService
 from app.services.chat_service import ChatService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
+from app.core.execution_queue import execution_queue
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -894,7 +895,7 @@ async def get_dashboard_stats(
 async def execute_adhoc_workflow(
     req: AdhocExecuteRequest,
     current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session),  # DB session ekle
+    db: AsyncSession = Depends(get_db_session),
     execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
     """
@@ -903,11 +904,12 @@ async def execute_adhoc_workflow(
     """
     engine = get_engine()
     chat_service = ChatService(db)
+    
     # Use chatflow_id as session_id for memory persistence
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
-    user_id = current_user.id  # Cache user ID
-    user_email = current_user.email  # Cache user email
+    user_id = current_user.id
+    user_email = current_user.email
     user_context = {
         "session_id": session_id,
         "user_id": str(user_id),
@@ -918,27 +920,81 @@ async def execute_adhoc_workflow(
     execution = None
     if req.workflow_id:
         try:
+            # Workflow'ün var olup olmadığını kontrol et
+            from app.models.workflow import Workflow
+            from sqlalchemy.future import select
+            
+            workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
+            workflow_result = await db.execute(workflow_query)
+            workflow = workflow_result.scalar_one_or_none()
+            
+            if not workflow:
+                logger.error(f"Workflow not found: {req.workflow_id}")
+                raise HTTPException(
+                    status_code=404, 
+                    detail=f"Workflow with ID {req.workflow_id} not found"
+                )
+            
+            # Workflow'ün kullanıcıya ait olup olmadığını kontrol et
+            if workflow.user_id != user_id:
+                logger.error(f"User {user_id} does not have access to workflow {req.workflow_id}")
+                raise HTTPException(
+                    status_code=403,
+                    detail="Access denied to this workflow"
+                )
+            
+            # Mevcut pending execution'ları kontrol et ve temizle
+            from app.models.execution import WorkflowExecution
+            existing_execution_query = select(WorkflowExecution).filter(
+                WorkflowExecution.workflow_id == uuid.UUID(req.workflow_id),
+                WorkflowExecution.user_id == user_id,
+                WorkflowExecution.status.in_(["pending", "running"])
+            ).order_by(WorkflowExecution.created_at.desc())
+            
+            existing_result = await db.execute(existing_execution_query)
+            existing_executions = existing_result.scalars().all()
+            
+            # Eski execution'ları temizle
+            for old_execution in existing_executions:
+                try:
+                    await db.delete(old_execution)
+                except Exception as delete_error:
+                    logger.warning(f"Failed to delete old execution {old_execution.id}: {delete_error}")
+            
+            await db.commit()
+            
+            # Yeni execution oluştur
             execution_create = WorkflowExecutionCreate(
                 workflow_id=uuid.UUID(req.workflow_id),
                 user_id=user_id,
                 status="pending",
                 inputs={"input": req.input_text, "flow_data": req.flow_data}
             )
+            
             execution = await execution_service.create_execution(db, execution_in=execution_create)
-            logger.info(f"Created execution {execution.id} for workflow {req.workflow_id}")
+            logger.info(f"Created new execution {execution.id} for workflow {req.workflow_id}")
+                
+        except HTTPException:
+            raise
         except Exception as e:
             logger.error(f"Failed to create execution record: {e}", exc_info=True)
-            # Execution kaydı oluşturulamazsa devam et ama log'la
+            await db.rollback()
+            raise HTTPException(
+                status_code=500,
+                detail=f"Failed to create execution: {str(e)}"
+            )
 
     # --- CHAT ENTEGRASYONU ---
-    # chatflow_id already defined above
-    chat_service = ChatService(db)
-    # Kullanıcı mesajını kaydet
-    await chat_service.create_chat_message(ChatMessageCreate(
-        role="user",
-        content=req.input_text,
-        chatflow_id=chatflow_id
-    ))
+    try:
+        await chat_service.create_chat_message(ChatMessageCreate(
+            role="user",
+            content=req.input_text,
+            chatflow_id=chatflow_id,
+            user_id=user_id,  # user_id ekle
+            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+        ))
+    except Exception as e:
+        logger.warning(f"Failed to create chat message: {e}")
 
     # Execution başlatıldığını işaretle
     if execution:
@@ -950,6 +1006,8 @@ async def execute_adhoc_workflow(
             )
         except Exception as e:
             logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
+            # Session rollback yap
+            await db.rollback()
 
     try:
         engine.build(flow_data=req.flow_data, user_context=user_context)
@@ -1035,28 +1093,100 @@ async def execute_adhoc_workflow(
         finally:
             # LLM cevabını chat'e kaydet
             if llm_output:
-                await chat_service.create_chat_message(
-                    ChatMessageCreate(
-                        role="assistant",
-                        content=llm_output,
-                        chatflow_id=chatflow_id
+                try:
+                    await chat_service.create_chat_message(
+                        ChatMessageCreate(
+                            role="assistant",
+                            content=llm_output,
+                            chatflow_id=chatflow_id,
+                            user_id=user_id,  # user_id ekle
+                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+                        )
                     )
-                )
+                except Exception as chat_error:
+                    logger.warning(f"Failed to create assistant chat message: {chat_error}")
             
             # Execution başarıyla tamamlandığını kaydet
             if execution and execution_completed:
                 try:
-                    await execution_service.update_execution(
-                        db,
-                        execution.id,
-                        WorkflowExecutionUpdate(
-                            status="completed",
-                            outputs=final_outputs,
-                            completed_at=datetime.utcnow()
+                    # Yeni session kullan
+                    async for new_db in get_db_session():
+                        await execution_service.update_execution(
+                            new_db,
+                            execution.id,
+                            WorkflowExecutionUpdate(
+                                status="completed",
+                                outputs=final_outputs,
+                                completed_at=datetime.utcnow()
+                            )
                         )
-                    )
+                        break  # Sadece bir kez çalıştır
                     logger.info(f"Execution {execution.id} completed successfully")
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
 
     return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+@router.get("/queue/status")
+async def get_execution_queue_status(
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Get the current execution queue status.
+    """
+    running_executions = execution_queue.get_running_executions()
+    
+    # Clean up stale executions
+    execution_queue.cleanup_stale_executions()
+    
+    return {
+        "running_executions": running_executions,
+        "total_running": len(running_executions)
+    }
+
+@router.get("/debug/workflow/{workflow_id}")
+async def debug_workflow_status(
+    workflow_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session)
+):
+    """
+    Debug endpoint to check workflow and execution status.
+    """
+    try:
+        from app.models.workflow import Workflow
+        from app.models.execution import WorkflowExecution
+        from sqlalchemy.future import select
+        
+        # Workflow'ü kontrol et
+        workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(workflow_id))
+        workflow_result = await db.execute(workflow_query)
+        workflow = workflow_result.scalar_one_or_none()
+        
+        # Execution'ları kontrol et
+        execution_query = select(WorkflowExecution).filter(
+            WorkflowExecution.workflow_id == uuid.UUID(workflow_id),
+            WorkflowExecution.user_id == current_user.id
+        ).order_by(WorkflowExecution.created_at.desc())
+        
+        execution_result = await db.execute(execution_query)
+        executions = execution_result.scalars().all()
+        
+        return {
+            "workflow_exists": workflow is not None,
+            "workflow_user_id": str(workflow.user_id) if workflow else None,
+            "current_user_id": str(current_user.id),
+            "user_has_access": workflow.user_id == current_user.id if workflow else False,
+            "executions_count": len(executions),
+            "pending_executions": [str(e.id) for e in executions if e.status == "pending"],
+            "running_executions": [str(e.id) for e in executions if e.status == "running"],
+            "completed_executions": [str(e.id) for e in executions if e.status == "completed"],
+            "failed_executions": [str(e.id) for e in executions if e.status == "failed"]
+        }
+        
+    except Exception as e:
+        logger.error(f"Debug error: {e}", exc_info=True)
+        return {
+            "error": str(e),
+            "error_type": type(e).__name__
+        }
