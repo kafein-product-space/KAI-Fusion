@@ -1,0 +1,11 @@
+Bu bir test dokümanıdır.
+
+Bu dosya DocumentLoader node'unun TXT format desteğini test etmek için oluşturulmuştur.
+
+İçerik:
+- Türkçe karakterler: ğüşıöç ĞÜŞIÖÇ
+- Özel karakterler: @#$%^&*()
+- Sayılar: 123456789
+- Emoji: 🚀 🎯 ✅
+
+Bu test dokümanı yeterli uzunlukta olmalıdır ki quality threshold'u geçebilsin.
