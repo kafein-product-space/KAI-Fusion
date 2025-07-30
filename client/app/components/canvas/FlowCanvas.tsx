@@ -36,6 +36,11 @@ import type {
 } from "~/types/api";
 
 import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
+import ChatComponent from "./ChatComponent";
+import TestButtonsComponent from "./TestButtonsComponent";
+import SidebarToggleButton from "./SidebarToggleButton";
+import ErrorDisplayComponent from "./ErrorDisplayComponent";
+import ReactFlowCanvas from "./ReactFlowCanvas";
 
 import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
 
@@ -62,6 +67,7 @@ import DocumentRerankerNode from "../nodes/tools/DocumentRerankerNode";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
 import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
 import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
+
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
   Agent: ToolAgentNode,
@@ -428,68 +434,36 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         isLoading={isLoading}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
-        {/* Sidebar açma butonu */}
-        {!isSidebarOpen ? (
-          <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
-            onClick={() => setIsSidebarOpen(true)}
-            title="Open Sidebar"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        ) : (
-          <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
-            onClick={() => setIsSidebarOpen(false)}
-            title="Close Sidebar"
-          >
-            <Minus className="w-6 h-6" />
-          </button>
-        )}
+        {/* Sidebar Toggle Button */}
+        <SidebarToggleButton
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
 
         {/* Sidebar modal */}
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
+
         {/* Canvas alanı */}
         <div className="flex-1">
-          {error && (
-            <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-              <div className="text-red-800 text-sm">{error}</div>
-            </div>
-          )}
+          {/* Error Display */}
+          <ErrorDisplayComponent error={error} />
 
-          {/* executionResult and clearExecutionResult removed */}
-
-          <div
-            ref={reactFlowWrapper}
-            className="w-full h-full"
+          {/* ReactFlow Canvas */}
+          <ReactFlowCanvas
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes as any}
+            edgeTypes={edgeTypes}
+            activeEdges={activeEdges}
+            reactFlowWrapper={reactFlowWrapper}
             onDrop={onDrop}
             onDragOver={onDragOver}
-          >
-            <ReactFlow
-              nodes={nodes.map((node) => ({
-                ...node,
-                data: {
-                  ...node.data,
-                  // StartNode'a özel onExecute ve validationStatus kaldırıldı
-                },
-              }))}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes as any}
-              edgeTypes={edgeTypes}
-              fitView
-            >
-              <Controls
-                position="top-right"
-                className="bg-background text-black"
-              />
-              <Background gap={20} size={1} />
-              <MiniMap className="bg-background text-black" />
-            </ReactFlow>
-          </div>
+          />
 
+          {/* Chat Toggle Button */}
           <button
             className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
             onClick={() => setChatOpen((v) => !v)}
@@ -510,89 +484,27 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             Chat
           </button>
 
-          {chatOpen && (
-            <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
-              <div className="flex items-center justify-between px-4 py-2 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">
-                    ReAct Chat
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleClearChat}
-                    className="text-red-400 hover:text-red-700"
-                    title="Clear chat history"
-                  >
-                    <Eraser className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setChatOpen(false)}
-                    className="text-gray-400 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatError && (
-                  <div className="text-xs text-red-500">{chatError}</div>
-                )}
-                {chatHistory.map((msg, i) => (
-                  <ChatBubble
-                    key={msg.id || i}
-                    from={msg.role === "user" ? "user" : "assistant"}
-                    message={msg.content}
-                    userInitial={msg.role === "user" ? "U" : undefined}
-                  />
-                ))}
-                {chatLoading && (
-                  <ChatBubble from="assistant" message="" loading />
-                )}
-              </div>
-              <div className="p-3 border-t flex gap-2">
-                <input
-                  type="text"
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm border-black bg-transparent text-black"
-                  placeholder="Mesajınızı yazın..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSendMessage();
-                  }}
-                  disabled={chatLoading}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  disabled={chatLoading || !chatInput.trim()}
-                >
-                  Gönder
-                </button>
-              </div>
-            </div>
-          )}
+          {/* Chat Component */}
+          <ChatComponent
+            chatOpen={chatOpen}
+            setChatOpen={setChatOpen}
+            chatHistory={chatHistory}
+            chatError={chatError}
+            chatLoading={chatLoading}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            onSendMessage={handleSendMessage}
+            onClearChat={handleClearChat}
+          />
         </div>
       </div>
 
-      <button
-        className="fixed bottom-24 right-4 z-50 bg-yellow-400 text-black px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-yellow-500 transition-all"
-        onClick={() => {
-          if (edges.length > 0) {
-            const randomEdge = edges[Math.floor(Math.random() * edges.length)];
-            setActiveEdges([randomEdge.id]);
-            setTimeout(() => setActiveEdges([]), 2000); // 2 saniye sonra efekti kaldır
-          }
-        }}
-      >
-        Elektrik Test
-      </button>
-      <button
-        className="fixed bottom-36 right-4 z-50 bg-green-500 text-white px-5 py-2 rounded-full shadow-lg hover:bg-green-600 transition-all"
-        onClick={animateExecution}
-      >
-        Workflow Execute Test
-      </button>
+      {/* Test Buttons Component */}
+      <TestButtonsComponent
+        edges={edges}
+        setActiveEdges={setActiveEdges}
+        animateExecution={animateExecution}
+      />
     </>
   );
 }
