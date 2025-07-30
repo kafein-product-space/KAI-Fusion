@@ -4,7 +4,6 @@ import {
   useNodesState,
   useEdgesState,
   addEdge,
-  MiniMap,
   Controls,
   Background,
   useReactFlow,
@@ -65,7 +64,6 @@ export default function ReactFlowCanvas({
       >
         <Controls position="top-right" className="bg-background text-black" />
         <Background gap={20} size={1} />
-        <MiniMap className="bg-background text-black" />
       </ReactFlow>
     </div>
   );
