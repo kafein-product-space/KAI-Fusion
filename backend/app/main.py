@@ -354,13 +354,14 @@ async def lifespan(app: FastAPI):
     try:
         # Test database connection
         db_health = await check_database_health()
-        if db_health["healthy"]:
+        if db_health['healthy']:
             logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
         else:
-            logger.warning(f"⚠️ Database connection test failed: {db_health.get('error', 'Unknown error')}")
-            
+            logger.error(f"❌ Database connection test failed: {db_health.get('error', 'Unknown error')}")
+            raise RuntimeError(f"Database connection test failed: {db_health.get('error', 'Unknown error')}")
     except Exception as e:
         logger.error(f"❌ Database initialization failed: {e}")
+        raise e
     
     logger.info("✅ Backend initialization complete - KAI Fusion Ready!")
     
@@ -449,24 +450,26 @@ async def health_check():
             engine_healthy = False
         
         # Database health check
-        db_status = {"enabled": True}
+        db_status = {'enabled': True}
         try:
             db_health = await check_database_health()
             db_status.update({
-                "status": "healthy" if db_health["healthy"] else "error",
-                "response_time_ms": db_health["response_time_ms"],
-                "connection_test": db_health["connection_test"],
-                "query_test": db_health["query_test"]
+                'status': 'healthy' if db_health['healthy'] else 'error',
+                'response_time_ms': db_health['response_time_ms'],
+                'connection_test': db_health['connection_test'],
+                'query_test': db_health['query_test'],
+                'connected': db_health['healthy']
             })
             
             # Add database statistics
             db_stats = get_database_stats()
-            db_status["statistics"] = db_stats
+            db_status['statistics'] = db_stats
             
         except Exception as e:
             db_status.update({
-                "status": "error",
-                "error": str(e)
+                'status': 'error',
+                'connected': False,
+                'error': str(e)
             })
         
         overall_healthy = nodes_healthy and engine_healthy and db_status.get("status") == "healthy"
