@@ -1,9 +1,3 @@
-"""Agent-Flow V2 FastAPI Application.
-
-Main application entry point with service layer integration,
-authentication middleware, and comprehensive API endpoints.
-"""
-
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -13,10 +7,9 @@ from fastapi.responses import JSONResponse
 from fastapi import APIRouter
 
 # Core imports
-from app.core.constants import CREATE_DATABASE
 from app.core.node_registry import node_registry
 from app.core.engine_v2 import get_engine
-from app.core.database import create_tables, get_db_session, check_database_health, get_database_stats
+from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
 
@@ -36,6 +29,14 @@ from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
+from app.api.node_configurations import router as node_configurations_router
+from app.api.node_registry import router as node_registry_router
+from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.api.documents import router as documents_router
+from app.api.scheduled_jobs import router as scheduled_jobs_router
+from app.api.vectors import router as vectors_router
+
+from app.routes.export import router as export_router
 
 logger = logging.getLogger(__name__)
 
@@ -67,23 +68,18 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"❌ Failed to initialize tracing: {e}")
     
-    # Initialize database only if CREATE_DATABASE is enabled
-    if CREATE_DATABASE == "true":
-        try:
-            await create_tables()
-            logger.info("✅ Database tables created or already exist.")
-            
-            # Test database connection
-            db_health = await check_database_health()
-            if db_health["healthy"]:
-                logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
-            else:
-                logger.warning(f"⚠️ Database connection test failed: {db_health.get('error', 'Unknown error')}")
-                
-        except Exception as e:
-            logger.error(f"❌ Database initialization failed: {e}")
-    else:
-        logger.info("ℹ️ Database creation/validation skipped (CREATE_DATABASE=false or not set)")
+    # Initialize database
+    try:
+        # Test database connection
+        db_health = await check_database_health()
+        if db_health['healthy']:
+            logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
+        else:
+            logger.error(f"❌ Database connection test failed: {db_health.get('error', 'Unknown error')}")
+            raise RuntimeError(f"Database connection test failed: {db_health.get('error', 'Unknown error')}")
+    except Exception as e:
+        logger.error(f"❌ Database initialization failed: {e}")
+        raise e
     
     logger.info("✅ Backend initialization complete - KAI Fusion Ready!")
     
@@ -144,6 +140,16 @@ app.include_router(executions_router, prefix="/api/v1/executions", tags=["Execut
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
+app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
+app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
+app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
+app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
+app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
+
+# Include webhook routers
+app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
+app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(export_router, prefix="/api", tags=["Export"])
 
 
 # Health checks and info endpoints
@@ -161,33 +167,30 @@ async def health_check():
         except Exception:
             engine_healthy = False
         
-        # Database health (conditional based on CREATE_DATABASE setting)
-        db_status = {"enabled": CREATE_DATABASE}
-        if CREATE_DATABASE == "true":
-            try:
-                db_health = await check_database_health()
-                db_status.update({
-                    "status": "healthy" if db_health["healthy"] else "error",
-                    "response_time_ms": db_health["response_time_ms"],
-                    "connection_test": db_health["connection_test"],
-                    "query_test": db_health["query_test"]
-                })
-                
-                # Add database statistics
-                db_stats = get_database_stats()
-                db_status["statistics"] = db_stats
-                
-            except Exception as e:
-                db_status.update({
-                    "status": "error",
-                    "error": str(e)
-                })
-        else:
-            db_status["status"] = "disabled (CREATE_DATABASE=false)"
+        # Database health check
+        db_status = {'enabled': True}
+        try:
+            db_health = await check_database_health()
+            db_status.update({
+                'status': 'healthy' if db_health['healthy'] else 'error',
+                'response_time_ms': db_health['response_time_ms'],
+                'connection_test': db_health['connection_test'],
+                'query_test': db_health['query_test'],
+                'connected': db_health['healthy']
+            })
+            
+            # Add database statistics
+            db_stats = get_database_stats()
+            db_status['statistics'] = db_stats
+            
+        except Exception as e:
+            db_status.update({
+                'status': 'error',
+                'connected': False,
+                'error': str(e)
+            })
         
-        overall_healthy = nodes_healthy and engine_healthy and (
-            not CREATE_DATABASE == "true"  or db_status.get("status") == "healthy"
-        )
+        overall_healthy = nodes_healthy and engine_healthy and db_status.get("status") == "healthy"
         
         return {
             "status": "healthy" if overall_healthy else "degraded",
@@ -243,7 +246,7 @@ async def get_info():
                 "total_nodes": len(node_registry.nodes),
                 "node_types": list(set(node.__name__ for node in node_registry.nodes.values())),
                 "api_endpoints": 25,  # Approximate count
-                "database_enabled": CREATE_DATABASE
+                "database_enabled": True
             },
             "engine": {
                 "type": "LangGraph Unified Engine",
@@ -294,7 +297,7 @@ async def root():
         "docs": "/docs",
         "health": "/api/health",
         "info": "/api/v1/info",
-        "database_enabled": CREATE_DATABASE
+        "database_enabled": True
     }
 
 if __name__ == "__main__":
