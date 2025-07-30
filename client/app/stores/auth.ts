@@ -58,6 +58,14 @@ export const useAuthStore = create<AuthState>()(
             error: null
           });
         }
+      } else {
+        // Token yoksa direkt false state'e set et
+        set({ 
+          user: null,
+          isAuthenticated: false,
+          isLoading: false,
+          error: null
+        });
       }
     },
 
@@ -113,24 +121,24 @@ export const useAuthStore = create<AuthState>()(
     },
 
     signOut: async () => {
-      set({ isLoading: true, error: null });
-      
-      try {
-        await AuthService.signOut();
-      } catch (error) {
-        console.error('Sign out API call failed:', error);
-      }
-      
-      // Clear tokens from localStorage
-      localStorage.removeItem('auth_access_token');
-      localStorage.removeItem('auth_refresh_token');
-      
+      // Önce state'i temizle
       set({ 
         user: null,
         isAuthenticated: false,
         isLoading: false,
         error: null
       });
+      
+      // Clear tokens from localStorage
+      localStorage.removeItem('auth_access_token');
+      localStorage.removeItem('auth_refresh_token');
+      
+      // API call'u background'da yap
+      try {
+        await AuthService.signOut();
+      } catch (error) {
+        console.error('Sign out API call failed:', error);
+      }
     },
 
     getProfile: async () => {

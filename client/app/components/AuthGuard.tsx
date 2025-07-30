@@ -10,12 +10,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const { user, isAuthenticated, setUser, setIsAuthenticated } = useAuth();
   const [checking, setChecking] = useState(true);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
       // 1. Token yoksa signin'e yönlendir
       if (!apiClient.isAuthenticated()) {
-        navigate("/signin", { replace: true, state: { from: location } });
+        setShouldRedirect(true);
         return;
       }
 
@@ -29,7 +30,7 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
           // Token bozuksa interceptor zaten yönlendirir
           setUser(null);
           setIsAuthenticated(false);
-          navigate("/signin", { replace: true, state: { from: location } });
+          setShouldRedirect(true);
           return;
         }
       }
@@ -40,6 +41,13 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     checkAuth();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Redirect effect
+  useEffect(() => {
+    if (shouldRedirect) {
+      navigate("/signin", { replace: true, state: { from: location } });
+    }
+  }, [shouldRedirect, navigate, location]);
 
   // 3. Auth kontrolü sırasında loading göster
   if (checking) {
@@ -52,8 +60,12 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   // 4. Kullanıcı yoksa fallback olarak yönlendir (önlem amaçlı)
   if (!isAuthenticated || !user) {
-    navigate("/signin", { replace: true, state: { from: location } });
-    return null;
+    setShouldRedirect(true);
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </div>
+    );
   }
 
   return <>{children}</>;
