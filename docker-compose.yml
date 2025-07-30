@@ -33,8 +33,7 @@ services:
       ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
 
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-    networks:
-      - kaifusion-network
+
     stdin_open: true
     restart: always
     tty: true
@@ -57,8 +56,6 @@ services:
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
-    networks:
-      - kaifusion-network
     restart: unless-stopped
     depends_on:
       - kaifusion-be
