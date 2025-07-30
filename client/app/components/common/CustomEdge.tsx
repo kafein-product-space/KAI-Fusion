@@ -2,7 +2,7 @@ import React from "react";
 import {
   BaseEdge,
   EdgeLabelRenderer,
-  getBezierPath,
+  getSmoothStepPath,
   useReactFlow,
   type EdgeProps,
 } from "@xyflow/react";
@@ -27,13 +27,14 @@ function CustomAnimatedEdge({
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
 
-  const [edgePath, labelX, labelY] = getBezierPath({
+  const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition,
     targetX,
     targetY,
     targetPosition,
+    borderRadius: 100,
   });
 
   const onEdgeClick = () => {
