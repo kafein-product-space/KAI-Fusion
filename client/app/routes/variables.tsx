@@ -28,7 +28,7 @@ function VariablesLayout() {
   const { enqueueSnackbar } = useSnackbar();
   const [searchQuery, setSearchQuery] = useState("");
   const [editingVariable, setEditingVariable] = useState<any>(null);
-  const [itemsPerPage, setItemsPerPage] = useState(7);
+  const [itemsPerPage, setItemsPerPage] = useState(6);
   const [page, setPage] = useState(1);
 
   const {
@@ -56,8 +56,10 @@ function VariablesLayout() {
       ) as HTMLDialogElement;
       modal?.close();
       resetForm();
-    } catch (error) {
-      enqueueSnackbar("Failed to create variable", { variant: "error" });
+    } catch (error: any) {
+      enqueueSnackbar(error.message || "Failed to create variable", {
+        variant: "error",
+      });
     }
   };
 
@@ -78,8 +80,10 @@ function VariablesLayout() {
         setEditingVariable(null);
         resetForm();
       }
-    } catch (error) {
-      enqueueSnackbar("Failed to update variable", { variant: "error" });
+    } catch (error: any) {
+      enqueueSnackbar(error.message || "Failed to update variable", {
+        variant: "error",
+      });
     }
   };
 
@@ -109,8 +113,10 @@ function VariablesLayout() {
     try {
       await removeVariableFromStore(id);
       enqueueSnackbar("Variable deleted", { variant: "success" });
-    } catch (error) {
-      enqueueSnackbar("Failed to delete", { variant: "error" });
+    } catch (error: any) {
+      enqueueSnackbar(error.message || "Failed to delete", {
+        variant: "error",
+      });
     }
   };
 
@@ -134,29 +140,30 @@ function VariablesLayout() {
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
       <main className="flex-1 p-10 m-10 bg-background">
-        <div className="max-w-screen-xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex flex-col items-start gap-4">
-              <h1 className="text-4xl font-medium text-start">Variables</h1>
-              <p className="text-muted-foreground">
+        <div className="max-w-7xl mx-auto">
+          {/* Header */}
+          <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                Variables
+              </h1>
+              <p className="text-gray-600 text-lg">
                 Manage your application variables and configuration values
               </p>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="flex gap-2 p-3 flex-col items-start">
-                <label className="input w-full rounded-2xl border flex items-center gap-2 px-3 py-2">
-                  <Search className="h-4 w-4 opacity-50" />
-                  <input
-                    type="search"
-                    className="grow w-62"
-                    placeholder="Search variables..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
-                </label>
+            <div className="flex items-center gap-4">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <input
+                  type="search"
+                  className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  placeholder="Search variables..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
               <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#9664E0] text-white rounded-lg hover:bg-[#8557d4] transition"
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
                 onClick={() =>
                   (
                     document.getElementById(
@@ -165,147 +172,174 @@ function VariablesLayout() {
                   )?.showModal()
                 }
               >
-                <Plus className="w-4 h-4" />
+                <Plus className="w-5 h-5" />
                 Create Variable
               </button>
             </div>
           </div>
 
+          {/* Content */}
           {isLoading ? (
-            <div className="flex items-center justify-center">
+            <div className="flex items-center justify-center py-12">
               <Loading size="sm" />
             </div>
           ) : pagedVariables.length === 0 ? (
-            <div className="text-center py-12 bg-background rounded-lg">
-              <p className="text-muted-foreground text-lg">
-                No variables found
-              </p>
+            <div className="flex flex-col items-center justify-center gap-6 py-12">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                  No variables found
+                </h3>
+                <p className="text-gray-600">
+                  Create your first variable to get started.
+                </p>
+              </div>
             </div>
           ) : (
-            <>
-              <div className="overflow-hidden rounded-xl border border-gray-300 text-foreground">
-                <table className="w-full text-sm bg-background text-foreground">
-                  <thead className="bg-background text-left border-b border-gray-300">
-                    <tr>
-                      <th className="p-6 font-medium text-base">Name</th>
-                      <th className="p-6 font-medium text-base">Value</th>
-                      <th className="p-6 font-medium text-base">Type</th>
-                      <th className="p-6 font-medium text-base">Created</th>
-                      <th className="p-6 font-medium text-base">Updated</th>
-                      <th className="p-6 font-medium text-base">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {pagedVariables.map((variable) => (
-                      <tr
-                        key={variable.id}
-                        className="border-b border-gray-200"
-                      >
-                        <td className="p-6 font-mono font-medium">
-                          {variable.name}
-                        </td>
-                        <td className="p-6 font-mono text-sm max-w-xs truncate">
-                          {variable.value}
-                        </td>
-                        <td className="p-6">
-                          <span
-                            className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                              variable.type === "static"
-                                ? "bg-blue-100 text-blue-800"
-                                : "bg-green-100 text-green-800"
-                            }`}
-                          >
-                            {variable.type}
-                          </span>
-                        </td>
-                        <td className="p-6 text-sm">
-                          {timeAgo(variable.created_at)}
-                        </td>
-                        <td className="p-6 text-sm">
-                          {timeAgo(variable.updated_at)}
-                        </td>
-                        <td className="p-6">
-                          <div className="flex items-center gap-2">
-                            <button
-                              className="p-2 rounded-lg hover:bg-blue-50 group"
-                              title="Edit variable"
-                              onClick={() => handleEditClick(variable)}
-                            >
-                              <Edit className="w-4 h-4 text-gray-400 group-hover:text-blue-500" />
-                            </button>
-                            <button
-                              className="p-2 rounded-lg hover:bg-red-50 group"
-                              title="Delete variable"
-                              onClick={() => handleDelete(variable.id)}
-                            >
-                              <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {pagedVariables.map((variable) => (
+                <div
+                  key={variable.id}
+                  className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group"
+                >
+                  {/* Header */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1">
+                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors font-mono">
+                        {variable.name}
+                      </h3>
+                    </div>
+                    <span
+                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
+                        variable.type === "static"
+                          ? "bg-blue-100 text-blue-800 border-blue-200"
+                          : "bg-green-100 text-green-800 border-green-200"
+                      }`}
+                    >
+                      {variable.type}
+                    </span>
+                  </div>
 
-              {/* ✅ Pagination bar */}
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mt-6 px-4 pb-4">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs text-gray-500">Items per page:</span>
-                  <select
-                    className="border rounded px-2 py-1 text-xs"
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setPage(1);
-                    }}
-                  >
-                    {[7, 10, 20, 50, 100].map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div className="flex items-center gap-1 justify-center">
-                  <button
-                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
-                    onClick={() => setPage(page - 1)}
-                    disabled={page === 1}
-                  >
-                    <ChevronLeft className="w-4 h-4" />
-                  </button>
-                  {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                    (p) => (
+                  {/* Value */}
+                  <div className="mb-4">
+                    <p className="text-gray-600 text-sm font-mono break-all">
+                      {variable.value}
+                    </p>
+                  </div>
+
+                  {/* Metadata */}
+                  <div className="space-y-2 mb-4">
+                    <div className="flex items-center text-xs text-gray-500">
+                      <span className="font-medium">Created:</span>
+                      <span className="ml-2">
+                        {timeAgo(variable.created_at)}
+                      </span>
+                    </div>
+                    <div className="flex items-center text-xs text-gray-500">
+                      <span className="font-medium">Updated:</span>
+                      <span className="ml-2">
+                        {timeAgo(variable.updated_at)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                    <span className="text-xs text-gray-400 font-mono">
+                      ID: {variable.id.slice(0, 8)}...
+                    </span>
+                    <div className="flex items-center gap-1">
                       <button
-                        key={p}
-                        onClick={() => setPage(p)}
-                        className={`px-3 py-1 rounded text-xs border transition ${
-                          p === page
-                            ? "bg-[#9664E0] text-white border-[#9664E0] font-bold"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
-                        }`}
+                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                        title="Edit variable"
+                        onClick={() => handleEditClick(variable)}
                       >
-                        {p}
+                        <Edit className="w-4 h-4" />
                       </button>
-                    )
-                  )}
-                  <button
-                    className="px-2 py-1 text-xs border rounded disabled:opacity-50"
-                    onClick={() => setPage(page + 1)}
-                    disabled={page === totalPages}
-                  >
-                    <ChevronRight className="w-4 h-4" />
-                  </button>
+                      <button
+                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                        title="Delete variable"
+                        onClick={() => handleDelete(variable.id)}
+                      >
+                        <Trash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-xs text-gray-500 text-right">
-                  Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
-                  {totalItems}
-                </div>
-              </div>
-            </>
+              ))}
+            </div>
           )}
         </div>
+
+        {/* Pagination */}
+        {!isLoading && pagedVariables.length > 0 && (
+          <div className="mt-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
+              {/* Items per page */}
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-gray-600">Items per page:</span>
+                <select
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  value={itemsPerPage}
+                  onChange={(e) => {
+                    setItemsPerPage(Number(e.target.value));
+                    setPage(1);
+                  }}
+                >
+                  {[6, 10, 20, 50, 100].map((opt) => (
+                    <option
+                      key={opt}
+                      value={opt}
+                      className="bg-white text-gray-900"
+                    >
+                      {opt}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Sayfa numaraları */}
+              <div className="flex items-center gap-2 justify-center">
+                <button
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
+                    <button
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                        p === page
+                          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                      }`}
+                    >
+                      {p}
+                    </button>
+                  )
+                )}
+
+                <button
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Items X to Y of Z */}
+              <div className="text-sm text-gray-600 text-right">
+                Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
+                {totalItems}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Create Variable Modal */}
         <dialog
