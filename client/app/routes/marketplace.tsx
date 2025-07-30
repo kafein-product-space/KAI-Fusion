@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Copy, RefreshCw, ChevronLeft, ChevronRight } from "lucide-react";
+import { useSnackbar } from "notistack";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
@@ -7,6 +8,7 @@ import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 
 function MarketplaceLayout() {
+  const { enqueueSnackbar } = useSnackbar();
   const {
     publicWorkflows,
     fetchPublicWorkflows,
@@ -41,9 +43,16 @@ function MarketplaceLayout() {
     setDuplicating(id);
     try {
       await duplicateWorkflow(id);
-      alert("Workflow copied to your account!");
-    } catch (e) {
-      alert("Failed to copy workflow");
+      enqueueSnackbar("Workflow başarıyla kopyalandı!", { 
+        variant: "success",
+        autoHideDuration: 3000
+      });
+    } catch (e: any) {
+      console.error("Duplicate error:", e);
+      enqueueSnackbar("Workflow kopyalanamadı!", { 
+        variant: "error",
+        autoHideDuration: 4000
+      });
     } finally {
       setDuplicating(null);
     }
@@ -119,12 +128,12 @@ function MarketplaceLayout() {
                       <td className="p-6">{timeAgo(wf.created_at)}</td>
                       <td className="p-6">
                         <button
-                          className="flex items-center gap-2 px-3 py-1 bg-purple-600 text-white rounded hover:bg-purple-700 disabled:opacity-50"
+                          className="flex items-center gap-2 px-3 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 disabled:opacity-50 transition-all duration-200 shadow-lg hover:shadow-xl"
                           onClick={() => handleDuplicate(wf.id)}
                           disabled={duplicating === wf.id}
                         >
-                          <Copy className="w-4 h-4" />
-                          {duplicating === wf.id ? "Copying..." : "Copy"}
+                          <Copy className={`w-4 h-4 ${duplicating === wf.id ? "animate-spin" : ""}`} />
+                          {duplicating === wf.id ? "Kopyalanıyor..." : "Kopyala"}
                         </button>
                       </td>
                     </tr>
