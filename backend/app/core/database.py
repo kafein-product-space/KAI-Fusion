@@ -37,31 +37,40 @@ async_connection_args = {
     },
 }
 
-# Create a synchronous engine for tasks that require it (e.g., migrations)
-sync_engine = create_engine(
-    DATABASE_URL, 
-    **sync_connection_args
-)
+# Create engines only if database URLs are available
+sync_engine = None
+async_engine = None
 
-# Create an asynchronous engine for the main application
-async_engine = create_async_engine(
-    ASYNC_DATABASE_URL, 
-    **async_connection_args
-)
+if DATABASE_URL and ASYNC_DATABASE_URL:
+    # Create a synchronous engine for tasks that require it (e.g., migrations)
+    sync_engine = create_engine(
+        DATABASE_URL, 
+        **sync_connection_args
+    )
+
+    # Create an asynchronous engine for the main application
+    async_engine = create_async_engine(
+        ASYNC_DATABASE_URL, 
+        **async_connection_args
+    )
 
 # Database logging will be initialized after setup_database_logging is defined
 
-# Create a sessionmaker for asynchronous sessions
-AsyncSessionLocal = sessionmaker(
-    autocommit=False,
-    autoflush=False,
-    bind=async_engine,
-    class_=AsyncSession,
-    expire_on_commit=False  # Important for serverless
-)
+# Create a sessionmaker for asynchronous sessions only if database is enabled
+AsyncSessionLocal = None
+if async_engine:
+    AsyncSessionLocal = sessionmaker(
+        autocommit=False,
+        autoflush=False,
+        bind=async_engine,
+        class_=AsyncSession,
+        expire_on_commit=False  # Important for serverless
+    )
 
 async def get_db_session() -> AsyncSession:
     """Dependency to get a database session."""
+    if not AsyncSessionLocal:
+        raise RuntimeError("Database is not enabled. Set DATABASE_URL and ASYNC_DATABASE_URL to enable database functionality.")
     async with AsyncSessionLocal() as session:
         yield session
 
@@ -200,6 +209,14 @@ setup_database_logging()
 
 def get_database_stats() -> Dict[str, Any]:
     """Get current database statistics."""
+    if not DATABASE_URL or not ASYNC_DATABASE_URL:
+        return {
+            "database_enabled": False,
+            "query_stats": {"message": "Database is disabled"},
+            "sync_pool": {"status": "disabled"},
+            "async_pool": {"status": "disabled"}
+        }
+    
     try:
         avg_duration = _query_stats["total_duration"] / max(_query_stats["total_queries"], 1)
         
@@ -300,6 +317,11 @@ async def check_database_health() -> Dict[str, Any]:
         "error": None
     }
     
+    if not AsyncSessionLocal:
+        health_status["error"] = "Database is disabled"
+        health_status["response_time_ms"] = (time.time() - start_time) * 1000
+        return health_status
+    
     try:
         # Test database connection and basic query
         async with AsyncSessionLocal() as session:
@@ -328,28 +350,4 @@ async def check_database_health() -> Dict[str, Any]:
             "error_type": type(e).__name__
         })
     
-    return health_status
-
-
-async def create_tables():
-    """Create all tables in the database."""
-    start_time = time.time()
-    try:
-        from app.models.base import Base
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        
-        duration = time.time() - start_time
-        log_performance("create_tables", duration, operation="schema_creation")
-        logger.info("Database tables created successfully", extra={
-            "duration_seconds": round(duration, 4)
-        })
-        
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error("Failed to create database tables", extra={
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "duration_seconds": round(duration, 4)
-        })
-        raise 
+    return health_status 
