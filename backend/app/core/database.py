@@ -228,7 +228,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.pool import QueuePool, NullPool
 from sqlalchemy.engine import Engine
-from app.core.constants import DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, DB_POOL_RECYCLE, DB_POOL_PRE_PING, DATABASE_URL, ASYNC_DATABASE_URL, CREATE_DATABASE
+from app.core.constants import DB_POOL_SIZE, DB_MAX_OVERFLOW, DB_POOL_TIMEOUT, DB_POOL_RECYCLE, DB_POOL_PRE_PING, DATABASE_URL, ASYNC_DATABASE_URL
 from app.core.logging_config import log_database_operation, log_performance
 
 # Connection pooling configuration optimized for Supabase + Vercel
@@ -259,11 +259,11 @@ async_connection_args = {
     },
 }
 
-# Create engines only if database is enabled
+# Create engines only if database URLs are available
 sync_engine = None
 async_engine = None
 
-if CREATE_DATABASE and DATABASE_URL and ASYNC_DATABASE_URL:
+if DATABASE_URL and ASYNC_DATABASE_URL:
     # Create a synchronous engine for tasks that require it (e.g., migrations)
     sync_engine = create_engine(
         DATABASE_URL, 
@@ -292,7 +292,7 @@ if async_engine:
 async def get_db_session() -> AsyncSession:
     """Dependency to get a database session."""
     if not AsyncSessionLocal:
-        raise RuntimeError("Database is not enabled. Set CREATE_DATABASE=true to enable database functionality.")
+        raise RuntimeError("Database is not enabled. Set DATABASE_URL and ASYNC_DATABASE_URL to enable database functionality.")
     async with AsyncSessionLocal() as session:
         yield session
 
@@ -431,7 +431,7 @@ setup_database_logging()
 
 def get_database_stats() -> Dict[str, Any]:
     """Get current database statistics."""
-    if not CREATE_DATABASE:
+    if not DATABASE_URL or not ASYNC_DATABASE_URL:
         return {
             "database_enabled": False,
             "query_stats": {"message": "Database is disabled"},
@@ -572,33 +572,4 @@ async def check_database_health() -> Dict[str, Any]:
             "error_type": type(e).__name__
         })
     
-    return health_status
-
-
-async def create_tables():
-    """Create all tables in the database."""
-    start_time = time.time()
-    
-    if not async_engine:
-        logger.info("Database is disabled, skipping table creation")
-        return
-    
-    try:
-        from app.models.base import Base
-        async with async_engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        
-        duration = time.time() - start_time
-        log_performance("create_tables", duration, operation="schema_creation")
-        logger.info("Database tables created successfully", extra={
-            "duration_seconds": round(duration, 4)
-        })
-        
-    except Exception as e:
-        duration = time.time() - start_time
-        logger.error("Failed to create database tables", extra={
-            "error": str(e),
-            "error_type": type(e).__name__,
-            "duration_seconds": round(duration, 4)
-        })
-        raise 
+    return health_status 
