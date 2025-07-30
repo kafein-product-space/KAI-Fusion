@@ -57,11 +57,20 @@ class VariableService(BaseService[Variable]):
         variable = await super().get(db, id)
         return self._prepare_variable_response(variable) if variable else None
 
-    async def get_all(self, db: AsyncSession, *, skip: int = 0, limit: int = 100) -> List[Variable]:
+    async def get_all(self, db: AsyncSession, *, skip: int = 0, limit: int = 100, user_id=None) -> List[Variable]:
         """
-        Override base get_all method to decrypt values.
+        Override base get_all method to decrypt values and filter by user.
         """
-        variables = await super().get_all(db, skip=skip, limit=limit)
+        if user_id:
+            result = await db.execute(
+                select(self.model)
+                .filter_by(user_id=user_id)
+                .offset(skip)
+                .limit(limit)
+            )
+            variables = result.scalars().all()
+        else:
+            variables = await super().get_all(db, skip=skip, limit=limit)
         return [self._prepare_variable_response(var) for var in variables]
 
     async def get_by_name(self, db: AsyncSession, name: str) -> Optional[Variable]:
@@ -69,6 +78,14 @@ class VariableService(BaseService[Variable]):
         Get a variable by its name.
         """
         result = await db.execute(select(self.model).filter_by(name=name))
+        variable = result.scalars().first()
+        return self._prepare_variable_response(variable) if variable else None
+
+    async def get_by_name_and_user(self, db: AsyncSession, name: str, user_id) -> Optional[Variable]:
+        """
+        Get a variable by its name and user ID.
+        """
+        result = await db.execute(select(self.model).filter_by(name=name, user_id=user_id))
         variable = result.scalars().first()
         return self._prepare_variable_response(variable) if variable else None
 
@@ -80,7 +97,7 @@ class VariableService(BaseService[Variable]):
         variables = result.scalars().all()
         return [self._prepare_variable_response(var) for var in variables]
 
-    async def create_variable(self, db: AsyncSession, variable_data: VariableCreate) -> Variable:
+    async def create_variable(self, db: AsyncSession, variable_data: VariableCreate, user_id) -> Variable:
         """
         Create a new variable with encrypted value.
         """
@@ -89,7 +106,8 @@ class VariableService(BaseService[Variable]):
         db_variable = Variable(
             name=variable_data.name,
             value=encrypted_value,
-            type=variable_data.type
+            type=variable_data.type,
+            user_id=user_id
         )
         db.add(db_variable)
         await db.commit()

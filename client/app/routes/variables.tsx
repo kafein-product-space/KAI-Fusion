@@ -195,74 +195,63 @@ function VariablesLayout() {
               </div>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="space-y-4">
               {pagedVariables.map((variable) => (
                 <div
                   key={variable.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group"
+                  className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200"
                 >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors font-mono">
-                        {variable.name}
-                      </h3>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div className="flex-1">
+                        <h3 className="text-lg font-semibold text-gray-900 font-mono">
+                          {variable.name}
+                        </h3>
+                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                          <span>Created: {timeAgo(variable.created_at)}</span>
+                          <span>Updated: {timeAgo(variable.updated_at)}</span>
+                          <span className="text-xs text-gray-400 font-mono">
+                            ID: {variable.id.slice(0, 8)}...
+                          </span>
+                        </div>
+                      </div>
                     </div>
-                    <span
-                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
-                        variable.type === "static"
-                          ? "bg-blue-100 text-blue-800 border-blue-200"
-                          : "bg-green-100 text-green-800 border-green-200"
-                      }`}
-                    >
-                      {variable.type}
-                    </span>
+                    
+                    <div className="flex items-center gap-3">
+                      <span
+                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
+                          variable.type === "static"
+                            ? "bg-blue-100 text-blue-800 border-blue-200"
+                            : "bg-green-100 text-green-800 border-green-200"
+                        }`}
+                      >
+                        {variable.type}
+                      </span>
+                      
+                      <div className="flex items-center gap-1">
+                        <button
+                          title="Edit variable"
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                          onClick={() => handleEditClick(variable)}
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          title="Delete variable"
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                          onClick={() => handleDelete(variable.id)}
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-
-                  {/* Value */}
-                  <div className="mb-4">
+                  
+                  {/* Value Display */}
+                  <div className="mt-4 pt-4 border-t border-gray-100">
                     <p className="text-gray-600 text-sm font-mono break-all">
                       {variable.value}
                     </p>
-                  </div>
-
-                  {/* Metadata */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <span className="font-medium">Created:</span>
-                      <span className="ml-2">
-                        {timeAgo(variable.created_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <span className="font-medium">Updated:</span>
-                      <span className="ml-2">
-                        {timeAgo(variable.updated_at)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span className="text-xs text-gray-400 font-mono">
-                      ID: {variable.id.slice(0, 8)}...
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <button
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                        title="Edit variable"
-                        onClick={() => handleEditClick(variable)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                        title="Delete variable"
-                        onClick={() => handleDelete(variable.id)}
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
                   </div>
                 </div>
               ))}
