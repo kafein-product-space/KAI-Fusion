@@ -1,61 +1,70 @@
 version: "3"
 services:
-  kaifusion-be:
-    build: .
-    image: kaifusion:latest
-    ports:
-      - "8000:8000"
-    environment:
-      # Core Application Settings
-      SECRET_KEY: ${SECRET_KEY}
+kaifusion-be:
+  build: .
+  image: kaifusion:latest
+  ports:
+    - "8000:8000"
+  environment:
+    # Core Application Settings
+    SECRET_KEY: ${SECRET_KEY}
 
-      # Database Settings
-      CREATE_DATABASE: ${CREATE_DATABASE}
-      DATABASE_URL: ${DATABASE_URL}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_PORT: ${DATABASE_PORT}
-      DATABASE_HOST: ${DATABASE_HOST}
-      DATABASE_SSL: ${DATABASE_SSL}
-      DISABLE_DATABASE: ${DISABLE_DATABASE}
+    # Database Settings
+    CREATE_DATABASE: ${CREATE_DATABASE}
+    DATABASE_URL: ${DATABASE_URL}
+    POSTGRES_DB: ${POSTGRES_DB}
+    POSTGRES_USER: ${POSTGRES_USER}
+    POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    DATABASE_PORT: ${DATABASE_PORT}
+    DATABASE_HOST: ${DATABASE_HOST}
+    DATABASE_SSL: ${DATABASE_SSL}
+    DISABLE_DATABASE: ${DISABLE_DATABASE}
 
-      # Security
-      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+    # Security
+    CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
 
-      # LangSmith Settings
-      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
-      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
-      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
-      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
+    # LangSmith Settings
+    LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
+    LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
+    LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
+    LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
 
-      # Async Database
-      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
+    # Async Database
+    ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
 
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  command: uvicorn app.main:app --host 0.0.0.0 --port 8000
+  stdin_open: true
+  restart: always
+  tty: true
+  networks:
+    - default
 
-    stdin_open: true
-    restart: always
-    tty: true
-
-  kaifusion-fe:
-    build:
-      context: ./client
-      dockerfile: Dockerfile
-      target: production
-      args:
-        VITE_API_BASE_URL: ${VITE_API_BASE_URL}
-        VITE_API_VERSION: ${VITE_API_VERSION}
-        VITE_NODE_ENV: ${VITE_NODE_ENV}
-        VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
-    container_name: kai-fusion-client
-    ports:
-      - "3000:3000"
-    environment:
+kaifusion-fe:
+  build:
+    context: ./client
+    dockerfile: Dockerfile
+    target: production
+    args:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL}
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
-    restart: unless-stopped
-    depends_on:
-      - kaifusion-be
+  container_name: kai-fusion-client
+  ports:
+    - "3000:3000"
+  environment:
+    VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+    VITE_API_VERSION: ${VITE_API_VERSION}
+    VITE_NODE_ENV: ${VITE_NODE_ENV}
+    VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
+  restart: unless-stopped
+  depends_on:
+    - kaifusion-be
+  networks:
+    - default
+
+# Bridge network konfigürasyonu
+networks:
+  default:
+    external: true
+    name: bridge
