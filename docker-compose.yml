@@ -62,7 +62,3 @@ services:
     restart: unless-stopped
     depends_on:
       - kaifusion-be
-
-networks:
-  kaifusion-network:
-    driver: bridge
