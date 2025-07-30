@@ -29,14 +29,6 @@ from app.api.auth import router as auth_router
 from app.api.api_key import router as api_key_router
 from app.api.chat import router as chat_router
 from app.api.variables import router as variables_router
-from app.api.node_configurations import router as node_configurations_router
-from app.api.node_registry import router as node_registry_router
-from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
-from app.api.documents import router as documents_router
-from app.api.scheduled_jobs import router as scheduled_jobs_router
-from app.api.vectors import router as vectors_router
-
-from app.routes.export import router as export_router
 
 logger = logging.getLogger(__name__)
 
@@ -140,16 +132,7 @@ app.include_router(executions_router, prefix="/api/v1/executions", tags=["Execut
 app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
 app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
-app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
-app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
-app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
-app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
-app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
 
-# Include webhook routers
-app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
-app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
-app.include_router(export_router, prefix="/api", tags=["Export"])
 
 
 # Health checks and info endpoints
