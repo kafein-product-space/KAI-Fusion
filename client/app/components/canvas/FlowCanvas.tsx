@@ -127,6 +127,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     updateWorkflow,
     createWorkflow,
     fetchWorkflow,
+    deleteWorkflow,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -434,6 +435,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setCurrentWorkflow={setCurrentWorkflow}
         setNodes={setNodes}
         setEdges={setEdges}
+        deleteWorkflow={deleteWorkflow}
         isLoading={isLoading}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">

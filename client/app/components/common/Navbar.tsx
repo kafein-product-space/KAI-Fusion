@@ -128,11 +128,16 @@ const Navbar: React.FC<NavbarProps> = ({
     if (!currentWorkflow || !deleteWorkflow) return;
     try {
       await deleteWorkflow(currentWorkflow.id);
-      enqueueSnackbar("Workflow silindi!", { variant: "success" });
+      enqueueSnackbar("Workflow başarıyla silindi!", { variant: "success" });
       setCurrentWorkflow && setCurrentWorkflow(null);
       setNodes && setNodes([]);
       setEdges && setEdges([]);
+      // Workflow name'ini de sıfırla
+      setWorkflowName("isimsiz dosya");
+      // Workflows sayfasına yönlendir
+      navigate("/workflows");
     } catch (err) {
+      console.error("Delete error:", err);
       enqueueSnackbar("Workflow silinemedi!", { variant: "error" });
     }
     deleteDialogRef.current?.close();
@@ -206,7 +211,7 @@ const Navbar: React.FC<NavbarProps> = ({
                   </button>
                   {/* Delete */}
                   <button
-                    className="w-full text-left px-3 py-2 hover:bg-red-100 text-red-600 rounded  flex gap-3 justify-start items-center"
+                    className="w-full text-left px-3 py-2 hover:bg-red-50 text-red-600 rounded flex gap-3 justify-start items-center transition-colors duration-200"
                     onClick={() => {
                       setIsDropdownOpen(false);
                       setTimeout(
@@ -215,8 +220,8 @@ const Navbar: React.FC<NavbarProps> = ({
                       );
                     }}
                   >
-                    <Trash className="w-5 h-5" />
-                    Delete
+                    <Trash className="w-5 h-5 text-red-600" />
+                    Delete Workflow
                   </button>
                 </div>
               )}
@@ -226,30 +231,38 @@ const Navbar: React.FC<NavbarProps> = ({
       </header>
       {/* Delete Workflow Modal */}
       <dialog ref={deleteDialogRef} className="modal">
-        <div className="modal-box">
-          <h3 className="font-bold text-lg">Workflow'u Sil</h3>
-          <p className="py-4">
-            <strong className="font-mono">{currentWorkflow?.name}</strong>{" "}
+        <div className="modal-box bg-white border border-gray-200 rounded-lg shadow-xl">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+              <Trash className="w-5 h-5 text-red-600" />
+            </div>
+            <h3 className="font-bold text-lg text-gray-900">Workflow'u Sil</h3>
+          </div>
+          <p className="py-4 text-gray-700">
+            <strong className="font-semibold text-gray-900">
+              {currentWorkflow?.name}
+            </strong>{" "}
             workflow'unu silmek istediğine emin misin?
             <br />
-            <span className="text-red-600 text-sm">
-              Bu işlem geri alınamaz!
+            <span className="text-red-600 text-sm font-medium mt-2 block">
+              ⚠️ Bu işlem geri alınamaz!
             </span>
           </p>
           <div className="modal-action">
-            <form method="dialog" className="flex items-center gap-2">
+            <form method="dialog" className="flex items-center gap-3">
               <button
-                className="btn"
+                className="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors duration-200"
                 type="button"
                 onClick={() => deleteDialogRef.current?.close()}
               >
                 Vazgeç
               </button>
               <button
-                className="btn bg-red-500 hover:bg-red-600 text-white"
+                className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-colors duration-200 flex items-center gap-2"
                 type="button"
                 onClick={handleDelete}
               >
+                <Trash className="w-4 h-4" />
                 Sil
               </button>
             </form>
