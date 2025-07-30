@@ -84,11 +84,16 @@ const Navbar: React.FC<NavbarProps> = ({
           setCurrentWorkflow(json);
           setNodes(json.flow_data?.nodes || []);
           setEdges(json.flow_data?.edges || []);
+          // Workflow name'ini de güncelle
+          if (json.name) {
+            setWorkflowName(json.name);
+          }
           enqueueSnackbar("Workflow başarıyla yüklendi!", {
             variant: "success",
           });
         }
       } catch (err) {
+        console.error("Load error:", err);
         enqueueSnackbar("Geçersiz JSON dosyası!", { variant: "error" });
       }
     };
@@ -178,11 +183,11 @@ const Navbar: React.FC<NavbarProps> = ({
                 >
                   {/* Load */}
                   <button
-                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-gray-100 rounded flex gap-3 justify-start items-center"
+                    className="w-full font-medium text-black text-left px-3 py-2 hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
                     onClick={() => fileInputRef.current?.click()}
                   >
-                    <FileUp className="w-5 h-5" />
-                    Load
+                    <FileUp className="w-5 h-5 text-blue-600" />
+                    Load Workflow
                   </button>
                   <input
                     ref={fileInputRef}

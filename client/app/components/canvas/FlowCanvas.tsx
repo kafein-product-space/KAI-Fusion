@@ -431,6 +431,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
         currentWorkflow={currentWorkflow}
+        setCurrentWorkflow={setCurrentWorkflow}
+        setNodes={setNodes}
+        setEdges={setEdges}
         isLoading={isLoading}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">

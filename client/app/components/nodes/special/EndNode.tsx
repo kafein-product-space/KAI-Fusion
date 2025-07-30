@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
+import NeonHandle from "../../common/NeonHandle";
 import {
   Play,
   Square,
@@ -114,15 +115,14 @@ function EndNode({ data, id, onExecute, validationStatus }: EndNodeProps) {
         )}
 
         {/* Input Handle */}
-        <Handle
+        <NeonHandle
           type="target"
           position={Position.Left}
           id="target"
-          className="w-3 h-3 border-2 border-gray-300 !bg-gray-400"
-          style={{
-            width: 10,
-            height: 10,
-          }}
+          size={12}
+          color1="#3b82f6"
+          glow={true}
+          className="hover:scale-110 transition-transform duration-200"
         />
 
         {/* Left side label for input */}
