@@ -39,7 +39,7 @@ const EMBEDDING_MODELS = [
   },
   {
     value: "text-embedding-ada-002",
-    label: "Text Embedding Ada 002",
+    label: "Text Embedding Ada 002 (Legacy)",
     description: "Legacy model, still reliable • 1536D • $0.0001/1K tokens",
   },
 ];

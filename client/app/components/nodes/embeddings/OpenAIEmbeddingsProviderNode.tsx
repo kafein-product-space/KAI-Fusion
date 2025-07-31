@@ -82,7 +82,7 @@ function OpenAIEmbeddingsProviderNode({
   };
 
   const getModelLabel = () => {
-    return data.model || "text-embedding-ada-002";
+    return data.model || "text-embedding-3-small";
   };
 
   const getConnectionStatus = () => {
