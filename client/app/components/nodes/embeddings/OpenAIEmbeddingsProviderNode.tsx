@@ -1,7 +1,7 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 
-import OpenAIEmbeddingsProviderConfigModal from "../../modals/embeddings/OpenAIEmbeddingsProviderConfigModal";
+import OpenAIEmbeddingsProviderModal from "../../modals/embeddings/OpenAIEmbeddingsProviderConfigModal";
 import NeonHandle from "~/components/common/NeonHandle";
 
 interface OpenAIEmbeddingsProviderNodeProps {
@@ -9,7 +9,10 @@ interface OpenAIEmbeddingsProviderNodeProps {
   id: string;
 }
 
-function OpenAIEmbeddingsProviderNode({ data, id }: OpenAIEmbeddingsProviderNodeProps) {
+function OpenAIEmbeddingsProviderNode({
+  data,
+  id,
+}: OpenAIEmbeddingsProviderNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -41,7 +44,7 @@ function OpenAIEmbeddingsProviderNode({ data, id }: OpenAIEmbeddingsProviderNode
       <div
         className={`flex items-center gap-3 px-4 py-4 rounded-2xl border-2 text-gray-700 font-medium cursor-pointer transition-all border-gray-400 bg-gray-100 hover:bg-gray-200`}
         onDoubleClick={handleOpenModal}
-        title="Double click to configure"
+        title="Çift tıklayarak konfigüre edin"
       >
         <div className="bg-gray-500 p-1 rounded-2xl">
           <svg
@@ -58,7 +61,9 @@ function OpenAIEmbeddingsProviderNode({ data, id }: OpenAIEmbeddingsProviderNode
 
         <div className="flex-1">
           <div className="flex items-center gap-2">
-            <p className="font-semibold">{data?.name || "OpenAI Embeddings Provider"}</p>
+            <p className="font-semibold">
+              {data?.name || "OpenAI Embeddings Provider"}
+            </p>
           </div>
         </div>
 
@@ -74,7 +79,7 @@ function OpenAIEmbeddingsProviderNode({ data, id }: OpenAIEmbeddingsProviderNode
       </div>
 
       {/* DaisyUI dialog modal */}
-      <OpenAIEmbeddingsProviderConfigModal
+      <OpenAIEmbeddingsProviderModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}

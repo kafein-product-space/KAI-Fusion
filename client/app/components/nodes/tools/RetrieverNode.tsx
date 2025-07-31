@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Position } from "@xyflow/react";
-import { Search, Settings, Database, Zap } from "lucide-react";
+import { Search, Settings, Database, Zap, Trash } from "lucide-react";
 import RetrieverConfigModal from "~/components/modals/tools/RetrieverConfigModal";
 import NeonHandle from "~/components/common/NeonHandle";
 
@@ -35,7 +35,10 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         ? edge.source === id && edge.sourceHandle === handleId
         : edge.target === id && edge.targetHandle === handleId
     );
-
+  const handleDeleteNode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((nodes) => nodes.filter((node) => node.id !== id));
+  };
   return (
     <>
       {/* Ana node kutusu */}
@@ -56,6 +59,22 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         onMouseLeave={() => setIsHovered(false)}
         title="Double click to configure"
       >
+        {isHovered && (
+          <>
+            {/* Delete button */}
+            <button
+              className="absolute -top-3 -right-3 w-8 h-8 
+                bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500
+                text-white rounded-full border border-white/30 shadow-xl 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+              onClick={handleDeleteNode}
+              title="Delete Node"
+            >
+              <Trash size={14} />
+            </button>
+          </>
+        )}
         {/* Background pattern */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
 
@@ -114,16 +133,22 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         />
 
         {/* Handle labels */}
-        <div className="absolute -left-20 text-xs text-gray-500 font-medium"
-             style={{ top: "25%" }}>
+        <div
+          className="absolute -left-20 text-xs text-gray-500 font-medium"
+          style={{ top: "25%" }}
+        >
           Embedder
         </div>
-        <div className="absolute -left-20 text-xs text-gray-500 font-medium"
-             style={{ top: "65%" }}>
+        <div
+          className="absolute -left-20 text-xs text-gray-500 font-medium"
+          style={{ top: "65%" }}
+        >
           Reranker
         </div>
-        <div className="absolute -right-24 text-xs text-gray-500 font-medium"
-             style={{ top: "45%" }}>
+        <div
+          className="absolute -right-24 text-xs text-gray-500 font-medium"
+          style={{ top: "45%" }}
+        >
           Retriever Tool
         </div>
 

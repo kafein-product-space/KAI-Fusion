@@ -21,6 +21,7 @@ import {
   Network,
   BookOpen,
   Filter,
+  Layers,
 } from "lucide-react";
 
 interface NodeType {
@@ -56,8 +57,10 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
 
   // 📄 Belgeler & Veri
   TextDataLoader: <FileText className="w-6 h-6 text-pink-400" />,
+  DocumentLoader: <FileText className="w-6 h-6 text-blue-400" />,
   ChunkSplitter: <Scissors className="w-6 h-6 text-pink-300" />,
   PGVectorStore: <Database className="w-6 h-6 text-green-400" />,
+  VectorStoreOrchestrator: <Layers className="w-6 h-6 text-purple-400" />,
 
   // 🌐 Web & API
   TavilySearch: <Search className="w-6 h-6 text-indigo-400" />,
@@ -68,6 +71,9 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   // 🧩 RAG & QA
   RetrievalQA: <BookOpen className="w-6 h-6 text-purple-400" />,
   Reranker: <Filter className="w-6 h-6 text-yellow-400" />,
+  CohereRerankerProvider: <Filter className="w-6 h-6 text-orange-400" />,
+  RetrieverProvider: <Search className="w-6 h-6 text-indigo-400" />,
+  RetrieverNode: <Search className="w-6 h-6 text-indigo-400" />,
 
   // ✅ SVG İkonları
   OpenAIChat: (
