@@ -10,6 +10,7 @@ import {
   Clock,
   Power,
   ArrowRight,
+  Loader,
 } from "lucide-react";
 
 import NeonHandle from "../common/NeonHandle";
@@ -19,22 +20,45 @@ interface StartNodeProps {
   id: string;
   onExecute?: (id: string) => void;
   validationStatus?: "success" | "error" | null;
+  isExecuting?: boolean;
 }
 
-function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
+function StartNode({
+  data,
+  id,
+  onExecute,
+  validationStatus,
+  isExecuting,
+}: StartNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
+  const [localExecuting, setLocalExecuting] = useState(false);
 
   const handleDeleteNode = (e: React.MouseEvent) => {
     e.stopPropagation();
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
+
+  const handleDoubleClick = async () => {
+    if (onExecute && !localExecuting && !isExecuting) {
+      setLocalExecuting(true);
+      try {
+        await onExecute(id);
+      } finally {
+        setLocalExecuting(false);
+      }
+    }
+  };
+
   const edges = getEdges ? getEdges() : [];
   const isHandleConnected = edges.some(
     (edge) => edge.source === id && edge.sourceHandle === "output"
   );
 
   const getStatusColor = () => {
+    if (localExecuting || isExecuting) {
+      return "from-yellow-500 to-orange-600";
+    }
     switch (validationStatus || data?.validationStatus) {
       case "success":
         return "from-emerald-500 to-green-600";
@@ -46,6 +70,9 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
   };
 
   const getGlowColor = () => {
+    if (localExecuting || isExecuting) {
+      return "shadow-yellow-500/50";
+    }
     switch (validationStatus || data?.validationStatus) {
       case "success":
         return "shadow-emerald-500/30";
@@ -70,15 +97,16 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
               : "shadow-lg shadow-black/50"
           }
           border border-white/20 backdrop-blur-sm
-          hover:border-white/40`}
-        onDoubleClick={() => {
-          if (onExecute) {
-            onExecute(id);
-          }
-        }}
+          hover:border-white/40
+          ${localExecuting || isExecuting ? "animate-pulse" : ""}`}
+        onDoubleClick={handleDoubleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
-        title="Double click to execute"
+        title={
+          localExecuting || isExecuting
+            ? "Executing..."
+            : "Double click to execute"
+        }
       >
         {/* Background pattern */}
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
@@ -86,7 +114,11 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
         {/* Main icon */}
         <div className="relative z-10 mb-2">
           <div className="relative">
-            <Rocket className="w-10 h-10 text-white drop-shadow-lg" />
+            {localExecuting || isExecuting ? (
+              <Loader className="w-10 h-10 text-white drop-shadow-lg animate-spin" />
+            ) : (
+              <Rocket className="w-10 h-10 text-white drop-shadow-lg" />
+            )}
             {/* Activity indicator */}
             <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center">
               <Play className="w-2 h-2 text-white" />
@@ -96,11 +128,13 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
 
         {/* Node title */}
         <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
-          {data?.displayName || data?.name || "Start"}
+          {localExecuting || isExecuting
+            ? "Executing..."
+            : data?.displayName || data?.name || "Start"}
         </div>
 
         {/* Hover effects */}
-        {isHovered && (
+        {isHovered && !localExecuting && !isExecuting && (
           <>
             {/* Delete button */}
             <button
@@ -166,9 +200,9 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
         )}
 
         {/* Execution Status Indicator */}
-        {data?.is_executing && (
+        {(localExecuting || isExecuting) && (
           <div className="absolute top-1 left-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg">
+            <div className="w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center shadow-lg animate-pulse">
               <Activity className="w-2 h-2 text-white" />
             </div>
           </div>

@@ -10,6 +10,13 @@ interface ExecutionsStore {
   fetchExecutions: (workflow_id: string, params?: { skip?: number; limit?: number }) => Promise<void>;
   getExecution: (execution_id: string) => Promise<void>;
   createExecution: (workflow_id: string, inputs: Record<string, any>) => Promise<void>;
+  executeWorkflow: (workflow_id: string, executionData: {
+    flow_data: any;
+    input_text: string;
+    node_id?: string;
+    execution_type?: string;
+    trigger_source?: string;
+  }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -43,6 +50,19 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
       set((state) => ({ executions: [execution, ...state.executions], loading: false }));
     } catch (e: any) {
       set({ error: e.message || 'Failed to create execution', loading: false });
+    }
+  },
+  executeWorkflow: async (workflow_id, executionData) => {
+    set({ loading: true, error: null });
+    try {
+      const execution = await executionService.executeWorkflow(workflow_id, executionData);
+      set((state) => ({ 
+        currentExecution: execution, 
+        executions: [execution, ...state.executions], 
+        loading: false 
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to execute workflow', loading: false });
     }
   },
   clearError: () => set({ error: null }),

@@ -22,6 +22,7 @@ import {
 import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
+import { useExecutionsStore } from "~/stores/executions";
 import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 
@@ -140,6 +141,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   const { nodes: availableNodes } = useNodes();
 
+  // Execution store integration
+  const {
+    executeWorkflow,
+    currentExecution,
+    loading: executionLoading,
+    error: executionError,
+    clearError: clearExecutionError,
+  } = useExecutionsStore();
+
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
   );
@@ -157,6 +167,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
@@ -184,7 +195,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setWorkflowName("isimsiz dosya");
     }
   }, [currentWorkflow?.name]);
-
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -349,59 +359,103 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
-  // Function to handle StartNode execution
-  const handleStartNodeExecution = useCallback(async (nodeId: string) => {
-    if (!currentWorkflow) {
-      enqueueSnackbar("No workflow selected", { variant: "error" });
-      return;
-    }
-
-    try {
-      // Show loading message
-      enqueueSnackbar("Executing workflow...", { variant: "info" });
-
-      // Get the flow data
-      const flowData: WorkflowData = {
-        nodes: nodes as WorkflowNode[],
-        edges: edges as WorkflowEdge[],
-      };
-
-      // Call the backend API endpoint for workflow execution
-      const response = await fetch("http://localhost:8000/api/v1/workflows/execute", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          flow_data: flowData,
-          input_text: "Start workflow execution",
-          workflow_id: currentWorkflow.id,
-        }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to execute workflow");
+  // Function to handle StartNode execution with proper service integration
+  const handleStartNodeExecution = useCallback(
+    async (nodeId: string) => {
+      if (!currentWorkflow) {
+        enqueueSnackbar("No workflow selected", { variant: "error" });
+        return;
       }
 
-      // Show success message
-      enqueueSnackbar("Workflow executed successfully", { variant: "success" });
-    } catch (error: any) {
-      console.error("Error executing workflow:", error);
-      enqueueSnackbar(`Error executing workflow: ${error.message}`, { variant: "error" });
+      try {
+        // Show loading message
+        enqueueSnackbar("Executing workflow...", { variant: "info" });
+
+        // Get the flow data
+        const flowData: WorkflowData = {
+          nodes: nodes as WorkflowNode[],
+          edges: edges as WorkflowEdge[],
+        };
+
+        // Prepare execution inputs
+        const executionData = {
+          flow_data: flowData,
+          input_text: "Start workflow execution",
+          node_id: nodeId,
+          execution_type: "manual",
+          trigger_source: "start_node_double_click",
+        };
+
+        // Use the execution service to execute workflow
+        await executeWorkflow(currentWorkflow.id, executionData);
+
+        // Show success message
+        enqueueSnackbar("Workflow executed successfully", {
+          variant: "success",
+        });
+
+        // Clear any previous execution errors
+        clearExecutionError();
+      } catch (error: any) {
+        console.error("Error executing workflow:", error);
+        enqueueSnackbar(`Error executing workflow: ${error.message}`, {
+          variant: "error",
+        });
+      }
+    },
+    [
+      currentWorkflow,
+      nodes,
+      edges,
+      executeWorkflow,
+      clearExecutionError,
+      enqueueSnackbar,
+    ]
+  );
+
+  // Monitor execution errors and show them
+  useEffect(() => {
+    if (executionError) {
+      enqueueSnackbar(`Execution error: ${executionError}`, {
+        variant: "error",
+      });
+      clearExecutionError();
     }
-  }, [currentWorkflow, nodes, edges, enqueueSnackbar]);
+  }, [executionError, enqueueSnackbar, clearExecutionError]);
+
+  // Monitor execution loading state
+  useEffect(() => {
+    if (executionLoading) {
+      enqueueSnackbar("Executing workflow...", { variant: "info" });
+    }
+  }, [executionLoading, enqueueSnackbar]);
+
+  // Monitor successful execution and show success message
+  useEffect(() => {
+    if (currentExecution && !executionLoading) {
+      setShowSuccessMessage(true);
+      // Clear success message after 3 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentExecution, executionLoading]);
 
   // Use stable nodeTypes - pass handlers via node data instead
-  const nodeTypes = useMemo(() => ({
-    ...baseNodeTypes,
-    StartNode: (props: any) => (
-      <StartNode
-        {...props}
-        onExecute={handleStartNodeExecution}
-      />
-    ),
-  }), [handleStartNodeExecution]);
+  const nodeTypes = useMemo(
+    () => ({
+      ...baseNodeTypes,
+      StartNode: (props: any) => (
+        <StartNode
+          {...props}
+          onExecute={handleStartNodeExecution}
+          isExecuting={executionLoading}
+        />
+      ),
+    }),
+    [handleStartNodeExecution, executionLoading]
+  );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
@@ -575,6 +629,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onSendMessage={handleSendMessage}
             onClearChat={handleClearChat}
           />
+
+          {/* Execution Status Indicator */}
+          {executionLoading && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
+              <Loader className="w-4 h-4 animate-spin" />
+              <span className="text-sm font-medium">Executing workflow...</span>
+            </div>
+          )}
+
+          {/* Execution Error Display */}
+          {executionError && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg flex items-center gap-2">
+              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                <span className="text-red-600 text-xs font-bold">!</span>
+              </div>
+              <span className="text-sm font-medium">Execution failed</span>
+            </div>
+          )}
+
+          {/* Execution Success Display */}
+          {showSuccessMessage && currentExecution && !executionLoading && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
+              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                <span className="text-green-600 text-xs font-bold">✓</span>
+              </div>
+              <span className="text-sm font-medium">Execution completed</span>
+            </div>
+          )}
         </div>
       </div>
 
