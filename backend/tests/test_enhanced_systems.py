@@ -17,7 +17,7 @@ from app.core.state_manager import StateManager, CleanupPolicy
 from app.core.memory_manager import EnhancedMemoryManager, MemoryCleanupPolicy
 from app.core.performance_monitor import PerformanceMonitor, MetricType
 from app.core.enhanced_graph_builder import EnhancedGraphBuilder
-from app.core.enhanced_tracing import EnhancedWorkflowTracer
+from app.core.tracing import WorkflowTracer
 from app.nodes.memory.enhanced_buffer_memory import EnhancedBufferMemoryNode
 from app.core.state import FlowState
 

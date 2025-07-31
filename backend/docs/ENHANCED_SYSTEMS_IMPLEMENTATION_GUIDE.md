@@ -178,12 +178,12 @@ python -m pytest tests/test_enhanced_systems.py::TestPerformanceBenchmarks::test
 ```python
 # backend/app/core/__init__.py
 from .performance_monitor import PerformanceMonitor, get_performance_monitor
-from .enhanced_tracing import EnhancedWorkflowTracer, enhanced_trace_workflow
+from .tracing import WorkflowTracer, trace_workflow
 
 # Add to exports
 __all__ = [
     "PerformanceMonitor", "get_performance_monitor",
-    "EnhancedWorkflowTracer", "enhanced_trace_workflow",
+    "WorkflowTracer", "trace_workflow",
     # ... existing exports
 ]
 ```
@@ -193,11 +193,11 @@ __all__ = [
 ```python
 # backend/app/core/tracing.py
 # Add backward compatibility imports
-from .enhanced_tracing import (
-    enhanced_trace_workflow as trace_workflow,
-    enhanced_trace_node_execution as trace_node_execution,
-    enhanced_trace_memory_operation as trace_memory_operation,
-    get_enhanced_workflow_tracer as get_workflow_tracer
+from .tracing import (
+    trace_workflow,
+    trace_node_execution,
+    trace_memory_operation,
+    get_workflow_tracer
 )
 
 # Keep existing exports for compatibility
@@ -214,7 +214,7 @@ __all__ = [
 ```python
 # backend/app/services/workflow_service.py
 from app.core.performance_monitor import get_performance_monitor
-from app.core.enhanced_tracing import enhanced_trace_workflow
+from app.core.tracing import trace_workflow
 
 class WorkflowService:
     def __init__(self):

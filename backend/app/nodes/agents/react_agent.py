@@ -500,12 +500,12 @@ class ReactAgentNode(ProcessorNode):
             "node_type": NodeType.PROCESSOR,
             "inputs": [
                 NodeInput(name="input", type="string", required=True, description="The user's input to the agent."),
-                NodeInput(name="llm", type="BaseLanguageModel", required=True, description="The language model that the agent will use."),
-                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, description="The tools that the agent can use."),
-                NodeInput(name="memory", type="BaseMemory", required=False, description="The memory that the agent can use."),
+                NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
+                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
+                NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
                 NodeInput(name="max_iterations", type="int", default=15, description="The maximum number of iterations the agent can perform."),
                 NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
-                NodeInput(name="prompt_instructions", type="str", required=False, 
+                NodeInput(name="prompt_instructions", type="str", required=False,
                          description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                          default=""),
             ],
@@ -517,12 +517,29 @@ class ReactAgentNode(ProcessorNode):
         Sets up and returns a RunnableLambda that executes the agent.
         """
         def agent_executor_lambda(runtime_inputs: dict) -> dict:
+            # Debug connection information
+            print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
+            print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
+            
             llm = connected_nodes.get("llm")
             tools = connected_nodes.get("tools")
             memory = connected_nodes.get("memory")
-
+            
+            # Enhanced LLM validation with better error reporting
+            print(f"[DEBUG] LLM received: {type(llm)}")
+            if llm is None:
+                available_connections = list(connected_nodes.keys())
+                raise ValueError(
+                    f"A valid LLM connection is required. "
+                    f"Available connections: {available_connections}. "
+                    f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
+                )
+            
             if not isinstance(llm, BaseLanguageModel):
-                raise ValueError("A valid LLM connection is required.")
+                raise ValueError(
+                    f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
+                    f"Ensure the OpenAI Chat node is properly configured and connected."
+                )
 
             tools_list = self._prepare_tools(tools)
 
@@ -530,21 +547,41 @@ class ReactAgentNode(ProcessorNode):
 
             agent = create_react_agent(llm, tools_list, agent_prompt)
 
+            # Get max_iterations from inputs (user configuration) with proper fallback
+            max_iterations = inputs.get("max_iterations")
+            if max_iterations is None:
+                max_iterations = self.user_data.get("max_iterations", 15)  # Use default from NodeInput definition
+            
+            print(f"[DEBUG] Max iterations configured: {max_iterations}")
+            
             # Build executor config with conditional memory
             executor_config = {
                 "agent": agent,
                 "tools": tools_list,
                 "verbose": True, # Essential for real-time debugging
                 "handle_parsing_errors": "Check your output and make sure it conforms! If you need more iterations, provide your current best answer.",
-                "max_iterations": self.user_data.get("max_iterations", 3),  # Further reduce iterations for efficiency
+                "max_iterations": max_iterations,
                 "return_intermediate_steps": True,  # Capture tool usage for debugging
                 "max_execution_time": 60,  # Increase execution time slightly
                 "early_stopping_method": "force"  # Use supported method
             }
             
-            # Only add memory if it exists
+            # Only add memory if it exists and is properly initialized
             if memory is not None:
-                executor_config["memory"] = memory
+                try:
+                    # Test if memory is working properly
+                    if hasattr(memory, 'load_memory_variables'):
+                        test_vars = memory.load_memory_variables({})
+                        executor_config["memory"] = memory
+                        print(f"   💭 Memory: Connected successfully")
+                    else:
+                        print(f"   💭 Memory: Invalid memory object, proceeding without memory")
+                        memory = None
+                except Exception as e:
+                    print(f"   💭 Memory: Failed to initialize ({str(e)}), proceeding without memory")
+                    memory = None
+            else:
+                print(f"   💭 Memory: None")
                 
             executor = AgentExecutor(**executor_config)
 
@@ -620,18 +657,23 @@ class ReactAgentNode(ProcessorNode):
         """
         custom_instructions = self.user_data.get("prompt_instructions", "").strip()
         
-        # Optimized system context with efficient tool usage
+        # Optimized system context with efficient tool usage and conversation history awareness
         base_system_context = """
-Sen KAI-Fusion platformunda çalışan verimli bir AI asistanısın. 
+Sen KAI-Fusion platformunda çalışan uzman bir AI asistanısın.
 Kullanıcının dilinde (Türkçe/İngilizce) hızlı ve yararlı cevaplar ver.
 
-VERİMLİLİK KURALLARI:
-- Basit sorularda (merhaba, nasılsın, teşekkür) araç kullanma
-- Sadece güncel/yeni bilgi gerektiğinde araç kullan
-- Araç kullanımından sonra hemen cevap ver, gereksiz araç kullanımı yapma
-- Maksimum 2 araç kullanımı ile cevabını tamamla
-- Eğer bilgin varsa araç kullanmadan cevapla
-- Senin hafizan {memory}
+KONUŞMA GEÇMİŞİ KULLANIMI:
+- ÖNEMLI: Soru belirsiz zamirler (o, bu, şu, he, she, that) içeriyorsa, önceki mesajları kontrol et
+- Eğer kullanıcı "o kim?", "who is he?", "bu nedir?" gibi sorular soruyorsa, konuşma geçmişindeki kişi/konu adlarını kullan
+- Belirsiz soruları açık sorulara dönüştür (örn: "o kim?" → "Baha Kızıl kimdir?")
+- Her zaman tam bağlamı anlayarak cevap ver
+
+ARAÇ KULLANIM KURALLARI:
+- Eğer elinde araç varsa ve soru araçla cevaplanabiliyorsa, ÖNCELİKLE ARACI KULLAN
+- Özellikle kişiler, belgeler veya özel bilgiler hakkında sorular için araçları kullan
+- Sadece genel konuşma (merhaba, nasılsın, teşekkür) için araç kullanma
+- Araç kullandıktan sonra bulduğun bilgiyle detaylı cevap ver
+- Eğer araç sonuç bulamazsa, o zaman genel bilginle yardım et
 """
         
         # Build dynamic, intelligent prompt based on available components
@@ -654,29 +696,57 @@ VERİMLİLİK KURALLARI:
         # Minimal guidelines
         simplified_guidelines = "Kullanıcıya yardımcı ol ve gerektiğinde araçları kullan."
 
-        # === OPTIMIZED REACT TEMPLATE ===
-        react_template = """Answer the following questions efficiently. You have access to these tools:
+        # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
+        react_template = """You are an expert assistant with access to conversation history and tools.
 
+AVAILABLE TOOLS:
 {tools}
 
-IMPORTANT: Be concise and efficient. Use tools only when necessary for current information.
+Tool Names: {tool_names}
+
+CONVERSATION HISTORY USAGE:
+- CRITICAL: Before answering any question, check if it contains ambiguous references (he, she, it, that, o, bu, şu)
+- If the question has pronouns or unclear references, look at the conversation history to understand what they refer to
+- Transform ambiguous questions into specific ones using the conversation context
+- Example: If previous messages mentioned "Baha Kızıl" and user asks "o kim?" or "who is he?", search for "Baha Kızıl kimdir" or "who is Baha Kızıl"
+
+CRITICAL INSTRUCTIONS - FOLLOW STRICTLY:
+1. FIRST: Check if the question needs conversation context (contains pronouns/ambiguous references)
+2. If ambiguous, use conversation history to clarify what the user is asking about
+3. When you receive a question that can be answered with tools, you MUST immediately use the appropriate tool
+4. After you receive results from the tool, you MUST synthesize the information into a final answer
+5. Do NOT use the same tool more than once for a single question
+6. Do NOT use your general knowledge - rely ONLY on the tool results
+7. Always provide a complete Final Answer based on the retrieved information
 
 Use this EXACT format:
 
 Question: the input question you must answer
-Thought: think about what to do (be concise)
-Action: the tool to use, should be one of [{tool_names}]
-Action Input: the input to the action
+Thought: [Check if question needs conversation context. If ambiguous, identify what it refers to from history. Then decide on tool usage]
+Action: document_retriever
+Action Input: [specific search query - if original was ambiguous, use the clarified version]
 Observation: the result of the action
-... (this can repeat max 2 times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Thought: Based on the search results, I now have the information I need to provide a complete answer
+Final Answer: [comprehensive answer based ONLY on the retrieved documents]
 
-For direct answers (no tools needed):
-Thought: I can answer this directly
-Final Answer: [your answer]
+For questions needing context clarification:
+Question: the input question (e.g., "who is he?")
+Thought: This question contains an ambiguous reference "he". Looking at conversation history, the user previously asked about "Baha Kızıl", so "he" likely refers to Baha Kızıl. I should search for information about Baha Kızıl.
+Action: document_retriever
+Action Input: Baha Kızıl kimdir
+Observation: the result of the action
+Thought: Based on the search results about Baha Kızıl, I can now provide a complete answer
+Final Answer: [answer about Baha Kızıl based on retrieved documents]
 
-Be efficient - if you have enough information after 1 tool use, provide the final answer.
+For general greetings or simple questions that don't need tools:
+Question: the input question
+Thought: This is a simple greeting/question that doesn't require tool usage
+Final Answer: [appropriate response]
+
+REMEMBER:
+- Use conversation history to resolve ambiguous references
+- Use tools ONCE with specific queries, then provide Final Answer
+- Do NOT repeat tool usage
 
 Begin!
 

@@ -1017,299 +1017,299 @@ class DocumentLoaderNode(ProcessorNode):
             
             # Process connected documents if available
             documents = []
-            if connected_documents:
-                logger.info(f"🔗 Processing {len(connected_documents) if isinstance(connected_documents, list) else 1} connected documents")
-                # Handle both single document and list of documents
-                if isinstance(connected_documents, list):
-                    documents.extend(connected_documents)
-                else:
-                    documents.append(connected_documents)
-            
-            # Stage 3: Content Extraction
-            logger.info("🔄 Stage 3/6: Content Extraction")
-            
-            # Process local files if provided
-            if file_paths:
-                logger.info(f"🎯 Processing {len(file_paths)} local files")
+        if connected_documents:
+            logger.info(f"🔗 Processing {len(connected_documents) if isinstance(connected_documents, list) else 1} connected documents")
+            # Handle both single document and list of documents
+            if isinstance(connected_documents, list):
+                documents.extend(connected_documents)
             else:
-                logger.info("📄 No local files to process")
-            
-            # Process sources
-            initial_document_count = len(documents)
-            stats = {
-                "total_sources": len(file_paths) + initial_document_count,
-                "file_sources": len(file_paths),
-                "connected_sources": initial_document_count,
-                "successful_processed": 0,
-                "failed_processed": 0,
-                "formats_processed": {},
-                "processing_errors": [],
-                "start_time": datetime.now().isoformat(),
-            }
-            
-            # Process local files
-            for file_path in file_paths:
-                try:
-                    # Enhanced path resolution
-                    resolved_path = self._resolve_file_path(file_path)
-                    if not resolved_path:
-                        error_msg = f"File not found in any search location: {file_path}"
-                        logger.error(f"❌ {error_msg}")
-                        stats["failed_processed"] += 1
-                        stats["processing_errors"].append(error_msg)
-                        continue
-                    
-                    path_obj = Path(resolved_path)
-                    logger.info(f"📍 Resolved path: {file_path} -> {resolved_path}")
-                    
-                    # Check file size
-                    file_size_mb = path_obj.stat().st_size / (1024 * 1024)
-                    if file_size_mb > max_file_size_mb:
-                        error_msg = f"File too large: {file_path} ({file_size_mb:.1f}MB > {max_file_size_mb}MB)"
-                        logger.error(f"❌ {error_msg}")
-                        stats["failed_processed"] += 1
-                        stats["processing_errors"].append(error_msg)
-                        continue
-                    
-                    # Detect format
-                    file_format = self._detect_file_format(file_path)
-                    
-                    if file_format not in supported_formats:
-                        logger.info(f"⏭️ Skipping file (format not enabled): {file_path} ({file_format})")
-                        continue
-                    
-                    logger.info(f"📄 Processing {file_format.upper()} file: {file_path}")
-                    
-                    # Process based on format with enhanced error handling
-                    if file_format == "txt":
-                        doc = self._process_text_file(resolved_path)
-                    elif file_format == "json":
-                        doc = self._process_json_file(resolved_path)
-                    elif file_format == "docx":
-                        doc = self._process_docx_file(resolved_path)
-                    elif file_format == "pdf":
-                        doc = self._process_pdf_file(resolved_path)
-                    elif file_format == "csv":
-                        doc = self._process_csv_file(resolved_path)
-                    else:
-                        # Fallback to text processing
-                        logger.info(f"⚠️ Unknown format {file_format}, treating as text")
-                        doc = self._process_text_file(resolved_path)
-                    
-                    if len(doc.page_content) >= min_content_length:
-                        documents.append(doc)
-                        stats["successful_processed"] += 1
-                        stats["formats_processed"][file_format] = stats["formats_processed"].get(file_format, 0) + 1
-                        logger.info(f"✅ Successfully processed file: {file_path}")
-                    else:
-                        logger.warning(f"⚠️ File content too short: {file_path} ({len(doc.page_content)} chars)")
-                        stats["failed_processed"] += 1
-                        
-                except Exception as e:
-                    error_msg = f"Failed to process file {file_path}: {str(e)}"
+                documents.append(connected_documents)
+        
+        # Stage 3: Content Extraction
+        logger.info("🔄 Stage 3/6: Content Extraction")
+        
+        # Process local files if provided
+        if file_paths:
+            logger.info(f"🎯 Processing {len(file_paths)} local files")
+        else:
+            logger.info("📄 No local files to process")
+        
+        # Process sources
+        initial_document_count = len(documents)
+        stats = {
+            "total_sources": len(file_paths) + initial_document_count,
+            "file_sources": len(file_paths),
+            "connected_sources": initial_document_count,
+            "successful_processed": 0,
+            "failed_processed": 0,
+            "formats_processed": {},
+            "processing_errors": [],
+            "start_time": datetime.now().isoformat(),
+        }
+        
+        # Process local files
+        for file_path in file_paths:
+            try:
+                # Enhanced path resolution
+                resolved_path = self._resolve_file_path(file_path)
+                if not resolved_path:
+                    error_msg = f"File not found in any search location: {file_path}"
                     logger.error(f"❌ {error_msg}")
                     stats["failed_processed"] += 1
                     stats["processing_errors"].append(error_msg)
-            
-            processing_stages["content_extraction"] = True
-            logger.info("✅ Stage 3/6: Content Extraction completed")
-            
-            # Stage 4: Quality Analysis
-            logger.info("🔄 Stage 4/6: Quality Analysis & Processing")
-            
-            # Post-processing
-            if documents:
-                # Calculate quality scores
-                for doc in documents:
-                    doc.metadata["quality_score"] = self._calculate_quality_score(doc)
-            
-            # Filter by quality threshold
-            high_quality_docs = [doc for doc in documents if doc.metadata["quality_score"] >= quality_threshold]
-            low_quality_count = len(documents) - len(high_quality_docs)
-            
-            if low_quality_count > 0:
-                logger.info(f"🔍 Filtered out {low_quality_count} low-quality documents (quality < {quality_threshold})")
-            
-            documents = high_quality_docs
-            
-            # Deduplication
-            if deduplicate and len(documents) > 1:
-                original_count = len(documents)
-                documents = self._deduplicate_documents(documents)
-                duplicate_count = original_count - len(documents)
+                    continue
                 
-                if duplicate_count > 0:
-                    logger.info(f"🔄 Removed {duplicate_count} duplicate documents")
+                path_obj = Path(resolved_path)
+                logger.info(f"📍 Resolved path: {file_path} -> {resolved_path}")
+                
+                # Check file size
+                file_size_mb = path_obj.stat().st_size / (1024 * 1024)
+                if file_size_mb > max_file_size_mb:
+                    error_msg = f"File too large: {file_path} ({file_size_mb:.1f}MB > {max_file_size_mb}MB)"
+                    logger.error(f"❌ {error_msg}")
+                    stats["failed_processed"] += 1
+                    stats["processing_errors"].append(error_msg)
+                    continue
+                
+                # Detect format
+                file_format = self._detect_file_format(file_path)
+                
+                if file_format not in supported_formats:
+                    logger.info(f"⏭️ Skipping file (format not enabled): {file_path} ({file_format})")
+                    continue
+                
+                logger.info(f"📄 Processing {file_format.upper()} file: {file_path}")
+                
+                # Process based on format with enhanced error handling
+                if file_format == "txt":
+                    doc = self._process_text_file(resolved_path)
+                elif file_format == "json":
+                    doc = self._process_json_file(resolved_path)
+                elif file_format == "docx":
+                    doc = self._process_docx_file(resolved_path)
+                elif file_format == "pdf":
+                    doc = self._process_pdf_file(resolved_path)
+                elif file_format == "csv":
+                    doc = self._process_csv_file(resolved_path)
+                else:
+                    # Fallback to text processing
+                    logger.info(f"⚠️ Unknown format {file_format}, treating as text")
+                    doc = self._process_text_file(resolved_path)
+                
+                if len(doc.page_content) >= min_content_length:
+                    documents.append(doc)
+                    stats["successful_processed"] += 1
+                    stats["formats_processed"][file_format] = stats["formats_processed"].get(file_format, 0) + 1
+                    logger.info(f"✅ Successfully processed file: {file_path}")
+                else:
+                    logger.warning(f"⚠️ File content too short: {file_path} ({len(doc.page_content)} chars)")
+                    stats["failed_processed"] += 1
+                    
+            except Exception as e:
+                error_msg = f"Failed to process file {file_path}: {str(e)}"
+                logger.error(f"❌ {error_msg}")
+                stats["failed_processed"] += 1
+                stats["processing_errors"].append(error_msg)
+        
+        processing_stages["content_extraction"] = True
+        logger.info("✅ Stage 3/6: Content Extraction completed")
+        
+        # Stage 4: Quality Analysis
+        logger.info("🔄 Stage 4/6: Quality Analysis & Processing")
+        
+        # Post-processing
+        if documents:
+            # Calculate quality scores
+            for doc in documents:
+                doc.metadata["quality_score"] = self._calculate_quality_score(doc)
+        
+        # Filter by quality threshold
+        high_quality_docs = [doc for doc in documents if doc.metadata["quality_score"] >= quality_threshold]
+        low_quality_count = len(documents) - len(high_quality_docs)
+        
+        if low_quality_count > 0:
+            logger.info(f"🔍 Filtered out {low_quality_count} low-quality documents (quality < {quality_threshold})")
+        
+        documents = high_quality_docs
+        
+        # Deduplication
+        if deduplicate and len(documents) > 1:
+            original_count = len(documents)
+            documents = self._deduplicate_documents(documents)
+            duplicate_count = original_count - len(documents)
             
-            processing_stages["quality_analysis"] = True
-            logger.info("✅ Stage 4/6: Quality Analysis completed")
-            
-            # Final statistics
-            stats.update({
-                "final_document_count": len(documents),
-                "processing_time": (datetime.now() - datetime.fromisoformat(stats["start_time"])).total_seconds(),
-                "avg_content_length": int(sum(len(doc.page_content) for doc in documents) / len(documents)) if documents else 0,
-                "avg_quality_score": sum(doc.metadata.get("quality_score", 0) for doc in documents) / len(documents) if documents else 0,
-            })
-            
-            # Generate metadata report
-            metadata_report = {
-                "processing_summary": stats,
-                "format_distribution": stats["formats_processed"],
-                "quality_distribution": {},
-                "source_analysis": {},
-                "recommendations": [],
+            if duplicate_count > 0:
+                logger.info(f"🔄 Removed {duplicate_count} duplicate documents")
+        
+        processing_stages["quality_analysis"] = True
+        logger.info("✅ Stage 4/6: Quality Analysis completed")
+        
+        # Final statistics
+        stats.update({
+            "final_document_count": len(documents),
+            "processing_time": (datetime.now() - datetime.fromisoformat(stats["start_time"])).total_seconds(),
+            "avg_content_length": int(sum(len(doc.page_content) for doc in documents) / len(documents)) if documents else 0,
+            "avg_quality_score": sum(doc.metadata.get("quality_score", 0) for doc in documents) / len(documents) if documents else 0,
+        })
+        
+        # Generate metadata report
+        metadata_report = {
+            "processing_summary": stats,
+            "format_distribution": stats["formats_processed"],
+            "quality_distribution": {},
+            "source_analysis": {},
+            "recommendations": [],
+        }
+        
+        if documents:
+            # Quality distribution
+            quality_scores = [doc.metadata.get("quality_score", 0) for doc in documents]
+            metadata_report["quality_distribution"] = {
+                "high_quality": len([s for s in quality_scores if s >= 0.8]),
+                "medium_quality": len([s for s in quality_scores if 0.5 <= s < 0.8]),
+                "low_quality": len([s for s in quality_scores if s < 0.5]),
+                "average_score": sum(quality_scores) / len(quality_scores),
             }
             
-            if documents:
-                # Quality distribution
-                quality_scores = [doc.metadata.get("quality_score", 0) for doc in documents]
-                metadata_report["quality_distribution"] = {
-                    "high_quality": len([s for s in quality_scores if s >= 0.8]),
-                    "medium_quality": len([s for s in quality_scores if 0.5 <= s < 0.8]),
-                    "low_quality": len([s for s in quality_scores if s < 0.5]),
-                    "average_score": sum(quality_scores) / len(quality_scores),
-                }
+            # Source analysis
+            sources = {}
+            for doc in documents:
+                source = doc.metadata.get("source", "unknown")
+                format_type = doc.metadata.get("format", "unknown")
                 
-                # Source analysis
-                sources = {}
-                for doc in documents:
-                    source = doc.metadata.get("source", "unknown")
-                    format_type = doc.metadata.get("format", "unknown")
-                    
-                    if source not in sources:
-                        sources[source] = {"format": format_type, "content_length": 0, "quality_score": 0}
-                    
-                    sources[source]["content_length"] += len(doc.page_content)
-                    sources[source]["quality_score"] = max(sources[source]["quality_score"], doc.metadata.get("quality_score", 0))
+                if source not in sources:
+                    sources[source] = {"format": format_type, "content_length": 0, "quality_score": 0}
                 
-                metadata_report["source_analysis"] = sources
-                
-                # Generate recommendations
-                recommendations = []
-                if stats["failed_processed"] > stats["successful_processed"]:
-                    recommendations.append("High failure rate detected. Check file paths, permissions, and supported formats.")
-                
-                if metadata_report["quality_distribution"]["low_quality"] > len(documents) * 0.3:
-                    recommendations.append("Many low-quality documents detected. Consider adjusting quality_threshold or improving source content.")
-                
-                if len(set(doc.metadata.get("format") for doc in documents)) == 1:
-                    recommendations.append("Only one format processed. Consider enabling additional formats for better content diversity.")
-                
-                metadata_report["recommendations"] = recommendations
+                sources[source]["content_length"] += len(doc.page_content)
+                sources[source]["quality_score"] = max(sources[source]["quality_score"], doc.metadata.get("quality_score", 0))
             
-            # Stage 5: Storage Operations
-            logger.info("🔄 Stage 5/6: Storage Operations")
+            metadata_report["source_analysis"] = sources
             
-            # Storage (if enabled)
-            if storage_enabled and documents:
-                try:
-                    logger.info(f"💾 Storage enabled - storing {len(documents)} documents to database")
-                    
-                    # Get user_id from context (you may need to adjust this based on your auth system)
-                    user_id = inputs.get("user_id")  # This should come from authentication context
-                    if not user_id:
-                        logger.warning("⚠️ No user_id provided for storage, skipping database storage")
-                    else:
-                        # Convert Document objects to storage format
-                        documents_data = []
-                        for doc in documents:
-                            documents_data.append({
-                                "title": self._generate_title_from_content(doc.page_content),
-                                "content": doc.page_content,
-                                "format": doc.metadata.get("format", "unknown"),
-                                "source": doc.metadata.get("source"),
-                                "metadata": doc.metadata,
-                                "quality_score": doc.metadata.get("quality_score", 0.5),
-                                "tags": self._extract_tags_from_metadata(doc.metadata)
-                            })
-                        
-                        # Store in database
-                        async with get_db_session_context() as session:
-                            document_service = DocumentService(session)
-                            
-                            # Create collection for this batch
-                            collection = await document_service.create_collection(
-                                user_id=user_id,
-                                collection_data={
-                                    "name": f"DocumentLoader Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                                    "description": f"Auto-created collection from DocumentLoader processing",
-                                    "type": "document_loader_batch",
-                                    "source": "mixed"  # Default to mixed source
-                                }
-                            )
-                            
-                            # Store documents
-                            stored_documents = await document_service.store_documents(
-                                user_id=user_id,
-                                documents_data=documents_data,
-                                collection_id=collection.id
-                            )
-                            
-                            # Update original documents with storage info
-                            for i, doc in enumerate(documents):
-                                if i < len(stored_documents):
-                                    doc.metadata.update({
-                                        "stored": True,
-                                        "storage_timestamp": datetime.now().isoformat(),
-                                        "database_id": str(stored_documents[i].id),
-                                        "collection_id": str(collection.id)
-                                    })
-                        
-                        logger.info(f"✅ Successfully stored {len(stored_documents)} documents in database")
-                            
-                except Exception as e:
-                    logger.error(f"❌ Database storage failed: {str(e)}")
-                    # Continue execution even if storage fails
+            # Generate recommendations
+            recommendations = []
+            if stats["failed_processed"] > stats["successful_processed"]:
+                recommendations.append("High failure rate detected. Check file paths, permissions, and supported formats.")
+            
+            if metadata_report["quality_distribution"]["low_quality"] > len(documents) * 0.3:
+                recommendations.append("Many low-quality documents detected. Consider adjusting quality_threshold or improving source content.")
+            
+            if len(set(doc.metadata.get("format") for doc in documents)) == 1:
+                recommendations.append("Only one format processed. Consider enabling additional formats for better content diversity.")
+            
+            metadata_report["recommendations"] = recommendations
+        
+        # Stage 5: Storage Operations
+        logger.info("🔄 Stage 5/6: Storage Operations")
+        
+        # Storage (if enabled)
+        if storage_enabled and documents:
+            try:
+                logger.info(f"💾 Storage enabled - storing {len(documents)} documents to database")
+                
+                # Get user_id from context (you may need to adjust this based on your auth system)
+                user_id = inputs.get("user_id")  # This should come from authentication context
+                if not user_id:
+                    logger.warning("⚠️ No user_id provided for storage, skipping database storage")
+                else:
+                    # Convert Document objects to storage format
+                    documents_data = []
                     for doc in documents:
-                        doc.metadata.update({
-                            "storage_attempted": True,
-                            "storage_failed": True,
-                            "storage_error": str(e),
-                            "storage_timestamp": datetime.now().isoformat()
+                        documents_data.append({
+                            "title": self._generate_title_from_content(doc.page_content),
+                            "content": doc.page_content,
+                            "format": doc.metadata.get("format", "unknown"),
+                            "source": doc.metadata.get("source"),
+                            "metadata": doc.metadata,
+                            "quality_score": doc.metadata.get("quality_score", 0.5),
+                            "tags": self._extract_tags_from_metadata(doc.metadata)
                         })
-            else:
-                logger.info("📄 Storage disabled or no documents to store")
+                    
+                    # Store in database
+                    async with get_db_session_context() as session:
+                        document_service = DocumentService(session)
+                        
+                        # Create collection for this batch
+                        collection = await document_service.create_collection(
+                            user_id=user_id,
+                            collection_data={
+                                "name": f"DocumentLoader Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}",
+                                "description": f"Auto-created collection from DocumentLoader processing",
+                                "type": "document_loader_batch",
+                                "source": "mixed"  # Default to mixed source
+                            }
+                        )
+                        
+                        # Store documents
+                        stored_documents = await document_service.store_documents(
+                            user_id=user_id,
+                            documents_data=documents_data,
+                            collection_id=collection.id
+                        )
+                        
+                        # Update original documents with storage info
+                        for i, doc in enumerate(documents):
+                            if i < len(stored_documents):
+                                doc.metadata.update({
+                                    "stored": True,
+                                    "storage_timestamp": datetime.now().isoformat(),
+                                    "database_id": str(stored_documents[i].id),
+                                    "collection_id": str(collection.id)
+                                })
+                    
+                    logger.info(f"✅ Successfully stored {len(stored_documents)} documents in database")
+                        
+            except Exception as e:
+                logger.error(f"❌ Database storage failed: {str(e)}")
+                # Continue execution even if storage fails
+                for doc in documents:
+                    doc.metadata.update({
+                        "storage_attempted": True,
+                        "storage_failed": True,
+                        "storage_error": str(e),
+                        "storage_timestamp": datetime.now().isoformat()
+                    })
+        else:
+            logger.info("📄 Storage disabled or no documents to store")
+        
+        processing_stages["storage_operations"] = True
+        logger.info("✅ Stage 5/6: Storage Operations completed")
+        
+        # Stage 6: Finalization
+        logger.info("🔄 Stage 6/6: Finalization")
+        
+        # Summary logging
+        logger.info(
+            f"🎉 Universal Document Loader completed: {len(documents)} documents processed "
+            f"from {stats['successful_processed']}/{stats['total_sources']} sources "
+            f"(avg quality: {stats['avg_quality_score']:.2f})"
+        )
+        
+        if not documents:
+            raise ValueError(f"No documents could be processed from {stats['total_sources']} sources. Check the processing errors in metadata_report.")
+        
+        processing_stages["finalization"] = True
+        logger.info("✅ Stage 6/6: Finalization completed")
+        
+        # Log completion with stage verification
+        completed_stages = [stage for stage, completed in processing_stages.items() if completed]
+        logger.info(f"🎯 All processing stages completed: {', '.join(completed_stages)}")
+        
+        return {
+            "documents": documents,
+            "stats": stats,
+            "metadata_report": metadata_report,
+            "processing_stages": processing_stages,
+            "completion_verified": all(processing_stages.values())
+        }
             
-            processing_stages["storage_operations"] = True
-            logger.info("✅ Stage 5/6: Storage Operations completed")
-            
-            # Stage 6: Finalization
-            logger.info("🔄 Stage 6/6: Finalization")
-            
-            # Summary logging
-            logger.info(
-                f"🎉 Universal Document Loader completed: {len(documents)} documents processed "
-                f"from {stats['successful_processed']}/{stats['total_sources']} sources "
-                f"(avg quality: {stats['avg_quality_score']:.2f})"
-            )
-            
-            if not documents:
-                raise ValueError(f"No documents could be processed from {stats['total_sources']} sources. Check the processing errors in metadata_report.")
-            
-            processing_stages["finalization"] = True
-            logger.info("✅ Stage 6/6: Finalization completed")
-            
-            # Log completion with stage verification
-            completed_stages = [stage for stage, completed in processing_stages.items() if completed]
-            logger.info(f"🎯 All processing stages completed: {', '.join(completed_stages)}")
-            
-            return {
-                "documents": documents,
-                "stats": stats,
-                "metadata_report": metadata_report,
-                "processing_stages": processing_stages,
-                "completion_verified": all(processing_stages.values())
-            }
-            
-        except Exception as e:
-            # Enhanced error reporting with stage information
-            failed_stages = [stage for stage, completed in processing_stages.items() if not completed]
-            logger.error(f"❌ DocumentLoader failed at stages: {failed_stages}")
-            logger.error(f"❌ Error details: {str(e)}")
-            
-            # Re-raise with enhanced context
-            raise ValueError(f"DocumentLoader failed during {failed_stages}: {str(e)}") from e
+    except Exception as e:
+        # Enhanced error reporting with stage information
+        failed_stages = [stage for stage, completed in processing_stages.items() if not completed]
+        logger.error(f"❌ DocumentLoader failed at stages: {failed_stages}")
+        logger.error(f"❌ Error details: {str(e)}")
+        
+        # Re-raise with enhanced context
+        raise ValueError(f"DocumentLoader failed during {failed_stages}: {str(e)}") from e
     
     def _generate_title_from_content(self, content: str, max_length: int = 100) -> str:
         """Generate document title from content."""

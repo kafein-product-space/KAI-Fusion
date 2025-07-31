@@ -115,15 +115,8 @@ class CohereRerankerNode(ProviderNode):
                     min_value=1,
                     max_value=50,
                 ),
-                NodeInput(
-                    name="max_chunks_per_doc",
-                    type="int",
-                    description="Maximum number of chunks per document",
-                    default=10,
-                    required=False,
-                    min_value=1,
-                    max_value=100,
-                ),
+                # Note: max_chunks_per_doc is not supported by LangChain CohereRerank
+                # This parameter has been removed to fix validation error
             ],
             "outputs": [
                 NodeOutput(
@@ -154,7 +147,7 @@ class CohereRerankerNode(ProviderNode):
         cohere_api_key = kwargs.get("cohere_api_key") or self.user_data.get("cohere_api_key")
         model = kwargs.get("model") or self.user_data.get("model", "rerank-english-v3.0")
         top_n = kwargs.get("top_n") or self.user_data.get("top_n", 5)
-        max_chunks_per_doc = kwargs.get("max_chunks_per_doc") or self.user_data.get("max_chunks_per_doc", 10)
+        # Note: max_chunks_per_doc removed as it's not supported by LangChain CohereRerank
         
         # Validate API key
         if not cohere_api_key:
@@ -180,18 +173,16 @@ class CohereRerankerNode(ProviderNode):
         if not isinstance(top_n, int) or top_n < 1 or top_n > 50:
             raise ValueError("top_n must be an integer between 1 and 50")
         
-        # Validate max_chunks_per_doc
-        if not isinstance(max_chunks_per_doc, int) or max_chunks_per_doc < 1 or max_chunks_per_doc > 100:
-            raise ValueError("max_chunks_per_doc must be an integer between 1 and 100")
+        # Note: max_chunks_per_doc validation removed as parameter is not supported
         
         # Create and configure CohereRerank compressor
         # This can be used later to create ContextualCompressionRetriever instances
         # with specific base retrievers
+        # Note: max_chunks_per_doc parameter removed as it's not supported by LangChain CohereRerank
         compressor = CohereRerank(
             model=model,
             cohere_api_key=cohere_api_key,
-            top_n=top_n,
-            max_chunks_per_doc=max_chunks_per_doc
+            top_n=top_n
         )
         
         return compressor

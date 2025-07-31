@@ -9,7 +9,6 @@ asyncpg>=0.28.0
 alembic>=1.12.0
 psycopg2-binary>=2.9.0
 PyJWT>=2.8.0
-
 # Vector Database
 pgvector>=0.2.0
 # Data Validation
@@ -20,7 +19,7 @@ email-validator>=2.1.0
 # Authentication & Security
 python-jose[cryptography]>=3.3.0
 passlib==1.7.4
-bcrypt==3.2.2
+bcrypt<4.1.0
 cryptography>=41.0.0
 
 # AI/ML Framework
@@ -31,7 +30,7 @@ langchain-openai>=0.0.5
 langchain-tavily>=0.2.0
 langchain-text-splitters>=0.3.0
 langgraph>=0.0.30
-
+langchain-cohere>=0.0.1
 # Reranking and Compression
 cohere>=4.30.0
 rank-bm25>=0.2.2
@@ -53,6 +52,11 @@ jinja2>=3.1.0
 
 # Additional utilities
 python-multipart>=0.0.6
+
+# Document Processing
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+python-docx>=0.8.11
 
 # Testing (optional)
 pytest>=7.4.0

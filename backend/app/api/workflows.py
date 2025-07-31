@@ -300,7 +300,7 @@ from sqlalchemy.future import select
 from sqlalchemy import desc
 from app.models.execution import WorkflowExecution
 from app.core.engine_v2 import get_engine
-from app.core.database import get_db_session
+from app.core.database import get_db_session, get_db_session_context
 from app.auth.dependencies import get_current_user, get_optional_user
 from app.models.user import User
 from app.models.workflow import Workflow, WorkflowTemplate
@@ -1011,7 +1011,7 @@ async def execute_adhoc_workflow(
             logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
             # Create new session for error handling after rollback
             try:
-                async with get_db_session().__anext__() as new_db:
+                async with get_db_session_context() as new_db:
                     await execution_service.update_execution(
                         new_db,
                         execution_id,
@@ -1039,7 +1039,7 @@ async def execute_adhoc_workflow(
         if execution_id:
             try:
                 # Create new session for error handling to avoid session state issues
-                async with get_db_session().__anext__() as error_db:
+                async with get_db_session_context() as error_db:
                     await execution_service.update_execution(
                         error_db,
                         execution_id,
@@ -1098,7 +1098,7 @@ async def execute_adhoc_workflow(
             if execution_id:
                 try:
                     # Create new session for error handling to avoid session state issues
-                    async with get_db_session().__anext__() as error_db:
+                    async with get_db_session_context() as error_db:
                         await execution_service.update_execution(
                             error_db,
                             execution_id,
@@ -1129,8 +1129,8 @@ async def execute_adhoc_workflow(
             # Execution başarıyla tamamlandığını kaydet - Use proper session management
             if execution_id and execution_completed:
                 try:
-                    # Use proper session context manager instead of async generator pattern
-                    async with get_db_session().__anext__() as completion_db:
+                    # Use proper session context manager
+                    async with get_db_session_context() as completion_db:
                         await execution_service.update_execution(
                             completion_db,
                             execution_id,
