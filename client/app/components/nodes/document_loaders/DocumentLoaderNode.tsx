@@ -192,17 +192,6 @@ function DocumentLoaderNode({ data, id }: DocumentLoaderNodeProps) {
 
         {/* Source Type Badge */}
 
-        {/* Formats Count Indicator */}
-        {data?.supported_formats && (
-          <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse flex items-center justify-center">
-              <span className="text-xs text-white font-bold">
-                {getFormatsCount()}
-              </span>
-            </div>
-          </div>
-        )}
-
         {/* Processing Activity Indicator */}
         {data?.processing_status === "processing" && (
           <div className="absolute top-1 left-1 z-10">
@@ -286,15 +275,6 @@ function DocumentLoaderNode({ data, id }: DocumentLoaderNodeProps) {
           </div>
         )}
 
-        {/* Supported Formats Badge */}
-        {data?.supported_formats && data.supported_formats.length > 0 && (
-          <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg transform rotate-90">
-              {data.supported_formats.length} Formats
-            </div>
-          </div>
-        )}
-
         {/* Source Type Indicator */}
         {data?.source_type && (
           <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 z-10">
@@ -307,16 +287,6 @@ function DocumentLoaderNode({ data, id }: DocumentLoaderNodeProps) {
             </div>
           </div>
         )}
-
-        {/* Quality Score Indicator */}
-        {data?.quality_threshold && (
-          <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-gradient-to-r from-emerald-500 to-green-600 text-white text-xs font-bold shadow-lg">
-              Q: {Math.round(data.quality_threshold * 100)}%
-            </div>
-          </div>
-        )}
-
         {/* Storage Enabled Indicator */}
         {data?.storage_enabled && (
           <div className="absolute top-1 right-1 z-10">
