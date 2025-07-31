@@ -9,7 +9,7 @@ from app.core.state import FlowState
 
 class TimerStartNode(TerminatorNode):
     """
-    Timer start node that can be triggered by scheduled events.
+    Timer start node that can be triggered by scheduled events or manually.
     This node acts as a LangGraph __start__ node but with scheduling capabilities.
     """
 
@@ -20,7 +20,7 @@ class TimerStartNode(TerminatorNode):
         self._metadata = {
             "name": "TimerStartNode",
             "display_name": "Timer Start",
-            "description": "Start workflow on schedule or timer events",
+            "description": "Start workflow on schedule, timer events, or manual trigger",
             "node_type": NodeType.TERMINATOR,
             "category": "Triggers",
             "inputs": [
@@ -75,6 +75,13 @@ class TimerStartNode(TerminatorNode):
                     description="Data to pass when timer triggers",
                     default={},
                     required=False
+                ),
+                NodeInput(
+                    name="manual_execution",
+                    type="bool",
+                    description="Flag to indicate manual execution",
+                    default=False,
+                    required=False
                 )
             ],
             "outputs": [
@@ -108,6 +115,7 @@ class TimerStartNode(TerminatorNode):
         interval_seconds = self.user_data.get("interval_seconds", 3600)
         trigger_data = self.user_data.get("trigger_data", {})
         enabled = self.user_data.get("enabled", True)
+        manual_execution = self.user_data.get("manual_execution", False)
         
         # Calculate next run time based on schedule type
         now = datetime.now()
@@ -125,7 +133,10 @@ class TimerStartNode(TerminatorNode):
                     next_run = now + timedelta(minutes=5)
             else:
                 next_run = now + timedelta(minutes=5)
-        else:  # manual
+        elif schedule_type == "manual":
+            # For manual execution, we don't schedule next run
+            next_run = None
+        else:
             next_run = None
         
         # Create timer data
@@ -134,21 +145,27 @@ class TimerStartNode(TerminatorNode):
             "triggered_at": now.isoformat(),
             "schedule_type": schedule_type,
             "trigger_data": trigger_data,
-            "enabled": enabled
+            "enabled": enabled,
+            "manual_execution": manual_execution
         }
         
         # Set initial input from trigger data or default message
         if trigger_data:
             initial_input = trigger_data.get("message", "Timer triggered")
         else:
-            initial_input = f"Timer workflow started ({schedule_type})"
+            # Different messages for different execution modes
+            if manual_execution:
+                initial_input = f"Manual execution triggered for {schedule_type} timer"
+            else:
+                initial_input = f"Timer workflow started ({schedule_type})"
         
-        # Update state
-        state.last_output = str(initial_input)
-        
-        # Add this node to executed nodes list
-        if self.node_id and self.node_id not in state.executed_nodes:
-            state.executed_nodes.append(self.node_id)
+        # Update state if provided
+        if state:
+            state.last_output = str(initial_input)
+            
+            # Add this node to executed nodes list
+            if self.node_id and self.node_id not in state.executed_nodes:
+                state.executed_nodes.append(self.node_id)
         
         print(f"[TimerStartNode] Timer {self.timer_id} triggered: {initial_input}")
         
@@ -159,7 +176,8 @@ class TimerStartNode(TerminatorNode):
                 "next_run": next_run.isoformat() if next_run else None,
                 "interval_seconds": interval_seconds if schedule_type == "interval" else None,
                 "cron_expression": self.user_data.get("cron_expression") if schedule_type == "cron" else None,
-                "enabled": enabled
+                "enabled": enabled,
+                "manual_execution": manual_execution
             },
             "output": initial_input,
             "status": "timer_triggered"
@@ -168,6 +186,11 @@ class TimerStartNode(TerminatorNode):
     def get_next_run_time(self) -> Optional[datetime]:
         """Calculate the next run time based on schedule configuration."""
         schedule_type = self.user_data.get("schedule_type", "interval")
+        manual_execution = self.user_data.get("manual_execution", False)
+        
+        # If manual execution is enabled, don't schedule next run
+        if manual_execution or schedule_type == "manual":
+            return None
         
         if not self.user_data.get("enabled", True):
             return None

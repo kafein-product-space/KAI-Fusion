@@ -71,6 +71,11 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
           }
           border border-white/20 backdrop-blur-sm
           hover:border-white/40`}
+        onDoubleClick={() => {
+          if (onExecute) {
+            onExecute(id);
+          }
+        }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
         title="Double click to execute"
@@ -111,6 +116,16 @@ function StartNode({ data, id, onExecute, validationStatus }: StartNodeProps) {
             </button>
           </>
         )}
+
+        {/* Input Handle */}
+        <NeonHandle
+          type="target"
+          position={Position.Left}
+          id="input"
+          isConnectable={true}
+          size={10}
+          color1="#00FFFF"
+        />
 
         {/* Output Handle */}
         <NeonHandle

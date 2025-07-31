@@ -326,12 +326,12 @@ from langchain_core.documents import Document
 from langchain_tavily import TavilySearch
 from bs4 import BeautifulSoup
 
-from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
 
-class WebScraperNode(ProviderNode):
+class WebScraperNode(ProcessorNode):
     """
     Enterprise-Grade Web Content Scraper & Document Processor
     ========================================================
@@ -666,7 +666,7 @@ class WebScraperNode(ProviderNode):
                 "Input multiple URLs (one per line) to scrape content from web pages."
             ),
             "category": NodeCategory.DOCUMENT_LOADER,
-            "node_type": NodeType.PROVIDER,
+            "node_type": NodeType.PROCESSOR,
             "icon": "globe-alt",
             "color": "#0ea5e9",
             "inputs": [
@@ -674,7 +674,14 @@ class WebScraperNode(ProviderNode):
                     name="urls",
                     type="textarea",
                     description="Enter URLs to scrape (one URL per line)",
-                    required=True,
+                    required=False,
+                ),
+                NodeInput(
+                    name="input_urls",
+                    type="any",
+                    description="URLs received from previous nodes in the workflow",
+                    required=False,
+                    is_connection=True,
                 ),
                 NodeInput(
                     name="tavily_api_key",
@@ -766,29 +773,64 @@ class WebScraperNode(ProviderNode):
         except Exception:
             return "unknown"
 
-    def execute(self, **kwargs) -> List[Document]:
+    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> List[Document]:
         """
         Execute web scraping for provided URLs.
         
+        Args:
+            inputs: User inputs from the frontend
+            connected_nodes: Connected node outputs
+            
         Returns:
             List[Document]: Cleaned documents ready for LangChain processing
         """
         logger.info("🌐 Starting Web Scraper execution")
         
-        # Get URLs from input
-        raw_urls = kwargs.get("urls", "")
-        if not raw_urls:
-            raise ValueError("No URLs provided. Please enter at least one URL.")
+        # Get URLs from user input
+        raw_urls = inputs.get("urls", "")
         
-        # Parse URLs (one per line)
-        urls = [url.strip() for url in raw_urls.splitlines() if url.strip()]
-        if not urls:
-            raise ValueError("No valid URLs found. Please enter URLs separated by line breaks.")
+        # Get URLs from connected nodes
+        connected_urls = connected_nodes.get("input_urls", [])
         
-        logger.info(f"📋 Found {len(urls)} URLs to scrape")
+        # Combine URLs from both sources
+        all_urls = []
+        
+        # Parse URLs from user input (one per line)
+        if raw_urls:
+            user_urls = [url.strip() for url in raw_urls.splitlines() if url.strip()]
+            all_urls.extend(user_urls)
+        
+        # Handle URLs from connected nodes
+        if connected_urls:
+            if isinstance(connected_urls, list):
+                # If it's a list of URLs
+                all_urls.extend(connected_urls)
+            elif isinstance(connected_urls, str):
+                # If it's a single URL string
+                all_urls.append(connected_urls)
+            elif isinstance(connected_urls, dict):
+                # If it's a dict with URL data
+                if "urls" in connected_urls:
+                    url_data = connected_urls["urls"]
+                    if isinstance(url_data, list):
+                        all_urls.extend(url_data)
+                    elif isinstance(url_data, str):
+                        all_urls.append(url_data)
+                # Try to extract URLs from common fields
+                for key in ["url", "source", "link"]:
+                    if key in connected_urls and connected_urls[key]:
+                        if isinstance(connected_urls[key], str):
+                            all_urls.append(connected_urls[key])
+                        elif isinstance(connected_urls[key], list):
+                            all_urls.extend(connected_urls[key])
+        
+        if not all_urls:
+            raise ValueError("No URLs provided. Please enter URLs in the configuration or connect to a node that provides URLs.")
+        
+        logger.info(f"📋 Found {len(all_urls)} URLs to scrape")
         
         # Get Tavily API key
-        api_key = kwargs.get("tavily_api_key") or os.getenv("TAVILY_API_KEY")
+        api_key = inputs.get("tavily_api_key") or os.getenv("TAVILY_API_KEY")
         if not api_key:
             raise ValueError(
                 "Tavily API key is required. Please provide it in the node configuration "
@@ -796,16 +838,16 @@ class WebScraperNode(ProviderNode):
             )
         
         # Get other parameters
-        remove_selectors_str = kwargs.get("remove_selectors", "nav,footer,header,script,style,aside,noscript,form")
+        remove_selectors_str = inputs.get("remove_selectors", "nav,footer,header,script,style,aside,noscript,form")
         remove_selectors = [s.strip() for s in remove_selectors_str.split(",") if s.strip()]
-        min_content_length = int(kwargs.get("min_content_length", 100))
+        min_content_length = int(inputs.get("min_content_length", 100))
         
         # Initialize Tavily tool
         try:
             tavily_tool = TavilySearch(
                 tavily_api_key=api_key,
                 max_results=1,  # We only need the direct page content
-                search_depth="url",  # Direct URL fetch
+                search_depth="advanced",  # Use advanced search depth
                 include_raw_content=True,  # Get HTML content
                 include_answer=False,  # We don't need Tavily's answer
             )
@@ -818,7 +860,7 @@ class WebScraperNode(ProviderNode):
         failed_scrapes = 0
         
         # Process each URL
-        for i, url in enumerate(urls, 1):
+        for i, url in enumerate(all_urls, 1):
             try:
                 logger.info(f"🔄 [{i}/{len(urls)}] Scraping: {url}")
                 

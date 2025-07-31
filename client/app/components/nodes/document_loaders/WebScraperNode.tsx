@@ -129,6 +129,16 @@ function WebScraperNode({ data, id }: WebScraperNodeProps) {
           </>
         )}
 
+        {/* Input Handle */}
+        <NeonHandle
+          type="target"
+          position={Position.Left}
+          id="input"
+          size={10}
+          isConnectable={true}
+          color1="#0ea5e9"
+        />
+
         {/* Output Handle */}
         <NeonHandle
           type="source"

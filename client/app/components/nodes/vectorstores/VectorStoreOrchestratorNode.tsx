@@ -1,24 +1,26 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Position } from "@xyflow/react";
 import {
-  Clock,
+  Database,
   Trash,
+  FileText,
+  Search,
+  BarChart3,
   Zap,
-  Activity,
-  Calendar,
-  Timer,
-  Play,
-  Repeat,
+  Settings,
 } from "lucide-react";
-import TimerStartConfigModal from "~/components/modals/triggers/TimerStartConfigModal";
+import VectorStoreOrchestratorConfigModal from "~/components/modals/vectorstores/VectorStoreOrchestratorConfigModal";
 import NeonHandle from "~/components/common/NeonHandle";
 
-interface TimerStartNodeProps {
+interface VectorStoreOrchestratorNodeProps {
   data: any;
   id: string;
 }
 
-function TimerStartNode({ data, id }: TimerStartNodeProps) {
+function VectorStoreOrchestratorNode({
+  data,
+  id,
+}: VectorStoreOrchestratorNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const modalRef = useRef<HTMLDialogElement>(null);
@@ -76,7 +78,7 @@ function TimerStartNode({ data, id }: TimerStartNodeProps) {
     <>
       {/* Ana node kutusu */}
       <div
-        className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center
+        className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
           cursor-pointer transition-all duration-300 transform
           ${isHovered ? "scale-105" : "scale-100"}
           bg-gradient-to-br ${getStatusColor()}
@@ -98,17 +100,17 @@ function TimerStartNode({ data, id }: TimerStartNodeProps) {
         {/* Main icon */}
         <div className="relative z-10 mb-2">
           <div className="relative">
-            <Clock className="w-10 h-10 text-white drop-shadow-lg" />
-            {/* Activity indicator */}
-            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-yellow-400 to-orange-500 rounded-full flex items-center justify-center">
-              <Timer className="w-2 h-2 text-white" />
+            <Database className="w-10 h-10 text-white drop-shadow-lg" />
+            {/* Settings icon */}
+            <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full flex items-center justify-center">
+              <Settings className="w-2 h-2 text-white" />
             </div>
           </div>
         </div>
 
         {/* Node title */}
         <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
-          {data?.displayName || data?.name || "Timer"}
+          {data?.displayName || data?.name || "Vector Orchestrator"}
         </div>
 
         {/* Hover effects */}
@@ -129,98 +131,141 @@ function TimerStartNode({ data, id }: TimerStartNodeProps) {
           </>
         )}
 
-        {/* Output Handles */}
+        {/* Input Handles */}
         <NeonHandle
-          type="source"
-          position={Position.Right}
-          id="timer_data"
+          type="target"
+          position={Position.Left}
+          id="documents"
           isConnectable={true}
           size={10}
-          color1="#10b981"
-          glow={isHandleConnected("timer_data", true)}
+          color1="#4ade80"
+          glow={isHandleConnected("documents")}
           style={{
             top: "30%",
           }}
         />
 
         <NeonHandle
-          type="source"
-          position={Position.Right}
-          id="schedule_info"
+          type="target"
+          position={Position.Left}
+          id="embedder"
           isConnectable={true}
           size={10}
-          color1="#059669"
-          glow={isHandleConnected("schedule_info", true)}
+          color1="#00FFFF"
+          glow={isHandleConnected("embedder")}
           style={{
             top: "70%",
           }}
         />
 
+        {/* Output Handles */}
+        <NeonHandle
+          type="source"
+          position={Position.Right}
+          id="retriever"
+          isConnectable={true}
+          size={10}
+          color1="#4ade80"
+          glow={isHandleConnected("retriever", true)}
+          style={{
+            top: "20%",
+          }}
+        />
+
+        <NeonHandle
+          type="source"
+          position={Position.Right}
+          id="vectorstore"
+          isConnectable={true}
+          size={10}
+          color1="#10b981"
+          glow={isHandleConnected("vectorstore", true)}
+          style={{
+            top: "40%",
+          }}
+        />
+
+        <NeonHandle
+          type="source"
+          position={Position.Right}
+          id="storage_stats"
+          isConnectable={true}
+          size={10}
+          color1="#059669"
+          glow={isHandleConnected("storage_stats", true)}
+          style={{
+            top: "60%",
+          }}
+        />
+
+        <NeonHandle
+          type="source"
+          position={Position.Right}
+          id="index_info"
+          isConnectable={true}
+          size={10}
+          color1="#047857"
+          glow={isHandleConnected("index_info", true)}
+          style={{
+            top: "80%",
+          }}
+        />
+
+        {/* Handle labels */}
+        <div className="absolute -left-20 text-xs text-gray-500 font-medium"
+             style={{ top: "25%" }}>
+          Documents
+        </div>
+        <div className="absolute -left-20 text-xs text-gray-500 font-medium"
+             style={{ top: "65%" }}>
+          Embedder
+        </div>
+
         {/* Right side labels for outputs */}
         <div
           className="absolute -right-22 text-xs text-gray-500 font-medium"
-          style={{ top: "25%" }}
+          style={{ top: "15%" }}
         >
-          Timer Data
+          Retriever
         </div>
         <div
           className="absolute -right-22 text-xs text-gray-500 font-medium"
-          style={{ top: "65%" }}
+          style={{ top: "35%" }}
         >
-          Schedule Info
+          Vector Store
+        </div>
+        <div
+          className="absolute -right-22 text-xs text-gray-500 font-medium"
+          style={{ top: "55%" }}
+        >
+          Storage Stats
+        </div>
+        <div
+          className="absolute -right-22 text-xs text-gray-500 font-medium"
+          style={{ top: "75%" }}
+        >
+          Index Info
         </div>
 
-        {/* Timer Type Badge */}
-        {data?.schedule_type && (
+        {/* Database Type Badge */}
+        {data?.connection_string && (
           <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
             <div className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold shadow-lg">
-              {data.schedule_type === "cron" ? "Cron" : "Timer"}
+              PostgreSQL
             </div>
           </div>
         )}
 
-        {/* Timer Status Indicator */}
-        {data?.enabled && (
+        {/* Connection Status Indicator */}
+        {data?.connected && (
           <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
             <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Schedule Type Badge */}
-        {data?.schedule_type === "interval" && (
-          <div className="absolute top-1 left-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
-              <Repeat className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Cron Schedule Badge */}
-        {data?.schedule_type === "cron" && (
-          <div className="absolute top-1 right-1 z-10">
-            <div className="w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center shadow-lg">
-              <Calendar className="w-2 h-2 text-white" />
-            </div>
-          </div>
-        )}
-
-        {/* Active Timer Indicator */}
-        {data?.is_running && (
-          <div className="absolute bottom-1 left-1 z-10">
-            <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-lg animate-pulse"></div>
-          </div>
-        )}
-
-        {/* Next Execution Indicator */}
-        {data?.next_execution && (
-          <div className="absolute bottom-1 right-1 z-10">
-            <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
           </div>
         )}
       </div>
 
       {/* Modal */}
-      <TimerStartConfigModal
+      <VectorStoreOrchestratorConfigModal
         ref={modalRef}
         nodeData={data}
         onSave={handleConfigSave}
@@ -230,4 +275,4 @@ function TimerStartNode({ data, id }: TimerStartNodeProps) {
   );
 }
 
-export default TimerStartNode;
+export default VectorStoreOrchestratorNode;

@@ -996,18 +996,34 @@ async def execute_adhoc_workflow(
     except Exception as e:
         logger.warning(f"Failed to create chat message: {e}")
 
+    # Cache execution ID before potential session issues
+    execution_id = execution.id if execution else None
+    
     # Execution başlatıldığını işaretle
     if execution:
         try:
             await execution_service.update_execution(
                 db,
-                execution.id,
+                execution_id,
                 WorkflowExecutionUpdate(status="running", started_at=datetime.utcnow())
             )
         except Exception as e:
             logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
-            # Session rollback yap
-            await db.rollback()
+            # Create new session for error handling after rollback
+            try:
+                async with get_db_session().__anext__() as new_db:
+                    await execution_service.update_execution(
+                        new_db,
+                        execution_id,
+                        WorkflowExecutionUpdate(
+                            status="failed",
+                            error_message=f"Failed to start execution: {str(e)}",
+                            completed_at=datetime.utcnow()
+                        )
+                    )
+            except Exception as update_error:
+                logger.error(f"Failed to update execution status after start failure: {update_error}", exc_info=True)
+            return  # Early return to avoid further execution
 
     try:
         engine.build(flow_data=req.flow_data, user_context=user_context)
@@ -1019,18 +1035,20 @@ async def execute_adhoc_workflow(
     except Exception as e:
         logger.error(f"Error during graph build or execution: {e}", exc_info=True)
         
-        # Execution hatası kaydet
-        if execution:
+        # Execution hatası kaydet - Use cached execution_id to avoid detached instance issues
+        if execution_id:
             try:
-                await execution_service.update_execution(
-                    db,
-                    execution.id,
-                    WorkflowExecutionUpdate(
-                        status="failed",
-                        error_message=str(e),
-                        completed_at=datetime.utcnow()
+                # Create new session for error handling to avoid session state issues
+                async with get_db_session().__anext__() as error_db:
+                    await execution_service.update_execution(
+                        error_db,
+                        execution_id,
+                        WorkflowExecutionUpdate(
+                            status="failed",
+                            error_message=str(e),
+                            completed_at=datetime.utcnow()
+                        )
                     )
-                )
             except Exception as update_e:
                 logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
         
@@ -1076,20 +1094,22 @@ async def execute_adhoc_workflow(
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data)}\n\n"
             
-            # Execution hatası kaydet
-            if execution:
+            # Execution hatası kaydet - Use cached execution_id to avoid detached instance issues
+            if execution_id:
                 try:
-                    await execution_service.update_execution(
-                        db,
-                        execution.id,
-                        WorkflowExecutionUpdate(
-                            status="failed",
-                            error_message=str(e),
-                            completed_at=datetime.utcnow()
+                    # Create new session for error handling to avoid session state issues
+                    async with get_db_session().__anext__() as error_db:
+                        await execution_service.update_execution(
+                            error_db,
+                            execution_id,
+                            WorkflowExecutionUpdate(
+                                status="failed",
+                                error_message=str(e),
+                                completed_at=datetime.utcnow()
+                            )
                         )
-                    )
                 except Exception as update_e:
-                    logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
+                    logger.error(f"Failed to update execution status to failed during streaming: {update_e}", exc_info=True)
         finally:
             # LLM cevabını chat'e kaydet
             if llm_output:
@@ -1106,22 +1126,21 @@ async def execute_adhoc_workflow(
                 except Exception as chat_error:
                     logger.warning(f"Failed to create assistant chat message: {chat_error}")
             
-            # Execution başarıyla tamamlandığını kaydet
-            if execution and execution_completed:
+            # Execution başarıyla tamamlandığını kaydet - Use proper session management
+            if execution_id and execution_completed:
                 try:
-                    # Yeni session kullan
-                    async for new_db in get_db_session():
+                    # Use proper session context manager instead of async generator pattern
+                    async with get_db_session().__anext__() as completion_db:
                         await execution_service.update_execution(
-                            new_db,
-                            execution.id,
+                            completion_db,
+                            execution_id,
                             WorkflowExecutionUpdate(
                                 status="completed",
                                 outputs=final_outputs,
                                 completed_at=datetime.utcnow()
                             )
                         )
-                        break  # Sadece bir kez çalıştır
-                    logger.info(f"Execution {execution.id} completed successfully")
+                    logger.info(f"Execution {execution_id} completed successfully")
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
 
@@ -1190,3 +1209,142 @@ async def debug_workflow_status(
             "error": str(e),
             "error_type": type(e).__name__
         }
+
+
+@router.post("/{workflow_id}/execute-timer-node")
+async def execute_timer_node_manually(
+    workflow_id: str,
+    node_id: str,
+    trigger_data: Optional[Dict[str, Any]] = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    execution_service: ExecutionService = Depends(get_execution_service_dep)
+):
+    """
+    Execute a TimerStartNode manually.
+    
+    This endpoint allows manual execution of TimerStartNode nodes,
+    bypassing their normal scheduling mechanism.
+    """
+    try:
+        from app.models.workflow import Workflow
+        from sqlalchemy.future import select
+        
+        # Get the workflow
+        workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(workflow_id))
+        workflow_result = await db.execute(workflow_query)
+        workflow = workflow_result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        
+        # Check user access
+        if workflow.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Validate that the node exists and is a TimerStartNode
+        flow_data = workflow.flow_data
+        nodes = flow_data.get("nodes", [])
+        target_node = None
+        
+        for node in nodes:
+            if node.get("id") == node_id and node.get("type") == "TimerStartNode":
+                target_node = node
+                break
+        
+        if not target_node:
+            raise HTTPException(status_code=404, detail="TimerStartNode not found in workflow")
+        
+        # Update the node data to indicate manual execution
+        node_data = target_node.get("data", {})
+        node_data["manual_execution"] = True
+        
+        # If trigger_data is provided, merge it with existing trigger_data
+        if trigger_data:
+            existing_trigger_data = node_data.get("trigger_data", {})
+            node_data["trigger_data"] = {**existing_trigger_data, **trigger_data}
+        
+        # Update the flow_data with the modified node
+        flow_data["nodes"] = [
+            node if node.get("id") != node_id else {**node, "data": node_data}
+            for node in nodes
+        ]
+        
+        # Execute the workflow with the modified flow_data
+        engine = get_engine()
+        chatflow_id = uuid.uuid4()
+        session_id = str(chatflow_id)
+        user_id = current_user.id
+        user_email = current_user.email
+        user_context = {
+            "session_id": session_id,
+            "user_id": str(user_id),
+            "user_email": user_email
+        }
+        
+        # Create execution record
+        execution_create = WorkflowExecutionCreate(
+            workflow_id=uuid.UUID(workflow_id),
+            user_id=user_id,
+            status="pending",
+            inputs={"input": "Manual TimerStartNode execution", "flow_data": flow_data}
+        )
+        
+        execution = await execution_service.create_execution(db, execution_in=execution_create)
+        
+        # Update execution to running
+        await execution_service.update_execution(
+            db,
+            execution.id,
+            WorkflowExecutionUpdate(status="running", started_at=datetime.utcnow())
+        )
+        
+        # Build and execute the workflow
+        engine.build(flow_data=flow_data, user_context=user_context)
+        result_stream = await engine.execute(
+            inputs={"input": "Manual TimerStartNode execution"},
+            stream=True,
+            user_context=user_context,
+        )
+        
+        # Process the result to get final output
+        final_output = ""
+        async for chunk in result_stream:
+            if isinstance(chunk, dict):
+                if chunk.get("type") == "token":
+                    final_output += chunk.get("content", "")
+                elif chunk.get("type") == "output":
+                    final_output += chunk.get("output", "")
+                elif chunk.get("type") == "complete":
+                    result = chunk.get("result")
+                    if isinstance(result, str):
+                        final_output += result
+                    elif isinstance(result, dict):
+                        if "output" in result:
+                            final_output += result["output"]
+        
+        # Update execution to completed
+        await execution_service.update_execution(
+            db,
+            execution.id,
+            WorkflowExecutionUpdate(
+                status="completed",
+                outputs={"output": final_output},
+                completed_at=datetime.utcnow()
+            )
+        )
+        
+        logger.info(f"Manual TimerStartNode execution completed for workflow {workflow_id}, node {node_id}")
+        
+        return {
+            "status": "success",
+            "message": "TimerStartNode executed successfully",
+            "execution_id": str(execution.id),
+            "output": final_output
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error during manual TimerStartNode execution: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Failed to execute TimerStartNode: {str(e)}")

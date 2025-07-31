@@ -290,14 +290,14 @@ from datetime import datetime
 from langchain_core.documents import Document
 import re
 
-from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
 from app.services.document_service import DocumentService
 from app.core.database import get_db_session
 
 logger = logging.getLogger(__name__)
 
-class DocumentLoaderNode(ProviderNode):
+class DocumentLoaderNode(ProcessorNode):
     """
     Universal Document Loader - Enterprise Multi-Format Document Processing Engine
     ============================================================================
@@ -420,7 +420,7 @@ class DocumentLoaderNode(ProviderNode):
                 "with quality validation and storage."
             ),
             "category": NodeCategory.DOCUMENT_LOADER,
-            "node_type": NodeType.PROVIDER,
+            "node_type": NodeType.PROCESSOR,
             "icon": "document-text",
             "color": "#059669",
             "inputs": [
@@ -429,6 +429,13 @@ class DocumentLoaderNode(ProviderNode):
                     type="any",
                     description="Trigger signal to start document processing (optional)",
                     required=False,
+                ),
+                NodeInput(
+                    name="input_documents",
+                    type="documents",
+                    description="Documents received from other nodes in the workflow",
+                    required=False,
+                    is_connection=True,
                 ),
                 NodeInput(
                     name="file_paths",
@@ -808,7 +815,7 @@ class DocumentLoaderNode(ProviderNode):
         
         return unique_docs
 
-    async def execute(self, **kwargs) -> Dict[str, Any]:
+    async def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute universal document loading with multi-format support.
         
@@ -818,18 +825,21 @@ class DocumentLoaderNode(ProviderNode):
         logger.info("📚 Starting Universal Document Loader execution")
         
         # Check for trigger input (optional)
-        trigger = kwargs.get("trigger")
+        trigger = inputs.get("trigger")
         if trigger is not None:
             logger.info(f"🎯 Document loader triggered with signal: {type(trigger).__name__}")
         
         # Get configuration
-        file_paths_str = kwargs.get("file_paths", "")
-        supported_formats = kwargs.get("supported_formats", ["txt", "json", "docx", "pdf"])
-        min_content_length = int(kwargs.get("min_content_length", 50))
-        max_file_size_mb = int(kwargs.get("max_file_size_mb", 50))
-        storage_enabled = kwargs.get("storage_enabled", False)
-        deduplicate = kwargs.get("deduplicate", True)
-        quality_threshold = float(kwargs.get("quality_threshold", 0.5))
+        file_paths_str = inputs.get("file_paths", "")
+        supported_formats = inputs.get("supported_formats", ["txt", "json", "docx", "pdf"])
+        min_content_length = int(inputs.get("min_content_length", 50))
+        max_file_size_mb = int(inputs.get("max_file_size_mb", 50))
+        storage_enabled = inputs.get("storage_enabled", False)
+        deduplicate = inputs.get("deduplicate", True)
+        quality_threshold = float(inputs.get("quality_threshold", 0.5))
+        
+        # Get connected documents
+        connected_documents = connected_nodes.get("input_documents", [])
         
         # Parse file paths
         file_paths = []
@@ -837,16 +847,28 @@ class DocumentLoaderNode(ProviderNode):
         if file_paths_str:
             file_paths = [path.strip() for path in file_paths_str.splitlines() if path.strip()]
         
-        if not file_paths:
-            raise ValueError("No file paths provided. Please specify local file paths to process.")
+        # Process connected documents if available
+        documents = []
+        if connected_documents:
+            logger.info(f"🔗 Processing {len(connected_documents) if isinstance(connected_documents, list) else 1} connected documents")
+            # Handle both single document and list of documents
+            if isinstance(connected_documents, list):
+                documents.extend(connected_documents)
+            else:
+                documents.append(connected_documents)
         
-        logger.info(f"🎯 Processing {len(file_paths)} local files")
+        # Process local files if provided
+        if file_paths:
+            logger.info(f"🎯 Processing {len(file_paths)} local files")
+        else:
+            logger.info("📄 No local files to process")
         
         # Process sources
-        documents = []
+        initial_document_count = len(documents)
         stats = {
-            "total_sources": len(file_paths),
+            "total_sources": len(file_paths) + initial_document_count,
             "file_sources": len(file_paths),
+            "connected_sources": initial_document_count,
             "successful_processed": 0,
             "failed_processed": 0,
             "formats_processed": {},
@@ -997,7 +1019,7 @@ class DocumentLoaderNode(ProviderNode):
                 logger.info(f"💾 Storage enabled - storing {len(documents)} documents to database")
                 
                 # Get user_id from context (you may need to adjust this based on your auth system)
-                user_id = kwargs.get("user_id")  # This should come from authentication context
+                user_id = inputs.get("user_id")  # This should come from authentication context
                 if not user_id:
                     logger.warning("⚠️ No user_id provided for storage, skipping database storage")
                 else:
@@ -1025,7 +1047,7 @@ class DocumentLoaderNode(ProviderNode):
                                 "name": f"DocumentLoader Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}",
                                 "description": f"Auto-created collection from DocumentLoader processing",
                                 "type": "document_loader_batch",
-                                "source": source_type
+                                "source": "mixed"  # Default to mixed source
                             }
                         )
                         
@@ -1045,8 +1067,8 @@ class DocumentLoaderNode(ProviderNode):
                                     "database_id": str(stored_documents[i].id),
                                     "collection_id": str(collection.id)
                                 })
-                        
-                        logger.info(f"✅ Successfully stored {len(stored_documents)} documents in database")
+                    
+                    logger.info(f"✅ Successfully stored {len(stored_documents)} documents in database")
                         
             except Exception as e:
                 logger.error(f"❌ Database storage failed: {str(e)}")

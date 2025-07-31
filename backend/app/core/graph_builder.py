@@ -721,9 +721,29 @@ class GraphBuilder:
         # Identify nodes connected FROM StartNode
         self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
 
+        # 🔥 DEBUG: Log edge filtering for StartNode issue
+        print(f"\n🐛 DEBUG: Edge filtering analysis")
+        edges_to_start_nodes = [e for e in edges if e.get("target") in start_node_ids]
+        edges_from_start_nodes = [e for e in edges if e.get("source") in start_node_ids]
+        
+        if edges_to_start_nodes:
+            print(f"⚠️  Found {len(edges_to_start_nodes)} edges TO StartNodes:")
+            for edge in edges_to_start_nodes:
+                print(f"   {edge.get('source')} ➜ {edge.get('target')}")
+        
+        if edges_from_start_nodes:
+            print(f"✅ Found {len(edges_from_start_nodes)} edges FROM StartNodes:")
+            for edge in edges_from_start_nodes:
+                print(f"   {edge.get('source')} ➜ {edge.get('target')}")
+        
         # Filter out StartNode for processing, but keep EndNodes for connection tracking
         nodes = [n for n in nodes if n.get("type") != "StartNode"]
         edges = [e for e in edges if e.get("source") not in start_node_ids]
+        
+        # 🔥 CRITICAL FIX: Also filter out edges TO StartNodes
+        edges = [e for e in edges if e.get("target") not in start_node_ids]
+        
+        print(f"🔧 After filtering: {len(nodes)} nodes, {len(edges)} edges")
         
         # Separate EndNodes from regular nodes - we need them for connection tracking
         end_nodes_for_processing = [n for n in nodes if n.get("type") == "EndNode"]

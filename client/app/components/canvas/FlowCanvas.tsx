@@ -67,6 +67,10 @@ import DocumentRerankerNode from "../nodes/tools/DocumentRerankerNode";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
 import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
 import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
+import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProviderNode";
+import CohereRerankerNode from "../nodes/tools/CohereRerankerNode";
+import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestratorNode";
+import RetrieverNode from "../nodes/tools/RetrieverNode";
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -93,6 +97,10 @@ const baseNodeTypes = {
   TimerStartNode: TimerStartNode,
   WebhookTrigger: WebhookTriggerNode,
   PGVectorStore: PostgreSQLVectorStoreNode,
+  OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderNode,
+  CohereRerankerProvider: CohereRerankerNode,
+  VectorStoreOrchestrator: VectorStoreOrchestratorNode,
+  RetrieverProvider: RetrieverNode,
 };
 
 interface FlowCanvasProps {
@@ -176,6 +184,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setWorkflowName("isimsiz dosya");
     }
   }, [currentWorkflow?.name]);
+
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -340,8 +349,59 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
+  // Function to handle StartNode execution
+  const handleStartNodeExecution = useCallback(async (nodeId: string) => {
+    if (!currentWorkflow) {
+      enqueueSnackbar("No workflow selected", { variant: "error" });
+      return;
+    }
+
+    try {
+      // Show loading message
+      enqueueSnackbar("Executing workflow...", { variant: "info" });
+
+      // Get the flow data
+      const flowData: WorkflowData = {
+        nodes: nodes as WorkflowNode[],
+        edges: edges as WorkflowEdge[],
+      };
+
+      // Call the backend API endpoint for workflow execution
+      const response = await fetch("http://localhost:8000/api/v1/workflows/execute", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          flow_data: flowData,
+          input_text: "Start workflow execution",
+          workflow_id: currentWorkflow.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.detail || "Failed to execute workflow");
+      }
+
+      // Show success message
+      enqueueSnackbar("Workflow executed successfully", { variant: "success" });
+    } catch (error: any) {
+      console.error("Error executing workflow:", error);
+      enqueueSnackbar(`Error executing workflow: ${error.message}`, { variant: "error" });
+    }
+  }, [currentWorkflow, nodes, edges, enqueueSnackbar]);
+
   // Use stable nodeTypes - pass handlers via node data instead
-  const nodeTypes = baseNodeTypes;
+  const nodeTypes = useMemo(() => ({
+    ...baseNodeTypes,
+    StartNode: (props: any) => (
+      <StartNode
+        {...props}
+        onExecute={handleStartNodeExecution}
+      />
+    ),
+  }), [handleStartNodeExecution]);
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (

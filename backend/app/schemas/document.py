@@ -47,7 +47,7 @@ class CollectionCreate(BaseModel):
     metadata: Optional[Dict[str, Any]] = Field(default={}, description="Additional metadata")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "Research Papers",
                 "description": "Collection of academic research papers",
@@ -70,8 +70,8 @@ class CollectionResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update timestamp")
     
     class Config:
-        orm_mode = True
-        schema_extra = {
+        from_attributes = True
+        json_schema_extra = {
             "example": {
                 "id": "123e4567-e89b-12d3-a456-426614174000",
                 "name": "Research Papers",
@@ -99,7 +99,7 @@ class DocumentCreate(BaseModel):
     collection_id: Optional[UUID] = Field(None, description="Collection ID")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "title": "AI Research Methodology",
                 "content": "This document outlines the methodology for AI research...",
@@ -135,7 +135,7 @@ class DocumentResponse(BaseModel):
     updated_at: datetime = Field(..., description="Last update timestamp")
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Search Schemas
 class DocumentSearchRequest(BaseModel):
@@ -172,7 +172,7 @@ class DocumentSearchRequest(BaseModel):
         return v
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "query": "machine learning algorithms",
                 "document_format": ["txt", "pdf"],
@@ -196,7 +196,7 @@ class DocumentSearchResponse(BaseModel):
     search_params: Dict[str, Any] = Field(..., description="Search parameters used")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "documents": [],
                 "total_count": 156,
@@ -211,7 +211,7 @@ class DocumentSearchResponse(BaseModel):
 class FormatDistribution(BaseModel):
     """Format distribution statistics."""
     txt: int = Field(default=0, description="Number of TXT documents")
-    json: int = Field(default=0, description="Number of JSON documents")
+    json_format: int = Field(default=0, description="Number of JSON documents")
     docx: int = Field(default=0, description="Number of DOCX documents")
     pdf: int = Field(default=0, description="Number of PDF documents")
     web: int = Field(default=0, description="Number of web documents")
@@ -245,7 +245,7 @@ class DocumentAnalyticsResponse(BaseModel):
     generated_at: str = Field(..., description="Analytics generation timestamp")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "summary": {
                     "total_documents": 150,
@@ -288,7 +288,7 @@ class DocumentChunkResponse(BaseModel):
     created_at: datetime = Field(..., description="Creation timestamp")
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 # Bulk Operations Schemas
 class BulkDocumentStore(BaseModel):
@@ -297,7 +297,7 @@ class BulkDocumentStore(BaseModel):
     collection_id: Optional[UUID] = Field(None, description="Target collection")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "documents_data": [
                     {

@@ -182,6 +182,7 @@ class EnhancedGraphBuilder(BaseGraphBuilder):
         
         # Validate nodes
         node_ids = set()
+        start_node_ids = set()
         for node in nodes:
             node_id = node.get("id")
             node_type = node.get("type")
@@ -193,6 +194,11 @@ class EnhancedGraphBuilder(BaseGraphBuilder):
             if node_id in node_ids:
                 validation_result["errors"].append(f"Duplicate node ID: {node_id}")
             node_ids.add(node_id)
+            
+            # Track StartNode IDs separately since they are filtered out during build
+            if node_type == "StartNode":
+                start_node_ids.add(node_id)
+                continue
             
             if not node_type:
                 validation_result["errors"].append(f"Node {node_id} missing type")
@@ -210,10 +216,15 @@ class EnhancedGraphBuilder(BaseGraphBuilder):
                 validation_result["errors"].append("Edge missing source or target")
                 continue
             
+            # Check if source is a StartNode, which is filtered out during build
+            if source in start_node_ids:
+                # StartNode edges are handled separately in the build process
+                continue
+            
             if source not in node_ids:
                 validation_result["errors"].append(f"Edge references unknown source node: {source}")
             
-            if target not in node_ids:
+            if target not in node_ids and target not in start_node_ids:
                 validation_result["errors"].append(f"Edge references unknown target node: {target}")
         
         # Check for required StartNode and EndNode
