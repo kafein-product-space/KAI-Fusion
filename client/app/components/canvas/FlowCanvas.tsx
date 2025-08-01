@@ -24,7 +24,7 @@ import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import { useExecutionsStore } from "~/stores/executions";
 import StartNode from "../nodes/StartNode";
-import ToolAgentNode from "../nodes/agents/ToolAgentNode";
+import ToolAgentNode from "../nodes/agents/ToolAgent/index";
 
 import OpenAIChatNode from "../nodes/llms/OpenAI/index";
 import CustomEdge from "../common/CustomEdge";
@@ -49,7 +49,7 @@ import RedisCacheNode from "../nodes/cache/RedisCacheNode";
 import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
 import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
-import TavilySearchNode from "../nodes/tools/TavilySearchNode";
+import TavilyWebSearchNode from "../nodes/tools/TavilyWebSearch";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
@@ -58,18 +58,18 @@ import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
-import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoaderNode";
+import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
-import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedderNode";
-import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitterNode";
+import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
+import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
 import HTTPClientNode from "../nodes/tools/HTTPClientNode";
-import DocumentRerankerNode from "../nodes/tools/DocumentRerankerNode";
+import DocumentRerankerNode from "../nodes/tools/DocumentReranker";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
 import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
 import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
-import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProviderNode";
-import CohereRerankerNode from "../nodes/tools/CohereRerankerNode";
-import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestratorNode";
+import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
+import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
+import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
 import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorStoreNode";
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 
@@ -85,7 +85,7 @@ const baseNodeTypes = {
   CohereEmbeddings: CohereEmbeddingsNode,
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
-  TavilySearch: TavilySearchNode,
+  TavilySearch: TavilyWebSearchNode,
   WebScraper: WebScraperNode,
   DocumentLoader: DocumentLoaderNode,
   EndNode: EndNode,

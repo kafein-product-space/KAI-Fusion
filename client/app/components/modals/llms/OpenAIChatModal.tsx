@@ -8,8 +8,8 @@ import {
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useSnackbar } from "notistack";
 import { useUserCredentialStore } from "~/stores/userCredential";
-import type { UserCredential } from "~/types/api";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
+import type { UserCredential } from "~/types/api";
 import {
   Brain,
   Settings,
@@ -401,10 +401,35 @@ const OpenAIChatNodeModal = forwardRef<
                             text-white px-4 py-3 focus:border-emerald-500 focus:ring-2 
                             focus:ring-emerald-500/20 transition-all"
                           value={selectedCredentialId}
-                          onChange={(
+                          onChange={async (
                             e: React.ChangeEvent<HTMLSelectElement>
                           ) => {
-                            setSelectedCredentialId(e.target.value);
+                            const credId = e.target.value;
+                            setSelectedCredentialId(credId);
+
+                            if (credId) {
+                              setLoadingCredential(true);
+                              try {
+                                const result = await getUserCredentialSecret(
+                                  credId
+                                );
+                                if (result?.secret?.api_key) {
+                                  setFieldValue(
+                                    "api_key",
+                                    result.secret.api_key
+                                  );
+                                }
+                              } catch (error) {
+                                console.error(
+                                  "Failed to fetch credential secret:",
+                                  error
+                                );
+                              } finally {
+                                setLoadingCredential(false);
+                              }
+                            } else {
+                              setFieldValue("api_key", "");
+                            }
                           }}
                           disabled={
                             isLoading ||

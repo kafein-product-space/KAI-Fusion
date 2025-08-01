@@ -8,6 +8,7 @@ import React, {
 import { Formik, Form, Field } from "formik";
 import { Key, Settings, Filter, Zap, Database, Plus } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 interface CohereRerankerConfigModalProps {
   nodeData: any;
@@ -162,10 +163,31 @@ const CohereRerankerConfigModal = forwardRef<
                       </label>
                       <select
                         value={selectedCredential}
-                        onChange={(e) => {
-                          setSelectedCredential(e.target.value);
-                          setFieldValue("credential_id", e.target.value);
-                          setFieldValue("cohere_api_key", "");
+                        onChange={async (e) => {
+                          const credId = e.target.value;
+                          setSelectedCredential(credId);
+                          setFieldValue("credential_id", credId);
+
+                          if (credId) {
+                            try {
+                              const result = await getUserCredentialSecret(
+                                credId
+                              );
+                              if (result?.secret?.api_key) {
+                                setFieldValue(
+                                  "cohere_api_key",
+                                  result.secret.api_key
+                                );
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Failed to fetch credential secret:",
+                                error
+                              );
+                            }
+                          } else {
+                            setFieldValue("cohere_api_key", "");
+                          }
                         }}
                         className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg text-white px-4 py-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
                       >
