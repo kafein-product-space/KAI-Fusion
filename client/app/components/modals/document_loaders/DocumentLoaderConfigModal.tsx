@@ -342,23 +342,6 @@ const DocumentLoaderConfigModal = forwardRef<
                     </div>
                   </div>
                 )}
-
-                {/* Legacy File Paths (for manual entry) */}
-                <div className="mt-4">
-                  <label className="text-slate-300 text-sm mb-2 block">
-                    Manuel Dosya Yolları (Opsiyonel)
-                  </label>
-                  <Field
-                    as="textarea"
-                    className="textarea textarea-bordered w-full h-20 bg-slate-900/80 text-white placeholder-slate-400 rounded-lg px-4 py-3 border border-slate-600/50 focus:ring-2 focus:ring-emerald-500/20"
-                    name="file_paths"
-                    placeholder={`/path/to/document1.txt\n/path/to/document2.pdf`}
-                  />
-                  <p className="text-slate-400 text-xs mt-1">
-                    Sunucu üzerindeki dosya yollarını manuel olarak
-                    girebilirsiniz
-                  </p>
-                </div>
               </div>
 
               {/* Supported Formats */}

@@ -61,6 +61,20 @@ const CohereRerankerConfigModal = forwardRef<
   const [model, setModel] = useState(nodeData?.model || "rerank-english-v3.0");
   const [topN, setTopN] = useState(nodeData?.top_n || 5);
 
+  // Define initialValues for Formik
+  const initialValues = {
+    cohere_api_key: nodeData?.cohere_api_key || "",
+    credential_id: nodeData?.credential_id || "",
+    model: nodeData?.model || "rerank-english-v3.0",
+    top_n: nodeData?.top_n || 5,
+    max_chunks_per_doc: nodeData?.max_chunks_per_doc || 10,
+  };
+
+  // Fetch credentials on component mount
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
+
   const handleSave = () => {
     onSave({
       cohere_api_key: apiKey,
@@ -68,7 +82,6 @@ const CohereRerankerConfigModal = forwardRef<
       top_n: Number(topN),
     });
     dialogRef.current?.close();
-
   };
   return (
     <dialog
@@ -157,14 +170,14 @@ const CohereRerankerConfigModal = forwardRef<
                         className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg text-white px-4 py-3 focus:border-orange-500 focus:ring-2 focus:ring-orange-500/20 transition-all"
                       >
                         <option value="">Select a credential...</option>
-                        {allCredentials.map((cred) => (
+                        {userCredentials.map((cred: any) => (
                           <option key={cred.id} value={cred.id}>
                             {cred.name} ({cred.service_type})
                           </option>
                         ))}
                       </select>
                       <div className="text-xs text-slate-400 mt-2">
-                        {allCredentials.length === 0
+                        {userCredentials.length === 0
                           ? "No credentials found. Add credentials in the Credentials section."
                           : "Choose from your saved credentials"}
                       </div>
@@ -190,7 +203,7 @@ const CohereRerankerConfigModal = forwardRef<
                   )}
 
                   {/* Add New Credential Link */}
-                  {useCredential && allCredentials.length === 0 && (
+                  {useCredential && userCredentials.length === 0 && (
                     <div className="flex items-center space-x-2 p-3 bg-slate-900/30 rounded-lg border border-slate-600/20">
                       <Plus className="w-4 h-4 text-orange-400" />
                       <span className="text-orange-400 text-sm">

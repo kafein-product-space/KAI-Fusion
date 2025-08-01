@@ -61,6 +61,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   ChunkSplitter: <Scissors className="w-6 h-6 text-pink-300" />,
   PGVectorStore: <Database className="w-6 h-6 text-green-400" />,
   VectorStoreOrchestrator: <Layers className="w-6 h-6 text-purple-400" />,
+  IntelligentVectorStore: <Database className="w-6 h-6 text-emerald-400" />,
 
   // 🌐 Web & API
   TavilySearch: <Search className="w-6 h-6 text-indigo-400" />,

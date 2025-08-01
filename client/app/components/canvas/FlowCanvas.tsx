@@ -26,7 +26,7 @@ import { useExecutionsStore } from "~/stores/executions";
 import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgentNode";
 
-import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
+import OpenAIChatNode from "../nodes/llms/OpenAI/index";
 import CustomEdge from "../common/CustomEdge";
 
 import type {
@@ -36,19 +36,19 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 
-import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
 import TestButtonsComponent from "./TestButtonsComponent";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
 
-import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
+import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenaiEmbeddingsNode/index";
 
 import RedisCacheNode from "../nodes/cache/RedisCacheNode";
 import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
-import BufferMemoryNode from "../nodes/memory/BufferMemory";
+import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
 import TavilySearchNode from "../nodes/tools/TavilySearchNode";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
@@ -57,7 +57,6 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
-import ChatBubble from "../common/ChatBubble";
 import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
 import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoaderNode";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
@@ -71,6 +70,7 @@ import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorSto
 import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProviderNode";
 import CohereRerankerNode from "../nodes/tools/CohereRerankerNode";
 import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestratorNode";
+import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorStoreNode";
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 
 // Define nodeTypes outside component to prevent recreations
@@ -102,6 +102,7 @@ const baseNodeTypes = {
   CohereRerankerProvider: CohereRerankerNode,
   VectorStoreOrchestrator: VectorStoreOrchestratorNode,
   RetrieverProvider: RetrieverNode,
+  IntelligentVectorStore: IntelligentVectorStoreNode,
 };
 
 interface FlowCanvasProps {
