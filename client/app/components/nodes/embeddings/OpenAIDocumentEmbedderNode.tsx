@@ -213,12 +213,12 @@ function OpenAIDocumentEmbedderNode({
         {data?.embedding_model && (
           <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
             <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg">
-              {data.embedding_model === "text-embedding-ada-002"
-                ? "Ada-002"
-                : data.embedding_model === "text-embedding-3-small"
+              {data.embedding_model === "text-embedding-3-small"
                 ? "3-Small"
                 : data.embedding_model === "text-embedding-3-large"
                 ? "3-Large"
+                : data.embedding_model === "text-embedding-ada-002"
+                ? "Ada-002"
                 : data.embedding_model?.toUpperCase() || "OPENAI"}
             </div>
           </div>
