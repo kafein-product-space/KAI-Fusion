@@ -16,11 +16,20 @@ async def get_all_nodes():
     This endpoint provides the frontend with all necessary information
     to render nodes and their configuration modals dynamically.
     """
+    # Ensure nodes are discovered
+    if not node_registry.nodes:
+        node_registry.discover_nodes()
+    
     nodes_list = []
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
-            metadata = instance.metadata.dict()
+            # Use model_dump instead of deprecated dict()
+            metadata = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
             # Add the node name to the metadata and ensure each node has an ID
             metadata["name"] = name
             metadata['id'] = name
@@ -38,9 +47,14 @@ async def get_node_categories():
     """
     categories = set()
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
-            metadata_dict = instance.metadata.dict()
+            # Use model_dump instead of deprecated dict()
+            metadata_dict = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
             category = metadata_dict.get("category", "Other")
             categories.add(category)
         except Exception as e:
@@ -70,7 +84,8 @@ async def get_node_details(node_type: str):
     
     try:
         instance = node_class()
-        metadata = instance.metadata.dict()
+        # Use model_dump instead of deprecated dict()
+        metadata = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
         
         # Add detailed configuration schema
         detailed_info = {
@@ -179,6 +194,10 @@ async def get_registry_statistics():
     total_nodes = len(node_registry.nodes)
     
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             category = instance.metadata.category
@@ -204,6 +223,10 @@ async def search_nodes(query: str):
     query_lower = query.lower()
     
     for name, node_class in node_registry.nodes.items():
+        # Skip hidden aliases (like ReactAgent)
+        if name in node_registry.hidden_aliases:
+            continue
+            
         try:
             instance = node_class()
             metadata = instance.metadata.dict()

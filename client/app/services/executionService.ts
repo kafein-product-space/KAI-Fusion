@@ -12,4 +12,18 @@ export const getExecution = async (execution_id: string) => {
 
 export const listExecutions = async (workflow_id: string, params?: { skip?: number; limit?: number }) => {
   return apiClient.get<WorkflowExecution[]>(API_ENDPOINTS.EXECUTIONS.LIST, { params: { workflow_id, ...params } });
+};
+
+// New function for workflow execution
+export const executeWorkflow = async (workflow_id: string, executionData: {
+  flow_data: any;
+  input_text: string;
+  node_id?: string;
+  execution_type?: string;
+  trigger_source?: string;
+}) => {
+  return apiClient.post<WorkflowExecution>(API_ENDPOINTS.WORKFLOWS.EXECUTE, {
+    workflow_id,
+    ...executionData
+  });
 }; 

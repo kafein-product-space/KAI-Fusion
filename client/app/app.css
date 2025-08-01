@@ -23,3 +23,7 @@ html {
     }
   }
 }
+.modal-open {
+  overflow: hidden !important;
+  padding-right: 15px; /* Scrollbar compensation */
+}

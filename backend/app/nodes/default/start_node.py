@@ -1,23 +1,23 @@
 """Start Node - Entry point for workflows."""
 
 from typing import Dict, Any
-from app.nodes.base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+from app.nodes.base import ProcessorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 from app.core.state import FlowState
 
 
-class StartNode(TerminatorNode):
+class StartNode(ProcessorNode):
     """
     Start node serves as the entry point for workflows.
     It receives initial input and forwards it to connected nodes.
     """
-
+    
     def __init__(self):
         super().__init__()
         self._metadata = {
             "name": "StartNode",
             "display_name": "Start",
             "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
-            "node_type": NodeType.TERMINATOR,
+            "node_type": NodeType.PROCESSOR,
             "category": "Special",
             "inputs": [
                 NodeInput(
@@ -26,6 +26,13 @@ class StartNode(TerminatorNode):
                     description="Initial input text to start the workflow",
                     default="",
                     required=False
+                ),
+                NodeInput(
+                    name="trigger_data",
+                    type="any",
+                    description="Data received from trigger nodes",
+                    required=False,
+                    is_connection=True
                 )
             ],
             "outputs": [
@@ -38,30 +45,34 @@ class StartNode(TerminatorNode):
             "color": "#22c55e",  # Green color for start
             "icon": "play"
         }
-
-    def _execute(self, state: FlowState) -> Dict[str, Any]:
+    
+    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute the start node.
         
         Args:
-            state: Current workflow state
+            inputs: User inputs from the frontend
+            connected_nodes: Connected node outputs
             
         Returns:
             Dict containing the initial input to pass to next nodes
         """
-        # Get initial input from user data or use default
-        initial_input = self.user_data.get("initial_input", "")
+        # Get initial input from user data or connected nodes
+        initial_input = inputs.get("initial_input", "")
         
-        # If no input provided, use the current state's last output or a default message
+        # If no input provided, check connected nodes for trigger data
+        if not initial_input and connected_nodes:
+            trigger_data = connected_nodes.get("trigger_data")
+            if trigger_data:
+                # Handle different types of trigger data
+                if isinstance(trigger_data, dict):
+                    initial_input = trigger_data.get("data", trigger_data.get("message", str(trigger_data)))
+                else:
+                    initial_input = str(trigger_data)
+        
+        # If still no input, use a default message
         if not initial_input:
-            initial_input = state.last_output or "Workflow started"
-        
-        # Update state with the initial input
-        state.last_output = initial_input
-        
-        # Add this node to executed nodes list
-        if self.node_id and self.node_id not in state.executed_nodes:
-            state.executed_nodes.append(self.node_id)
+            initial_input = "Workflow started"
         
         print(f"[StartNode] Starting workflow with input: {initial_input}")
         
@@ -69,4 +80,4 @@ class StartNode(TerminatorNode):
             "output": initial_input,
             "message": f"Workflow started with: {initial_input}",
             "status": "started"
-        } 
+        }

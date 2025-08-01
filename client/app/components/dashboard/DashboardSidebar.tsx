@@ -24,7 +24,7 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-64 p-4 flex flex-col justify-between bg-background text-foreground border-r border-gray-300 dark:border-gray-700 transition-colors duration-300">
+    <aside className="w-64 p-4 flex flex-col justify-between bg-background text-foreground border-r  border-gray-300 dark:border-gray-700 transition-colors duration-300">
       {/* Theme Toggle */}
       <div>
         <div className="flex justify-start">

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { listVariables, createVariable, getVariable, removeVariable, updateVariable } from '../services/variableService';
-import type { Variable, VariableCreateRequest } from '~/types/api';
+import type { Variable } from '~/types/api';
 
 interface VariableStore {
   variables: Variable[];
@@ -10,20 +10,25 @@ interface VariableStore {
   createVariable: (data: Record<string, any>) => Promise<void>;
   getVariable: (id: string) => Promise<void>;
   removeVariable: (id: string) => Promise<void>;
-  updateVariable : (id:string,inputs:Record<string, any>) => Promise<void>;
+  updateVariable: (id: string, inputs: Record<string, any>) => Promise<void>;
 }
 
 export const useVariableStore = create<VariableStore>((set, get) => ({
   variables: [],
   isLoading: false,
   error: null,
+
   fetchVariables: async () => {
     set({ isLoading: true, error: null });
     try {
       const variables = await listVariables();
-      set({ variables: variables, isLoading: false });
+      set({ variables, isLoading: false });
     } catch (e: any) {
-      set({ error: e.message || 'Failed to fetch variables', isLoading: false });
+      set({ 
+        error: e.message || 'Failed to fetch variables', 
+        isLoading: false 
+      });
+      throw e; // Re-throw so component can handle
     }
   },
 
@@ -36,7 +41,11 @@ export const useVariableStore = create<VariableStore>((set, get) => ({
         isLoading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Failed to create variable', isLoading: false });
+      set({ 
+        error: e.message || 'Failed to create variable', 
+        isLoading: false 
+      });
+      throw e; // Re-throw so component can handle
     }
   },
 
@@ -51,7 +60,11 @@ export const useVariableStore = create<VariableStore>((set, get) => ({
         isLoading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Failed to get variable', isLoading: false });
+      set({ 
+        error: e.message || 'Failed to get variable', 
+        isLoading: false 
+      });
+      throw e;
     }
   },
 
@@ -64,19 +77,30 @@ export const useVariableStore = create<VariableStore>((set, get) => ({
         isLoading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Failed to remove variable', isLoading: false });
+      set({ 
+        error: e.message || 'Failed to remove variable', 
+        isLoading: false 
+      });
+      throw e;
     }
   },
-  updateVariable : async (id,inputs)=>{
+
+  updateVariable: async (id, inputs) => {
     set({ isLoading: true, error: null });
     try {
-      const updated = await updateVariable(id,inputs);
+      const updated = await updateVariable(id, inputs);
       set((state) => ({
-        variables: state.variables.map((v) => (v.id === updated.id ? updated : v)),
+        variables: state.variables.map((v) => 
+          v.id === updated.id ? updated : v
+        ),
         isLoading: false,
       }));
     } catch (e: any) {
-      set({ error: e.message || 'Failed to update variable', isLoading: false });
+      set({ 
+        error: e.message || 'Failed to update variable', 
+        isLoading: false 
+      });
+      throw e;
     }
   }
 }));

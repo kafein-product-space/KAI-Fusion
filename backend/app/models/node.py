@@ -11,6 +11,7 @@ class NodeCategory(str, Enum):
     DOCUMENT_LOADER = "document_loader"
     TEXT_SPLITTER = "text_splitter"
     EMBEDDING = "embedding"
+    TRIGGER = "trigger"
     UTILITY = "utility"
     INTEGRATION = "integration"
     CUSTOM = "custom" 
