@@ -53,8 +53,17 @@ from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
 from langchain_core.documents import Document
-from langchain_community.vectorstores import PGVector
 from langchain_core.vectorstores import VectorStoreRetriever
+
+# Use new langchain_postgres API with legacy fallback
+try:
+    from langchain_postgres import PGVector
+    USING_NEW_API = True
+    print("📦 Using new langchain_postgres PGVector API")
+except ImportError:
+    from langchain_community.vectorstores import PGVector
+    USING_NEW_API = False
+    print("📦 Using legacy langchain_community PGVector API")
 
 from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
@@ -296,10 +305,19 @@ class IntelligentVectorStore(ProcessorNode):
                 optimization_report["errors"].append(f"pgvector extension: {str(e)}")
                 logger.warning(f"⚠️ pgvector extension issue: {e}")
             
-            # 2. Check if langchain tables exist
-            cursor.execute("""
+            # 2. Check if langchain tables exist (different names for new API)
+            if USING_NEW_API:
+                # New API uses different table names
+                table_names = ['langchain_pg_collection', 'langchain_pg_embedding']
+                table_prefix = 'langchain_pg_'
+            else:
+                # Legacy API uses different table names  
+                table_names = ['langchain_pg_collection', 'langchain_pg_embedding']
+                table_prefix = 'langchain_pg_'
+                
+            cursor.execute(f"""
                 SELECT table_name FROM information_schema.tables 
-                WHERE table_name IN ('langchain_pg_collection', 'langchain_pg_embedding')
+                WHERE table_name LIKE '{table_prefix}%'
                 AND table_schema = 'public';
             """)
             existing_tables = [row[0] for row in cursor.fetchall()]
@@ -587,29 +605,53 @@ class IntelligentVectorStore(ProcessorNode):
                 texts = [doc.page_content for doc in prepared_docs]
                 metadatas = [doc.metadata for doc in prepared_docs]
                 
-                vectorstore = PGVector.from_embeddings(
-                    text_embeddings=list(zip(texts, all_embeddings)),
-                    embedding=embedder,
-                    collection_name=collection_name,
-                    connection_string=connection_string,
-                    pre_delete_collection=pre_delete,
-                    metadatas=metadatas,
-                )
-                logger.info(f"✅ Stored {len(prepared_docs)} pre-embedded documents")
+                if USING_NEW_API:
+                    # New langchain_postgres API
+                    vectorstore = PGVector.from_embeddings(
+                        embeddings=list(zip(texts, all_embeddings)),
+                        embedding=embedder,
+                        collection_name=collection_name,
+                        connection=connection_string,
+                        pre_delete_collection=pre_delete,
+                        use_jsonb=True,  # Use JSONB for better performance
+                    )
+                else:
+                    # Legacy API
+                    vectorstore = PGVector.from_embeddings(
+                        text_embeddings=list(zip(texts, all_embeddings)),
+                        embedding=embedder,
+                        collection_name=collection_name,
+                        connection_string=connection_string,
+                        pre_delete_collection=pre_delete,
+                        metadatas=metadatas,
+                    )
+                logger.info(f"✅ Stored {len(prepared_docs)} pre-embedded documents using {'new' if USING_NEW_API else 'legacy'} API")
             else:
                 # Generate embeddings using the provided embedder  
                 texts = [doc.page_content for doc in valid_docs]
                 metadatas = [doc.metadata for doc in valid_docs]
                 
-                vectorstore = PGVector.from_texts(
-                    texts=texts,
-                    embedding=embedder,
-                    collection_name=collection_name,
-                    connection_string=connection_string,
-                    pre_delete_collection=pre_delete,
-                    metadatas=metadatas,
-                )
-                logger.info(f"✅ Generated embeddings and stored {len(valid_docs)} documents")
+                if USING_NEW_API:
+                    # New langchain_postgres API
+                    vectorstore = PGVector.from_texts(
+                        texts=texts,
+                        embeddings=embedder,
+                        collection_name=collection_name,
+                        connection=connection_string,
+                        pre_delete_collection=pre_delete,
+                        use_jsonb=True,  # Use JSONB for better performance
+                    )
+                else:
+                    # Legacy API
+                    vectorstore = PGVector.from_texts(
+                        texts=texts,
+                        embedding=embedder,
+                        collection_name=collection_name,
+                        connection_string=connection_string,
+                        pre_delete_collection=pre_delete,
+                        metadatas=metadatas,
+                    )
+                logger.info(f"✅ Generated embeddings and stored {len(valid_docs)} documents using {'new' if USING_NEW_API else 'legacy'} API")
             
             # Create optimized retriever
             retriever = self._create_retriever(vectorstore, search_config)

@@ -503,7 +503,7 @@ class ReactAgentNode(ProcessorNode):
                 NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
                 NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
                 NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
-                NodeInput(name="max_iterations", type="int", default=15, description="The maximum number of iterations the agent can perform."),
+                NodeInput(name="max_iterations", type="int", default=5, description="The maximum number of iterations the agent can perform."),
                 NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
                 NodeInput(name="prompt_instructions", type="str", required=False,
                          description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
@@ -550,7 +550,7 @@ class ReactAgentNode(ProcessorNode):
             # Get max_iterations from inputs (user configuration) with proper fallback
             max_iterations = inputs.get("max_iterations")
             if max_iterations is None:
-                max_iterations = self.user_data.get("max_iterations", 15)  # Use default from NodeInput definition
+                max_iterations = self.user_data.get("max_iterations", 5)  # Use default from NodeInput definition
             
             print(f"[DEBUG] Max iterations configured: {max_iterations}")
             
@@ -559,7 +559,7 @@ class ReactAgentNode(ProcessorNode):
                 "agent": agent,
                 "tools": tools_list,
                 "verbose": True, # Essential for real-time debugging
-                "handle_parsing_errors": "Check your output and make sure it conforms! If you need more iterations, provide your current best answer.",
+                "handle_parsing_errors": True,  # Use boolean instead of string
                 "max_iterations": max_iterations,
                 "return_intermediate_steps": True,  # Capture tool usage for debugging
                 "max_execution_time": 60,  # Increase execution time slightly
@@ -632,8 +632,8 @@ class ReactAgentNode(ProcessorNode):
                 elif isinstance(tool, BaseRetriever):
                     # Convert retriever to tool
                     retriever_tool = create_retriever_tool(
-                        name="rag_search",
-                        description="Semantic search with reranking for finding relevant information",
+                        name="document_retriever",
+                        description="Search and retrieve relevant documents from the knowledge base",
                         retriever=tool,
                     )
                     tools_list.append(retriever_tool)
@@ -642,8 +642,8 @@ class ReactAgentNode(ProcessorNode):
         elif isinstance(tools_input, BaseRetriever):
             # Convert single retriever to tool
             retriever_tool = create_retriever_tool(
-                name="rag_search", 
-                description="Semantic search with reranking for finding relevant information",
+                name="document_retriever", 
+                description="Search and retrieve relevant documents from the knowledge base",
                 retriever=tools_input,
             )
             tools_list.append(retriever_tool)
@@ -704,49 +704,38 @@ AVAILABLE TOOLS:
 
 Tool Names: {tool_names}
 
-CONVERSATION HISTORY USAGE:
-- CRITICAL: Before answering any question, check if it contains ambiguous references (he, she, it, that, o, bu, şu)
-- If the question has pronouns or unclear references, look at the conversation history to understand what they refer to
-- Transform ambiguous questions into specific ones using the conversation context
-- Example: If previous messages mentioned "Baha Kızıl" and user asks "o kim?" or "who is he?", search for "Baha Kızıl kimdir" or "who is Baha Kızıl"
+🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [your answer]" 🔴
+🔴 NEVER say "I'm sorry" or provide error messages 🔴
+🔴 ALWAYS synthesize available information into a Final Answer 🔴
 
-CRITICAL INSTRUCTIONS - FOLLOW STRICTLY:
-1. FIRST: Check if the question needs conversation context (contains pronouns/ambiguous references)
-2. If ambiguous, use conversation history to clarify what the user is asking about
-3. When you receive a question that can be answered with tools, you MUST immediately use the appropriate tool
-4. After you receive results from the tool, you MUST synthesize the information into a final answer
-5. Do NOT use the same tool more than once for a single question
-6. Do NOT use your general knowledge - rely ONLY on the tool results
-7. Always provide a complete Final Answer based on the retrieved information
+RULES:
+1. Use tools ONCE to get information
+2. After getting tool results, immediately provide Final Answer
+3. Never repeat tool usage
+4. Never provide error messages or apologies
+5. Always extract useful information from tool results
 
-Use this EXACT format:
+MANDATORY FORMAT:
 
+For questions requiring document search:
 Question: the input question you must answer
-Thought: [Check if question needs conversation context. If ambiguous, identify what it refers to from history. Then decide on tool usage]
+Thought: I need to search for information about this topic using the document retriever
 Action: document_retriever
-Action Input: [specific search query - if original was ambiguous, use the clarified version]
-Observation: the result of the action
-Thought: Based on the search results, I now have the information I need to provide a complete answer
-Final Answer: [comprehensive answer based ONLY on the retrieved documents]
+Action Input: [search query]
+Observation: [tool results will appear here]
+Thought: Based on the search results, I can now provide a comprehensive answer
+Final Answer: [Based on the retrieved documents, provide specific information found. If documents contain relevant details, use them. If documents are incomplete but contain some relevant information, use what's available and mention what was found.]
 
-For questions needing context clarification:
-Question: the input question (e.g., "who is he?")
-Thought: This question contains an ambiguous reference "he". Looking at conversation history, the user previously asked about "Baha Kızıl", so "he" likely refers to Baha Kızıl. I should search for information about Baha Kızıl.
-Action: document_retriever
-Action Input: Baha Kızıl kimdir
-Observation: the result of the action
-Thought: Based on the search results about Baha Kızıl, I can now provide a complete answer
-Final Answer: [answer about Baha Kızıl based on retrieved documents]
-
-For general greetings or simple questions that don't need tools:
+For greetings or simple questions:
 Question: the input question
-Thought: This is a simple greeting/question that doesn't require tool usage
-Final Answer: [appropriate response]
+Thought: This is a simple question that doesn't require tool usage
+Final Answer: [direct response]
 
-REMEMBER:
-- Use conversation history to resolve ambiguous references
-- Use tools ONCE with specific queries, then provide Final Answer
-- Do NOT repeat tool usage
+IMPORTANT INSTRUCTIONS:
+- After receiving tool results, you MUST immediately move to Final Answer
+- Never say there was an error - always work with the information provided
+- Extract any relevant information from the documents, even if incomplete
+- Provide Final Answer based on available information
 
 Begin!
 
