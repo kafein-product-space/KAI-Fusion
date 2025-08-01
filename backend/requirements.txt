@@ -30,7 +30,6 @@ langchain-openai>=0.0.5
 langchain-tavily>=0.2.0
 langchain-text-splitters>=0.3.0
 langgraph>=0.0.30
-langchain-cohere>=0.0.1
 # Reranking and Compression
 cohere>=4.30.0
 rank-bm25>=0.2.2
@@ -69,3 +68,5 @@ lxml>=4.9.0
 # ML/Vector
 numpy>=1.24.0
 scikit-learn>=1.3.0
+langchain-cohere>=0.1.0  # Instead of legacy langchain.retrievers.document_compressors
+langchain-postgres>=0.1.0  # Instead of legacy langchain_community.vectorstores.PGVecto
