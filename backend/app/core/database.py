@@ -296,6 +296,12 @@ async def get_db_session() -> AsyncSession:
     async with AsyncSessionLocal() as session:
         yield session
 
+def get_db_session_context():
+    """Get database session as async context manager for manual usage."""
+    if not AsyncSessionLocal:
+        raise RuntimeError("Database is not enabled. Set DATABASE_URL and ASYNC_DATABASE_URL to enable database functionality.")
+    return AsyncSessionLocal()
+
 logger = logging.getLogger(__name__)
 
 # Database monitoring variables

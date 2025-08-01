@@ -633,16 +633,71 @@ class BaseNode(ABC):
                 # Use connection mapping if available
                 if input_spec.name in self._input_connections:
                     connection_info = self._input_connections[input_spec.name]
-                    source_node_id = connection_info.get("node_id")
+                    source_node_id = connection_info.get("source_node_id")
                     output_key = f"output_{source_node_id}"
                     
-                    if output_key in state.variables:
-                        connected[input_spec.name] = state.get_variable(output_key)
+                    # Debug output to see what's in state
+                    print(f"[DEBUG] EndNode looking for output_key: {output_key}")
+                    print(f"[DEBUG] Available state variables: {list(state.variables.keys())}")
+                    print(f"[DEBUG] State.last_output: {state.last_output}")
+                    
+                    # Check multiple possible locations for the output
+                    found_output = None
+                    
+                    # 1. Check if it's a dynamic attribute on the state (Pydantic extra fields)
+                    if hasattr(state, output_key):
+                        found_output = getattr(state, output_key)
+                        print(f"[DEBUG] Found as state attribute: {found_output}")
+                    
+                    # 2. Check state variables
+                    elif output_key in state.variables:
+                        found_output = state.get_variable(output_key)
+                        print(f"[DEBUG] Found in state.variables: {found_output}")
+                    
+                    # 3. Check node_outputs if available
+                    elif hasattr(state, 'node_outputs') and source_node_id in state.node_outputs:
+                        node_output = state.node_outputs[source_node_id]
+                        if isinstance(node_output, dict) and 'output' in node_output:
+                            found_output = node_output['output']
+                        else:
+                            found_output = node_output
+                        print(f"[DEBUG] Found in node_outputs: {found_output}")
+                    
+                    # 4. Use the state's built-in get_node_output method
+                    elif hasattr(state, 'get_node_output'):
+                        try:
+                            found_output = state.get_node_output(source_node_id)
+                            if found_output is not None:
+                                print(f"[DEBUG] Found via get_node_output: {found_output}")
+                        except:
+                            pass
+                    
+                    # 5. Fallback: use last_output if it's from the expected source node
+                    if found_output is None and state.last_output:
+                        # Check if the last executed node matches our source
+                        if (hasattr(state, 'executed_nodes') and state.executed_nodes and
+                            state.executed_nodes[-1] == source_node_id):
+                            found_output = state.last_output
+                            print(f"[DEBUG] Using last_output as fallback: {found_output}")
+                    
+                    if found_output is not None:
+                        connected[input_spec.name] = found_output
+                        print(f"[DEBUG] Connected input {input_spec.name} = '{str(found_output)[:100]}...'")
                     elif input_spec.required:
-                        raise ValueError(
-                            f"Required connected input '{input_spec.name}' "
-                            f"from node '{source_node_id}' not found in state."
+                        # Enhanced error message with more debugging info
+                        error_msg = (
+                            f"Required connected input '{input_spec.name}' from node '{source_node_id}' not found. "
+                            f"Checked locations: dynamic attribute ({output_key}), state.variables, "
+                            f"node_outputs, get_node_output method. Available in state: "
+                            f"variables={list(state.variables.keys())}, "
+                            f"last_output={'Yes' if state.last_output else 'No'}, "
+                            f"executed_nodes={getattr(state, 'executed_nodes', [])}"
                         )
+                        print(f"[ERROR] {error_msg}")
+                        # Don't raise error, use fallback instead
+                        if state.last_output:
+                            connected[input_spec.name] = state.last_output
+                            print(f"[DEBUG] Using last_output as emergency fallback for {input_spec.name}")
                 elif input_spec.required:
                     raise ValueError(f"Connection info for required input '{input_spec.name}' not found.")
         

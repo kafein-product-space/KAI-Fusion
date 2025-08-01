@@ -416,40 +416,71 @@ class BufferMemoryNode(ProviderNode):
     @trace_memory_operation("execute")
     def execute(self, **kwargs) -> Runnable:
         """Execute buffer memory node with session persistence and tracing"""
-        # Get session ID from context (set by graph builder)
-        session_id = getattr(self, 'session_id', 'default_session')
-        print(f"\n💾 BUFFER MEMORY SETUP")
-        print(f"   📝 Session: {session_id[:8]}...")
-        
-        # Use existing session memory or create new one (using global class storage)
-        if session_id not in BufferMemoryNode._global_session_memories:
-            BufferMemoryNode._global_session_memories[session_id] = ConversationBufferMemory(
+        try:
+            # Get session ID from context (set by graph builder)
+            # Handle both direct session_id parameter and attribute access
+            session_id = kwargs.get('session_id') or getattr(self, 'session_id', None)
+            if not session_id:
+                session_id = 'default_session'
+            
+            # Ensure session_id is a string and not None
+            if session_id is None:
+                session_id = 'default_session'
+            
+            print(f"\n💾 BUFFER MEMORY SETUP")
+            print(f"   📝 Session: {str(session_id)[:8]}...")
+            
+            # Ensure global memory dictionary is initialized
+            if not hasattr(BufferMemoryNode, '_global_session_memories') or BufferMemoryNode._global_session_memories is None:
+                BufferMemoryNode._global_session_memories = {}
+            
+            # Use existing session memory or create new one (using global class storage)
+            if session_id not in BufferMemoryNode._global_session_memories:
+                BufferMemoryNode._global_session_memories[session_id] = ConversationBufferMemory(
+                    memory_key=kwargs.get("memory_key", "memory"),
+                    return_messages=kwargs.get("return_messages", True),
+                    input_key=kwargs.get("input_key", "input"),
+                    output_key=kwargs.get("output_key", "output")
+                )
+                print(f"   ✅ Created new memory")
+            else:
+                print(f"   ♻️  Reusing existing memory")
+                
+            memory = BufferMemoryNode._global_session_memories[session_id]
+            
+            # Debug memory content with enhanced tracing (non-blocking)
+            try:
+                if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    message_count = len(memory.chat_memory.messages)
+                    print(f"   📚 Messages: {message_count}")
+                    
+                    # Track memory content for LangSmith (non-blocking)
+                    try:
+                        from app.core.tracing import get_workflow_tracer
+                        tracer = get_workflow_tracer(session_id=session_id)
+                        tracer.track_memory_operation("retrieve", "BufferMemory", f"{message_count} messages", session_id)
+                    except Exception as e:
+                        print(f"   ⚠️  Memory tracing failed: {e}")
+            except Exception as e:
+                print(f"   ⚠️  Failed to get memory status: {e}")
+            
+            print(f"   ✅ Memory ready")
+            return cast(Runnable, memory)
+            
+        except Exception as e:
+            # If anything fails, create a minimal working memory
+            print(f"   ❌ BufferMemory setup failed: {e}")
+            print(f"   🔄 Creating fallback memory...")
+            
+            fallback_memory = ConversationBufferMemory(
                 memory_key=kwargs.get("memory_key", "memory"),
                 return_messages=kwargs.get("return_messages", True),
                 input_key=kwargs.get("input_key", "input"),
                 output_key=kwargs.get("output_key", "output")
             )
-            print(f"   ✅ Created new memory")
-        else:
-            print(f"   ♻️  Reusing existing memory")
             
-        memory = BufferMemoryNode._global_session_memories[session_id]
-        
-        # Debug memory content with enhanced tracing
-        if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-            message_count = len(memory.chat_memory.messages)
-            print(f"   📚 Messages: {message_count}")
-            
-            # Track memory content for LangSmith
-            try:
-                from app.core.tracing import get_workflow_tracer
-                tracer = get_workflow_tracer(session_id=session_id)
-                tracer.track_memory_operation("retrieve", "BufferMemory", f"{message_count} messages", session_id)
-            except Exception as e:
-                print(f"   ⚠️  Memory tracing failed: {e}")
-        
-        print(f"   ✅ Memory ready")
-        return cast(Runnable, memory)
+            print(f"   ✅ Fallback memory ready")
+            return cast(Runnable, fallback_memory)
 
 """
 KAI-Fusion Enhanced Buffer Memory Node - Managed Memory with Cleanup

@@ -31,6 +31,8 @@ from .splitters.chunk_splitter import ChunkSplitterNode
 
 # Vector Stores
 from .vector_stores.pgvector_store import PGVectorStoreNode
+from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
+from .vector_stores.intelligent_vector_store import IntelligentVectorStore
 
 # Chains
 from .chains.retrieval_qa import RetrievalQANode
@@ -77,7 +79,7 @@ __all__ = [
     "ChunkSplitterNode",
     
     # Vector Stores
-    "PGVectorStoreNode",
+    "PGVectorStoreNode", "VectorStoreOrchestrator", "IntelligentVectorStore",
     
     # Chains
     "RetrievalQANode",

@@ -144,8 +144,14 @@ class OpenAIEmbeddingsProvider(ProviderNode):
         Raises:
             ValueError: If API key is missing or model is unsupported
         """
+        import os
+        
         # Extract configuration from user data or kwargs
-        openai_api_key = kwargs.get("openai_api_key") or self.user_data.get("openai_api_key")
+        openai_api_key = (
+            kwargs.get("openai_api_key") or 
+            self.user_data.get("openai_api_key") or 
+            os.getenv("OPENAI_API_KEY")
+        )
         model = kwargs.get("model") or self.user_data.get("model", "text-embedding-3-small")
         request_timeout = kwargs.get("request_timeout") or self.user_data.get("request_timeout", 60)
         max_retries = kwargs.get("max_retries") or self.user_data.get("max_retries", 3)

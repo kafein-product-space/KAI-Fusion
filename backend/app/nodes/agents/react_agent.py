@@ -500,12 +500,12 @@ class ReactAgentNode(ProcessorNode):
             "node_type": NodeType.PROCESSOR,
             "inputs": [
                 NodeInput(name="input", type="string", required=True, description="The user's input to the agent."),
-                NodeInput(name="llm", type="BaseLanguageModel", required=True, description="The language model that the agent will use."),
-                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, description="The tools that the agent can use."),
-                NodeInput(name="memory", type="BaseMemory", required=False, description="The memory that the agent can use."),
-                NodeInput(name="max_iterations", type="int", default=15, description="The maximum number of iterations the agent can perform."),
+                NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
+                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
+                NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
+                NodeInput(name="max_iterations", type="int", default=5, description="The maximum number of iterations the agent can perform."),
                 NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
-                NodeInput(name="prompt_instructions", type="str", required=False, 
+                NodeInput(name="prompt_instructions", type="str", required=False,
                          description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                          default=""),
             ],
@@ -517,12 +517,29 @@ class ReactAgentNode(ProcessorNode):
         Sets up and returns a RunnableLambda that executes the agent.
         """
         def agent_executor_lambda(runtime_inputs: dict) -> dict:
+            # Debug connection information
+            print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
+            print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
+            
             llm = connected_nodes.get("llm")
             tools = connected_nodes.get("tools")
             memory = connected_nodes.get("memory")
-
+            
+            # Enhanced LLM validation with better error reporting
+            print(f"[DEBUG] LLM received: {type(llm)}")
+            if llm is None:
+                available_connections = list(connected_nodes.keys())
+                raise ValueError(
+                    f"A valid LLM connection is required. "
+                    f"Available connections: {available_connections}. "
+                    f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
+                )
+            
             if not isinstance(llm, BaseLanguageModel):
-                raise ValueError("A valid LLM connection is required.")
+                raise ValueError(
+                    f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
+                    f"Ensure the OpenAI Chat node is properly configured and connected."
+                )
 
             tools_list = self._prepare_tools(tools)
 
@@ -530,21 +547,41 @@ class ReactAgentNode(ProcessorNode):
 
             agent = create_react_agent(llm, tools_list, agent_prompt)
 
+            # Get max_iterations from inputs (user configuration) with proper fallback
+            max_iterations = inputs.get("max_iterations")
+            if max_iterations is None:
+                max_iterations = self.user_data.get("max_iterations", 5)  # Use default from NodeInput definition
+            
+            print(f"[DEBUG] Max iterations configured: {max_iterations}")
+            
             # Build executor config with conditional memory
             executor_config = {
                 "agent": agent,
                 "tools": tools_list,
                 "verbose": True, # Essential for real-time debugging
-                "handle_parsing_errors": "Check your output and make sure it conforms! If you need more iterations, provide your current best answer.",
-                "max_iterations": self.user_data.get("max_iterations", 3),  # Further reduce iterations for efficiency
+                "handle_parsing_errors": True,  # Use boolean instead of string
+                "max_iterations": max_iterations,
                 "return_intermediate_steps": True,  # Capture tool usage for debugging
                 "max_execution_time": 60,  # Increase execution time slightly
                 "early_stopping_method": "force"  # Use supported method
             }
             
-            # Only add memory if it exists
+            # Only add memory if it exists and is properly initialized
             if memory is not None:
-                executor_config["memory"] = memory
+                try:
+                    # Test if memory is working properly
+                    if hasattr(memory, 'load_memory_variables'):
+                        test_vars = memory.load_memory_variables({})
+                        executor_config["memory"] = memory
+                        print(f"   💭 Memory: Connected successfully")
+                    else:
+                        print(f"   💭 Memory: Invalid memory object, proceeding without memory")
+                        memory = None
+                except Exception as e:
+                    print(f"   💭 Memory: Failed to initialize ({str(e)}), proceeding without memory")
+                    memory = None
+            else:
+                print(f"   💭 Memory: None")
                 
             executor = AgentExecutor(**executor_config)
 
@@ -595,8 +632,8 @@ class ReactAgentNode(ProcessorNode):
                 elif isinstance(tool, BaseRetriever):
                     # Convert retriever to tool
                     retriever_tool = create_retriever_tool(
-                        name="rag_search",
-                        description="Semantic search with reranking for finding relevant information",
+                        name="document_retriever",
+                        description="Search and retrieve relevant documents from the knowledge base",
                         retriever=tool,
                     )
                     tools_list.append(retriever_tool)
@@ -605,8 +642,8 @@ class ReactAgentNode(ProcessorNode):
         elif isinstance(tools_input, BaseRetriever):
             # Convert single retriever to tool
             retriever_tool = create_retriever_tool(
-                name="rag_search", 
-                description="Semantic search with reranking for finding relevant information",
+                name="document_retriever", 
+                description="Search and retrieve relevant documents from the knowledge base",
                 retriever=tools_input,
             )
             tools_list.append(retriever_tool)
@@ -620,18 +657,23 @@ class ReactAgentNode(ProcessorNode):
         """
         custom_instructions = self.user_data.get("prompt_instructions", "").strip()
         
-        # Optimized system context with efficient tool usage
+        # Optimized system context with efficient tool usage and conversation history awareness
         base_system_context = """
-Sen KAI-Fusion platformunda çalışan verimli bir AI asistanısın. 
+Sen KAI-Fusion platformunda çalışan uzman bir AI asistanısın.
 Kullanıcının dilinde (Türkçe/İngilizce) hızlı ve yararlı cevaplar ver.
 
-VERİMLİLİK KURALLARI:
-- Basit sorularda (merhaba, nasılsın, teşekkür) araç kullanma
-- Sadece güncel/yeni bilgi gerektiğinde araç kullan
-- Araç kullanımından sonra hemen cevap ver, gereksiz araç kullanımı yapma
-- Maksimum 2 araç kullanımı ile cevabını tamamla
-- Eğer bilgin varsa araç kullanmadan cevapla
-- Senin hafizan {memory}
+KONUŞMA GEÇMİŞİ KULLANIMI:
+- ÖNEMLI: Soru belirsiz zamirler (o, bu, şu, he, she, that) içeriyorsa, önceki mesajları kontrol et
+- Eğer kullanıcı "o kim?", "who is he?", "bu nedir?" gibi sorular soruyorsa, konuşma geçmişindeki kişi/konu adlarını kullan
+- Belirsiz soruları açık sorulara dönüştür (örn: "o kim?" → "Baha Kızıl kimdir?")
+- Her zaman tam bağlamı anlayarak cevap ver
+
+ARAÇ KULLANIM KURALLARI:
+- Eğer elinde araç varsa ve soru araçla cevaplanabiliyorsa, ÖNCELİKLE ARACI KULLAN
+- Özellikle kişiler, belgeler veya özel bilgiler hakkında sorular için araçları kullan
+- Sadece genel konuşma (merhaba, nasılsın, teşekkür) için araç kullanma
+- Araç kullandıktan sonra bulduğun bilgiyle detaylı cevap ver
+- Eğer araç sonuç bulamazsa, o zaman genel bilginle yardım et
 """
         
         # Build dynamic, intelligent prompt based on available components
@@ -654,29 +696,46 @@ VERİMLİLİK KURALLARI:
         # Minimal guidelines
         simplified_guidelines = "Kullanıcıya yardımcı ol ve gerektiğinde araçları kullan."
 
-        # === OPTIMIZED REACT TEMPLATE ===
-        react_template = """Answer the following questions efficiently. You have access to these tools:
+        # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
+        react_template = """You are an expert assistant with access to conversation history and tools.
 
+AVAILABLE TOOLS:
 {tools}
 
-IMPORTANT: Be concise and efficient. Use tools only when necessary for current information.
+Tool Names: {tool_names}
 
-Use this EXACT format:
+🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [your answer]" 🔴
+🔴 NEVER say "I'm sorry" or provide error messages 🔴
+🔴 ALWAYS synthesize available information into a Final Answer 🔴
 
+RULES:
+1. Use tools ONCE to get information
+2. After getting tool results, immediately provide Final Answer
+3. Never repeat tool usage
+4. Never provide error messages or apologies
+5. Always extract useful information from tool results
+
+MANDATORY FORMAT:
+
+For questions requiring document search:
 Question: the input question you must answer
-Thought: think about what to do (be concise)
-Action: the tool to use, should be one of [{tool_names}]
-Action Input: the input to the action
-Observation: the result of the action
-... (this can repeat max 2 times)
-Thought: I now know the final answer
-Final Answer: the final answer to the original input question
+Thought: I need to search for information about this topic using the document retriever
+Action: document_retriever
+Action Input: [search query]
+Observation: [tool results will appear here]
+Thought: Based on the search results, I can now provide a comprehensive answer
+Final Answer: [Based on the retrieved documents, provide specific information found. If documents contain relevant details, use them. If documents are incomplete but contain some relevant information, use what's available and mention what was found.]
 
-For direct answers (no tools needed):
-Thought: I can answer this directly
-Final Answer: [your answer]
+For greetings or simple questions:
+Question: the input question
+Thought: This is a simple question that doesn't require tool usage
+Final Answer: [direct response]
 
-Be efficient - if you have enough information after 1 tool use, provide the final answer.
+IMPORTANT INSTRUCTIONS:
+- After receiving tool results, you MUST immediately move to Final Answer
+- Never say there was an error - always work with the information provided
+- Extract any relevant information from the documents, even if incomplete
+- Provide Final Answer based on available information
 
 Begin!
 

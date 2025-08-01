@@ -59,7 +59,18 @@ This provider can be connected to:
 from typing import Dict, Any, Optional
 from langchain_core.runnables import Runnable
 from langchain_core.retrievers import BaseRetriever
-from langchain_community.vectorstores import PGVector
+# Auto-detect which API to use based on IntelligentVectorStore
+try:
+    from langchain_postgres import PGVector
+    USING_NEW_API = True
+    print("📦 RetrieverProvider using new langchain_postgres PGVector API")
+except ImportError:
+    import warnings
+    with warnings.catch_warnings():
+        warnings.filterwarnings("ignore", category=DeprecationWarning)
+        from langchain_community.vectorstores import PGVector
+    USING_NEW_API = False
+    print("📦 RetrieverProvider using legacy langchain_community PGVector API")
 from langchain.retrievers import ContextualCompressionRetriever
 
 from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
@@ -298,12 +309,24 @@ class RetrieverNode(ProviderNode):
             raise ValueError("score_threshold must be a float between 0.0 and 1.0")
         
         try:
-            # Create vector store instance
-            vectorstore = PGVector(
-                collection_name=collection_name,
-                connection_string=database_connection,
-                embedding_function=embedder,
-            )
+            # Create vector store instance using auto-detected API
+            if USING_NEW_API:
+                # New langchain_postgres API
+                vectorstore = PGVector(
+                    embeddings=embedder,
+                    connection=database_connection,
+                    collection_name=collection_name,
+                    use_jsonb=True,  # Use JSONB for better performance
+                )
+                print(f"📦 Created PGVector with new API for collection: {collection_name}")
+            else:
+                # Legacy API
+                vectorstore = PGVector(
+                    collection_name=collection_name,
+                    connection_string=database_connection,
+                    embedding_function=embedder,
+                )
+                print(f"📦 Created PGVector with legacy API for collection: {collection_name}")
             
             # Configure search parameters
             search_kwargs = {

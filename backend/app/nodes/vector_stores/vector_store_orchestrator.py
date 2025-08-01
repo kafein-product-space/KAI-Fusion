@@ -219,20 +219,28 @@ class VectorStoreOrchestrator(ProcessorNode):
             ],
         }
 
-    def _validate_documents(self, documents: List[Document]) -> List[Document]:
-        """Validate that all documents have embeddings."""
+    def _validate_documents(self, documents: List[Document]) -> tuple[List[Document], bool]:
+        """Validate documents and determine if they have embeddings."""
         valid_docs = []
-        for doc in documents:
+        has_embeddings = True
+        
+        print(f"[DEBUG] _validate_documents called with {len(documents)} items")
+        
+        for i, doc in enumerate(documents):
+            print(f"[DEBUG] Processing document {i}: {type(doc)}")
+            
             if isinstance(doc, Document) and doc.page_content.strip():
+                print(f"[DEBUG] Document {i} is a valid Document object")
                 # Check if document has embedding
                 embedding = doc.metadata.get("embedding")
                 if not embedding or not isinstance(embedding, list) or len(embedding) == 0:
-                    raise ValueError(
-                        "Document missing embedding. All documents must have pre-computed embeddings. "
-                        f"Document content preview: {doc.page_content[:100]}..."
-                    )
+                    has_embeddings = False
+                    print(f"[DEBUG] Document {i} has no embeddings")
+                else:
+                    print(f"[DEBUG] Document {i} has embeddings: {len(embedding)} dimensions")
                 valid_docs.append(doc)
             elif isinstance(doc, dict) and doc.get("page_content", "").strip():
+                print(f"[DEBUG] Document {i} is a dict, converting to Document")
                 # Convert dict to Document if needed
                 doc_obj = Document(
                     page_content=doc["page_content"],
@@ -241,16 +249,30 @@ class VectorStoreOrchestrator(ProcessorNode):
                 # Check if document has embedding
                 embedding = doc_obj.metadata.get("embedding")
                 if not embedding or not isinstance(embedding, list) or len(embedding) == 0:
-                    raise ValueError(
-                        "Document missing embedding. All documents must have pre-computed embeddings. "
-                        f"Document content preview: {doc_obj.page_content[:100]}..."
-                    )
+                    has_embeddings = False
+                    print(f"[DEBUG] Converted document {i} has no embeddings")
+                else:
+                    print(f"[DEBUG] Converted document {i} has embeddings: {len(embedding)} dimensions")
                 valid_docs.append(doc_obj)
+            elif isinstance(doc, list):
+                print(f"[DEBUG] Document {i} is a list with {len(doc)} items - this might be the issue!")
+                # Handle nested list of documents
+                for j, nested_doc in enumerate(doc):
+                    print(f"[DEBUG] Nested document {i}.{j}: {type(nested_doc)}")
+                    if isinstance(nested_doc, Document):
+                        print(f"[DEBUG] Nested document {i}.{j} is a Document, adding to valid_docs")
+                        # Documents from ChunkSplitter typically don't have embeddings yet
+                        has_embeddings = False
+                        valid_docs.append(nested_doc)
+            else:
+                print(f"[DEBUG] Document {i} is unrecognized type: {type(doc)}")
+                print(f"[DEBUG] Document {i} content preview: {str(doc)[:100]}...")
         
         if not valid_docs:
             raise ValueError("No valid documents found in input")
             
-        return valid_docs
+        print(f"[DEBUG] _validate_documents returning {len(valid_docs)} valid docs, has_embeddings={has_embeddings}")
+        return valid_docs, has_embeddings
 
     def _prepare_documents_for_storage(self, documents: List[Document]) -> tuple[List[Document], List[List[float]]]:
         """Prepare documents and extract embeddings for storage."""
@@ -346,6 +368,14 @@ class VectorStoreOrchestrator(ProcessorNode):
         if not documents:
             raise ValueError("No documents provided. Connect a document source with pre-embedded documents.")
         
+        print(f"[DEBUG] VectorStoreOrchestrator received documents: {type(documents)}")
+        if isinstance(documents, list):
+            print(f"[DEBUG] Documents list length: {len(documents)}")
+            if documents:
+                print(f"[DEBUG] First document type: {type(documents[0])}")
+        else:
+            print(f"[DEBUG] Single document type: {type(documents)}")
+        
         if not isinstance(documents, list):
             documents = [documents]
         
@@ -353,9 +383,13 @@ class VectorStoreOrchestrator(ProcessorNode):
         if not embedder:
             raise ValueError("No embedder service provided. Connect an embedder provider.")
         
-        # Validate that all documents have embeddings
-        valid_docs = self._validate_documents(documents)
-        logger.info(f"📚 Processing {len(valid_docs)} pre-embedded documents for vector storage")
+        # Validate documents and check for embeddings
+        valid_docs, has_embeddings = self._validate_documents(documents)
+        
+        if has_embeddings:
+            logger.info(f"📚 Processing {len(valid_docs)} pre-embedded documents for vector storage")
+        else:
+            logger.info(f"📚 Processing {len(valid_docs)} documents without embeddings - will generate embeddings")
         
         # Get configuration
         connection_string = inputs.get("connection_string")
@@ -380,24 +414,40 @@ class VectorStoreOrchestrator(ProcessorNode):
         logger.info(f"⚙️ Configuration: collection={collection_name}, batch_size={batch_size}, search_k={search_config['search_k']}")
         
         try:
-            # Prepare documents and embeddings
-            prepared_docs, all_embeddings = self._prepare_documents_for_storage(valid_docs)
-            
-            # Create PGVector store using pre-computed embeddings
+            # Create vector store
             logger.info(f"💾 Creating vector store: {collection_name}")
             
-            texts = [doc.page_content for doc in prepared_docs]
-            metadatas = [doc.metadata for doc in prepared_docs]
-            
-            vectorstore = PGVector.from_embeddings(
-                text_embeddings=list(zip(texts, all_embeddings)),
-                embedding=embedder,
-                collection_name=collection_name,
-                connection_string=connection_string,
-                pre_delete_collection=pre_delete,
-                metadatas=metadatas,
-            )
-            logger.info(f"✅ Stored {len(prepared_docs)} pre-embedded documents")
+            if has_embeddings:
+                # Use pre-computed embeddings
+                prepared_docs, all_embeddings = self._prepare_documents_for_storage(valid_docs)
+                texts = [doc.page_content for doc in prepared_docs]
+                metadatas = [doc.metadata for doc in prepared_docs]
+                
+                vectorstore = PGVector.from_embeddings(
+                    text_embeddings=list(zip(texts, all_embeddings)),
+                    embedding=embedder,
+                    collection_name=collection_name,
+                    connection_string=connection_string,
+                    pre_delete_collection=pre_delete,
+                    metadatas=metadatas,
+                )
+                logger.info(f"✅ Stored {len(prepared_docs)} pre-embedded documents")
+            else:
+                # Generate embeddings using the provided embedder
+                # Use valid_docs as prepared_docs for consistency
+                prepared_docs = valid_docs
+                texts = [doc.page_content for doc in prepared_docs]
+                metadatas = [doc.metadata for doc in prepared_docs]
+                
+                vectorstore = PGVector.from_texts(
+                    texts=texts,
+                    embedding=embedder,
+                    collection_name=collection_name,
+                    connection_string=connection_string,
+                    pre_delete_collection=pre_delete,
+                    metadatas=metadatas,
+                )
+                logger.info(f"✅ Generated embeddings and stored {len(prepared_docs)} documents")
             
             # Create optimized retriever
             retriever = self._create_retriever(vectorstore, search_config)

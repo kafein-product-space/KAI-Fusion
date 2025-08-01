@@ -57,22 +57,19 @@ const CohereRerankerConfigModal = forwardRef<
 
   useImperativeHandle(ref, () => dialogRef.current!);
 
-  // Fetch credentials on component mount
-  useEffect(() => {
-    fetchCredentials();
-  }, [fetchCredentials]);
+  const [apiKey, setApiKey] = useState(nodeData?.cohere_api_key || "");
+  const [model, setModel] = useState(nodeData?.model || "rerank-english-v3.0");
+  const [topN, setTopN] = useState(nodeData?.top_n || 5);
 
-  // Use all credentials instead of filtering by service_type
-  const allCredentials = userCredentials;
+  const handleSave = () => {
+    onSave({
+      cohere_api_key: apiKey,
+      model: model,
+      top_n: Number(topN),
+    });
+    dialogRef.current?.close();
 
-  const initialValues: CohereRerankerConfig = {
-    cohere_api_key: nodeData?.cohere_api_key || "",
-    credential_id: nodeData?.credential_id || "",
-    model: nodeData?.model || "rerank-english-v3.0",
-    top_n: nodeData?.top_n || 5,
-    max_chunks_per_doc: nodeData?.max_chunks_per_doc || 10,
   };
-
   return (
     <dialog
       ref={dialogRef}
