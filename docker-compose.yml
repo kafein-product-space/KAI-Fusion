@@ -61,6 +61,7 @@ services:
       - kaifusion-be
 
 networks:
+  kai_network:
+    driver: bridge
   shared_net:
-      name: shared_net
-      external: true
+    external: true
