@@ -283,12 +283,26 @@ import json
 import uuid
 import logging
 import mimetypes
+import tempfile
+import io
 from pathlib import Path
 from typing import List, Dict, Any, Optional, Union
 from datetime import datetime
+from urllib.parse import urlparse, parse_qs
 
 from langchain_core.documents import Document
 import re
+
+# Google Drive API integration
+try:
+    from googleapiclient.discovery import build
+    from google.auth.credentials import Credentials
+    from google.oauth2.credentials import Credentials as OAuth2Credentials
+    from google.oauth2.service_account import Credentials as ServiceAccountCredentials
+    from googleapiclient.http import MediaIoBaseDownload
+    GOOGLE_DRIVE_AVAILABLE = True
+except ImportError:
+    GOOGLE_DRIVE_AVAILABLE = False
 
 from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
@@ -415,9 +429,9 @@ class DocumentLoaderNode(ProcessorNode):
             "name": "DocumentLoader",
             "display_name": "Document Loader",
             "description": (
-                "Document loader supporting multiple formats (TXT, JSON, Word, PDF) "
-                "for local files. Processes and normalizes documents for downstream AI workflows "
-                "with quality validation and storage."
+                "Document loader with Google Drive integration supporting multiple formats (TXT, JSON, Word, PDF). "
+                "Downloads files from Google Drive links or folders and processes them for downstream AI workflows "
+                "with quality validation and storage. No local file support - only Google Drive."
             ),
             "category": NodeCategory.DOCUMENT_LOADER,
             "node_type": NodeType.PROCESSOR,
@@ -438,10 +452,10 @@ class DocumentLoaderNode(ProcessorNode):
                     is_connection=True,
                 ),
                 NodeInput(
-                    name="file_paths",
+                    name="drive_links",
                     type="textarea", 
-                    description="Local file paths to process (one per line)",
-                    required=False,
+                    description="Google Drive file or folder links to process (one per line). Supports: drive.google.com file links, folder links",
+                    required=True,
                 ),
                 NodeInput(
                     name="supported_formats",
@@ -495,6 +509,51 @@ class DocumentLoaderNode(ProcessorNode):
                     step=0.1,
                     required=False,
                 ),
+                
+                # Google Drive Authentication Configuration
+                NodeInput(
+                    name="google_drive_auth_type",
+                    type="select",
+                    description="Google Drive authentication method",
+                    choices=[
+                        {"value": "service_account", "label": "Service Account", "description": "Use service account credentials JSON"},
+                        {"value": "oauth2", "label": "OAuth2", "description": "Use OAuth2 user credentials"},
+                    ],
+                    default="service_account",
+                    required=True,
+                ),
+                
+                # Service Account Configuration
+                NodeInput(
+                    name="service_account_json",
+                    type="textarea",
+                    description="Google Drive service account credentials (JSON format). Get from Google Cloud Console > Service Accounts",
+                    required=False,
+                    is_secret=True,
+                ),
+                
+                # OAuth2 Configuration
+                NodeInput(
+                    name="oauth2_client_id",
+                    type="password",
+                    description="Google OAuth2 Client ID from Google Cloud Console",
+                    required=False,
+                    is_secret=True,
+                ),
+                NodeInput(
+                    name="oauth2_client_secret",
+                    type="password",
+                    description="Google OAuth2 Client Secret from Google Cloud Console",
+                    required=False,
+                    is_secret=True,
+                ),
+                NodeInput(
+                    name="oauth2_refresh_token",
+                    type="password",
+                    description="Google OAuth2 Refresh Token (obtained from OAuth flow)",
+                    required=False,
+                    is_secret=True,
+                ),
             ],
             "outputs": [
                 NodeOutput(
@@ -515,47 +574,239 @@ class DocumentLoaderNode(ProcessorNode):
             ],
         }
 
-    def _resolve_file_path(self, file_path: str) -> Optional[str]:
-        """Enhanced path resolution with multiple search locations."""
-        original_path = Path(file_path)
+    def _get_google_drive_service(self, auth_type: str, service_account_json: str = None, 
+                                  oauth2_client_id: str = None, oauth2_client_secret: str = None, 
+                                  oauth2_refresh_token: str = None):
+        """Get authenticated Google Drive service using provided credentials."""
+        if not GOOGLE_DRIVE_AVAILABLE:
+            raise ValueError("Google Drive API packages not available. Install with: pip install google-api-python-client google-auth google-auth-oauthlib google-auth-httplib2")
         
-        # If absolute path and exists, use it
-        if original_path.is_absolute() and original_path.exists():
-            return str(original_path)
-        
-        # Search locations in order of priority
-        search_locations = [
-            Path.cwd(),  # Current working directory
-            Path.cwd() / "data",  # ./data directory
-            Path.cwd() / "files",  # ./files directory
-            Path.cwd() / "documents",  # ./documents directory
-            Path.cwd() / "uploads",  # ./uploads directory
-            Path.home() / "Desktop",  # User's desktop
-            Path.home() / "Downloads",  # User's downloads
-            Path("/tmp"),  # Temporary directory
-        ]
-        
-        # Try original filename in each location
-        filename = original_path.name
-        for location in search_locations:
-            if location.exists():
-                candidate = location / filename
-                if candidate.exists():
-                    logger.info(f"🔍 Found file: {filename} in {location}")
-                    return str(candidate)
+        try:
+            if auth_type == "service_account":
+                if not service_account_json:
+                    raise ValueError("Service account JSON credentials are required for service account authentication")
                 
-                # Also try without extension match (fuzzy search)
-                name_without_ext = original_path.stem
-                for existing_file in location.glob(f"*{name_without_ext}*"):
-                    if existing_file.is_file():
-                        logger.info(f"🔍 Fuzzy match found: {filename} -> {existing_file.name}")
-                        return str(existing_file)
-        
-        # Try original path as-is (relative to current directory)
-        if original_path.exists():
-            return str(original_path)
+                # Parse service account credentials
+                credentials_info = json.loads(service_account_json)
+                
+                # Create service account credentials
+                credentials = ServiceAccountCredentials.from_service_account_info(
+                    credentials_info,
+                    scopes=['https://www.googleapis.com/auth/drive.readonly']
+                )
+                
+                logger.info("✅ Successfully created Google Drive service account credentials")
+                
+            elif auth_type == "oauth2":
+                if not all([oauth2_client_id, oauth2_client_secret, oauth2_refresh_token]):
+                    raise ValueError("OAuth2 client ID, client secret, and refresh token are required for OAuth2 authentication")
+                
+                # Create OAuth2 credentials
+                credentials = OAuth2Credentials(
+                    token=None,
+                    refresh_token=oauth2_refresh_token,
+                    token_uri="https://oauth2.googleapis.com/token",
+                    client_id=oauth2_client_id,
+                    client_secret=oauth2_client_secret,
+                    scopes=['https://www.googleapis.com/auth/drive.readonly']
+                )
+                
+                logger.info("✅ Successfully created Google Drive OAuth2 credentials")
+                
+            else:
+                raise ValueError(f"Unknown authentication type: {auth_type}")
             
-        return None
+            # Build the Drive service
+            service = build('drive', 'v3', credentials=credentials)
+            
+            # Test the connection
+            service.about().get(fields="user").execute()
+            logger.info("✅ Google Drive service authenticated successfully")
+            
+            return service
+            
+        except json.JSONDecodeError as e:
+            raise ValueError(f"Invalid service account JSON format: {str(e)}")
+        except Exception as e:
+            raise ValueError(f"Failed to authenticate with Google Drive: {str(e)}")
+
+    def _parse_google_drive_link(self, link: str) -> dict:
+        """Parse Google Drive link to extract file/folder ID and type."""
+        try:
+            # Clean the link
+            link = link.strip()
+            
+            # Extract file ID from various Google Drive URL formats
+            file_id = None
+            link_type = None
+            
+            if '/file/d/' in link:
+                # Format: https://drive.google.com/file/d/FILE_ID/view
+                file_id = link.split('/file/d/')[1].split('/')[0]
+                link_type = 'file'
+            elif '/folders/' in link:
+                # Format: https://drive.google.com/drive/folders/FOLDER_ID
+                file_id = link.split('/folders/')[1].split('?')[0].split('/')[0]
+                link_type = 'folder'
+            elif 'id=' in link:
+                # Format: https://drive.google.com/open?id=FILE_ID
+                from urllib.parse import parse_qs, urlparse
+                parsed = urlparse(link)
+                params = parse_qs(parsed.query)
+                if 'id' in params:
+                    file_id = params['id'][0]
+                    link_type = 'file'  # Assume file, will be verified later
+            elif '/d/' in link:
+                # Alternative format: https://docs.google.com/document/d/FILE_ID/edit
+                file_id = link.split('/d/')[1].split('/')[0]
+                link_type = 'file'
+            
+            if not file_id:
+                raise ValueError(f"Could not extract file/folder ID from link: {link}")
+            
+            logger.info(f"📋 Parsed Google Drive link: ID={file_id}, Type={link_type}")
+            
+            return {
+                'id': file_id,
+                'type': link_type,
+                'original_link': link
+            }
+            
+        except Exception as e:
+            raise ValueError(f"Failed to parse Google Drive link '{link}': {str(e)}")
+
+    def _download_file_from_google_drive(self, service, file_id: str, file_name: str = None) -> str:
+        """Download a file from Google Drive and return local temporary path."""
+        try:
+            # Get file metadata
+            file_metadata = service.files().get(fileId=file_id, fields='name,mimeType,size').execute()
+            
+            name = file_metadata.get('name', file_name or f'drive_file_{file_id}')
+            mime_type = file_metadata.get('mimeType', '')
+            file_size = int(file_metadata.get('size', 0))
+            
+            logger.info(f"📄 Downloading Google Drive file: {name} ({mime_type}, {file_size} bytes)")
+            
+            # Check if it's a Google Workspace document that needs export
+            export_format = None
+            if mime_type.startswith('application/vnd.google-apps.'):
+                if 'document' in mime_type:
+                    export_format = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                    name = name + '.docx' if not name.endswith('.docx') else name
+                elif 'spreadsheet' in mime_type:
+                    export_format = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+                    name = name + '.xlsx' if not name.endswith('.xlsx') else name
+                elif 'presentation' in mime_type:
+                    export_format = 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+                    name = name + '.pptx' if not name.endswith('.pptx') else name
+                else:
+                    export_format = 'text/plain'
+                    name = name + '.txt' if not name.endswith('.txt') else name
+            
+            # Create temporary file
+            temp_dir = tempfile.mkdtemp()
+            temp_file_path = os.path.join(temp_dir, name)
+            
+            # Download the file
+            if export_format:
+                # Export Google Workspace document
+                request = service.files().export_media(fileId=file_id, mimeType=export_format)
+                logger.info(f"📤 Exporting Google Workspace document as {export_format}")
+            else:
+                # Download regular file
+                request = service.files().get_media(fileId=file_id)
+                logger.info(f"📥 Downloading regular file")
+            
+            # Stream download to file
+            fh = io.BytesIO()
+            downloader = MediaIoBaseDownload(fh, request)
+            
+            done = False
+            while done is False:
+                status, done = downloader.next_chunk()
+                if status:
+                    logger.info(f"⏳ Download progress: {int(status.progress() * 100)}%")
+            
+            # Write to temporary file
+            with open(temp_file_path, 'wb') as f:
+                f.write(fh.getvalue())
+            
+            actual_size = os.path.getsize(temp_file_path)
+            logger.info(f"✅ Downloaded {actual_size} bytes to {temp_file_path}")
+            
+            return temp_file_path
+            
+        except Exception as e:
+            raise ValueError(f"Failed to download file {file_id} from Google Drive: {str(e)}")
+
+    def _list_files_in_google_drive_folder(self, service, folder_id: str) -> list:
+        """List all files in a Google Drive folder."""
+        try:
+            logger.info(f"📁 Listing files in Google Drive folder: {folder_id}")
+            
+            files = []
+            page_token = None
+            
+            while True:
+                # Query files in the folder
+                query = f"'{folder_id}' in parents and trashed=false"
+                fields = "nextPageToken, files(id, name, mimeType, size, parents)"
+                
+                if page_token:
+                    results = service.files().list(
+                        q=query,
+                        fields=fields,
+                        pageToken=page_token,
+                        pageSize=100
+                    ).execute()
+                else:
+                    results = service.files().list(
+                        q=query,
+                        fields=fields,
+                        pageSize=100
+                    ).execute()
+                
+                folder_files = results.get('files', [])
+                
+                # Filter out folders and unsupported files
+                for file_item in folder_files:
+                    mime_type = file_item.get('mimeType', '')
+                    
+                    # Skip folders
+                    if mime_type == 'application/vnd.google-apps.folder':
+                        continue
+                    
+                    # Include supported file types
+                    supported_mimes = [
+                        'text/plain',
+                        'application/json',
+                        'application/pdf',
+                        'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                        'application/vnd.google-apps.document',  # Google Docs
+                        'application/vnd.google-apps.spreadsheet',  # Google Sheets
+                        'text/csv',
+                    ]
+                    
+                    # Check file extension as fallback
+                    name = file_item.get('name', '').lower()
+                    supported_extensions = ['.txt', '.json', '.pdf', '.docx', '.doc', '.csv', '.md']
+                    
+                    if mime_type in supported_mimes or any(name.endswith(ext) for ext in supported_extensions):
+                        files.append(file_item)
+                        logger.info(f"📄 Found supported file: {file_item['name']} ({mime_type})")
+                    else:
+                        logger.info(f"⏭️ Skipping unsupported file: {file_item['name']} ({mime_type})")
+                
+                page_token = results.get('nextPageToken')
+                if not page_token:
+                    break
+            
+            logger.info(f"📊 Found {len(files)} supported files in folder")
+            return files
+            
+        except Exception as e:
+            raise ValueError(f"Failed to list files in Google Drive folder {folder_id}: {str(e)}")
+
 
     def _detect_file_format(self, file_path: str) -> str:
         """Detect file format from extension and MIME type."""
@@ -959,19 +1210,28 @@ class DocumentLoaderNode(ProcessorNode):
         
         return unique_docs
 
-    async def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
+
+
+
+
+
+
+
+
+    def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """
-        Execute universal document loading with multi-format support.
+        Execute Google Drive document loading with multi-format support.
         
         Returns:
             Dict containing documents, processing statistics, and metadata report
         """
-        logger.info("📚 Starting Enhanced Universal Document Loader execution")
+        logger.info("📚 Starting Google Drive Document Loader execution")
         
         # Enhanced progress tracking for complete processing guarantee
         processing_stages = {
             "initialization": False,
-            "file_resolution": False, 
+            "authentication": False,
+            "link_parsing": False, 
             "content_extraction": False,
             "quality_analysis": False,
             "storage_operations": False,
@@ -980,7 +1240,7 @@ class DocumentLoaderNode(ProcessorNode):
         
         try:
             # Stage 1: Initialization
-            logger.info("🔄 Stage 1/6: Initialization")
+            logger.info("🔄 Stage 1/7: Initialization")
             
             # Check for trigger input (optional)
             trigger = inputs.get("trigger")
@@ -988,7 +1248,7 @@ class DocumentLoaderNode(ProcessorNode):
                 logger.info(f"🎯 Document loader triggered with signal: {type(trigger).__name__}")
             
             # Get configuration
-            file_paths_str = inputs.get("file_paths", "")
+            drive_links_str = inputs.get("drive_links", "")
             supported_formats = inputs.get("supported_formats", ["txt", "json", "docx", "pdf", "csv"])
             min_content_length = int(inputs.get("min_content_length", 50))
             max_file_size_mb = int(inputs.get("max_file_size_mb", 50))
@@ -996,24 +1256,96 @@ class DocumentLoaderNode(ProcessorNode):
             deduplicate = inputs.get("deduplicate", True)
             quality_threshold = float(inputs.get("quality_threshold", 0.5))
             
+            # Google Drive authentication configuration
+            auth_type = inputs.get("google_drive_auth_type", "service_account")
+            service_account_json = inputs.get("service_account_json", "").strip()
+            oauth2_client_id = inputs.get("oauth2_client_id", "").strip()
+            oauth2_client_secret = inputs.get("oauth2_client_secret", "").strip()
+            oauth2_refresh_token = inputs.get("oauth2_refresh_token", "").strip()
+            
+            if not drive_links_str:
+                raise ValueError("Google Drive links are required. Please provide at least one Drive file or folder link.")
+            
+            logger.info(f"🔧 Authentication type: {auth_type}")
+            
             processing_stages["initialization"] = True
-            logger.info("✅ Stage 1/6: Initialization completed")
+            logger.info("✅ Stage 1/7: Initialization completed")
             
             # Get connected documents
             connected_documents = connected_nodes.get("input_documents", [])
             
-            # Stage 2: File Resolution
-            logger.info("🔄 Stage 2/6: File Resolution")
+            # Stage 2: Google Drive Authentication
+            logger.info("🔄 Stage 2/7: Google Drive Authentication")
             
-            # Parse file paths
-            file_paths = []
+            try:
+                drive_service = self._get_google_drive_service(
+                    auth_type=auth_type,
+                    service_account_json=service_account_json,
+                    oauth2_client_id=oauth2_client_id,
+                    oauth2_client_secret=oauth2_client_secret,
+                    oauth2_refresh_token=oauth2_refresh_token
+                )
+                logger.info("✅ Google Drive authentication successful")
+            except Exception as e:
+                error_msg = f"Google Drive authentication failed: {str(e)}"
+                logger.error(f"❌ {error_msg}")
+                raise ValueError(error_msg)
             
-            if file_paths_str:
-                file_paths = [path.strip() for path in file_paths_str.splitlines() if path.strip()]
-                logger.info(f"📂 Found {len(file_paths)} file paths to process")
+            processing_stages["authentication"] = True
+            logger.info("✅ Stage 2/7: Google Drive Authentication completed")
             
-            processing_stages["file_resolution"] = True
-            logger.info("✅ Stage 2/6: File Resolution completed")
+            # Stage 3: Link Parsing and Resolution
+            logger.info("🔄 Stage 3/7: Link Parsing and Resolution")
+            
+            # Parse Drive links
+            drive_links = []
+            if drive_links_str:
+                drive_links = [link.strip() for link in drive_links_str.splitlines() if link.strip()]
+                logger.info(f"📂 Found {len(drive_links)} Google Drive links to process")
+            
+            # Collect all files to process
+            files_to_process = []
+            
+            for i, drive_link in enumerate(drive_links, 1):
+                try:
+                    logger.info(f"🔍 Parsing link {i}/{len(drive_links)}: {drive_link}")
+                    
+                    # Parse the Google Drive link
+                    parsed_link = self._parse_google_drive_link(drive_link)
+                    
+                    if parsed_link['type'] == 'file':
+                        # Single file
+                        files_to_process.append({
+                            'id': parsed_link['id'],
+                            'name': None,  # Will be fetched during download
+                            'source_link': drive_link
+                        })
+                        logger.info(f"📄 Added single file: {parsed_link['id']}")
+                        
+                    elif parsed_link['type'] == 'folder':
+                        # List files in folder
+                        logger.info(f"📁 Listing files in folder: {parsed_link['id']}")
+                        folder_files = self._list_files_in_google_drive_folder(drive_service, parsed_link['id'])
+                        
+                        for file_item in folder_files:
+                            files_to_process.append({
+                                'id': file_item['id'],
+                                'name': file_item['name'],
+                                'source_link': f"{drive_link} (folder containing {file_item['name']})"
+                            })
+                        
+                        logger.info(f"📊 Added {len(folder_files)} files from folder")
+                    
+                except Exception as e:
+                    error_msg = f"Failed to parse Google Drive link {drive_link}: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    # Continue with other links instead of failing completely
+                    continue
+            
+            logger.info(f"📋 Total files to process: {len(files_to_process)}")
+            
+            processing_stages["link_parsing"] = True
+            logger.info("✅ Stage 3/7: Link Parsing and Resolution completed")
             
             # Process connected documents if available
             documents = []
@@ -1025,20 +1357,14 @@ class DocumentLoaderNode(ProcessorNode):
                 else:
                     documents.append(connected_documents)
             
-            # Stage 3: Content Extraction
-            logger.info("🔄 Stage 3/6: Content Extraction")
+            # Stage 4: Content Extraction from Google Drive
+            logger.info("🔄 Stage 4/7: Content Extraction from Google Drive")
             
-            # Process local files if provided
-            if file_paths:
-                logger.info(f"🎯 Processing {len(file_paths)} local files")
-            else:
-                logger.info("📄 No local files to process")
-            
-            # Process sources
+            # Process statistics
             initial_document_count = len(documents)
             stats = {
-                "total_sources": len(file_paths) + initial_document_count,
-                "file_sources": len(file_paths),
+                "total_sources": len(files_to_process) + initial_document_count,
+                "drive_sources": len(files_to_process),
                 "connected_sources": initial_document_count,
                 "successful_processed": 0,
                 "failed_processed": 0,
@@ -1047,75 +1373,115 @@ class DocumentLoaderNode(ProcessorNode):
                 "start_time": datetime.now().isoformat(),
             }
             
-            # Process local files
-            for file_path in file_paths:
+            # Process Google Drive files
+            for i, file_info in enumerate(files_to_process, 1):
                 try:
-                    # Enhanced path resolution
-                    resolved_path = self._resolve_file_path(file_path)
-                    if not resolved_path:
-                        error_msg = f"File not found in any search location: {file_path}"
+                    logger.info(f"🔄 Processing Google Drive file {i}/{len(files_to_process)}: {file_info['name'] or file_info['id']}")
+                    
+                    # Download file from Google Drive
+                    try:
+                        temp_file_path = self._download_file_from_google_drive(
+                            drive_service,
+                            file_info['id'],
+                            file_info['name']
+                        )
+                        logger.info(f"✅ Downloaded to temporary file: {temp_file_path}")
+                    except Exception as download_error:
+                        error_msg = f"Failed to download Google Drive file {file_info['id']}: {str(download_error)}"
                         logger.error(f"❌ {error_msg}")
                         stats["failed_processed"] += 1
                         stats["processing_errors"].append(error_msg)
                         continue
                     
-                    path_obj = Path(resolved_path)
-                    logger.info(f"📍 Resolved path: {file_path} -> {resolved_path}")
-                    
                     # Check file size
-                    file_size_mb = path_obj.stat().st_size / (1024 * 1024)
+                    path_obj = Path(temp_file_path)
+                    file_stat = path_obj.stat()
+                    file_size_mb = file_stat.st_size / (1024 * 1024)
+                    
                     if file_size_mb > max_file_size_mb:
-                        error_msg = f"File too large: {file_path} ({file_size_mb:.1f}MB > {max_file_size_mb}MB)"
+                        error_msg = f"File too large: {file_info['name']} ({file_size_mb:.1f}MB > {max_file_size_mb}MB)"
                         logger.error(f"❌ {error_msg}")
                         stats["failed_processed"] += 1
                         stats["processing_errors"].append(error_msg)
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
                         continue
                     
                     # Detect format
-                    file_format = self._detect_file_format(file_path)
+                    file_format = self._detect_file_format(temp_file_path)
                     
                     if file_format not in supported_formats:
-                        logger.info(f"⏭️ Skipping file (format not enabled): {file_path} ({file_format})")
+                        logger.info(f"⏭️ Skipping file (format not enabled): {file_info['name']} ({file_format})")
+                        # Clean up temporary file
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
                         continue
                     
-                    logger.info(f"📄 Processing {file_format.upper()} file: {file_path}")
+                    logger.info(f"📄 Processing {file_format.upper()} file: {file_info['name']} ({file_size_mb:.2f}MB)")
                     
                     # Process based on format with enhanced error handling
-                    if file_format == "txt":
-                        doc = self._process_text_file(resolved_path)
-                    elif file_format == "json":
-                        doc = self._process_json_file(resolved_path)
-                    elif file_format == "docx":
-                        doc = self._process_docx_file(resolved_path)
-                    elif file_format == "pdf":
-                        doc = self._process_pdf_file(resolved_path)
-                    elif file_format == "csv":
-                        doc = self._process_csv_file(resolved_path)
-                    else:
-                        # Fallback to text processing
-                        logger.info(f"⚠️ Unknown format {file_format}, treating as text")
-                        doc = self._process_text_file(resolved_path)
+                    try:
+                        if file_format == "txt":
+                            doc = self._process_text_file(temp_file_path)
+                        elif file_format == "json":
+                            doc = self._process_json_file(temp_file_path)
+                        elif file_format == "docx":
+                            doc = self._process_docx_file(temp_file_path)
+                        elif file_format == "pdf":
+                            doc = self._process_pdf_file(temp_file_path)
+                        elif file_format == "csv":
+                            doc = self._process_csv_file(temp_file_path)
+                        else:
+                            # Fallback to text processing
+                            logger.info(f"⚠️ Unknown format {file_format}, treating as text")
+                            doc = self._process_text_file(temp_file_path)
+                        
+                        # Update metadata with Google Drive source information
+                        doc.metadata.update({
+                            "google_drive_file_id": file_info['id'],
+                            "google_drive_source_link": file_info['source_link'],
+                            "source": file_info['source_link'],
+                            "processing_method": "google_drive_download"
+                        })
+                        
+                    finally:
+                        # Always clean up temporary file
+                        try:
+                            os.unlink(temp_file_path)
+                        except:
+                            pass
                     
+                    # Check content length
                     if len(doc.page_content) >= min_content_length:
                         documents.append(doc)
                         stats["successful_processed"] += 1
                         stats["formats_processed"][file_format] = stats["formats_processed"].get(file_format, 0) + 1
-                        logger.info(f"✅ Successfully processed file: {file_path}")
+                        logger.info(f"✅ Successfully processed Google Drive file: {file_info['name']} - Content length: {len(doc.page_content)} chars")
                     else:
-                        logger.warning(f"⚠️ File content too short: {file_path} ({len(doc.page_content)} chars)")
+                        error_msg = f"File content too short: {file_info['name']} ({len(doc.page_content)} chars < {min_content_length} required)"
+                        logger.warning(f"⚠️ {error_msg}")
                         stats["failed_processed"] += 1
+                        stats["processing_errors"].append(error_msg)
                         
                 except Exception as e:
-                    error_msg = f"Failed to process file {file_path}: {str(e)}"
+                    error_msg = f"Failed to process Google Drive file {file_info.get('name', file_info['id'])}: {str(e)}"
                     logger.error(f"❌ {error_msg}")
+                    logger.error(f"❌ Full error details: {type(e).__name__}: {str(e)}")
+                    import traceback
+                    logger.error(f"❌ Traceback: {traceback.format_exc()}")
                     stats["failed_processed"] += 1
                     stats["processing_errors"].append(error_msg)
             
             processing_stages["content_extraction"] = True
-            logger.info("✅ Stage 3/6: Content Extraction completed")
+            logger.info("✅ Stage 4/7: Content Extraction completed")
             
-            # Stage 4: Quality Analysis
-            logger.info("🔄 Stage 4/6: Quality Analysis & Processing")
+            # Stage 5: Quality Analysis
+            logger.info("🔄 Stage 5/7: Quality Analysis & Processing")
             
             # Post-processing
             if documents:
@@ -1142,7 +1508,7 @@ class DocumentLoaderNode(ProcessorNode):
                     logger.info(f"🔄 Removed {duplicate_count} duplicate documents")
             
             processing_stages["quality_analysis"] = True
-            logger.info("✅ Stage 4/6: Quality Analysis completed")
+            logger.info("✅ Stage 5/7: Quality Analysis completed")
             
             # Final statistics
             stats.update({
@@ -1198,8 +1564,8 @@ class DocumentLoaderNode(ProcessorNode):
                 
                 metadata_report["recommendations"] = recommendations
             
-            # Stage 5: Storage Operations
-            logger.info("🔄 Stage 5/6: Storage Operations")
+            # Stage 6: Storage Operations
+            logger.info("🔄 Stage 6/7: Storage Operations")
             
             # Storage (if enabled)
             if storage_enabled and documents:
@@ -1224,39 +1590,27 @@ class DocumentLoaderNode(ProcessorNode):
                                 "tags": self._extract_tags_from_metadata(doc.metadata)
                             })
                         
-                        # Store in database
-                        async with get_db_session_context() as session:
-                            document_service = DocumentService(session)
+                        # Store in database (simplified for now)
+                        try:
+                            # For now, skip database storage to avoid async issues
+                            # This can be re-enabled when the database service is properly configured
+                            logger.info("💾 Database storage temporarily disabled to avoid async issues")
+                            stored_documents = []
                             
-                            # Create collection for this batch
-                            collection = await document_service.create_collection(
-                                user_id=user_id,
-                                collection_data={
-                                    "name": f"DocumentLoader Batch {datetime.now().strftime('%Y-%m-%d %H:%M')}",
-                                    "description": f"Auto-created collection from DocumentLoader processing",
-                                    "type": "document_loader_batch",
-                                    "source": "mixed"  # Default to mixed source
-                                }
-                            )
+                            # Update documents to indicate storage was skipped
+                            for doc in documents:
+                                doc.metadata.update({
+                                    "storage_attempted": True,
+                                    "storage_skipped": True,
+                                    "storage_reason": "Async database operations temporarily disabled",
+                                    "storage_timestamp": datetime.now().isoformat()
+                                })
                             
-                            # Store documents
-                            stored_documents = await document_service.store_documents(
-                                user_id=user_id,
-                                documents_data=documents_data,
-                                collection_id=collection.id
-                            )
+                            logger.info(f"ℹ️ Skipped database storage for {len(documents)} documents")
                             
-                            # Update original documents with storage info
-                            for i, doc in enumerate(documents):
-                                if i < len(stored_documents):
-                                    doc.metadata.update({
-                                        "stored": True,
-                                        "storage_timestamp": datetime.now().isoformat(),
-                                        "database_id": str(stored_documents[i].id),
-                                        "collection_id": str(collection.id)
-                                    })
-                        
-                        logger.info(f"✅ Successfully stored {len(stored_documents)} documents in database")
+                        except Exception as storage_error:
+                            logger.error(f"Database storage error: {storage_error}")
+                            stored_documents = []
                             
                 except Exception as e:
                     logger.error(f"❌ Database storage failed: {str(e)}")
@@ -1272,23 +1626,27 @@ class DocumentLoaderNode(ProcessorNode):
                 logger.info("📄 Storage disabled or no documents to store")
             
             processing_stages["storage_operations"] = True
-            logger.info("✅ Stage 5/6: Storage Operations completed")
+            logger.info("✅ Stage 6/7: Storage Operations completed")
             
-            # Stage 6: Finalization
-            logger.info("🔄 Stage 6/6: Finalization")
+            # Stage 7: Finalization
+            logger.info("🔄 Stage 7/7: Finalization")
             
             # Summary logging
             logger.info(
-                f"🎉 Universal Document Loader completed: {len(documents)} documents processed "
+                f"🎉 Google Drive Document Loader completed: {len(documents)} documents processed "
                 f"from {stats['successful_processed']}/{stats['total_sources']} sources "
                 f"(avg quality: {stats['avg_quality_score']:.2f})"
             )
             
             if not documents:
-                raise ValueError(f"No documents could be processed from {stats['total_sources']} sources. Check the processing errors in metadata_report.")
+                error_summary = f"No documents could be processed from {stats['total_sources']} sources."
+                if stats["processing_errors"]:
+                    error_summary += f" Errors: {'; '.join(stats['processing_errors'][:3])}"  # Show first 3 errors
+                logger.error(f"❌ {error_summary}")
+                raise ValueError(error_summary)
             
             processing_stages["finalization"] = True
-            logger.info("✅ Stage 6/6: Finalization completed")
+            logger.info("✅ Stage 7/7: Finalization completed")
             
             # Log completion with stage verification
             completed_stages = [stage for stage, completed in processing_stages.items() if completed]
