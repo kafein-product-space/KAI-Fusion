@@ -713,7 +713,7 @@ class HttpClientNode(ProcessorNode):
                 "Send HTTP requests to external REST APIs. Supports all HTTP methods, "
                 "authentication, templating, and comprehensive response handling."
             ),
-            "category": NodeCategory.TOOL,
+            "category": "Tool",
             "node_type": NodeType.PROCESSOR,
             "icon": "arrow-up-circle",
             "color": "#0ea5e9",

@@ -311,14 +311,25 @@ class RetrieverNode(ProviderNode):
         try:
             # Create vector store instance using auto-detected API
             if USING_NEW_API:
-                # New langchain_postgres API
+                # New langchain_postgres API with proper table creation
                 vectorstore = PGVector(
                     embeddings=embedder,
                     connection=database_connection,
                     collection_name=collection_name,
                     use_jsonb=True,  # Use JSONB for better performance
+                    pre_delete_collection=False,  # Don't delete existing data
+                    create_extension=True,  # Ensure vector extension exists
                 )
                 print(f"📦 Created PGVector with new API for collection: {collection_name}")
+                
+                # Ensure the collection table is properly initialized
+                try:
+                    # This will create the table if it doesn't exist with proper schema
+                    vectorstore._create_collection()
+                except Exception as table_error:
+                    print(f"⚠️ Collection creation info: {table_error}")
+                    # Continue anyway as collection might already exist
+                    
             else:
                 # Legacy API
                 vectorstore = PGVector(

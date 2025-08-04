@@ -6,7 +6,6 @@ from .http_client import (
     HttpResponse
 )
 from .tavily_search import TavilySearchNode
-from .reranker import RerankerNode
 from .cohere_reranker import CohereRerankerNode
 from .retriever import RetrieverNode
 
@@ -15,7 +14,6 @@ __all__ = [
     "HttpRequestConfig",
     "HttpResponse",
     "TavilySearchNode",
-    "RerankerNode",
     "CohereRerankerNode",
     "RetrieverNode"
 ]
