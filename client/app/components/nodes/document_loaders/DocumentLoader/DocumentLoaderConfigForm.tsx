@@ -188,7 +188,7 @@ export default function DocumentLoaderConfigForm({
         }}
         validate={validate}
         onSubmit={handleSaveConfig}
-        enableReinitialize
+        enableReinitialize={true}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="space-y-3 w-full p-3">

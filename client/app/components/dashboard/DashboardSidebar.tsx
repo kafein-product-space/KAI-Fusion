@@ -1,92 +1,214 @@
-import { Play, BarChart2, Key, Database, LogOut, Store } from "lucide-react";
-import React from "react";
+import {
+  Play,
+  BarChart2,
+  Key,
+  Database,
+  LogOut,
+  Store,
+  Sparkles,
+  Zap,
+  Settings,
+  User,
+  Bell,
+  Search,
+  ArrowLeft,
+  ArrowRight,
+} from "lucide-react";
+import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
 import { useThemeStore } from "~/stores/theme";
 import { ThemeToggle } from "../common/ThemeToggle";
+import { useSnackbar } from "notistack";
 
 const Sidebar = () => {
+  const { enqueueSnackbar } = useSnackbar();
   const { user, signOut } = useAuth();
   const location = useLocation();
   const router = useNavigate();
   const mode = useThemeStore((s) => s.mode);
-
-  // Close dropdown when clicking outside
+  const [isCollapsed, setIsCollapsed] = useState(false);
 
   const handleLogOut = async () => {
     try {
-      router("/signin"); // Önce yönlendir
-      await signOut(); // Sonra logout işlemini başlat
+      await signOut();
+      router("/signin");
+      enqueueSnackbar("Başarıyla çıkış yapıldı", {
+        variant: "success",
+      });
     } catch (error) {
       console.error("Logout failed:", error);
-      router("/signin"); // Hata olsa bile yönlendir
+      enqueueSnackbar("Çıkış yapılırken hata oluştu", {
+        variant: "error",
+      });
+      router("/signin");
     }
   };
 
   return (
-    <aside className="w-64 p-4 flex flex-col justify-between bg-background text-foreground border-r  border-gray-300 dark:border-gray-700 transition-colors duration-300">
-      {/* Theme Toggle */}
-      <div>
-        <div className="flex justify-start">
-          <ThemeToggle />
-        </div>
-        {/* Logo */}
-        <div className="font-bold text-xl mb-8">
-          <Link to="/">
-            <img src="/logo.png" alt="logo" />
+    <aside
+      className={`
+      ${isCollapsed ? "w-16" : "w-72"} 
+      h-screen p-4 flex flex-col justify-between 
+      bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 
+      text-white border-r border-slate-700/50 
+      transition-all duration-300 ease-in-out
+      backdrop-blur-sm shadow-2xl
+    `}
+    >
+      {/* Header Section */}
+      <div className="space-y-6">
+        {/* Logo and Toggle */}
+        <div className="flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-3 group">
+            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
+              <img src="/logo.png" alt="logo" className="w-6 h-6" />
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                  KAI-Fusion
+                </h1>
+                <p className="text-xs text-slate-400">AI Workflow Platform</p>
+              </div>
+            )}
           </Link>
+
+          <button
+            onClick={() => setIsCollapsed(!isCollapsed)}
+            className="p-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 transition-all duration-200"
+          >
+            {isCollapsed ? <ArrowRight /> : <ArrowLeft />}
+          </button>
         </div>
-        {/* Ana Linkler */}
-        <nav className="flex-1 px-1 py-2 overflow-y-auto">
-          <ul className="space-y-1.5">
+
+        {/* Search Bar */}
+        {!isCollapsed && (
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Workflow ara..."
+              className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+            />
+          </div>
+        )}
+
+        {/* Navigation */}
+        <nav className="flex-1">
+          <div className="space-y-2">
             <SidebarLink
               icon={<Play className="w-5 h-5" />}
               label="Workflows"
               path="/workflows"
               active={location.pathname === "/workflows"}
+              isCollapsed={isCollapsed}
+              badge="New"
             />
             <SidebarLink
-              icon={<BarChart2 className="w-6 h-6" />}
+              icon={<BarChart2 className="w-5 h-5" />}
               label="Executions"
               path="/executions"
               active={location.pathname === "/executions"}
+              isCollapsed={isCollapsed}
             />
             <SidebarLink
-              icon={<Key className="w-6 h-6" />}
+              icon={<Key className="w-5 h-5" />}
               label="Credentials"
               path="/credentials"
               active={location.pathname === "/credentials"}
+              isCollapsed={isCollapsed}
             />
             <SidebarLink
-              icon={<Store className="w-6 h-6" />}
+              icon={<Store className="w-5 h-5" />}
               label="Marketplace"
               path="/marketplace"
               active={location.pathname === "/marketplace"}
+              isCollapsed={isCollapsed}
+              badge="Hot"
             />
-          </ul>
+
+            {/* Divider */}
+            <div className="h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent my-4" />
+
+            {/* Quick Actions */}
+            <div className="space-y-2">
+              <h3
+                className={`text-xs font-semibold text-slate-400 uppercase tracking-wider ${
+                  isCollapsed ? "hidden" : ""
+                }`}
+              >
+                Quick Actions
+              </h3>
+              <SidebarLink
+                icon={<Zap className="w-5 h-5" />}
+                label="New Workflow"
+                path="/canvas"
+                active={false}
+                isCollapsed={isCollapsed}
+                variant="action"
+              />
+            </div>
+          </div>
         </nav>
       </div>
-      {/* Profil ve logout bölümü */}
-      <div className="mt-auto pt-4 border-t border-gray-300 dark:border-gray-700">
-        <div className="flex items-center gap-3 px-2 py-3">
-          <div className="w-9 h-9 bg-muted rounded-full flex items-center justify-center text-lg font-bold text-primary-foreground">
-            {user?.full_name?.[0] || "U"}
+
+      {/* Footer Section */}
+      <div className="space-y-4">
+        {/* Notifications */}
+        {!isCollapsed && (
+          <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Bell className="w-4 h-4 text-blue-400" />
+                <span className="text-xs text-slate-300">3 new updates</span>
+              </div>
+              <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+            </div>
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-foreground truncate">
-              {user?.full_name || "User"}
-            </p>
-            <p className="text-xs text-muted-foreground truncate">
-              {user?.email}
-            </p>
+        )}
+
+        {/* User Profile */}
+        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
+          <div className="flex items-center space-x-3">
+            <div className="relative">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+                <User className="w-5 h-5 text-white" />
+              </div>
+              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800" />
+            </div>
+
+            {!isCollapsed && (
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-white truncate">
+                  {user?.full_name || "Kullanıcı"}
+                </p>
+                <p className="text-xs text-slate-400 truncate">{user?.email}</p>
+              </div>
+            )}
+
+            {!isCollapsed && (
+              <button className="p-1 rounded-lg hover:bg-slate-700/50 transition-all duration-200">
+                <Settings className="w-4 h-4 text-slate-400" />
+              </button>
+            )}
           </div>
         </div>
+
+        {/* Logout Button */}
         <button
           onClick={handleLogOut}
-          className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-red-500 hover:text-red-600 hover:bg-red-50/50 dark:hover:bg-red-950/20 transition-all mt-2"
+          className={`
+            w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg 
+            text-red-400 hover:text-red-300 hover:bg-red-500/10 
+            transition-all duration-200 group
+            ${isCollapsed ? "justify-center" : ""}
+          `}
         >
-          <LogOut className="w-5 h-5" />
-          <span>Logout</span>
+          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
+          {!isCollapsed && (
+            <span className="text-sm font-medium">Çıkış Yap</span>
+          )}
         </button>
       </div>
     </aside>
@@ -100,28 +222,68 @@ function SidebarLink({
   label,
   path,
   active,
+  isCollapsed,
+  badge,
+  variant = "default",
 }: {
   icon: React.ReactNode;
   label: string;
   path: string;
   active: boolean;
+  isCollapsed: boolean;
+  badge?: string;
+  variant?: "default" | "action";
 }) {
+  const getVariantStyles = () => {
+    if (variant === "action") {
+      return active
+        ? "bg-gradient-to-r from-blue-500/20 to-purple-500/20 text-blue-300 border border-blue-500/30"
+        : "text-slate-300 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-purple-500/10 hover:text-blue-300";
+    }
+
+    return active
+      ? "bg-gradient-to-r from-slate-700/50 to-slate-600/50 text-white border border-slate-500/50"
+      : "text-slate-300 hover:bg-slate-700/50 hover:text-white";
+  };
+
   return (
     <Link
       to={path}
       className={`
-        flex items-center gap-3 px-4 py-2.5 rounded-md transition-all duration-200
-        ${
-          active
-            ? "bg-purple-100 text-foreground font-semibold dark:bg-purple-700 dark:text-white"
-            : "text-muted-foreground hover:text-foreground hover:bg-purple-100  dark:hover:!bg-purple-700 dark:hover:text-white"
-        }
+        flex items-center space-x-3 px-3 py-2.5 rounded-lg 
+        transition-all duration-200 group relative
+        ${getVariantStyles()}
+        ${isCollapsed ? "justify-center" : ""}
       `}
     >
-      <span className="flex items-center justify-center min-w-[24px]">
+      <span className="flex items-center justify-center min-w-[20px] group-hover:scale-110 transition-transform duration-200">
         {icon}
       </span>
-      <span className="text-sm">{label}</span>
+
+      {!isCollapsed && (
+        <>
+          <span className="text-sm font-medium flex-1">{label}</span>
+          {badge && (
+            <span
+              className={`
+              px-2 py-0.5 text-xs font-bold rounded-full
+              ${
+                badge === "New"
+                  ? "bg-green-500/20 text-green-300 border border-green-500/30"
+                  : "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+              }
+            `}
+            >
+              {badge}
+            </span>
+          )}
+        </>
+      )}
+
+      {/* Active indicator */}
+      {active && (
+        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-400 to-purple-400 rounded-r-full" />
+      )}
     </Link>
   );
 }

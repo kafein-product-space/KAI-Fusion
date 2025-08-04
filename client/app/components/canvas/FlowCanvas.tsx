@@ -534,16 +534,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [activeEdges]
   );
 
-  const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
-
-  const animateExecution = async () => {
-    for (const edgeId of executionPath) {
-      setActiveEdges([edgeId]);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    setActiveEdges([]);
-  };
-
   return (
     <>
       <Navbar

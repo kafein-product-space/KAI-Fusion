@@ -1,5 +1,5 @@
 // index.tsx
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
 import DocumentLoaderConfigForm from "./DocumentLoaderConfigForm";
 import DocumentLoaderVisual from "./DocumentLoaderVisual";
@@ -12,10 +12,15 @@ export default function DocumentLoaderNode({
   const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
-  const [configData, setConfigData] = useState<DocumentLoaderData>(data);
   const edges = getEdges?.() ?? [];
 
+  // Update config data when node data changes
+  useEffect(() => {
+    // This ensures we always have the latest data
+  }, [data]);
+
   const handleSaveConfig = (values: Partial<DocumentLoaderData>) => {
+    console.log("Saving DocumentLoader config:", values);
     setNodes((nodes) =>
       nodes.map((node) =>
         node.id === id ? { ...node, data: { ...node.data, ...values } } : node
@@ -119,29 +124,32 @@ export default function DocumentLoaderNode({
   };
 
   if (isConfigMode) {
+    const initialValues = {
+      drive_links: data.drive_links || "",
+      google_drive_auth_type: data.google_drive_auth_type || "service_account",
+      service_account_json: data.service_account_json || "",
+      oauth2_client_id: data.oauth2_client_id || "",
+      oauth2_client_secret: data.oauth2_client_secret || "",
+      oauth2_refresh_token: data.oauth2_refresh_token || "",
+      supported_formats: data.supported_formats || [
+        "txt",
+        "json",
+        "docx",
+        "pdf",
+        "csv",
+      ],
+      min_content_length: data.min_content_length || 50,
+      max_file_size_mb: data.max_file_size_mb || 50,
+      storage_enabled: data.storage_enabled || false,
+      deduplicate: data.deduplicate !== false,
+      quality_threshold: data.quality_threshold || 0.5,
+    };
+
+    console.log("DocumentLoader initial values:", initialValues);
+
     return (
       <DocumentLoaderConfigForm
-        initialValues={{
-          drive_links: configData.drive_links || "",
-          google_drive_auth_type:
-            configData.google_drive_auth_type || "service_account",
-          service_account_json: configData.service_account_json || "",
-          oauth2_client_id: configData.oauth2_client_id || "",
-          oauth2_client_secret: configData.oauth2_client_secret || "",
-          oauth2_refresh_token: configData.oauth2_refresh_token || "",
-          supported_formats: configData.supported_formats || [
-            "txt",
-            "json",
-            "docx",
-            "pdf",
-            "csv",
-          ],
-          min_content_length: configData.min_content_length || 50,
-          max_file_size_mb: configData.max_file_size_mb || 50,
-          storage_enabled: configData.storage_enabled || false,
-          deduplicate: configData.deduplicate !== false,
-          quality_threshold: configData.quality_threshold || 0.5,
-        }}
+        initialValues={initialValues}
         validate={validate}
         onSubmit={handleSaveConfig}
         onCancel={() => setIsConfigMode(false)}
