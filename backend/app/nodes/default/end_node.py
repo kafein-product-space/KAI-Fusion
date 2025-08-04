@@ -22,7 +22,7 @@ class EndNode(TerminatorNode):
             color="#D32F2F", # A distinct red color
             inputs=[
                 NodeInput(
-                    name="input",
+                    name="target",
                     type="any",
                     description="The final data from the preceding node",
                     is_connection=True,
@@ -32,11 +32,17 @@ class EndNode(TerminatorNode):
             outputs=[], # End node has no outputs
         ).dict()
 
-    def execute(self, previous_node: Runnable, inputs: Dict[str, Any]) -> Runnable:
+    def execute(self, previous_node: Any, inputs: Dict[str, Any]) -> str:
         """
-        Passes through the input from the previous node.
+        Processes the final output from the preceding node and returns it for the chat interface.
         The actual termination is handled by the GraphBuilder connecting this node to END.
         """
-        # The EndNode simply returns the output of the node connected to it.
-        # The GraphBuilder will connect this node's output to the global END.
-        return previous_node 
+        # EndNode receives the actual output data (text) from the connected node
+        if previous_node is not None:
+            # Convert to string if needed and return for chat interface
+            result = str(previous_node) if not isinstance(previous_node, str) else previous_node
+            print(f"[DEBUG] EndNode returning output: '{result[:100]}...'")
+            return result
+        else:
+            print("[DEBUG] EndNode received None as input")
+            return "No output received"

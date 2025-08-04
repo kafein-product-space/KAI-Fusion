@@ -37,10 +37,8 @@ interface DashboardChartProps {
 const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
   if (!active || !payload || !payload.length) return null;
   return (
-    <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-zinc-900 shadow-lg px-4 py-3 min-w-[180px]">
-      <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-2">
-        {label}
-      </div>
+    <div className="rounded-xl border border-gray-200 bg-white shadow-2xl px-4 py-3 min-w-[180px] z-[9999] relative">
+      <div className="text-xs font-semibold text-gray-900 mb-2">{label}</div>
       <div className="flex flex-col gap-1">
         {dataKeys.map((key: string) => {
           const entry = payload.find((p: any) => p.dataKey === key);
@@ -51,10 +49,10 @@ const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
                 className="inline-block w-3 h-3 rounded-full"
                 style={{ backgroundColor: config[key]?.color || "#2563eb" }}
               />
-              <span className="text-xs text-muted-foreground">
+              <span className="text-xs text-gray-600">
                 {config[key]?.label || key}
               </span>
-              <span className="ml-auto font-bold text-foreground text-sm">
+              <span className="ml-auto font-bold text-gray-900 text-sm">
                 {typeof entry.value === "number"
                   ? entry.value.toLocaleString()
                   : entry.value}
@@ -103,8 +101,8 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               onClick={() => setActiveDataKey(key)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${
                 activeDataKey === key
-                  ? "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-800 text-foreground"
+                  ? "bg-blue-100 dark:bg-blue-600 text-blue-700 dark:text-blue-300"
+                  : "hover:bg-gray-100 dark:hover:bg-gray-500 text-foreground"
               }`}
               style={{ marginLeft: key !== dataKeys[0] ? 8 : 0 }}
             >
@@ -117,7 +115,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
         </div>
       </div>
       <div className="p-6">
-        <div className="h-72 w-full">
+        <div className="h-72 w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
               data={data}
@@ -174,7 +172,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               />
               <Tooltip
                 content={<CustomTooltip dataKeys={dataKeys} config={config} />}
-                wrapperStyle={{ zIndex: 50 }}
+                wrapperStyle={{ zIndex: 9999 }}
                 cursor={{ fill: "#2563eb", opacity: 0.08 }}
                 labelFormatter={(label) => {
                   const date = new Date(label);

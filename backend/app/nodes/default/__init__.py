@@ -1,4 +1,12 @@
-# Special Nodes Package
-from .start_node import StartNode
+"""
+Default nodes for KAI-Fusion workflows.
+These nodes provide basic workflow structure and control flow.
+"""
 
-__all__ = ["StartNode"] 
+from .start_node import StartNode
+from .end_node import EndNode
+
+__all__ = [
+    "StartNode",
+    "EndNode"
+] 

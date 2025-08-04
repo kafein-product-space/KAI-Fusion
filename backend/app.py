@@ -13,24 +13,29 @@ if str(parent_dir) not in sys.path:
     sys.path.insert(0, str(parent_dir))
 
 def main():
-    # Initialize comprehensive logging system early
+    # Initialize enterprise-grade comprehensive logging system
     try:
         from app.core.config import setup_logging
         setup_logging()
         logger = logging.getLogger(__name__)
+        logger.info("🎯 KAI Fusion Enterprise Backend starting up...")
+        logger.info("📍 Backend will be available at: http://localhost:8000")
+        logger.info("📋 API Documentation: http://localhost:8000/docs")
+        logger.info("🔗 Frontend should connect to: http://localhost:8000/api/v1")
+        logger.info("📊 Comprehensive logging system initialized")
+    except Exception as e:
+        # Graceful fallback to basic logging
+        logging.basicConfig(
+            level=logging.INFO,
+            format='%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        logger = logging.getLogger(__name__)
+        logger.error(f"⚠️ Comprehensive logging failed, using fallback: {e}")
         logger.info("🎯 KAI Fusion Backend starting up...")
         logger.info("📍 Backend will be available at: http://localhost:8000")
         logger.info("📋 API Documentation: http://localhost:8000/docs")
         logger.info("🔗 Frontend should connect to: http://localhost:8000/api/v1")
-    except Exception as e:
-        # Fallback to basic logging if comprehensive logging fails
-        logging.basicConfig(level=logging.INFO)
-        logger = logging.getLogger(__name__)
-        logger.error(f"Failed to initialize comprehensive logging: {e}")
-        logger.info("Using fallback logging configuration")
-        print("📍 Backend will be available at: http://localhost:8000")
-        print("📋 API Documentation: http://localhost:8000/docs")
-        print("🔗 Frontend should connect to: http://localhost:8000/api/v1")
    
     
     try:
@@ -39,11 +44,11 @@ def main():
         is_production = ENVIRONMENT.lower() == "production"
         port = int(PORT)
         
-        logger.info(f"Starting server in {ENVIRONMENT} mode on port {port}")
+        logger.info(f"🚀 Starting server in {ENVIRONMENT} mode on port {port}")
         
         if is_production:
             # Production configuration
-            logger.info("Using production configuration")
+            logger.info("🏭 Using production configuration with optimized settings")
             uvicorn.run(
                 "backend.app.main:app",
                 host="0.0.0.0",
@@ -54,7 +59,7 @@ def main():
             )
         else:
             # Development configuration
-            logger.info("Using development configuration with auto-reload")
+            logger.info("⚡ Using development configuration with auto-reload and enhanced debugging")
             uvicorn.run(
                 "backend.app.main:app",
                 host="0.0.0.0",
@@ -67,7 +72,7 @@ def main():
                 reload_excludes=["*.pyc", "__pycache__"]
             )
     except KeyboardInterrupt:
-        logger.info("👋 Received keyboard interrupt, exiting gracefully...")
+        logger.info("👋 Received keyboard interrupt, shutting down gracefully...")
         print("\n👋 Exiting gracefully.")
     except Exception as e:
         logger.error(f"💥 An unexpected error occurred: {e}", exc_info=True)

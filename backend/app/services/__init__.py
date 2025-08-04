@@ -18,6 +18,8 @@ from .workflow_service import WorkflowService
 from .execution_service import ExecutionService
 from .credential_service import CredentialService
 from .variable_service import VariableService
+from .node_registry_service import NodeRegistryService
+from .webhook_service import WebhookService
 
 __all__ = [
     "BaseService",
@@ -26,4 +28,7 @@ __all__ = [
     "ExecutionService",
     "CredentialService",
     "VariableService",
+    "NodeRegistryService",
+    "NodeConfigurationService",
+    "WebhookService",
 ] 

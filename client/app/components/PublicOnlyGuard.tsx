@@ -14,20 +14,29 @@ export default function PublicOnlyGuard({
 
   useEffect(() => {
     const init = async () => {
-      await initialize(); // localStorage token varsa kullanıcıyı çek
-      setReady(true);
+      // localStorage'da token var mı kontrol et
+      const accessToken = localStorage.getItem("auth_access_token");
+
+      if (accessToken) {
+        // Token varsa initialize et
+        await initialize();
+      } else {
+        // Token yoksa direkt ready yap
+        setReady(true);
+      }
     };
     init();
-  }, []);
+  }, [initialize]);
 
   useEffect(() => {
     if (ready && isAuthenticated) {
       // Giriş yapmışsa → anasayfa /
       navigate("/", { replace: true });
     }
-  }, [ready, isAuthenticated]);
+  }, [ready, isAuthenticated, navigate]);
 
-  if (!ready || isLoading) {
+  // Token yoksa ve ready ise direkt children'ı göster
+  if (!ready) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-4 h-4 animate-spin" />

@@ -9,6 +9,8 @@ asyncpg>=0.28.0
 alembic>=1.12.0
 psycopg2-binary>=2.9.0
 PyJWT>=2.8.0
+# Vector Database
+pgvector>=0.2.0
 # Data Validation
 pydantic>=2.5.0
 pydantic-settings>=2.1.0
@@ -17,7 +19,7 @@ email-validator>=2.1.0
 # Authentication & Security
 python-jose[cryptography]>=3.3.0
 passlib==1.7.4
-bcrypt==3.2.2
+bcrypt<4.1.0
 cryptography>=41.0.0
 
 # AI/ML Framework
@@ -26,7 +28,16 @@ langchain-core>=0.1.0
 langchain-community>=0.0.10
 langchain-openai>=0.0.5
 langchain-tavily>=0.2.0
+langchain-text-splitters>=0.3.0
 langgraph>=0.0.30
+# Reranking and Compression
+cohere==5.12.0
+rank-bm25>=0.2.2
+
+# Scheduling and Triggers
+croniter>=1.4.0
+APScheduler>=3.10.0
+pytz>=2023.3
 
 # Environment
 python-dotenv>=1.0.0
@@ -35,9 +46,33 @@ python-dotenv>=1.0.0
 httpx>=0.25.0
 requests>=2.31.0
 
+# Template Engine
+jinja2>=3.1.0
+
+# File Storage
+boto3>=1.34.0
+
+# System Monitoring
+psutil>=5.9.0
+
 # Additional utilities
 python-multipart>=0.0.6
+
+# Document Processing
+PyPDF2>=3.0.0
+pdfplumber>=0.10.0
+python-docx>=0.8.11
+
+# Testing (optional)
+pytest>=7.4.0
+pytest-asyncio>=0.21.0
+
+# HTML Processing
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
 
 # ML/Vector
 numpy>=1.24.0
 scikit-learn>=1.3.0
+langchain-cohere>=0.4.0  # Instead of legacy langchain.retrievers.document_compressors
+langchain-postgres>=0.0.15  # Instead of legacy langchain_community.vectorstores.PGVector

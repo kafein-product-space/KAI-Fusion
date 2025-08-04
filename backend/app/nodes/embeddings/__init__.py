@@ -1,4 +1,25 @@
-# Embedding Nodes
-from .openai_embeddings import OpenAIEmbeddingsNode
+"""
+KAI-Fusion Embedding Models - Text Vectorization & Semantic Search
+================================================================
 
-__all__ = ["OpenAIEmbeddingsNode"]
+This module provides enterprise-grade text embedding capabilities for the KAI-Fusion platform,
+offering seamless integration with various embedding models and vectorization providers.
+
+Available Embedding Models:
+- OpenAI Embeddings (text-embedding-ada-002, text-embedding-3-small, text-embedding-3-large)
+- Cohere Embeddings (embed-english-v3.0, embed-multilingual-v3.0)
+- HuggingFace Embeddings (sentence-transformers)
+
+Features:
+- Batch processing for efficiency
+- Cost optimization and tracking
+- Multiple embedding dimensions
+- Semantic similarity search
+- Vector normalization options
+"""
+
+from .openai_embeddings import OpenAIEmbedderNode
+
+__all__ = [
+    "OpenAIEmbedderNode"
+]

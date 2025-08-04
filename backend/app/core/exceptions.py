@@ -14,11 +14,26 @@ import traceback
 from uuid import uuid4
 from datetime import datetime
 
-# Service layer exceptions
-from app.services.base import (
-    ServiceError, ValidationError, NotFoundError, 
-    PermissionError, BusinessRuleError
-)
+# Service layer exceptions - Define them here since they don't exist in base.py
+class ServiceError(Exception):
+    """Base service layer exception."""
+    pass
+
+class ValidationError(Exception):
+    """Validation error exception."""
+    pass
+
+class NotFoundError(Exception):
+    """Not found error exception."""
+    pass
+
+class PermissionError(Exception):
+    """Permission error exception."""
+    pass
+
+class BusinessRuleError(Exception):
+    """Business rule violation exception."""
+    pass
 
 logger = logging.getLogger(__name__)
 

@@ -22,10 +22,11 @@ import {
 import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
+import { useExecutionsStore } from "~/stores/executions";
 import StartNode from "../nodes/StartNode";
-import ToolAgentNode from "../nodes/agents/ToolAgentNode";
+import ToolAgentNode from "../nodes/agents/ToolAgent/index";
 
-import OpenAIChatNode from "../nodes/llms/OpenAIChatNode";
+import OpenAIChatNode from "../nodes/llms/OpenAI/index";
 import CustomEdge from "../common/CustomEdge";
 
 import type {
@@ -35,15 +36,20 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 
-import { Eraser, Save, Plus, Minus, Loader } from "lucide-react";
+import { Loader } from "lucide-react";
+import ChatComponent from "./ChatComponent";
+import TestButtonsComponent from "./TestButtonsComponent";
+import SidebarToggleButton from "./SidebarToggleButton";
+import ErrorDisplayComponent from "./ErrorDisplayComponent";
+import ReactFlowCanvas from "./ReactFlowCanvas";
 
-import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenAIEmbeddingsNode";
+import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenaiEmbeddingsNode/index";
 
 import RedisCacheNode from "../nodes/cache/RedisCacheNode";
 import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
-import BufferMemoryNode from "../nodes/memory/BufferMemory";
-import TavilySearchNode from "../nodes/tools/TavilySearchNode";
+import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
+import TavilyWebSearchNode from "../nodes/tools/TavilyWebSearch";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
@@ -51,22 +57,52 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
+import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
+import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
+import RetrievalQANode from "../nodes/chains/RetrievalQANode";
+import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
+import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
+import HTTPClientNode from "../nodes/tools/HTTPClientNode";
+import DocumentRerankerNode from "../nodes/tools/DocumentReranker";
+import TimerStartNode from "../nodes/triggers/TimerStartNode";
+import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
+import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
+import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
+import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
+import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
+import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorStoreNode";
+import RetrieverNode from "../nodes/tools/RetrieverNode";
+
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
-  ReactAgent: ToolAgentNode,
+  Agent: ToolAgentNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
   TextDataLoader: TextLoaderNode,
   OpenAIEmbeddings: OpenAIEmbeddingsNode,
-
   RedisCache: RedisCacheNode,
   ConditionalChain: ConditionalChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
-  TavilySearch: TavilySearchNode,
+  TavilySearch: TavilyWebSearchNode,
+  WebScraper: WebScraperNode,
+  DocumentLoader: DocumentLoaderNode,
   EndNode: EndNode,
   RouterChain: RouterChainNode,
+  RetrievalQA: RetrievalQANode,
+  OpenAIEmbedder: OpenAIDocumentEmbedderNode,
+  ChunkSplitter: DocumentChunkSplitterNode,
+  HttpRequest: HTTPClientNode,
+  Reranker: DocumentRerankerNode,
+  TimerStartNode: TimerStartNode,
+  WebhookTrigger: WebhookTriggerNode,
+  PGVectorStore: PostgreSQLVectorStoreNode,
+  OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderNode,
+  CohereRerankerProvider: CohereRerankerNode,
+  VectorStoreOrchestrator: VectorStoreOrchestratorNode,
+  RetrieverProvider: RetrieverNode,
+  IntelligentVectorStore: IntelligentVectorStoreNode,
 };
 
 interface FlowCanvasProps {
@@ -101,9 +137,19 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     updateWorkflow,
     createWorkflow,
     fetchWorkflow,
+    deleteWorkflow,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
+
+  // Execution store integration
+  const {
+    executeWorkflow,
+    currentExecution,
+    loading: executionLoading,
+    error: executionError,
+    clearError: clearExecutionError,
+  } = useExecutionsStore();
 
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
@@ -122,6 +168,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
@@ -313,8 +360,103 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     workflowName,
   ]);
 
+  // Function to handle StartNode execution with proper service integration
+  const handleStartNodeExecution = useCallback(
+    async (nodeId: string) => {
+      if (!currentWorkflow) {
+        enqueueSnackbar("No workflow selected", { variant: "error" });
+        return;
+      }
+
+      try {
+        // Show loading message
+        enqueueSnackbar("Executing workflow...", { variant: "info" });
+
+        // Get the flow data
+        const flowData: WorkflowData = {
+          nodes: nodes as WorkflowNode[],
+          edges: edges as WorkflowEdge[],
+        };
+
+        // Prepare execution inputs
+        const executionData = {
+          flow_data: flowData,
+          input_text: "Start workflow execution",
+          node_id: nodeId,
+          execution_type: "manual",
+          trigger_source: "start_node_double_click",
+        };
+
+        // Use the execution service to execute workflow
+        await executeWorkflow(currentWorkflow.id, executionData);
+
+        // Show success message
+        enqueueSnackbar("Workflow executed successfully", {
+          variant: "success",
+        });
+
+        // Clear any previous execution errors
+        clearExecutionError();
+      } catch (error: any) {
+        console.error("Error executing workflow:", error);
+        enqueueSnackbar(`Error executing workflow: ${error.message}`, {
+          variant: "error",
+        });
+      }
+    },
+    [
+      currentWorkflow,
+      nodes,
+      edges,
+      executeWorkflow,
+      clearExecutionError,
+      enqueueSnackbar,
+    ]
+  );
+
+  // Monitor execution errors and show them
+  useEffect(() => {
+    if (executionError) {
+      enqueueSnackbar(`Execution error: ${executionError}`, {
+        variant: "error",
+      });
+      clearExecutionError();
+    }
+  }, [executionError, enqueueSnackbar, clearExecutionError]);
+
+  // Monitor execution loading state
+  useEffect(() => {
+    if (executionLoading) {
+      enqueueSnackbar("Executing workflow...", { variant: "info" });
+    }
+  }, [executionLoading, enqueueSnackbar]);
+
+  // Monitor successful execution and show success message
+  useEffect(() => {
+    if (currentExecution && !executionLoading) {
+      setShowSuccessMessage(true);
+      // Clear success message after 3 seconds
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [currentExecution, executionLoading]);
+
   // Use stable nodeTypes - pass handlers via node data instead
-  const nodeTypes = baseNodeTypes;
+  const nodeTypes = useMemo(
+    () => ({
+      ...baseNodeTypes,
+      StartNode: (props: any) => (
+        <StartNode
+          {...props}
+          onExecute={handleStartNodeExecution}
+          isExecuting={executionLoading}
+        />
+      ),
+    }),
+    [handleStartNodeExecution, executionLoading]
+  );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
       if (
@@ -388,9 +530,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [activeEdges]
   );
 
-  //const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
+  const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
 
-  /*
   const animateExecution = async () => {
     for (const edgeId of executionPath) {
       setActiveEdges([edgeId]);
@@ -398,7 +539,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
     setActiveEdges([]);
   };
-  */
+
   return (
     <>
       <Navbar
@@ -406,194 +547,126 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setWorkflowName={setWorkflowName}
         onSave={handleSave}
         currentWorkflow={currentWorkflow}
+        setCurrentWorkflow={setCurrentWorkflow}
+        setNodes={setNodes}
+        setEdges={setEdges}
+        deleteWorkflow={deleteWorkflow}
         isLoading={isLoading}
       />
-      <div className="w-full h-full relative pt-16 flex">
-        {/* Sidebar açma butonu */}
-        {!isSidebarOpen ? (
-          <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
-            onClick={() => setIsSidebarOpen(true)}
-            title="Open Sidebar"
-          >
-            <Plus className="w-6 h-6" />
-          </button>
-        ) : (
-          <button
-            className="fixed top-20 left-2 shadow-xl z-30 bg-blue-500 text-white  rounded-full p-2 hover:bg-blue-600 m-3 transition-all duration-200 "
-            onClick={() => setIsSidebarOpen(false)}
-            title="Close Sidebar"
-          >
-            <Minus className="w-6 h-6" />
-          </button>
-        )}
+      <div className="w-full h-full relative pt-16 flex bg-black">
+        {/* Sidebar Toggle Button */}
+        <SidebarToggleButton
+          isSidebarOpen={isSidebarOpen}
+          setIsSidebarOpen={setIsSidebarOpen}
+        />
 
         {/* Sidebar modal */}
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
+
         {/* Canvas alanı */}
         <div className="flex-1">
-          {error && (
-            <div className="absolute top-20 left-4 z-10 bg-red-50 border border-red-200 rounded-lg p-3 max-w-md">
-              <div className="text-red-800 text-sm">{error}</div>
+          {/* Error Display */}
+          <ErrorDisplayComponent error={error} />
+
+          {/* ReactFlow Canvas */}
+          <ReactFlowCanvas
+            nodes={nodes}
+            edges={edges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            nodeTypes={nodeTypes as any}
+            edgeTypes={edgeTypes}
+            activeEdges={activeEdges}
+            reactFlowWrapper={reactFlowWrapper}
+            onDrop={onDrop}
+            onDragOver={onDragOver}
+          />
+
+          {/* Chat Toggle Button */}
+          <button
+            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${
+              chatOpen
+                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
+                : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
+            }`}
+            onClick={() => setChatOpen((v) => !v)}
+          >
+            <div className="relative">
+              <svg
+                className={`w-5 h-5 transition-transform duration-300 ${
+                  chatOpen ? "rotate-12" : ""
+                }`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
+                />
+              </svg>
+              {chatOpen && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+              )}
+            </div>
+            <span className="font-medium text-sm">Chat</span>
+            {chatOpen && (
+              <div className="w-1 h-1 bg-white rounded-full animate-ping"></div>
+            )}
+          </button>
+
+          {/* Chat Component */}
+          <ChatComponent
+            chatOpen={chatOpen}
+            setChatOpen={setChatOpen}
+            chatHistory={chatHistory}
+            chatError={chatError}
+            chatLoading={chatLoading}
+            chatInput={chatInput}
+            setChatInput={setChatInput}
+            onSendMessage={handleSendMessage}
+            onClearChat={handleClearChat}
+          />
+
+          {/* Execution Status Indicator */}
+          {executionLoading && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-yellow-500 to-orange-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
+              <Loader className="w-4 h-4 animate-spin" />
+              <span className="text-sm font-medium">Executing workflow...</span>
             </div>
           )}
 
-          {/* executionResult and clearExecutionResult removed */}
-
-          <div
-            ref={reactFlowWrapper}
-            className="w-full h-full"
-            onDrop={onDrop}
-            onDragOver={onDragOver}
-          >
-            <ReactFlow
-              nodes={nodes.map((node) => ({
-                ...node,
-                data: {
-                  ...node.data,
-                  // StartNode'a özel onExecute ve validationStatus kaldırıldı
-                },
-              }))}
-              edges={edges}
-              onNodesChange={onNodesChange}
-              onEdgesChange={onEdgesChange}
-              onConnect={onConnect}
-              nodeTypes={nodeTypes as any}
-              edgeTypes={edgeTypes}
-              fitView
-            >
-              <Controls
-                position="top-right"
-                className="bg-background text-black"
-              />
-              <Background gap={20} size={1} />
-              <MiniMap className="bg-background text-black" />
-            </ReactFlow>
-          </div>
-
-          <button
-            className="fixed bottom-4 right-4 z-50 bg-blue-600 text-white px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-blue-700 transition-all"
-            onClick={() => setChatOpen((v) => !v)}
-          >
-            <svg
-              className="w-5 h-5"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M8 10h.01M12 10h.01M16 10h.01M21 12c0 4.418-4.03 8-9 8a9.77 9.77 0 01-4-.8L3 20l.8-3.2A7.96 7.96 0 013 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"
-              />
-            </svg>
-            Chat
-          </button>
-
-          {chatOpen && (
-            <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-white rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-200">
-              <div className="flex items-center justify-between px-4 py-2 border-b">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold text-gray-700">
-                    ReAct Chat
-                  </span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleClearChat}
-                    className="text-red-400 hover:text-red-700"
-                    title="Clear chat history"
-                  >
-                    <Eraser className="w-5 h-5" />
-                  </button>
-                  <button
-                    onClick={() => setChatOpen(false)}
-                    className="text-gray-400 hover:text-gray-700"
-                  >
-                    ✕
-                  </button>
-                </div>
+          {/* Execution Error Display */}
+          {executionError && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-red-500 to-rose-600 text-white shadow-lg flex items-center gap-2">
+              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                <span className="text-red-600 text-xs font-bold">!</span>
               </div>
-              <div className="flex-1 overflow-y-auto p-4 space-y-3">
-                {chatError && (
-                  <div className="text-xs text-red-500">{chatError}</div>
-                )}
-                {chatHistory.map((msg, i) => (
-                  <div
-                    key={msg.id || i}
-                    className={`text-sm ${
-                      msg.role === "user" ? "text-right" : "text-left"
-                    }`}
-                  >
-                    <div
-                      className={`inline-block max-w-[80%] ${
-                        msg.role === "user"
-                          ? "bg-blue-100 text-blue-900"
-                          : "bg-gray-100 text-gray-900"
-                      } rounded-lg px-3 py-2 mb-1`}
-                    >
-                      {msg.content}
-                    </div>
-                    <div className="text-xs text-gray-400">
-                      {msg.created_at
-                        ? new Date(msg.created_at).toLocaleTimeString()
-                        : ""}
-                    </div>
-                  </div>
-                ))}
-                <div className="flex items-center justify-center text-center">
-                  {chatLoading && (
-                    <div className="text-xs text-gray-400 text center">
-                      <Loader className="animate-spin" />
-                    </div>
-                  )}
-                </div>
+              <span className="text-sm font-medium">Execution failed</span>
+            </div>
+          )}
+
+          {/* Execution Success Display */}
+          {showSuccessMessage && currentExecution && !executionLoading && (
+            <div className="fixed top-20 right-5 z-50 px-4 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white shadow-lg flex items-center gap-2 animate-pulse">
+              <div className="w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                <span className="text-green-600 text-xs font-bold">✓</span>
               </div>
-              <div className="p-3 border-t flex gap-2">
-                <input
-                  type="text"
-                  className="flex-1 border rounded-lg px-3 py-2 text-sm border-black bg-transparent text-black"
-                  placeholder="Mesajınızı yazın..."
-                  value={chatInput}
-                  onChange={(e) => setChatInput(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSendMessage();
-                  }}
-                  disabled={chatLoading}
-                />
-                <button
-                  onClick={handleSendMessage}
-                  className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
-                  disabled={chatLoading || !chatInput.trim()}
-                >
-                  Gönder
-                </button>
-              </div>
+              <span className="text-sm font-medium">Execution completed</span>
             </div>
           )}
         </div>
       </div>
-      {/*
-      <button
-        className="fixed bottom-24 right-4 z-50 bg-yellow-400 text-black px-5 py-2 rounded-full shadow-lg flex items-center gap-2 hover:bg-yellow-500 transition-all"
-        onClick={() => {
-          if (edges.length > 0) {
-            const randomEdge = edges[Math.floor(Math.random() * edges.length)];
-            setActiveEdges([randomEdge.id]);
-            setTimeout(() => setActiveEdges([]), 2000); // 2 saniye sonra efekti kaldır
-          }
-        }}
-      >
-        Elektrik Test
-      </button>
-      <button
-        className="fixed bottom-36 right-4 z-50 bg-green-500 text-white px-5 py-2 rounded-full shadow-lg hover:bg-green-600 transition-all"
-        onClick={animateExecution}
-      >
-        Workflow Execute Test
-      </button>
-      */}
+
+      {/* Test Buttons Component */}
+      <TestButtonsComponent
+        edges={edges}
+        setActiveEdges={setActiveEdges}
+        animateExecution={animateExecution}
+      />
     </>
   );
 }

@@ -8,7 +8,7 @@ interface RouterChainNodeProps {
 }
 
 function RouterChainNode({ data, id }: RouterChainNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
 
@@ -25,7 +25,14 @@ function RouterChainNode({ data, id }: RouterChainNodeProps) {
       )
     );
   };
+  const edges = getEdges ? getEdges() : [];
 
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
   return (
     <>
       {/* Ana node kutusu */}
