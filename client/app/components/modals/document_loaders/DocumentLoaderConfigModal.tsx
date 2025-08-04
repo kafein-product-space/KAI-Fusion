@@ -30,7 +30,6 @@ interface DocumentLoaderConfig {
   service_account_json: string;
   oauth2_client_id: string;
   oauth2_client_secret: string;
-  oauth2_refresh_token: string;
   file_paths: string; // Legacy support
   supported_formats: string[];
   min_content_length: number;
@@ -67,7 +66,6 @@ const DocumentLoaderConfigModal = forwardRef<
     service_account_json: nodeData?.service_account_json || "",
     oauth2_client_id: nodeData?.oauth2_client_id || "",
     oauth2_client_secret: nodeData?.oauth2_client_secret || "",
-    oauth2_refresh_token: nodeData?.oauth2_refresh_token || "",
     file_paths: nodeData?.file_paths || "",
     supported_formats: nodeData?.supported_formats || [
       "txt",
@@ -300,13 +298,6 @@ const DocumentLoaderConfigModal = forwardRef<
                 errors.oauth2_client_secret =
                   "OAuth2 Client Secret is required";
               }
-              if (
-                !values.oauth2_refresh_token ||
-                values.oauth2_refresh_token.trim() === ""
-              ) {
-                errors.oauth2_refresh_token =
-                  "OAuth2 Refresh Token is required";
-              }
             }
 
             return errors;
@@ -440,23 +431,6 @@ const DocumentLoaderConfigModal = forwardRef<
                       />
                       <ErrorMessage
                         name="oauth2_client_secret"
-                        component="div"
-                        className="text-red-400 text-xs mt-1"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="text-white text-sm font-medium mb-2 block">
-                        Refresh Token
-                      </label>
-                      <Field
-                        type="password"
-                        name="oauth2_refresh_token"
-                        placeholder="Your Google OAuth2 Refresh Token"
-                        className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400"
-                      />
-                      <ErrorMessage
-                        name="oauth2_refresh_token"
                         component="div"
                         className="text-red-400 text-xs mt-1"
                       />

@@ -92,12 +92,6 @@ export default function DocumentLoaderNode({
       ) {
         errors.oauth2_client_secret = "OAuth2 Client Secret is required";
       }
-      if (
-        !values.oauth2_refresh_token ||
-        values.oauth2_refresh_token.trim() === ""
-      ) {
-        errors.oauth2_refresh_token = "OAuth2 Refresh Token is required";
-      }
     }
 
     // Format validation
@@ -130,7 +124,6 @@ export default function DocumentLoaderNode({
       service_account_json: data.service_account_json || "",
       oauth2_client_id: data.oauth2_client_id || "",
       oauth2_client_secret: data.oauth2_client_secret || "",
-      oauth2_refresh_token: data.oauth2_refresh_token || "",
       supported_formats: data.supported_formats || [
         "txt",
         "json",
