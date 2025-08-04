@@ -6,7 +6,17 @@ import React, {
   useState,
 } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { FileText, Settings, Upload, FolderOpen, X } from "lucide-react";
+import {
+  FileText,
+  Settings,
+  Upload,
+  FolderOpen,
+  X,
+  Database,
+  Key,
+  Lock,
+  Link,
+} from "lucide-react";
 
 interface DocumentLoaderConfigModalProps {
   nodeData: any;
@@ -15,7 +25,13 @@ interface DocumentLoaderConfigModalProps {
 }
 
 interface DocumentLoaderConfig {
-  file_paths: string;
+  drive_links: string;
+  google_drive_auth_type: "service_account" | "oauth2";
+  service_account_json: string;
+  oauth2_client_id: string;
+  oauth2_client_secret: string;
+  oauth2_refresh_token: string;
+  file_paths: string; // Legacy support
   supported_formats: string[];
   min_content_length: number;
   max_file_size_mb: number;
@@ -39,16 +55,26 @@ const DocumentLoaderConfigModal = forwardRef<
   useImperativeHandle(ref, () => dialogRef.current!);
 
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
+  const [authType, setAuthType] = useState(
+    nodeData?.google_drive_auth_type || "service_account"
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragOver, setIsDragOver] = useState(false);
 
   const initialValues: DocumentLoaderConfig = {
+    drive_links: nodeData?.drive_links || "",
+    google_drive_auth_type: authType,
+    service_account_json: nodeData?.service_account_json || "",
+    oauth2_client_id: nodeData?.oauth2_client_id || "",
+    oauth2_client_secret: nodeData?.oauth2_client_secret || "",
+    oauth2_refresh_token: nodeData?.oauth2_refresh_token || "",
     file_paths: nodeData?.file_paths || "",
     supported_formats: nodeData?.supported_formats || [
       "txt",
       "json",
       "docx",
       "pdf",
+      "csv",
     ],
     min_content_length: nodeData?.min_content_length || 50,
     max_file_size_mb: nodeData?.max_file_size_mb || 50,
@@ -197,13 +223,15 @@ const DocumentLoaderConfigModal = forwardRef<
       <div className="modal-box max-w-4xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 border border-slate-700/50 shadow-2xl shadow-indigo-500/10">
         {/* Header */}
         <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-700/50">
-          <div className="w-12 h-12 bg-gradient-to-br from-emerald-500 to-green-600 rounded-xl flex items-center justify-center shadow-lg">
-            <FileText className="w-6 h-6 text-white" />
+          <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
+            <Database className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-bold text-xl text-white">Document Loader</h3>
+            <h3 className="font-bold text-xl text-white">
+              Google Drive Document Loader
+            </h3>
             <p className="text-slate-400 text-sm">
-              Process local document files (TXT, JSON, DOCX, PDF)
+              Process documents from Google Drive (TXT, JSON, DOCX, PDF, CSV)
             </p>
           </div>
         </div>
@@ -213,132 +241,225 @@ const DocumentLoaderConfigModal = forwardRef<
           enableReinitialize
           validate={(values) => {
             const errors: Record<string, string> = {};
-            if (!values.file_paths && selectedFiles.length === 0) {
-              errors.file_paths = "Please provide file paths or upload files.";
+
+            // Google Drive links validation
+            if (!values.drive_links || values.drive_links.trim() === "") {
+              errors.drive_links = "Google Drive links are required";
+            } else {
+              const links = values.drive_links
+                .trim()
+                .split("\n")
+                .filter((link) => link.trim());
+              if (links.length === 0) {
+                errors.drive_links =
+                  "At least one valid Google Drive link is required";
+              } else {
+                // Validate Google Drive link format
+                for (const link of links) {
+                  const trimmedLink = link.trim();
+                  if (
+                    !trimmedLink.includes("drive.google.com") &&
+                    !trimmedLink.includes("docs.google.com")
+                  ) {
+                    errors.drive_links = "Invalid Google Drive link format";
+                    break;
+                  }
+                }
+              }
             }
+
+            // Authentication validation
+            const authType = values.google_drive_auth_type || "service_account";
+
+            if (authType === "service_account") {
+              if (
+                !values.service_account_json ||
+                values.service_account_json.trim() === ""
+              ) {
+                errors.service_account_json =
+                  "Service account JSON is required";
+              } else {
+                try {
+                  JSON.parse(values.service_account_json);
+                } catch (e) {
+                  errors.service_account_json =
+                    "Invalid JSON format for service account credentials";
+                }
+              }
+            } else if (authType === "oauth2") {
+              if (
+                !values.oauth2_client_id ||
+                values.oauth2_client_id.trim() === ""
+              ) {
+                errors.oauth2_client_id = "OAuth2 Client ID is required";
+              }
+              if (
+                !values.oauth2_client_secret ||
+                values.oauth2_client_secret.trim() === ""
+              ) {
+                errors.oauth2_client_secret =
+                  "OAuth2 Client Secret is required";
+              }
+              if (
+                !values.oauth2_refresh_token ||
+                values.oauth2_refresh_token.trim() === ""
+              ) {
+                errors.oauth2_refresh_token =
+                  "OAuth2 Refresh Token is required";
+              }
+            }
+
             return errors;
           }}
           onSubmit={(values, { setSubmitting }) => {
-            // Convert selected files to file paths for backend
-            const filePaths = selectedFiles.map((file) => file.name).join("\n");
-            const updatedValues = {
-              ...values,
-              file_paths: values.file_paths
-                ? `${values.file_paths}\n${filePaths}`
-                : filePaths,
-              selected_files: selectedFiles, // Keep file objects for potential upload
-            };
-            onSave(updatedValues);
+            onSave(values);
             dialogRef.current?.close();
             setSubmitting(false);
           }}
         >
           {({ isSubmitting, setFieldValue, values }) => (
             <Form className="space-y-6">
-              {/* File Upload Section */}
+              {/* Google Drive Configuration Section */}
               <div className="bg-slate-800/50 p-6 rounded-xl border border-slate-700/50">
                 <label className="text-white font-semibold flex items-center space-x-2 mb-4">
-                  <Upload className="w-5 h-5 text-emerald-400" />
-                  <span>File Upload</span>
+                  <Database className="w-5 h-5 text-blue-400" />
+                  <span>Google Drive Configuration</span>
                 </label>
 
-                {/* File Upload Area */}
-                <div
-                  className={`border-2 border-dashed rounded-lg p-6 text-center transition-all duration-200 ${
-                    isDragOver
-                      ? "border-emerald-500 bg-emerald-500/10"
-                      : "border-slate-600/50 hover:border-emerald-500/50"
-                  }`}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    multiple
-                    accept=".txt,.json,.docx,.pdf"
-                    onChange={handleFileSelect}
-                    className="hidden"
+                {/* Google Drive Links */}
+                <div className="mb-6">
+                  <label className="text-white text-sm font-medium mb-2 block">
+                    Google Drive Links
+                  </label>
+                  <Field
+                    as="textarea"
+                    name="drive_links"
+                    placeholder="https://drive.google.com/file/d/...&#10;https://drive.google.com/drive/folders/..."
+                    className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400 resize-none"
+                    rows={4}
                   />
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex flex-col items-center space-y-3 w-full"
-                  >
-                    <div
-                      className={`w-16 h-16 rounded-full flex items-center justify-center transition-all duration-200 ${
-                        isDragOver
-                          ? "bg-gradient-to-br from-emerald-400 to-green-500 scale-110"
-                          : "bg-gradient-to-br from-emerald-500 to-green-600"
-                      }`}
-                    >
-                      <FolderOpen
-                        className={`w-8 h-8 text-white transition-all duration-200 ${
-                          isDragOver ? "scale-110" : ""
-                        }`}
-                      />
-                    </div>
-                    <div>
-                      <p className="text-white font-medium">
-                        {isDragOver
-                          ? "Dosyaları Buraya Bırak"
-                          : "Dosya Seç veya Sürükle"}
-                      </p>
-                      <p className="text-slate-400 text-sm mt-1">
-                        TXT, JSON, DOCX, PDF dosyaları desteklenir
-                      </p>
-                    </div>
-                  </button>
+                  <ErrorMessage
+                    name="drive_links"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
                 </div>
 
-                {/* Selected Files List */}
-                {selectedFiles.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-white font-medium text-sm">
-                        Seçilen Dosyalar:
-                      </h4>
-                      <span className="text-slate-400 text-xs">
-                        {selectedFiles.length} dosya seçildi
-                      </span>
+                {/* Authentication Type */}
+                <div className="mb-6">
+                  <label className="text-white text-sm font-medium mb-2 block">
+                    Authentication Method
+                  </label>
+                  <div className="flex gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthType("service_account");
+                        setFieldValue(
+                          "google_drive_auth_type",
+                          "service_account"
+                        );
+                      }}
+                      className={`flex-1 p-3 text-sm rounded-lg border transition-colors ${
+                        authType === "service_account"
+                          ? "bg-blue-600 border-blue-500 text-white"
+                          : "bg-slate-700/50 border-slate-600 text-gray-300 hover:border-slate-500"
+                      }`}
+                    >
+                      <Key className="w-4 h-4 inline mr-2" />
+                      Service Account
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAuthType("oauth2");
+                        setFieldValue("google_drive_auth_type", "oauth2");
+                      }}
+                      className={`flex-1 p-3 text-sm rounded-lg border transition-colors ${
+                        authType === "oauth2"
+                          ? "bg-blue-600 border-blue-500 text-white"
+                          : "bg-slate-700/50 border-slate-600 text-gray-300 hover:border-slate-500"
+                      }`}
+                    >
+                      <Lock className="w-4 h-4 inline mr-2" />
+                      OAuth2
+                    </button>
+                  </div>
+                </div>
+
+                {/* Service Account Configuration */}
+                {authType === "service_account" && (
+                  <div className="mb-6">
+                    <label className="text-white text-sm font-medium mb-2 block">
+                      Service Account JSON
+                    </label>
+                    <Field
+                      as="textarea"
+                      name="service_account_json"
+                      placeholder='{"type": "service_account", "project_id": "...", ...}'
+                      className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400 resize-none font-mono"
+                      rows={8}
+                    />
+                    <ErrorMessage
+                      name="service_account_json"
+                      component="div"
+                      className="text-red-400 text-xs mt-1"
+                    />
+                  </div>
+                )}
+
+                {/* OAuth2 Configuration */}
+                {authType === "oauth2" && (
+                  <div className="space-y-4 mb-6">
+                    <div>
+                      <label className="text-white text-sm font-medium mb-2 block">
+                        Client ID
+                      </label>
+                      <Field
+                        type="password"
+                        name="oauth2_client_id"
+                        placeholder="Your Google OAuth2 Client ID"
+                        className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400"
+                      />
+                      <ErrorMessage
+                        name="oauth2_client_id"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
                     </div>
-                    <div className="space-y-2 max-h-40 overflow-y-auto">
-                      {selectedFiles.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between bg-slate-900/80 p-3 rounded-lg border border-slate-600/50 hover:border-emerald-500/50 transition-colors duration-200"
-                        >
-                          <div className="flex items-center space-x-3">
-                            <div className="w-8 h-8 bg-gradient-to-br from-emerald-500 to-green-600 rounded-lg flex items-center justify-center">
-                              <FileText className="w-4 h-4 text-white" />
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-white text-sm font-medium truncate">
-                                {file.name}
-                              </p>
-                              <p className="text-slate-400 text-xs">
-                                {formatFileSize(file.size)} •{" "}
-                                {formatDate(file.lastModified)}
-                              </p>
-                            </div>
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveFile(index)}
-                            className="p-2 hover:bg-red-500/20 rounded-lg transition-colors duration-200 group"
-                            title="Dosyayı kaldır"
-                          >
-                            <X className="w-4 h-4 text-red-400 group-hover:text-red-300" />
-                          </button>
-                        </div>
-                      ))}
+
+                    <div>
+                      <label className="text-white text-sm font-medium mb-2 block">
+                        Client Secret
+                      </label>
+                      <Field
+                        type="password"
+                        name="oauth2_client_secret"
+                        placeholder="Your Google OAuth2 Client Secret"
+                        className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400"
+                      />
+                      <ErrorMessage
+                        name="oauth2_client_secret"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
                     </div>
-                    <div className="text-slate-400 text-xs text-center">
-                      Toplam:{" "}
-                      {formatFileSize(
-                        selectedFiles.reduce((sum, file) => sum + file.size, 0)
-                      )}
+
+                    <div>
+                      <label className="text-white text-sm font-medium mb-2 block">
+                        Refresh Token
+                      </label>
+                      <Field
+                        type="password"
+                        name="oauth2_refresh_token"
+                        placeholder="Your Google OAuth2 Refresh Token"
+                        className="w-full p-3 text-sm bg-slate-700/50 border border-slate-600 rounded text-white placeholder-gray-400"
+                      />
+                      <ErrorMessage
+                        name="oauth2_refresh_token"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
                     </div>
                   </div>
                 )}

@@ -31,16 +31,76 @@ export default function DocumentLoaderNode({
         : edge.target === id && edge.targetHandle === handleId
     );
 
-  // Validation function
+  // Enhanced validation function for Google Drive
   const validate = (values: Partial<DocumentLoaderData>) => {
     const errors: any = {};
 
-    // File paths validation is now handled by file upload component
-    // We don't need to validate file_paths anymore since it's replaced with file upload
+    // Google Drive links validation
+    if (!values.drive_links || values.drive_links.trim() === "") {
+      errors.drive_links = "Google Drive links are required";
+    } else {
+      const links = values.drive_links
+        .trim()
+        .split("\n")
+        .filter((link) => link.trim());
+      if (links.length === 0) {
+        errors.drive_links = "At least one valid Google Drive link is required";
+      } else {
+        // Validate Google Drive link format
+        for (const link of links) {
+          const trimmedLink = link.trim();
+          if (
+            !trimmedLink.includes("drive.google.com") &&
+            !trimmedLink.includes("docs.google.com")
+          ) {
+            errors.drive_links = "Invalid Google Drive link format";
+            break;
+          }
+        }
+      }
+    }
 
+    // Authentication validation
+    const authType = values.google_drive_auth_type || "service_account";
+
+    if (authType === "service_account") {
+      if (
+        !values.service_account_json ||
+        values.service_account_json.trim() === ""
+      ) {
+        errors.service_account_json = "Service account JSON is required";
+      } else {
+        try {
+          JSON.parse(values.service_account_json);
+        } catch (e) {
+          errors.service_account_json =
+            "Invalid JSON format for service account credentials";
+        }
+      }
+    } else if (authType === "oauth2") {
+      if (!values.oauth2_client_id || values.oauth2_client_id.trim() === "") {
+        errors.oauth2_client_id = "OAuth2 Client ID is required";
+      }
+      if (
+        !values.oauth2_client_secret ||
+        values.oauth2_client_secret.trim() === ""
+      ) {
+        errors.oauth2_client_secret = "OAuth2 Client Secret is required";
+      }
+      if (
+        !values.oauth2_refresh_token ||
+        values.oauth2_refresh_token.trim() === ""
+      ) {
+        errors.oauth2_refresh_token = "OAuth2 Refresh Token is required";
+      }
+    }
+
+    // Format validation
     if (!values.supported_formats || values.supported_formats.length === 0) {
       errors.supported_formats = "At least one format must be selected";
     }
+
+    // Processing options validation
     if (!values.min_content_length || values.min_content_length < 1) {
       errors.min_content_length = "Min content length must be at least 1";
     }
@@ -54,6 +114,7 @@ export default function DocumentLoaderNode({
     ) {
       errors.quality_threshold = "Quality threshold must be between 0 and 1";
     }
+
     return errors;
   };
 
@@ -61,12 +122,19 @@ export default function DocumentLoaderNode({
     return (
       <DocumentLoaderConfigForm
         initialValues={{
-          file_paths: configData.file_paths || "",
+          drive_links: configData.drive_links || "",
+          google_drive_auth_type:
+            configData.google_drive_auth_type || "service_account",
+          service_account_json: configData.service_account_json || "",
+          oauth2_client_id: configData.oauth2_client_id || "",
+          oauth2_client_secret: configData.oauth2_client_secret || "",
+          oauth2_refresh_token: configData.oauth2_refresh_token || "",
           supported_formats: configData.supported_formats || [
             "txt",
             "json",
             "docx",
             "pdf",
+            "csv",
           ],
           min_content_length: configData.min_content_length || 50,
           max_file_size_mb: configData.max_file_size_mb || 50,

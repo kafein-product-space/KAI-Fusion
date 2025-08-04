@@ -63,12 +63,6 @@ const Sidebar = () => {
               path="/marketplace"
               active={location.pathname === "/marketplace"}
             />
-            <SidebarLink
-              icon={<Database className="w-6 h-6" />}
-              label="Variables"
-              path="/variables"
-              active={location.pathname === "/variables"}
-            />
           </ul>
         </nav>
       </div>

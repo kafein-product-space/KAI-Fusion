@@ -6,13 +6,9 @@ import React, {
   useMemo,
 } from "react";
 import {
-  ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
-  MiniMap,
-  Controls,
-  Background,
   useReactFlow,
   ReactFlowProvider,
   type Node,
@@ -38,7 +34,6 @@ import type {
 
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
-import TestButtonsComponent from "./TestButtonsComponent";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -387,6 +382,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           trigger_source: "start_node_double_click",
         };
 
+        // Animate execution path before executing
+        const executionPath = edges.map((e) => e.id);
+        for (const edgeId of executionPath) {
+          setActiveEdges([edgeId]);
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+        setActiveEdges([]);
+
         // Use the execution service to execute workflow
         await executeWorkflow(currentWorkflow.id, executionData);
 
@@ -411,6 +414,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       executeWorkflow,
       clearExecutionError,
       enqueueSnackbar,
+      setActiveEdges,
     ]
   );
 
@@ -660,13 +664,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           )}
         </div>
       </div>
-
-      {/* Test Buttons Component */}
-      <TestButtonsComponent
-        edges={edges}
-        setActiveEdges={setActiveEdges}
-        animateExecution={animateExecution}
-      />
     </>
   );
 }

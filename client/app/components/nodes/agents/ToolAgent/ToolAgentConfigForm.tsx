@@ -3,6 +3,7 @@ import React from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Settings, Bot } from "lucide-react";
 import type { ToolAgentConfigFormProps } from "./types";
+import { BackgroundGradient } from "~/components/BackgroundGradient";
 
 export default function ToolAgentConfigForm({
   initialValues,
@@ -11,7 +12,7 @@ export default function ToolAgentConfigForm({
   onCancel,
 }: ToolAgentConfigFormProps) {
   return (
-    <div className="relative w-48 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+    <BackgroundGradient className="relative w-48 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
           <Bot className="w-4 h-4 text-white" />
@@ -190,6 +191,6 @@ export default function ToolAgentConfigForm({
           </Form>
         )}
       </Formik>
-    </div>
+    </BackgroundGradient>
   );
 }
