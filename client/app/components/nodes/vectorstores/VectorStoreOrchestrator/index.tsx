@@ -74,17 +74,43 @@ export default function VectorStoreOrchestratorNode({
         : edge.target === id && edge.targetHandle === handleId
     );
 
-  // Validation function
+  // Enhanced validation function
   const validate = (values: Partial<VectorStoreOrchestratorData>) => {
     console.log("Validating values:", values);
     const errors: any = {};
 
-    // Make validation more lenient - only require connection_string and collection_name
+    // Required validations
     if (!values.connection_string || values.connection_string.trim() === "") {
       errors.connection_string = "Connection string is required";
     }
     if (!values.collection_name || values.collection_name.trim() === "") {
       errors.collection_name = "Collection name is required";
+    }
+
+    // Table prefix validation (optional but must be valid if provided)
+    if (values.table_prefix && values.table_prefix.trim() !== "") {
+      const prefixRegex = /^[a-zA-Z0-9_]+$/;
+      if (!prefixRegex.test(values.table_prefix)) {
+        errors.table_prefix =
+          "Table prefix can only contain alphanumeric characters and underscores";
+      }
+    }
+
+    // Custom metadata JSON validation
+    if (values.custom_metadata && values.custom_metadata.trim() !== "") {
+      try {
+        JSON.parse(values.custom_metadata);
+      } catch {
+        errors.custom_metadata = "Custom metadata must be valid JSON format";
+      }
+    }
+
+    // Metadata strategy validation
+    if (
+      values.metadata_strategy &&
+      !["merge", "replace", "document_only"].includes(values.metadata_strategy)
+    ) {
+      errors.metadata_strategy = "Invalid metadata strategy";
     }
 
     // Optional validations with defaults
@@ -115,12 +141,18 @@ export default function VectorStoreOrchestratorNode({
     const initialFormValues = {
       connection_string: configData.connection_string || "",
       collection_name: configData.collection_name || "",
+      table_prefix: configData.table_prefix || "",
       pre_delete_collection: configData.pre_delete_collection || false,
       search_algorithm: configData.search_algorithm || "cosine",
       search_k: configData.search_k || 6,
       score_threshold: configData.score_threshold || 0.0,
       batch_size: configData.batch_size || 100,
       enable_hnsw_index: configData.enable_hnsw_index !== false,
+      // New metadata configuration
+      custom_metadata: configData.custom_metadata || "{}",
+      preserve_document_metadata:
+        configData.preserve_document_metadata !== false,
+      metadata_strategy: configData.metadata_strategy || "merge",
     };
 
     console.log("Opening config with initial values:", initialFormValues);

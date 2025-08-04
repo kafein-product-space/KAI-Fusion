@@ -9,12 +9,18 @@ export interface VectorStoreOrchestratorData {
   // Configuration
   connection_string?: string;
   collection_name?: string;
+  table_prefix?: string; // Yeni: Table prefix
   pre_delete_collection?: boolean;
   search_algorithm?: string;
   search_k?: number;
   score_threshold?: number;
   batch_size?: number;
   enable_hnsw_index?: boolean;
+  
+  // Metadata Configuration - Yeni özellikler
+  custom_metadata?: string; // JSON string
+  preserve_document_metadata?: boolean;
+  metadata_strategy?: "merge" | "replace" | "document_only";
   
   // Status
   validationStatus?: "success" | "error" | "warning" | "pending";
