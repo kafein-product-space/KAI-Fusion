@@ -32,16 +32,21 @@ export default function TabNavigation({
         return (
           <button
             key={tab.id}
-            onClick={() => onTabChange(tab.id)}
+            type="button"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onTabChange(tab.id);
+            }}
             className={`
-              flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium
-              transition-all duration-200 relative
-              ${
-                isActive
-                  ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
-                  : "text-slate-400 hover:text-slate-300 hover:bg-slate-600/30"
-              }
-            `}
+            flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium
+            transition-all duration-200 relative
+            ${
+              isActive
+                ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
+                : "text-slate-400 hover:text-slate-300 hover:bg-slate-600/30"
+            }
+          `}
             title={tab.description}
           >
             <Icon className="w-3 h-3" />
