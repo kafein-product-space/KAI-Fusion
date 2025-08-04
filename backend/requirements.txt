@@ -49,8 +49,6 @@ requests>=2.31.0
 # Template Engine
 jinja2>=3.1.0
 
-<<<<<<< Updated upstream
-=======
 # File Storage
 google-api-python-client>=2.100.0  # Google Drive API
 google-auth>=2.22.0
@@ -60,7 +58,6 @@ google-auth-httplib2>=0.1.0
 # System Monitoring
 psutil>=5.9.0
 
->>>>>>> Stashed changes
 # Additional utilities
 python-multipart>=0.0.6
 
