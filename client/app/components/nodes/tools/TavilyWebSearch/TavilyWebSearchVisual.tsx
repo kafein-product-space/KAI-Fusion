@@ -111,30 +111,6 @@ export default function TavilyWebSearchVisual({
         glow={isHandleConnected("output", true)}
       />
 
-      {/* Right side label for output */}
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "45%" }}
-      >
-        Search Results
-      </div>
-
-      {/* Tavily Type Badge */}
-      {data?.tavily_api_key && (
-        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg">
-            Tavily
-          </div>
-        </div>
-      )}
-
-      {/* Connection Status Indicator */}
-      {data?.tavily_api_key && (
-        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="w-3 h-3 bg-blue-400 rounded-full shadow-lg animate-pulse"></div>
-        </div>
-      )}
-
       {/* Search Type Badge */}
       {data?.search_type === "basic" && (
         <div className="absolute top-1 left-1 z-10">
