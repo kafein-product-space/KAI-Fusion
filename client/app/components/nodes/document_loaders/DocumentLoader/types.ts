@@ -12,7 +12,6 @@ export interface DocumentLoaderData {
   service_account_json?: string;
   oauth2_client_id?: string;
   oauth2_client_secret?: string;
-  oauth2_refresh_token?: string;
   
   // Legacy file configuration (for backward compatibility)
   file_paths?: string;

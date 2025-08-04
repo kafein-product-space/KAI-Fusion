@@ -235,30 +235,8 @@ function ExecutionsLayout() {
         {/* Pagination - Sayfanın altında */}
         {!error && !loading && executions.length > 0 && (
           <div className="mt-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
-              {/* Items per page */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Items per page:</span>
-                <select
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                >
-                  {[6, 10, 20, 50, 100].map((opt) => (
-                    <option
-                      key={opt}
-                      value={opt}
-                      className="bg-white text-gray-900"
-                    >
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white  rounded-2xl ">
+              <div></div>
               {/* Sayfa numaraları */}
               <div className="flex items-center gap-2 justify-center">
                 <button

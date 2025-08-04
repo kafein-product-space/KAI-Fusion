@@ -25,11 +25,15 @@ export default function VectorStoreOrchestratorConfigForm({
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSubmit}
+        onSubmit={(values, { setSubmitting }) => {
+          console.log("Form submitted with values:", values);
+          onSubmit(values);
+          setSubmitting(false);
+        }}
         enableReinitialize
       >
-        {({ values, errors, touched, isSubmitting }) => (
-          <Form className="space-y-3 w-full p-3">
+        {({ values, errors, touched, isSubmitting, isValid, handleSubmit }) => (
+          <Form className="space-y-3 w-full p-3" onSubmit={handleSubmit}>
             {/* Connection String */}
             <div>
               <label className="text-white text-xs font-medium mb-1 block">
@@ -219,8 +223,12 @@ export default function VectorStoreOrchestratorConfigForm({
             <div className="flex space-x-2">
               <button
                 type="button"
-                onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onCancel();
+                }}
+                className="text-xs px-2 py-1 bg-slate-700 rounded text-white hover:bg-slate-600 transition-colors"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -228,12 +236,16 @@ export default function VectorStoreOrchestratorConfigForm({
               </button>
               <button
                 type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
+                disabled={isSubmitting || !isValid || Object.keys(errors).length > 0}
+                className={`text-xs px-2 py-1 rounded text-white transition-colors ${
+                  isSubmitting || !isValid || Object.keys(errors).length > 0
+                    ? "bg-gray-500 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                ✓
+                {isSubmitting ? "..." : "✓"}
               </button>
             </div>
           </Form>

@@ -141,7 +141,7 @@ function MarketplaceLayout() {
                     <div>
                       <strong>Owner:</strong>{" "}
                       <span className="font-mono">
-                        {wf.user_id?.slice(0, 8) || "Unknown"}
+                        {wf.user_id?.slice(0, 8) || "Unknown"}...
                       </span>
                     </div>
                     <div>
@@ -170,24 +170,8 @@ function MarketplaceLayout() {
           {/* Pagination */}
           {!isLoading && !error && publicWorkflows.length > 0 && (
             <div className="mt-8">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-gray-200 rounded-2xl">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-600">Items per page:</span>
-                  <select
-                    className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
-                    value={itemsPerPage}
-                    onChange={(e) => {
-                      setItemsPerPage(Number(e.target.value));
-                      setPage(1);
-                    }}
-                  >
-                    {[6, 10, 20, 50, 100].map((opt) => (
-                      <option key={opt} value={opt}>
-                        {opt}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white  rounded-2xl">
+                <div></div>
 
                 <div className="flex items-center gap-2">
                   <button

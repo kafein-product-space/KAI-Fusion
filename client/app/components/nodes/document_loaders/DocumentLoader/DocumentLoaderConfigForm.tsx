@@ -2,17 +2,7 @@
 import React, { useRef, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useSnackbar } from "notistack";
-import {
-  Settings,
-  FileText,
-  Upload,
-  X,
-  File,
-  Database,
-  Key,
-  Lock,
-  Link,
-} from "lucide-react";
+import { Settings, Database, Key, Lock } from "lucide-react";
 import type { DocumentLoaderConfigFormProps } from "./types";
 
 interface FileItem {
@@ -303,23 +293,6 @@ export default function DocumentLoaderConfigForm({
                   />
                   <ErrorMessage
                     name="oauth2_client_secret"
-                    component="div"
-                    className="text-red-400 text-xs mt-1"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-white text-xs font-medium mb-1 block">
-                    Refresh Token
-                  </label>
-                  <Field
-                    type="password"
-                    name="oauth2_refresh_token"
-                    placeholder="Your Google OAuth2 Refresh Token"
-                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
-                  />
-                  <ErrorMessage
-                    name="oauth2_refresh_token"
                     component="div"
                     className="text-red-400 text-xs mt-1"
                   />
