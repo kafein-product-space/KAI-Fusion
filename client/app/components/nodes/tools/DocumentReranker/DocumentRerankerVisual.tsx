@@ -226,13 +226,6 @@ export default function DocumentRerankerVisual({
           <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-lg animate-pulse"></div>
         </div>
       )}
-
-      {/* Performance Indicator */}
-      {data?.performance_metrics && (
-        <div className="absolute bottom-1 right-1 z-10">
-          <div className="w-3 h-3 bg-green-400 rounded-full shadow-lg animate-pulse"></div>
-        </div>
-      )}
     </div>
   );
 }
