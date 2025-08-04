@@ -11,13 +11,41 @@ import {
   User,
   Bell,
   Search,
+  X,
+  Clock,
+  FileText,
+  Globe,
 } from "lucide-react";
-import React from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
 import { useThemeStore } from "~/stores/theme";
 import { ThemeToggle } from "../common/ThemeToggle";
 import { useSnackbar } from "notistack";
+import { useWorkflows } from "~/stores/workflows";
+import { useExecutionsStore } from "~/stores/executions";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import { useVariableStore } from "~/stores/variables";
+import type {
+  Workflow,
+  WorkflowExecution,
+  UserCredential,
+  Variable,
+} from "~/types/api";
+
+interface SearchResult {
+  id: string;
+  type: "workflow" | "execution" | "credential" | "variable";
+  title: string;
+  description?: string;
+  path: string;
+  icon: React.ReactNode;
+  metadata?: {
+    status?: string;
+    date?: string;
+    category?: string;
+  };
+}
 
 const Sidebar = () => {
   const { enqueueSnackbar } = useSnackbar();
@@ -25,6 +53,157 @@ const Sidebar = () => {
   const location = useLocation();
   const router = useNavigate();
   const mode = useThemeStore((s) => s.mode);
+
+  // Search state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Store hooks
+  const { workflows, fetchWorkflows } = useWorkflows();
+  const { executions, fetchExecutions } = useExecutionsStore();
+  const { userCredentials: credentials, fetchCredentials } =
+    useUserCredentialStore();
+  const { variables, fetchVariables } = useVariableStore();
+
+  // Fetch data on component mount
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        await Promise.all([
+          fetchWorkflows(),
+          fetchCredentials(),
+          fetchVariables(),
+        ]);
+      } catch (error) {
+        console.error("Failed to load data for search:", error);
+      }
+    };
+    loadData();
+  }, [fetchWorkflows, fetchCredentials, fetchVariables]);
+
+  // Search results
+  const searchResults = useMemo(() => {
+    if (!searchQuery.trim()) return [];
+
+    const query = searchQuery.toLowerCase();
+    const results: SearchResult[] = [];
+
+    // Search workflows
+    workflows.forEach((workflow: Workflow) => {
+      if (
+        workflow.name.toLowerCase().includes(query) ||
+        workflow.description?.toLowerCase().includes(query)
+      ) {
+        results.push({
+          id: workflow.id,
+          type: "workflow",
+          title: workflow.name,
+          description: workflow.description,
+          path: `/workflows`,
+          icon: <Play className="w-4 h-4" />,
+          metadata: {
+            status: workflow.is_public ? "Public" : "Private",
+            date: new Date(workflow.updated_at).toLocaleDateString(),
+          },
+        });
+      }
+    });
+
+    // Search executions
+    executions.forEach((execution: WorkflowExecution) => {
+      if (
+        execution.input_text.toLowerCase().includes(query) ||
+        execution.status.toLowerCase().includes(query)
+      ) {
+        results.push({
+          id: execution.id,
+          type: "execution",
+          title: `Execution ${execution.id.slice(0, 8)}`,
+          description:
+            execution.input_text.slice(0, 50) +
+            (execution.input_text.length > 50 ? "..." : ""),
+          path: `/executions`,
+          icon: <BarChart2 className="w-4 h-4" />,
+          metadata: {
+            status: execution.status,
+            date: new Date(execution.started_at).toLocaleDateString(),
+          },
+        });
+      }
+    });
+
+    // Search credentials
+    credentials.forEach((credential: UserCredential) => {
+      if (
+        credential.name.toLowerCase().includes(query) ||
+        credential.service_type.toLowerCase().includes(query)
+      ) {
+        results.push({
+          id: credential.id,
+          type: "credential",
+          title: credential.name,
+          description: credential.service_type,
+          path: `/credentials`,
+          icon: <Key className="w-4 h-4" />,
+          metadata: {
+            category: credential.service_type,
+            date: new Date(credential.created_at).toLocaleDateString(),
+          },
+        });
+      }
+    });
+
+    // Search variables
+    variables.forEach((variable: Variable) => {
+      if (
+        variable.name.toLowerCase().includes(query) ||
+        variable.value.toLowerCase().includes(query) ||
+        variable.type.toLowerCase().includes(query)
+      ) {
+        results.push({
+          id: variable.id,
+          type: "variable",
+          title: variable.name,
+          description: `${variable.type}: ${variable.value.slice(0, 30)}${
+            variable.value.length > 30 ? "..." : ""
+          }`,
+          path: `/variables`,
+          icon: <Database className="w-4 h-4" />,
+          metadata: {
+            category: variable.type,
+            date: new Date(variable.updated_at).toLocaleDateString(),
+          },
+        });
+      }
+    });
+
+    return results.slice(0, 8); // Limit to 8 results
+  }, [searchQuery, workflows, executions, credentials, variables]);
+
+  const handleSearchFocus = () => {
+    setIsSearchFocused(true);
+    setShowSearchResults(true);
+  };
+
+  const handleSearchBlur = () => {
+    // Delay hiding results to allow clicking on them
+    setTimeout(() => {
+      setIsSearchFocused(false);
+      setShowSearchResults(false);
+    }, 200);
+  };
+
+  const handleSearchResultClick = (result: SearchResult) => {
+    setSearchQuery("");
+    setShowSearchResults(false);
+    router(result.path);
+  };
+
+  const clearSearch = () => {
+    setSearchQuery("");
+    setShowSearchResults(false);
+  };
 
   const handleLogOut = async () => {
     try {
@@ -66,9 +245,98 @@ const Sidebar = () => {
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
-            placeholder="Search..."
-            className="w-full pl-10 pr-4 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+            placeholder="Search workflows, executions, credentials..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            onFocus={handleSearchFocus}
+            onBlur={handleSearchBlur}
+            className="w-full pl-10 pr-10 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
           />
+          {searchQuery && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 hover:text-slate-300 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Search Results Dropdown */}
+          {showSearchResults && searchResults.length > 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-2xl z-50 max-h-80 overflow-y-auto">
+              <div className="p-2">
+                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-2">
+                  Search Results ({searchResults.length})
+                </div>
+                {searchResults.map((result) => (
+                  <button
+                    key={`${result.type}-${result.id}`}
+                    onClick={() => handleSearchResultClick(result)}
+                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-700/50 transition-all duration-200 text-left group"
+                  >
+                    <div className="flex items-center justify-center w-8 h-8 bg-slate-700/50 rounded-lg group-hover:bg-slate-600/50 transition-colors">
+                      {result.icon}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center space-x-2">
+                        <span className="text-sm font-medium text-white truncate">
+                          {result.title}
+                        </span>
+                        <span
+                          className={`px-2 py-0.5 text-xs rounded-full ${
+                            result.type === "workflow"
+                              ? "bg-blue-500/20 text-blue-300"
+                              : result.type === "execution"
+                              ? "bg-green-500/20 text-green-300"
+                              : result.type === "credential"
+                              ? "bg-orange-500/20 text-orange-300"
+                              : "bg-purple-500/20 text-purple-300"
+                          }`}
+                        >
+                          {result.type}
+                        </span>
+                      </div>
+                      {result.description && (
+                        <p className="text-xs text-slate-400 truncate mt-1">
+                          {result.description}
+                        </p>
+                      )}
+                      {result.metadata && (
+                        <div className="flex items-center space-x-2 mt-1">
+                          {result.metadata.status && (
+                            <span className="text-xs text-slate-500">
+                              {result.metadata.status}
+                            </span>
+                          )}
+                          {result.metadata.date && (
+                            <span className="text-xs text-slate-500 flex items-center">
+                              <Clock className="w-3 h-3 mr-1" />
+                              {result.metadata.date}
+                            </span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* No Results */}
+          {showSearchResults && searchQuery && searchResults.length === 0 && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-2xl z-50 p-4">
+              <div className="text-center">
+                <Search className="w-8 h-8 text-slate-500 mx-auto mb-2" />
+                <p className="text-sm text-slate-400">
+                  No results found for "{searchQuery}"
+                </p>
+                <p className="text-xs text-slate-500 mt-1">
+                  Try searching for workflows, executions, or credentials
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Navigation */}
