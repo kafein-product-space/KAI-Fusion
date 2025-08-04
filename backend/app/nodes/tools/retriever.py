@@ -56,24 +56,102 @@ This provider can be connected to:
 - Any node requiring a configured retriever tool
 """
 
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 from langchain_core.runnables import Runnable
 from langchain_core.retrievers import BaseRetriever
+from langchain_core.documents import Document
 # Auto-detect which API to use based on IntelligentVectorStore
 try:
     from langchain_postgres import PGVector
     USING_NEW_API = True
-    print("📦 RetrieverProvider using new langchain_postgres PGVector API")
 except ImportError:
     import warnings
     with warnings.catch_warnings():
         warnings.filterwarnings("ignore", category=DeprecationWarning)
         from langchain_community.vectorstores import PGVector
     USING_NEW_API = False
-    print("📦 RetrieverProvider using legacy langchain_community PGVector API")
 from langchain.retrievers import ContextualCompressionRetriever
 
 from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
+
+
+class MetadataFilterRetriever(BaseRetriever):
+    """Custom retriever that applies metadata filtering to search results."""
+    
+    def __init__(self, base_retriever: BaseRetriever, metadata_filter: Dict[str, Any], filter_strategy: str = "exact"):
+        super().__init__()
+        self.base_retriever = base_retriever
+        self.metadata_filter = metadata_filter
+        self.filter_strategy = filter_strategy
+
+    def _get_relevant_documents(self, query: str) -> List[Document]:
+        """Retrieve documents and apply metadata filtering."""
+        # Get base results
+        documents = self.base_retriever.get_relevant_documents(query)
+        
+        if not self.metadata_filter:
+            return documents
+        
+        # Apply metadata filtering
+        filtered_docs = []
+        for doc in documents:
+            if self._matches_filter(doc.metadata):
+                filtered_docs.append(doc)
+        
+        print(f"🔍 Metadata filter applied: {len(documents)} → {len(filtered_docs)} documents")
+        return filtered_docs
+    
+    async def _aget_relevant_documents(self, query: str) -> List[Document]:
+        """Async version of get_relevant_documents."""
+        # Get base results
+        documents = await self.base_retriever.aget_relevant_documents(query)
+        
+        if not self.metadata_filter:
+            return documents
+        
+        # Apply metadata filtering
+        filtered_docs = []
+        for doc in documents:
+            if self._matches_filter(doc.metadata):
+                filtered_docs.append(doc)
+        
+        print(f"🔍 Metadata filter applied: {len(documents)} → {len(filtered_docs)} documents")
+        return filtered_docs
+    
+    def _matches_filter(self, metadata: Dict[str, Any]) -> bool:
+        """Check if document metadata matches the filter."""
+        if self.filter_strategy == "exact":
+            # All filter conditions must match exactly
+            for key, value in self.metadata_filter.items():
+                if key not in metadata or metadata[key] != value:
+                    return False
+            return True
+            
+        elif self.filter_strategy == "contains":
+            # Metadata must contain filter values (useful for arrays/lists)
+            for key, value in self.metadata_filter.items():
+                if key not in metadata:
+                    return False
+                metadata_value = metadata[key]
+                if isinstance(metadata_value, (list, tuple)):
+                    if value not in metadata_value:
+                        return False
+                elif isinstance(metadata_value, str):
+                    if str(value) not in metadata_value:
+                        return False
+                else:
+                    if metadata_value != value:
+                        return False
+            return True
+            
+        elif self.filter_strategy == "or":
+            # At least one filter condition must match
+            for key, value in self.metadata_filter.items():
+                if key in metadata and metadata[key] == value:
+                    return True
+            return False
+            
+        return False
 
 
 class RetrieverNode(ProviderNode):
@@ -144,6 +222,35 @@ class RetrieverNode(ProviderNode):
                     required=False,
                     min_value=0.0,
                     max_value=1.0,
+                ),
+                
+                # Metadata Filtering
+                NodeInput(
+                    name="metadata_filter",
+                    type="json",
+                    description="Filter documents by metadata (JSON format)",
+                    required=False,
+                    default="{}",
+                    placeholder='{"data_type": "products", "category": "electronics"}',
+                ),
+                NodeInput(
+                    name="filter_strategy",
+                    type="select",
+                    description="How to apply metadata filters",
+                    choices=[
+                        {"value": "exact", "label": "Exact Match", "description": "All filter conditions must match exactly"},
+                        {"value": "contains", "label": "Contains", "description": "Metadata must contain filter values (useful for arrays)"},
+                        {"value": "or", "label": "Any Match (OR)", "description": "At least one filter condition must match"}
+                    ],
+                    default="exact",
+                    required=False,
+                ),
+                NodeInput(
+                    name="enable_metadata_filtering",
+                    type="boolean",
+                    description="Enable metadata-based filtering for search results",
+                    default=False,
+                    required=False,
                 ),
                 
                 # Connected Inputs (from other nodes)
@@ -283,6 +390,24 @@ class RetrieverNode(ProviderNode):
         search_type = kwargs.get("search_type") or self.user_data.get("search_type", "similarity")
         score_threshold = kwargs.get("score_threshold") or self.user_data.get("score_threshold", 0.0)
         
+        # Metadata filtering configuration
+        enable_metadata_filtering = kwargs.get("enable_metadata_filtering") or self.user_data.get("enable_metadata_filtering", False)
+        metadata_filter_str = kwargs.get("metadata_filter") or self.user_data.get("metadata_filter", "{}")
+        filter_strategy = kwargs.get("filter_strategy") or self.user_data.get("filter_strategy", "exact")
+        
+        # Parse metadata filter
+        metadata_filter = {}
+        if enable_metadata_filtering and metadata_filter_str:
+            try:
+                import json
+                metadata_filter = json.loads(metadata_filter_str) if isinstance(metadata_filter_str, str) else (metadata_filter_str or {})
+                if metadata_filter:
+                    print(f"🔍 Metadata filtering enabled: {metadata_filter} (strategy: {filter_strategy})")
+            except (json.JSONDecodeError, TypeError) as e:
+                print(f"⚠️ Invalid metadata_filter JSON: {e}, disabling filtering")
+                metadata_filter = {}
+                enable_metadata_filtering = False
+        
         # Validate required configuration
         if not database_connection:
             raise ValueError("Database connection string is required")
@@ -354,14 +479,25 @@ class RetrieverNode(ProviderNode):
                 search_kwargs=search_kwargs
             )
             
+            # Apply metadata filtering if enabled
+            if enable_metadata_filtering and metadata_filter:
+                print(f"🔍 Applying metadata filter: {metadata_filter} (strategy: {filter_strategy})")
+                filtered_retriever = MetadataFilterRetriever(
+                    base_retriever=base_retriever,
+                    metadata_filter=metadata_filter,
+                    filter_strategy=filter_strategy
+                )
+            else:
+                filtered_retriever = base_retriever
+            
             # Apply reranker if provided
             if reranker:
                 retriever = ContextualCompressionRetriever(
                     base_compressor=reranker,
-                    base_retriever=base_retriever,
+                    base_retriever=filtered_retriever,
                 )
             else:
-                retriever = base_retriever
+                retriever = filtered_retriever
             
             # Create retriever tool compatible with agents
             retriever_tool = self._create_retriever_tool(

@@ -290,7 +290,7 @@ from fastapi import APIRouter
 
 # Core imports
 from app.core.node_registry import node_registry
-from app.core.engine_v2 import get_engine
+from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers

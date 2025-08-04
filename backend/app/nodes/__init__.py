@@ -28,7 +28,8 @@ from .document_loaders.web_scraper import WebScraperNode
 # Splitters (moved from text_processing)
 from .splitters.chunk_splitter import ChunkSplitterNode
 
-# Vector Stores and Chains - Removed after cleanup
+# Vector Stores
+from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
 
 # Default Nodes
 from .default.start_node import StartNode
@@ -71,7 +72,8 @@ __all__ = [
     # Splitters
     "ChunkSplitterNode",
     
-    # Vector Stores and Chains - Removed after cleanup
+    # Vector Stores
+    "VectorStoreOrchestrator",
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",
