@@ -59,3 +59,8 @@ services:
     restart: unless-stopped
     depends_on:
       - kaifusion-be
+
+networks:
+  shared_net:
+      name: shared_net
+      external: true
