@@ -19,6 +19,7 @@ interface Props {
   isHandleConnected: (handleId: string, isSource?: boolean) => boolean;
   getStatusColor: () => string;
   getGlowColor: () => string;
+  isActive?: boolean;
 }
 
 export default function ChatDisplayNode({
@@ -31,6 +32,7 @@ export default function ChatDisplayNode({
   isHandleConnected,
   getStatusColor,
   getGlowColor,
+  isActive,
 }: Props) {
   return (
     <div className="relative group">
@@ -44,7 +46,8 @@ export default function ChatDisplayNode({
               ? `shadow-2xl ${getGlowColor()}`
               : "shadow-lg shadow-black/50"
           }
-          border border-white/20 backdrop-blur-sm hover:border-white/40`}
+          border border-white/20 backdrop-blur-sm hover:border-white/40
+          ${isActive ? "animate-pulse ring-4 ring-green-400/50" : ""}`}
         onDoubleClick={onDoubleClick}
         onMouseEnter={onHoverEnter}
         onMouseLeave={onHoverLeave}

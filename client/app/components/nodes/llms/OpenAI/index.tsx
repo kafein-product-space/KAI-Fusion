@@ -6,9 +6,11 @@ import ChatDisplayNode from "./ChatDisplayNode";
 export default function OpenAIChatNode({
   data,
   id,
+  isActive,
 }: {
   data: any;
   id: string;
+  isActive?: boolean;
 }) {
   const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
@@ -25,6 +27,9 @@ export default function OpenAIChatNode({
     );
 
   const getStatusColor = () => {
+    if (isActive) {
+      return "from-green-400 to-emerald-500";
+    }
     switch (data?.validationStatus) {
       case "success":
         return "from-emerald-500 to-green-600";
@@ -36,6 +41,9 @@ export default function OpenAIChatNode({
   };
 
   const getGlowColor = () => {
+    if (isActive) {
+      return "shadow-green-400/70";
+    }
     switch (data?.validationStatus) {
       case "success":
         return "shadow-emerald-500/30";
@@ -79,6 +87,7 @@ export default function OpenAIChatNode({
       isHandleConnected={isHandleConnected}
       getStatusColor={getStatusColor}
       getGlowColor={getGlowColor}
+      isActive={isActive}
     />
   );
 }

@@ -180,9 +180,6 @@ function CredentialsLayout() {
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>Created: {timeAgo(credential.created_at)}</span>
                           <span>Updated: {timeAgo(credential.updated_at)}</span>
-                          <span className="text-xs text-gray-400 font-mono">
-                            ID: {credential.id.slice(0, 8)}...
-                          </span>
                         </div>
                       </div>
                     </div>
