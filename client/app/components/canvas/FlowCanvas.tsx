@@ -60,7 +60,7 @@ import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter"
 import HTTPClientNode from "../nodes/tools/HTTPClientNode";
 import DocumentRerankerNode from "../nodes/tools/DocumentReranker/index";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
-import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
+import WebhookTriggerNode from "../nodes/triggers/WebhookTrigger";
 import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
 import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
 import CohereRerankerNode from "../nodes/tools/CohereReranker/index";

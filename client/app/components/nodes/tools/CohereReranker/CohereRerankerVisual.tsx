@@ -51,7 +51,7 @@ export default function CohereRerankerVisual({
 
   return (
     <div
-      className={`relative group w-32 h-32 rounded-2xl flex flex-col items-center justify-center 
+      className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
         cursor-pointer transition-all duration-300 transform
         ${isHovered ? "scale-105" : "scale-100"}
         bg-gradient-to-br ${getStatusColor()}
@@ -115,25 +115,9 @@ export default function CohereRerankerVisual({
         glow={isHandleConnected("input", false)}
       />
 
-      {/* Output Handle */}
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="output"
-        size={10}
-        isConnectable={true}
-        color1="#10b981"
-        glow={isHandleConnected("output", true)}
-      />
-
       {/* Left side label for input */}
       <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
         Input
-      </div>
-
-      {/* Right side label for output */}
-      <div className="absolute -right-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
-        Output
       </div>
 
       {/* Connection Status Indicator */}
