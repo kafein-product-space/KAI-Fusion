@@ -302,18 +302,6 @@ export default function WebhookTriggerVisual({
         </div>
       )}
 
-      {/* Webhook URL Display */}
-      {webhookEndpoint && (
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-          <div
-            className="px-2 py-1 rounded bg-slate-700 text-white text-xs font-mono shadow-lg max-w-32 truncate"
-            title={webhookEndpoint}
-          >
-            {webhookEndpoint.replace(window.location.origin, "")}
-          </div>
-        </div>
-      )}
-
       {/* Error indicator */}
       {error && (
         <div className="absolute top-1 left-1 z-10">
