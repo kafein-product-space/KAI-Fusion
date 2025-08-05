@@ -649,28 +649,10 @@ class ReactAgentNode(ProcessorNode):
             # Execute the agent
             result = executor.invoke(final_input)
             
-            # 🔥 CRITICAL FIX: Ensure memory is saved after agent execution
-            if memory is not None and result:
-                try:
-                    # Save the conversation to memory
-                    user_input_text = final_input.get('input', '')
-                    agent_output = result.get('output', '') if isinstance(result, dict) else str(result)
-                    
-                    if user_input_text and agent_output:
-                        # Save the context to memory (this is critical for persistence)
-                        memory.save_context(
-                            inputs={"input": user_input_text},
-                            outputs={"output": agent_output}
-                        )
-                        print(f"   💾 Saved conversation to memory: User={len(user_input_text)} chars, Agent={len(agent_output)} chars")
-                        
-                        # Debug: Check memory after saving
-                        if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                            new_message_count = len(memory.chat_memory.messages)
-                            print(f"   📚 Memory now contains: {new_message_count} messages")
-                        
-                except Exception as memory_save_error:
-                    print(f"   ⚠️  Failed to save conversation to memory: {memory_save_error}")
+            # Debug: Check memory after execution (AgentExecutor handles saving automatically)
+            if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                new_message_count = len(memory.chat_memory.messages)
+                print(f"   📚 Memory now contains: {new_message_count} messages")
             
             return result
 
