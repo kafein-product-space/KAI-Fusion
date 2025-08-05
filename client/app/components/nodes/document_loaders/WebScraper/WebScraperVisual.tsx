@@ -10,7 +10,11 @@ import {
   Square,
 } from "lucide-react";
 import NeonHandle from "~/components/common/NeonHandle";
-import { WebScraperData, ScrapedDocument, ScrapingProgress } from "./types";
+import type {
+  WebScraperData,
+  ScrapedDocument,
+  ScrapingProgress,
+} from "./types";
 
 interface WebScraperVisualProps {
   data: WebScraperData;
@@ -390,4 +394,4 @@ export default function WebScraperVisual({
       )}
     </>
   );
-} 
+}

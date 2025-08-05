@@ -29,6 +29,7 @@ interface WebhookTriggerVisualProps {
   error: string | null;
   webhookEndpoint: string;
   webhookToken: string;
+  isEndpointReady?: boolean;
   onOpenConfig: () => void;
   onDeleteNode: (e: React.MouseEvent) => void;
   onStartListening: () => void;
@@ -48,6 +49,7 @@ export default function WebhookTriggerVisual({
   error,
   webhookEndpoint,
   webhookToken,
+  isEndpointReady = false,
   onOpenConfig,
   onDeleteNode,
   onStartListening,
@@ -100,12 +102,15 @@ export default function WebhookTriggerVisual({
   };
 
   return (
-    <>
+    <div
+      className={`relative transition-all duration-300 transform ${
+        isHovered ? "scale-105" : "scale-100"
+      }`}
+    >
       {/* Ana node kutusu */}
       <div
         className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
-          cursor-pointer transition-all duration-300 transform
-          ${isHovered ? "scale-105" : "scale-100"}
+          cursor-pointer transition-all duration-300
           bg-gradient-to-br ${getStatusColor()}
           ${
             isHovered
@@ -145,10 +150,19 @@ export default function WebhookTriggerVisual({
         </div>
 
         {/* Listening badge */}
-        {isListening && (
+        {isListening && isEndpointReady && (
           <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
             <div className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold shadow-lg">
-              🎯 LISTENING
+              LISTENING
+            </div>
+          </div>
+        )}
+
+        {/* Loading badge when endpoint is not ready */}
+        {isListening && !isEndpointReady && (
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg animate-pulse">
+              URL Loading...
             </div>
           </div>
         )}
@@ -201,70 +215,82 @@ export default function WebhookTriggerVisual({
       </div>
 
       {/* Output Handles */}
-      <div className="absolute right-0 top-0 h-full flex flex-col justify-between py-2">
-        {/* Webhook Endpoint Handle */}
-        <div className="relative flex items-center">
-          <NeonHandle
-            type="source"
-            position={Position.Right}
-            id="webhook_endpoint"
-            isConnectable={true}
-            size={10}
-            color1="#8b5cf6"
-            glow={isHandleConnected("webhook_endpoint", true)}
-          />
-          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
-            Endpoint
-          </div>
-        </div>
+      <NeonHandle
+        type="source"
+        position={Position.Right}
+        id="webhook_endpoint"
+        isConnectable={true}
+        size={10}
+        color1="#8b5cf6"
+        glow={isHandleConnected("webhook_endpoint", true)}
+        style={{
+          top: "20%",
+        }}
+      />
 
-        {/* Webhook Token Handle */}
-        <div className="relative flex items-center">
-          <NeonHandle
-            type="source"
-            position={Position.Right}
-            id="webhook_token"
-            isConnectable={true}
-            size={10}
-            color1="#ec4899"
-            glow={isHandleConnected("webhook_token", true)}
-          />
-          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
-            Token
-          </div>
-        </div>
+      <NeonHandle
+        type="source"
+        position={Position.Right}
+        id="webhook_token"
+        isConnectable={true}
+        size={10}
+        color1="#ec4899"
+        glow={isHandleConnected("webhook_token", true)}
+        style={{
+          top: "40%",
+        }}
+      />
 
-        {/* Webhook Runnable Handle */}
-        <div className="relative flex items-center">
-          <NeonHandle
-            type="source"
-            position={Position.Right}
-            id="webhook_runnable"
-            isConnectable={true}
-            size={10}
-            color1="#10b981"
-            glow={isHandleConnected("webhook_runnable", true)}
-          />
-          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
-            Runnable
-          </div>
-        </div>
+      <NeonHandle
+        type="source"
+        position={Position.Right}
+        id="webhook_runnable"
+        isConnectable={true}
+        size={10}
+        color1="#10b981"
+        glow={isHandleConnected("webhook_runnable", true)}
+        style={{
+          top: "60%",
+        }}
+      />
 
-        {/* Webhook Config Handle */}
-        <div className="relative flex items-center">
-          <NeonHandle
-            type="source"
-            position={Position.Right}
-            id="webhook_config"
-            isConnectable={true}
-            size={10}
-            color1="#f59e0b"
-            glow={isHandleConnected("webhook_config", true)}
-          />
-          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
-            Config
-          </div>
-        </div>
+      <NeonHandle
+        type="source"
+        position={Position.Right}
+        id="webhook_config"
+        isConnectable={true}
+        size={10}
+        color1="#f59e0b"
+        glow={isHandleConnected("webhook_config", true)}
+        style={{
+          top: "80%",
+        }}
+      />
+
+      {/* Right side labels for outputs */}
+      <div
+        className="absolute -right-22 text-xs text-gray-500 font-medium"
+        style={{ top: "15%" }}
+      >
+        Endpoint
+      </div>
+      <div
+        className="absolute -right-22 text-xs text-gray-500 font-medium"
+        style={{ top: "35%" }}
+      >
+        Token
+      </div>
+      <div
+        className="absolute -right-22 text-xs text-gray-500 font-medium"
+        style={{ top: "55%" }}
+      >
+        Runnable
+      </div>
+      <div
+        className="absolute -right-22 text-xs text-gray-500 font-medium"
+        style={{ top: "75%" }}
+      >
+        Config
       </div>
 
       {/* URL Badge */}
@@ -296,6 +322,6 @@ export default function WebhookTriggerVisual({
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

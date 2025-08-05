@@ -24,6 +24,7 @@ export default function WebhookTriggerNode({
   const [error, setError] = useState<string | null>(null);
   const [webhookEndpoint, setWebhookEndpoint] = useState<string>("");
   const [webhookToken, setWebhookToken] = useState<string>("");
+  const [isEndpointReady, setIsEndpointReady] = useState(false);
   const [configData, setConfigData] = useState<WebhookTriggerConfig>(
     data as WebhookTriggerConfig
   );
@@ -33,8 +34,10 @@ export default function WebhookTriggerNode({
     // Webhook ID yoksa node ID'yi kullan
     const webhookId = data?.webhook_id || id;
     const baseUrl = window.location.origin;
-    setWebhookEndpoint(`${baseUrl}/api/webhooks/${webhookId}`);
+    const endpoint = `${baseUrl}/api/webhooks/${webhookId}`;
+    setWebhookEndpoint(endpoint);
     setWebhookToken(data?.webhook_token || "wht_secrettoken123");
+    setIsEndpointReady(true);
   }, [data?.webhook_id, id]);
 
   // Real-time event streaming
@@ -257,6 +260,7 @@ export default function WebhookTriggerNode({
             error={error}
             webhookEndpoint={webhookEndpoint}
             webhookToken={webhookToken}
+            isEndpointReady={isEndpointReady}
             onOpenConfig={handleOpenConfig}
             onDeleteNode={handleDeleteNode}
             onStartListening={startListening}

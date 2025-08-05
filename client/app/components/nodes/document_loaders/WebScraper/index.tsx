@@ -3,7 +3,12 @@ import { useReactFlow } from "@xyflow/react";
 import { useSnackbar } from "notistack";
 import WebScraperVisual from "./WebScraperVisual";
 import WebScraperConfigForm from "./WebScraperConfigForm";
-import { WebScraperNodeProps, ScrapedDocument, ScrapingProgress, WebScraperConfig } from "./types";
+import {
+  type WebScraperNodeProps,
+  type ScrapedDocument,
+  type ScrapingProgress,
+  type WebScraperConfig,
+} from "./types";
 
 export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
   const { setNodes, getEdges, getNodes } = useReactFlow();
@@ -11,10 +16,14 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
   const [isScraping, setIsScraping] = useState(false);
-  const [scrapedDocuments, setScrapedDocuments] = useState<ScrapedDocument[]>([]);
+  const [scrapedDocuments, setScrapedDocuments] = useState<ScrapedDocument[]>(
+    []
+  );
   const [progress, setProgress] = useState<ScrapingProgress | null>(null);
   const [previewContent, setPreviewContent] = useState<any>(null);
-  const [configData, setConfigData] = useState<WebScraperConfig>(data as WebScraperConfig);
+  const [configData, setConfigData] = useState<WebScraperConfig>(
+    data as WebScraperConfig
+  );
 
   const handleSaveConfig = useCallback(
     (values: Partial<WebScraperConfig>) => {
@@ -36,13 +45,10 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
         setIsConfigMode(false);
 
         // Show success notification
-        enqueueSnackbar(
-          "Web Scraper configuration saved successfully!",
-          {
-            variant: "success",
-            autoHideDuration: 3000,
-          }
-        );
+        enqueueSnackbar("Web Scraper configuration saved successfully!", {
+          variant: "success",
+          autoHideDuration: 3000,
+        });
       } catch (error) {
         console.error("Error saving configuration:", error);
         enqueueSnackbar("Failed to save configuration. Please try again.", {
@@ -200,6 +206,7 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
     return errors;
   };
 
+  const edges = getEdges();
   const isHandleConnected = (handleId: string, isSource = false) =>
     edges.some((edge) =>
       isSource
@@ -240,4 +247,4 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
       )}
     </>
   );
-} 
+}
