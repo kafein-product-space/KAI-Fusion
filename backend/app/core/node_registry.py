@@ -225,8 +225,11 @@ from app.nodes.base import BaseNode
 from app.nodes.base import NodeMetadata
 import importlib
 import inspect
+import logging
 import os
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 class NodeRegistry:
     """
@@ -532,7 +535,7 @@ class NodeRegistry:
             if metadata.name not in self.nodes:
                 self.nodes[metadata.name] = node_class
                 self.node_configs[metadata.name] = metadata
-                print(f"✅ Registered node: {metadata.name}")
+                logger.debug(f"Registered node: {metadata.name}")
             else:
                 # Node already registered, skip silently
                 pass

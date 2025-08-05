@@ -926,9 +926,12 @@ class GraphBuilder:
             """Enhanced wrapper that provides better context and error handling."""
             try:
                 print(f"\n🎯 EXECUTING: {node_id} ({gnode.type})")
+                logger.info(f"🔄 Executing node: {node_id} (type: {gnode.type})")
+                logger.debug(f"📊 Node input state: {getattr(state, 'current_input', 'N/A')}")
                 
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
+                logger.debug(f"⚙️ Node user_data: {gnode.user_data}")
                 
                 # 🔥 ENHANCED: Pass session information to ReAct Agents and Memory nodes
                 if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
@@ -1049,12 +1052,16 @@ class GraphBuilder:
                     except Exception as trace_error:
                         print(f"[WARNING] Tracing failed: {trace_error}")
                     
+                    logger.info(f"✅ Node {node_id} ({gnode.type}) completed successfully")
+                    logger.debug(f"📤 Node {node_id} output: {str(result_dict)[:200]}...")
                     return result_dict
                 else:
                     # For other node types, use the standard graph node function
                     node_func = gnode.node_instance.to_graph_node()
                     result = node_func(state)
                     print(f"[DEBUG] Node {node_id} completed successfully")
+                    logger.info(f"✅ Node {node_id} ({gnode.type}) completed successfully")
+                    logger.debug(f"📤 Node {node_id} output: {str(result)[:200]}...")
                     
                     # End node tracing
                     try:
@@ -1068,6 +1075,8 @@ class GraphBuilder:
             except Exception as e:
                 error_msg = f"Node {node_id} execution failed: {str(e)}"
                 print(f"[ERROR] {error_msg}")
+                logger.error(f"❌ Node {node_id} ({gnode.type}) execution failed: {str(e)}")
+                logger.debug(f"🔍 Error details: {type(e).__name__}: {str(e)}")
                 
                 # End node tracing with error
                 try:
@@ -1388,9 +1397,14 @@ class GraphBuilder:
     # Internal – Execution helpers
     # ------------------------------------------------------------------
     async def _execute_sync(self, init_state: FlowState, config: RunnableConfig) -> Dict[str, Any]:
+        logger.info(f"🚀 Starting synchronous workflow execution")
+        logger.debug(f"📥 Initial state: input='{init_state.current_input}', session_id={init_state.session_id}")
+        
         try:
             # Prefer async interface if implemented
+            logger.debug(f"🔄 Invoking graph with LangGraph...")
             result_state = await self.graph.ainvoke(init_state, config=config)  # type: ignore[arg-type]
+            logger.info(f"✅ Graph execution completed successfully")
             # Convert FlowState to serializable format
             try:
                 if hasattr(result_state, 'model_dump'):

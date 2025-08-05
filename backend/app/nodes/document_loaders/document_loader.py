@@ -1263,9 +1263,18 @@ class DocumentLoaderNode(ProcessorNode):
             oauth2_client_secret = inputs.get("oauth2_client_secret", "").strip()
             oauth2_refresh_token = inputs.get("oauth2_refresh_token", "").strip()
             
-            if not drive_links_str:
-                logger.debug("❌ No drive_links provided in inputs")
-                raise ValueError("Google Drive links are required. Please provide at least one Drive file or folder link.")
+            # Get connected documents
+            connected_documents = connected_nodes.get("input_documents", [])
+            
+            if not drive_links_str and not connected_documents:
+                logger.debug("❌ No drive_links or connected documents provided")
+                raise ValueError("Either Google Drive links or connected documents are required. Please provide Drive links or connect to a document source node.")
+            
+            # Determine processing mode
+            has_drive_links = bool(drive_links_str and drive_links_str.strip())
+            has_connected_docs = bool(connected_documents)
+            
+            logger.info(f"📋 Processing mode: Drive links: {has_drive_links}, Connected docs: {has_connected_docs}")
             
             logger.debug(f"📥 Raw drive_links input received: {repr(drive_links_str)}")
             logger.info(f"🔧 Authentication type: {auth_type}")
@@ -1276,46 +1285,51 @@ class DocumentLoaderNode(ProcessorNode):
             
             # Get connected documents
             connected_documents = connected_nodes.get("input_documents", [])
+            logger.info(f"📄 Connected documents: {len(connected_documents)} documents received")
             
-            # Stage 2: Google Drive Authentication
-            logger.info("🔄 Stage 2/7: Google Drive Authentication")
-            
-            try:
-                logger.debug(f"🔑 Attempting Google Drive authentication with method: {auth_type}")
-                drive_service = self._get_google_drive_service(
-                    auth_type=auth_type,
-                    service_account_json=service_account_json,
-                    oauth2_client_id=oauth2_client_id,
-                    oauth2_client_secret=oauth2_client_secret,
-                    oauth2_refresh_token=oauth2_refresh_token
-                )
-                logger.info("✅ Google Drive authentication successful")
-                logger.debug(f"🔗 Drive service object created: {type(drive_service)}")
-            except Exception as e:
-                error_msg = f"Google Drive authentication failed: {str(e)}"
-                logger.error(f"❌ {error_msg}")
-                logger.debug(f"🔍 Authentication error details: {type(e).__name__}: {str(e)}")
-                raise ValueError(error_msg)
+            # Stage 2: Google Drive Authentication (only if needed)
+            drive_service = None
+            if has_drive_links:
+                logger.info("🔄 Stage 2/7: Google Drive Authentication")
+                
+                try:
+                    logger.debug(f"🔑 Attempting Google Drive authentication with method: {auth_type}")
+                    drive_service = self._get_google_drive_service(
+                        auth_type=auth_type,
+                        service_account_json=service_account_json,
+                        oauth2_client_id=oauth2_client_id,
+                        oauth2_client_secret=oauth2_client_secret,
+                        oauth2_refresh_token=oauth2_refresh_token
+                    )
+                    logger.info("✅ Google Drive authentication successful")
+                    logger.debug(f"🔗 Drive service object created: {type(drive_service)}")
+                except Exception as e:
+                    error_msg = f"Google Drive authentication failed: {str(e)}"
+                    logger.error(f"❌ {error_msg}")
+                    logger.debug(f"🔍 Authentication error details: {type(e).__name__}: {str(e)}")
+                    raise ValueError(error_msg)
+            else:
+                logger.info("⏭️ Skipping Google Drive authentication (no Drive links provided)")
             
             processing_stages["authentication"] = True
-            logger.info("✅ Stage 2/7: Google Drive Authentication completed")
+            logger.info("✅ Stage 2/7: Authentication completed")
             
             # Stage 3: Link Parsing and Resolution
             logger.info("🔄 Stage 3/7: Link Parsing and Resolution")
             
-            # Parse Drive links
+            # Parse Drive links (only if we have them)
             drive_links = []
-            if drive_links_str:
+            files_to_process = []
+            
+            if has_drive_links:
                 raw_links = drive_links_str.splitlines()
                 logger.debug(f"📝 Raw lines from drive_links_str: {raw_links}")
                 drive_links = [link.strip() for link in raw_links if link.strip()]
                 logger.info(f"📂 Found {len(drive_links)} Google Drive links to process")
                 logger.debug(f"🔗 Parsed drive links: {drive_links}")
             else:
+                logger.info("⏭️ No Drive links to parse")
                 logger.debug("⚠️ drive_links_str is empty after initial check")
-            
-            # Collect all files to process
-            files_to_process = []
             
             for i, drive_link in enumerate(drive_links, 1):
                 try:
@@ -1699,13 +1713,9 @@ class DocumentLoaderNode(ProcessorNode):
             completed_stages = [stage for stage, completed in processing_stages.items() if completed]
             logger.info(f"🎯 All processing stages completed: {', '.join(completed_stages)}")
             
-            return {
-                "documents": documents,
-                "stats": stats,
-                "metadata_report": metadata_report,
-                "processing_stages": processing_stages,
-                "completion_verified": all(processing_stages.values())
-            }
+            # For node connectivity, return documents list directly
+            # Other outputs (stats, metadata_report) are available via separate outputs
+            return documents
             
         except Exception as e:
             # Enhanced error reporting with stage information
