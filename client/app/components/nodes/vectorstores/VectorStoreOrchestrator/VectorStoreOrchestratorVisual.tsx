@@ -163,21 +163,10 @@ export default function VectorStoreOrchestratorVisual({
         type="source"
         position={Position.Right}
         id="retriever"
-        size={10}
+        size={12}
         isConnectable={true}
         color1="#10b981"
         glow={isHandleConnected("retriever", true)}
-        style={{ top: "30%" }}
-      />
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="vectorstore"
-        size={10}
-        isConnectable={true}
-        color1="#8b5cf6"
-        glow={isHandleConnected("vectorstore", true)}
-        style={{ top: "70%" }}
       />
 
       {/* Input labels - Sol taraf */}
@@ -197,15 +186,9 @@ export default function VectorStoreOrchestratorVisual({
       {/* Output labels - Sağ taraf */}
       <div
         className="absolute -right-20 text-xs text-gray-500 font-medium"
-        style={{ top: "25%" }}
+        style={{ top: "50%" }}
       >
         Retriever
-      </div>
-      <div
-        className="absolute -right-20 text-xs text-gray-500 font-medium"
-        style={{ top: "65%" }}
-      >
-        VectorStore
       </div>
 
       {/* Connection Status Indicator */}
