@@ -60,10 +60,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ loading: true, error: null });
     try {
       const messages = await chatService.getChatMessages(chatflow_id);
-      set((state) => ({
-        chats: { ...state.chats, [chatflow_id]: messages },
-        loading: false,
-      }));
+      set((state) => {
+        const existingMessages = state.chats[chatflow_id] || [];
+        const existingIds = new Set(existingMessages.map(m => m.id));
+        const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
+        
+        // Only add new messages that don't already exist (by ID or content+role)
+        const newMessages = messages.filter(m => 
+          !existingIds.has(m.id) && 
+          !existingContents.has(`${m.role}:${m.content}`)
+        );
+        const mergedMessages = [...existingMessages, ...newMessages];
+        
+        return {
+          chats: { ...state.chats, [chatflow_id]: mergedMessages },
+          loading: false,
+        };
+      });
     } catch (e: any) {
       set({ error: e.message || 'Mesajlar alınamadı', loading: false });
     }
@@ -84,12 +97,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
   addMessage: (chatflow_id, message) =>
-    set((state) => ({
-      chats: {
-        ...state.chats,
-        [chatflow_id]: [...(state.chats[chatflow_id] || []), message],
-      },
-    })),
+    set((state) => {
+      const existingMessages = state.chats[chatflow_id] || [];
+      const existingIds = new Set(existingMessages.map(m => m.id));
+      const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
+      
+      // Don't add if message already exists (by ID or content+role)
+      if (existingIds.has(message.id) || existingContents.has(`${message.role}:${message.content}`)) {
+        return state;
+      }
+      
+      return {
+        chats: {
+          ...state.chats,
+          [chatflow_id]: [...existingMessages, message],
+        },
+      };
+    }),
   updateMessage: (chatflow_id, message) =>
     set((state) => ({
       chats: {
@@ -118,8 +142,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ loading: true, error: null });
     const chatflow_id = crypto.randomUUID();
     get().setActiveChatflowId(chatflow_id);
+    
+    // Immediately add user message to UI
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      chatflow_id,
+      role: 'user',
+      content: input_text,
+      created_at: new Date().toISOString(),
+    };
+    get().addMessage(chatflow_id, userMessage);
+    
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'LLM ile konuşma başlatılamadı' });
@@ -129,8 +165,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, error: null });
+    
+    // Immediately add user message to UI
+    const userMessage: ChatMessage = {
+      id: crypto.randomUUID(),
+      chatflow_id,
+      role: 'user',
+      content: input_text,
+      created_at: new Date().toISOString(),
+    };
+    get().addMessage(chatflow_id, userMessage);
+    
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });
