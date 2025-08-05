@@ -29,7 +29,7 @@ interface WebhookTriggerVisualProps {
   error: string | null;
   webhookEndpoint: string;
   webhookToken: string;
-  onOpenModal: () => void;
+  onOpenConfig: () => void;
   onDeleteNode: (e: React.MouseEvent) => void;
   onStartListening: () => void;
   onStopListening: () => void;
@@ -48,7 +48,7 @@ export default function WebhookTriggerVisual({
   error,
   webhookEndpoint,
   webhookToken,
-  onOpenModal,
+  onOpenConfig,
   onDeleteNode,
   onStartListening,
   onStopListening,
@@ -114,7 +114,7 @@ export default function WebhookTriggerVisual({
           }
           border border-white/20 backdrop-blur-sm
           hover:border-white/40`}
-        onDoubleClick={onOpenModal}
+        onDoubleClick={onOpenConfig}
         title="Double click to configure"
       >
         {/* Background pattern */}
@@ -201,54 +201,69 @@ export default function WebhookTriggerVisual({
       </div>
 
       {/* Output Handles */}
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_endpoint"
-        isConnectable={true}
-        size={10}
-        color1="#8b5cf6"
-        glow={isHandleConnected("webhook_endpoint", true)}
-        style={{ top: "20%" }}
-      />
+      <div className="absolute right-0 top-0 h-full flex flex-col justify-between py-2">
+        {/* Webhook Endpoint Handle */}
+        <div className="relative flex items-center">
+          <NeonHandle
+            type="source"
+            position={Position.Right}
+            id="webhook_endpoint"
+            isConnectable={true}
+            size={10}
+            color1="#8b5cf6"
+            glow={isHandleConnected("webhook_endpoint", true)}
+          />
+          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
+            Endpoint
+          </div>
+        </div>
 
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_token"
-        isConnectable={true}
-        size={10}
-        color1="#ec4899"
-        glow={isHandleConnected("webhook_token", true)}
-        style={{ top: "40%" }}
-      />
+        {/* Webhook Token Handle */}
+        <div className="relative flex items-center">
+          <NeonHandle
+            type="source"
+            position={Position.Right}
+            id="webhook_token"
+            isConnectable={true}
+            size={10}
+            color1="#ec4899"
+            glow={isHandleConnected("webhook_token", true)}
+          />
+          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
+            Token
+          </div>
+        </div>
 
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_runnable"
-        isConnectable={true}
-        size={10}
-        color1="#10b981"
-        glow={isHandleConnected("webhook_runnable", true)}
-        style={{ top: "60%" }}
-      />
+        {/* Webhook Runnable Handle */}
+        <div className="relative flex items-center">
+          <NeonHandle
+            type="source"
+            position={Position.Right}
+            id="webhook_runnable"
+            isConnectable={true}
+            size={10}
+            color1="#10b981"
+            glow={isHandleConnected("webhook_runnable", true)}
+          />
+          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
+            Runnable
+          </div>
+        </div>
 
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_config"
-        isConnectable={true}
-        size={10}
-        color1="#f59e0b"
-        glow={isHandleConnected("webhook_config", true)}
-        style={{ top: "80%" }}
-      />
-
-      {/* Webhook Type Badge */}
-      <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-        <div className="px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg">
-          Webhook
+        {/* Webhook Config Handle */}
+        <div className="relative flex items-center">
+          <NeonHandle
+            type="source"
+            position={Position.Right}
+            id="webhook_config"
+            isConnectable={true}
+            size={10}
+            color1="#f59e0b"
+            glow={isHandleConnected("webhook_config", true)}
+          />
+          <div className="absolute left-5 text-gray-500 text-xs font-medium drop-shadow-lg">
+            Config
+          </div>
         </div>
       </div>
 
@@ -257,6 +272,18 @@ export default function WebhookTriggerVisual({
         <div className="absolute top-1 left-1 z-10">
           <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
             <span className="text-white text-xs font-bold">URL</span>
+          </div>
+        </div>
+      )}
+
+      {/* Webhook URL Display */}
+      {webhookEndpoint && (
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+          <div
+            className="px-2 py-1 rounded bg-slate-700 text-white text-xs font-mono shadow-lg max-w-32 truncate"
+            title={webhookEndpoint}
+          >
+            {webhookEndpoint.replace(window.location.origin, "")}
           </div>
         </div>
       )}

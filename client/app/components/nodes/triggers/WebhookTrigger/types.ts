@@ -35,10 +35,8 @@ export interface WebhookStats {
 }
 
 export interface WebhookTriggerConfig {
-  authentication_required: boolean;
-  allowed_event_types: string;
-  max_payload_size: number;
-  rate_limit_per_minute: number;
-  enable_cors: boolean;
-  webhook_timeout: number;
+  http_method: string;
+  auth_type: string;
+  webhook_token: string;
+  allowed_ips?: string;
 } 

@@ -1,7 +1,8 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState, useCallback, useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { useSnackbar } from "notistack";
 import WebhookTriggerVisual from "./WebhookTriggerVisual";
-import WebhookTriggerConfigModal from "~/components/modals/triggers/WebhookTrigger/WebhookTriggerConfigModal";
+import WebhookTriggerConfigForm from "./WebhookTriggerConfigForm";
 import {
   type WebhookTriggerNodeProps,
   type WebhookEvent,
@@ -14,31 +15,34 @@ export default function WebhookTriggerNode({
   id,
 }: WebhookTriggerNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
+  const { enqueueSnackbar } = useSnackbar();
   const [isHovered, setIsHovered] = useState(false);
+  const [isConfigMode, setIsConfigMode] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [events, setEvents] = useState<WebhookEvent[]>([]);
   const [stats, setStats] = useState<WebhookStats | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [webhookEndpoint, setWebhookEndpoint] = useState<string>("");
   const [webhookToken, setWebhookToken] = useState<string>("");
-  const modalRef = useRef<HTMLDialogElement>(null);
+  const [configData, setConfigData] = useState<WebhookTriggerConfig>(
+    data as WebhookTriggerConfig
+  );
 
   // Webhook endpoint URL'ini oluştur
   useEffect(() => {
-    if (data?.webhook_id) {
-      const baseUrl = window.location.origin;
-      setWebhookEndpoint(`${baseUrl}/api/webhooks/${data.webhook_id}`);
-      setWebhookToken(data.webhook_token || "wht_secrettoken123");
-    }
-  }, [data?.webhook_id]);
+    // Webhook ID yoksa node ID'yi kullan
+    const webhookId = data?.webhook_id || id;
+    const baseUrl = window.location.origin;
+    setWebhookEndpoint(`${baseUrl}/api/webhooks/${webhookId}`);
+    setWebhookToken(data?.webhook_token || "wht_secrettoken123");
+  }, [data?.webhook_id, id]);
 
   // Real-time event streaming
   useEffect(() => {
-    if (!isListening || !data?.webhook_id) return;
+    if (!isListening) return;
 
-    const eventSource = new EventSource(
-      `/api/webhooks/${data.webhook_id}/stream`
-    );
+    const webhookId = data?.webhook_id || id;
+    const eventSource = new EventSource(`/api/webhooks/${webhookId}/stream`);
 
     eventSource.onmessage = (event) => {
       try {
@@ -61,20 +65,22 @@ export default function WebhookTriggerNode({
     };
 
     return () => eventSource.close();
-  }, [isListening, data?.webhook_id]);
+  }, [isListening, data?.webhook_id, id]);
 
   // Stats güncelleme
   useEffect(() => {
-    if (data?.webhook_id) {
+    const webhookId = data?.webhook_id || id;
+    if (webhookId) {
       fetchStats();
     }
-  }, [data?.webhook_id]);
+  }, [data?.webhook_id, id]);
 
   const fetchStats = async () => {
-    if (!data?.webhook_id) return;
+    const webhookId = data?.webhook_id || id;
+    if (!webhookId) return;
 
     try {
-      const response = await fetch(`/api/webhooks/${data.webhook_id}/stats`);
+      const response = await fetch(`/api/webhooks/${webhookId}/stats`);
       if (response.ok) {
         const statsData = await response.json();
         setStats(statsData);
@@ -85,7 +91,7 @@ export default function WebhookTriggerNode({
   };
 
   const startListening = async () => {
-    if (!data?.webhook_id) return;
+    const webhookId = data?.webhook_id || id;
 
     setIsListening(true);
     setError(null);
@@ -94,7 +100,7 @@ export default function WebhookTriggerNode({
     try {
       // Backend'e listening başlatma isteği gönder
       const response = await fetch(
-        `/api/webhooks/${data.webhook_id}/start-listening`,
+        `/api/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -103,9 +109,15 @@ export default function WebhookTriggerNode({
       if (!response.ok) {
         throw new Error("Failed to start listening");
       }
+
+      enqueueSnackbar("Started listening for webhook events", {
+        variant: "success",
+        autoHideDuration: 2000,
+      });
     } catch (err) {
       setError("Failed to start listening");
       setIsListening(false);
+      enqueueSnackbar("Failed to start listening", { variant: "error" });
     }
   };
 
@@ -113,8 +125,9 @@ export default function WebhookTriggerNode({
     setIsListening(false);
 
     try {
+      const webhookId = data?.webhook_id || id;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`/api/webhooks/${data.webhook_id}/stop-listening`, {
+      await fetch(`/api/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
@@ -140,24 +153,51 @@ export default function WebhookTriggerNode({
     -d '{"event_type": "test", "data": {"message": "Hello from cURL!"}}'`;
   };
 
-  const handleOpenModal = () => {
-    modalRef.current?.showModal();
-  };
+  const handleSaveConfig = useCallback(
+    (values: Partial<WebhookTriggerConfig>) => {
+      console.log("handleSaveConfig called with values:", values);
+      try {
+        // Update the node data
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === id
+              ? { ...node, data: { ...node.data, ...values } }
+              : node
+          )
+        );
 
-  const handleConfigSave = (newConfig: WebhookTriggerConfig) => {
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id
-          ? {
-              ...node,
-              data: {
-                ...node.data,
-                ...newConfig,
-              },
-            }
-          : node
-      )
-    );
+        // Update local config data for persistence
+        setConfigData((prev) => ({ ...prev, ...values }));
+
+        // Close config mode
+        setIsConfigMode(false);
+
+        // Show success notification
+        enqueueSnackbar("Webhook Trigger configuration saved successfully!", {
+          variant: "success",
+          autoHideDuration: 3000,
+        });
+      } catch (error) {
+        console.error("Error saving configuration:", error);
+        enqueueSnackbar("Failed to save configuration. Please try again.", {
+          variant: "error",
+          autoHideDuration: 4000,
+        });
+      }
+    },
+    [setNodes, id, enqueueSnackbar]
+  );
+
+  const handleCancel = useCallback(() => {
+    setIsConfigMode(false);
+    enqueueSnackbar("Configuration cancelled", {
+      variant: "info",
+      autoHideDuration: 2000,
+    });
+  }, [enqueueSnackbar]);
+
+  const handleOpenConfig = () => {
+    setIsConfigMode(true);
   };
 
   const handleDeleteNode = (e: React.MouseEvent) => {
@@ -165,47 +205,68 @@ export default function WebhookTriggerNode({
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
 
+  // Enhanced validation function
+  const validate = (values: Partial<WebhookTriggerConfig>) => {
+    console.log("Validating values:", values);
+    const errors: any = {};
+
+    // Required validations
+    if (!values.webhook_token || values.webhook_token.trim() === "") {
+      errors.webhook_token = "Webhook token is required";
+    }
+
+    return errors;
+  };
+
+  const edges = getEdges();
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
+
   return (
     <>
-      <div
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-      >
-        <WebhookTriggerVisual
-          data={data}
-          id={id}
-          isHovered={isHovered}
-          isListening={isListening}
-          events={events}
-          stats={stats}
-          error={error}
+      {isConfigMode ? (
+        <WebhookTriggerConfigForm
+          initialValues={configData}
+          validate={validate}
+          onSubmit={handleSaveConfig}
+          onCancel={handleCancel}
           webhookEndpoint={webhookEndpoint}
           webhookToken={webhookToken}
-          onOpenModal={handleOpenModal}
-          onDeleteNode={handleDeleteNode}
-          onStartListening={startListening}
-          onStopListening={stopListening}
+          events={events}
+          stats={stats}
+          isListening={isListening}
+          onTestEvent={startListening}
           onCopyToClipboard={copyToClipboard}
-          generateCurlCommand={generateCurlCommand}
-          getEdges={getEdges}
         />
-      </div>
-
-      <WebhookTriggerConfigModal
-        ref={modalRef}
-        nodeData={data}
-        onSave={handleConfigSave}
-        nodeId={id}
-        isListening={isListening}
-        events={events}
-        stats={stats}
-        webhookEndpoint={webhookEndpoint}
-        webhookToken={webhookToken}
-        onStartListening={startListening}
-        onStopListening={stopListening}
-        onCopyToClipboard={copyToClipboard}
-        generateCurlCommand={generateCurlCommand}
-      />
+      ) : (
+        <div
+          onMouseEnter={() => setIsHovered(true)}
+          onMouseLeave={() => setIsHovered(false)}
+        >
+          <WebhookTriggerVisual
+            data={data}
+            id={id}
+            isHovered={isHovered}
+            isListening={isListening}
+            events={events}
+            stats={stats}
+            error={error}
+            webhookEndpoint={webhookEndpoint}
+            webhookToken={webhookToken}
+            onOpenConfig={handleOpenConfig}
+            onDeleteNode={handleDeleteNode}
+            onStartListening={startListening}
+            onStopListening={stopListening}
+            onCopyToClipboard={copyToClipboard}
+            generateCurlCommand={generateCurlCommand}
+            getEdges={getEdges}
+          />
+        </div>
+      )}
     </>
   );
 }

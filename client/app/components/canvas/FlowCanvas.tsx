@@ -52,7 +52,7 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
-import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
+import WebScraperNode from "../nodes/document_loaders/WebScraper";
 import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
 import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
