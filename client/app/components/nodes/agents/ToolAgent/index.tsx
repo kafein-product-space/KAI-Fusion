@@ -1,24 +1,71 @@
 // index.tsx
 import React, { useState, useCallback } from "react";
 import { useReactFlow } from "@xyflow/react";
+import { useSnackbar } from "notistack";
 import ToolAgentConfigForm from "./ToolAgentConfigForm";
 import ToolAgentVisual from "./ToolAgentVisual";
 import type { ToolAgentData, ToolAgentNodeProps } from "./types";
 
 export default function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
+  const { enqueueSnackbar } = useSnackbar();
   const [isHovered, setIsHovered] = useState(false);
   const [isConfigMode, setIsConfigMode] = useState(false);
   const [configData, setConfigData] = useState<ToolAgentData>(data);
   const edges = getEdges?.() ?? [];
 
-  const handleSaveConfig = (values: Partial<ToolAgentData>) => {
-    setNodes((nodes) =>
-      nodes.map((node) =>
-        node.id === id ? { ...node, data: { ...node.data, ...values } } : node
-      )
-    );
+  const handleSaveConfig = useCallback(
+    (values: Partial<ToolAgentData>) => {
+      try {
+        // Update the node data
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === id
+              ? { ...node, data: { ...node.data, ...values } }
+              : node
+          )
+        );
+
+        // Update local config data for persistence
+        setConfigData((prev) => ({ ...prev, ...values }));
+
+        // Close config mode
+        setIsConfigMode(false);
+
+        // Show success notification
+        enqueueSnackbar("Agent configuration saved successfully!", {
+          variant: "success",
+          autoHideDuration: 3000,
+        });
+      } catch (error) {
+        console.error("Error saving agent configuration:", error);
+        enqueueSnackbar(
+          "Failed to save agent configuration. Please try again.",
+          {
+            variant: "error",
+            autoHideDuration: 4000,
+          }
+        );
+      }
+    },
+    [setNodes, id, enqueueSnackbar]
+  );
+
+  const handleCancel = useCallback(() => {
     setIsConfigMode(false);
+    enqueueSnackbar("Configuration cancelled", {
+      variant: "info",
+      autoHideDuration: 2000,
+    });
+  }, [enqueueSnackbar]);
+
+  const handleDeleteNode = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setNodes((nodes) => nodes.filter((node) => node.id !== id));
+    enqueueSnackbar("Agent node deleted", {
+      variant: "info",
+      autoHideDuration: 2000,
+    });
   };
 
   const isHandleConnected = (handleId: string, isSource = false) =>
@@ -69,7 +116,7 @@ export default function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
         }}
         validate={validate}
         onSubmit={handleSaveConfig}
-        onCancel={() => setIsConfigMode(false)}
+        onCancel={handleCancel}
       />
     );
   }
@@ -81,10 +128,7 @@ export default function ToolAgentNode({ data, id }: ToolAgentNodeProps) {
       onDoubleClick={() => setIsConfigMode(true)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
-      onDelete={(e) => {
-        e.stopPropagation();
-        setNodes((nodes) => nodes.filter((node) => node.id !== id));
-      }}
+      onDelete={handleDeleteNode}
       isHandleConnected={isHandleConnected}
     />
   );

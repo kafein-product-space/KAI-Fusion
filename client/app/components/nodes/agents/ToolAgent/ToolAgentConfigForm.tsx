@@ -60,11 +60,16 @@ export default function ToolAgentConfigForm({
               <Field
                 as="textarea"
                 name="system_prompt"
-                rows={3}
+                rows={4}
+                placeholder="You are a helpful assistant. Use tools to answer: {input}"
                 className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border resize-none"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
+              <div className="text-xs text-gray-400 mt-1">
+                Use {"{input}"} for user input. Define agent behavior and
+                capabilities.
+              </div>
               <ErrorMessage
                 name="system_prompt"
                 component="div"
@@ -168,24 +173,24 @@ export default function ToolAgentConfigForm({
             </div>
 
             {/* Buttons */}
-            <div className="flex space-x-2">
+            <div className="flex space-x-2 pt-2">
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
+                className="text-xs px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded transition-colors"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                ✕
+                Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
+                className="text-xs px-3 py-1 bg-blue-600 hover:bg-blue-500 rounded text-white transition-colors disabled:opacity-50"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                ✓
+                {isSubmitting ? "Saving..." : "Save"}
               </button>
             </div>
           </Form>

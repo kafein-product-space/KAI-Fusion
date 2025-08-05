@@ -1,7 +1,16 @@
 import React, { useEffect, useState } from "react";
-import { Search, AlertCircle, RefreshCw } from "lucide-react";
+import {
+  Search,
+  AlertCircle,
+  RefreshCw,
+  Sparkles,
+  Settings,
+} from "lucide-react";
 import DraggableNode from "../common/DraggableNode";
 import { useNodes } from "~/stores/nodes";
+import { useSmartSuggestions } from "~/stores/smartSuggestions";
+import RecommendedNodes from "./RecommendedNodes";
+import SmartSuggestionsSettingsModal from "../modals/SmartSuggestionsSettingsModal";
 
 // Loading Component
 const LoadingNodes = () => (
@@ -52,13 +61,24 @@ function Sidebar({ onClose }: SidebarProps) {
     clearError,
   } = useNodes();
 
+  const { updateRecommendations, isEnabled, toggleEnabled, setLastAddedNode } =
+    useSmartSuggestions();
+
   const [localSearchQuery, setLocalSearchQuery] = useState("");
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
 
   // Fetch nodes and categories on component mount
   useEffect(() => {
     fetchNodes();
     fetchCategories();
   }, [fetchNodes, fetchCategories]);
+
+  // Update recommendations when nodes change
+  useEffect(() => {
+    if (nodes.length > 0) {
+      updateRecommendations(nodes);
+    }
+  }, [nodes, updateRecommendations]);
 
   // Handle search with debouncing
   useEffect(() => {
@@ -113,7 +133,38 @@ function Sidebar({ onClose }: SidebarProps) {
     <div className="fixed top-36 h-[calc(100vh-12rem)] w-100 bg-[#18181A] overflow-y-auto z-30 shadow-2xl animate-slide-in rounded-2xl">
       {/* Header */}
       <div className="p-4">
-        <h3 className="font-bold text-gray-100 mb-4">Add Nodes</h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-gray-100">Add Nodes</h3>
+
+          <div className="flex items-center gap-2">
+            {/* Smart Suggestions Settings */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="p-1 text-gray-400 hover:text-white transition-colors"
+              title="Smart Suggestions Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </button>
+
+            {/* Smart Suggestions Toggle */}
+            <button
+              onClick={toggleEnabled}
+              className={`flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors ${
+                isEnabled
+                  ? "bg-yellow-500/20 text-yellow-400 border border-yellow-400/30"
+                  : "bg-gray-700 text-gray-400 border border-gray-600"
+              }`}
+              title={
+                isEnabled
+                  ? "Disable Smart Suggestions"
+                  : "Enable Smart Suggestions"
+              }
+            >
+              <Sparkles className="h-3 w-3" />
+              <span>Smart</span>
+            </button>
+          </div>
+        </div>
 
         {/* Search Input */}
         <label className="input w-full rounded-2xl bg-transparent text-gray-100 border border-gray-600 flex items-center gap-2 px-2 py-1 mb-3 focus-within:border-purple-400">
@@ -144,6 +195,9 @@ function Sidebar({ onClose }: SidebarProps) {
           </div>
         ) : (
           <div className="space-y-3">
+            {/* Recommended Nodes Section */}
+            <RecommendedNodes availableNodes={nodes} />
+
             {selectedCategory ? (
               // Show filtered nodes in current category
               <div>
@@ -195,6 +249,12 @@ function Sidebar({ onClose }: SidebarProps) {
           </div>
         )}
       </div>
+
+      {/* Smart Suggestions Settings Modal */}
+      <SmartSuggestionsSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+      />
     </div>
   );
 }

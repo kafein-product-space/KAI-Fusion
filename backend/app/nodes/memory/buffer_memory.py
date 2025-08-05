@@ -454,6 +454,14 @@ class BufferMemoryNode(ProviderNode):
                     message_count = len(memory.chat_memory.messages)
                     print(f"   📚 Messages: {message_count}")
                     
+                    # 🔥 CRITICAL DEBUG: Show actual message content for debugging
+                    if message_count > 0:
+                        print(f"   📝 Recent messages preview:")
+                        for i, msg in enumerate(memory.chat_memory.messages[-3:]):  # Show last 3 messages
+                            if hasattr(msg, 'type') and hasattr(msg, 'content'):
+                                msg_preview = msg.content[:50] + "..." if len(msg.content) > 50 else msg.content
+                                print(f"      {i+1}. {msg.type}: {msg_preview}")
+                    
                     # Track memory content for LangSmith (non-blocking)
                     try:
                         from app.core.tracing import get_workflow_tracer
