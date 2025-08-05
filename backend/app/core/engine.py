@@ -647,50 +647,59 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
     # ------------------------------------------------------------------
     def build(self, flow_data: JSONType, *, user_context: Optional[JSONType] = None) -> None:  # noqa: D401
         """Enhanced build with better error handling and logging"""
-        print("\n" + "="*60)
-        print("🏗️  WORKFLOW BUILD STARTED")
-        print("="*60)
+        
+        # Get enhanced logger
+        user_id = user_context.get("user_id") if user_context else None
+        workflow_id = flow_data.get("id") or f"wf_{hash(str(flow_data))}"
+        logger = get_enhanced_logger("workflow_engine", workflow_id=workflow_id)
         
         # Store flow_data for tracing
         self._flow_data = flow_data
         
-        # Enhanced validation before build
-        print("🔍 Validating workflow structure...")
-        validation_result = self.validate(flow_data)
-        if not validation_result["valid"]:
-            error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
-            print(f"❌ Build validation failed: {error_msg}")
-            print("="*60)
-            raise ValueError(error_msg)
+        # Start build phase
+        nodes = flow_data.get("nodes", [])
+        edges = flow_data.get("edges", [])
         
-        # Log warnings if any
-        if validation_result["warnings"]:
-            for warning in validation_result["warnings"]:
-                print(f"⚠️  {warning}")
-        print("✅ Validation passed")
-
+        logger.start_workflow_phase(
+            WorkflowPhase.BUILD,
+            total_steps=len(nodes),
+            node_count=len(nodes),
+            edge_count=len(edges),
+            user_id=user_id[:8] + "..." if user_id else None
+        )
+        
         try:
-            # Log build details
-            nodes = flow_data.get("nodes", [])
-            edges = flow_data.get("edges", [])
-            print(f"\n📊 WORKFLOW OVERVIEW")
-            print(f"   📦 Nodes: {len(nodes)}")
-            print(f"   🔗 Edges: {len(edges)}")
+            # Enhanced validation before build
+            logger.info("🔍 Validating workflow structure...")
+            validation_result = self.validate(flow_data)
+            if not validation_result["valid"]:
+                error_msg = f"Cannot build workflow: {'; '.join(validation_result['errors'])}"
+                logger.end_workflow_phase(WorkflowPhase.BUILD, success=False, error=error_msg)
+                raise ValueError(error_msg)
             
-            # For now we only pass user_id if available
-            user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
-            if user_id:
-                print(f"   👤 User: {user_id[:8]}...")
+            # Log warnings if any
+            if validation_result["warnings"]:
+                for warning in validation_result["warnings"]:
+                    logger.warning(f"⚠️  {warning}")
             
-            print(f"\n🔧 Building graph structure...")
+            logger.info("✅ Validation passed")
+            logger.update_progress(1, "Validation completed")
+            
+            # Build graph structure
+            logger.info("🔧 Building graph structure...")
             self._builder.build_from_flow(flow_data, user_id=user_id)
             self._built = True
-            print("✅ Workflow build completed successfully")
-            print("="*60)
+            
+            logger.end_workflow_phase(
+                WorkflowPhase.BUILD, 
+                success=True,
+                nodes_processed=len(nodes),
+                edges_processed=len(edges)
+            )
             
         except Exception as e:
             error_msg = f"Workflow build failed: {str(e)}"
-            print(f"❌ {error_msg}")
+            logger.end_workflow_phase(WorkflowPhase.BUILD, success=False, error=error_msg)
             raise ValueError(error_msg) from e
 
     # ------------------------------------------------------------------
@@ -713,18 +722,20 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
         session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
-        print("\n" + "="*60)
-        print("🚀 WORKFLOW EXECUTION STARTED")
-        print("="*60)
-        print(f"🎬 Mode: {'Streaming' if stream else 'Synchronous'}")
-        if user_id:
-            print(f"👤 User: {user_id[:8]}...")
-        if workflow_id:
-            print(f"🔗 Workflow: {workflow_id}")
-        if session_id:
-            print(f"🎯 Session: {session_id[:8]}...")
-        print(f"📥 Inputs: {list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)}")
-        print("-"*60)
+        # Get enhanced logger
+        logger = get_enhanced_logger("workflow_engine", workflow_id=workflow_id, session_id=session_id)
+        
+        # Calculate estimated steps from flow data
+        nodes = self._flow_data.get("nodes", []) if self._flow_data else []
+        estimated_steps = len(nodes)
+        
+        logger.start_workflow_phase(
+            WorkflowPhase.EXECUTE,
+            total_steps=estimated_steps,
+            execution_mode="streaming" if stream else "synchronous",
+            user_id=user_id[:8] + "..." if user_id else None,
+            input_keys=list(inputs.keys()) if isinstance(inputs, dict) else [type(inputs).__name__]
+        )
 
         # Create workflow tracer
         tracer = get_workflow_tracer(session_id=session_id, user_id=user_id)
@@ -732,6 +743,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         try:
             # GraphBuilder.execute manages streaming vs sync
+            logger.info("🚀 Starting workflow execution...")
             result = await self._builder.execute(
                 inputs,
                 user_id=user_id,
@@ -740,14 +752,19 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
                 stream=stream,
             )
             
-            print("\n✅ WORKFLOW EXECUTION COMPLETED")
-            print("="*60)
+            logger.end_workflow_phase(
+                WorkflowPhase.EXECUTE,
+                success=True,
+                execution_mode="streaming" if stream else "synchronous",
+                result_type=type(result).__name__
+            )
+            
             tracer.end_workflow(success=True)
             return result
             
         except Exception as e:
             error_msg = f"Workflow execution failed: {str(e)}"
-            print(f"❌ {error_msg}")
+            logger.end_workflow_phase(WorkflowPhase.EXECUTE, success=False, error=error_msg)
             tracer.end_workflow(success=False, error=error_msg)
             
             # Return structured error result
@@ -772,6 +789,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
 import os
 from .constants import AF_USE_STUB_ENGINE
+from .enhanced_logging import get_enhanced_logger, WorkflowPhase
 
 
 _ENGINE_IMPL_CACHE: Optional[BaseWorkflowEngine] = None

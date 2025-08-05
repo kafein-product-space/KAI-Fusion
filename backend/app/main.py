@@ -281,6 +281,7 @@ IMPLEMENTATION DETAILS:
 """
 
 import logging
+from app.core.enhanced_logging import auto_configure_enhanced_logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status, Body, Depends
@@ -327,6 +328,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
+    
+    # Initialize enhanced logging system first
+    auto_configure_enhanced_logging()
+    
     logger.info("🚀 Starting Agent-Flow V2 Backend...")
     
     # Initialize node registry

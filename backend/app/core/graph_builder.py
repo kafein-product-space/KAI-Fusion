@@ -1835,7 +1835,12 @@ class GraphBuilder:
             event_count = 0
             async for ev in self.graph.astream_events(init_state, config=config):  # type: ignore[arg-type]
                 event_count += 1
-                print(f"[DEBUG] Processing event {event_count}: {ev.get('event', 'unknown')}")
+                # Smart event logging - only log important events, not every single one
+                event_type = ev.get('event', 'unknown')
+                if event_count % 50 == 0 or event_type in ['on_chain_start', 'on_chain_end'] and 'Agent' in str(ev.get('name', '')):
+                    logger.debug(f"Processing event {event_count}: {event_type}")
+                elif event_type in ['on_chain_error', 'error']:
+                    logger.warning(f"Event {event_count}: {event_type} - {ev.get('data', {})}")
                 
                 # Make entire event serializable before processing
                 try:
@@ -1858,7 +1863,7 @@ class GraphBuilder:
                     print(f"[ERROR] Chain error during streaming: {error_msg}")
                     yield {"type": "error", "error": error_msg}
             
-            print(f"[DEBUG] Finished streaming events. Total events processed: {event_count}")
+            logger.info(f"✅ Streaming completed: {event_count} events processed")
             
             # Get final state after all events are processed
             try:
@@ -1936,9 +1941,8 @@ class GraphBuilder:
                 "session_id": serializable_result.get("session_id", init_state.session_id),
             }
             print(f"   📤 Response ready")
-            print(f"[DEBUG] Yielding complete event: {complete_event['type']}")
+            logger.debug(f"Yielding completion event: {complete_event['type']}")
             yield complete_event
-            print(f"[DEBUG] Complete event yielded successfully")
             
         except Exception as e:
             print(f"[ERROR] Streaming execution failed: {e}")
