@@ -215,7 +215,10 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
     );
 
   return (
-    <>
+    <div
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
       {isConfigMode ? (
         <WebScraperConfigForm
           initialValues={configData}
@@ -245,6 +248,6 @@ export default function WebScraperNode({ data, id }: WebScraperNodeProps) {
           getEdges={getEdges}
         />
       )}
-    </>
+    </div>
   );
 }

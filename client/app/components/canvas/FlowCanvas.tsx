@@ -19,6 +19,7 @@ import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import { useExecutionsStore } from "~/stores/executions";
+import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgent/index";
 
@@ -156,6 +157,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
+
+  // Smart suggestions integration
+  const { setLastAddedNode, updateRecommendations } = useSmartSuggestions();
 
   // Execution store integration
   const {
@@ -321,8 +325,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       setNodes((nds: Node[]) => nds.concat(newNode));
       setNodeId((id: number) => id + 1);
+
+      // Update smart suggestions with the last added node
+      setLastAddedNode(nodeType.type);
+
+      // Update recommendations after setting the last added node
+      updateRecommendations(availableNodes);
     },
-    [screenToFlowPosition, nodeId, availableNodes]
+    [
+      screenToFlowPosition,
+      nodeId,
+      availableNodes,
+      setLastAddedNode,
+      updateRecommendations,
+    ]
   );
 
   const handleSave = useCallback(async () => {
