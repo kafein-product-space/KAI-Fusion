@@ -91,12 +91,15 @@ export default function WebScraperVisual({
   };
 
   return (
-    <>
+    <div
+      className={`relative transition-all duration-300 transform ${
+        isHovered ? "scale-105" : "scale-100"
+      }`}
+    >
       {/* Ana node kutusu */}
       <div
         className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
-          cursor-pointer transition-all duration-300 transform
-          ${isHovered ? "scale-105" : "scale-100"}
+          cursor-pointer transition-all duration-300
           bg-gradient-to-br ${getStatusColor()}
           ${
             isHovered
@@ -201,7 +204,7 @@ export default function WebScraperVisual({
                   backdrop-blur-sm"
                 onClick={(e) => {
                   e.stopPropagation();
-                  const firstUrl = data.urls.split("\n")[0];
+                  const firstUrl = data?.urls?.split("\n")[0];
                   if (firstUrl) {
                     onPreviewUrl(firstUrl);
                   }
@@ -219,27 +222,11 @@ export default function WebScraperVisual({
       <NeonHandle
         type="target"
         position={Position.Left}
-        id="urls"
+        id="execute"
         isConnectable={true}
         size={10}
-        color1="#ef4444"
-        glow={isHandleConnected("urls", false)}
-        style={{
-          top: "20%",
-        }}
-      />
-
-      <NeonHandle
-        type="target"
-        position={Position.Left}
-        id="config"
-        isConnectable={true}
-        size={10}
-        color1="#f97316"
-        glow={isHandleConnected("config", false)}
-        style={{
-          top: "40%",
-        }}
+        color1="#3b82f6"
+        glow={isHandleConnected("execute", true)}
       />
 
       {/* Output Handles */}
@@ -294,20 +281,6 @@ export default function WebScraperVisual({
           top: "80%",
         }}
       />
-
-      {/* Left side labels for inputs */}
-      <div
-        className="absolute -left-20 text-xs text-gray-500 font-medium"
-        style={{ top: "15%" }}
-      >
-        URLs
-      </div>
-      <div
-        className="absolute -left-20 text-xs text-gray-500 font-medium"
-        style={{ top: "35%" }}
-      >
-        Config
-      </div>
 
       {/* Right side labels for outputs */}
       <div
@@ -392,6 +365,6 @@ export default function WebScraperVisual({
           <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-lg animate-pulse"></div>
         </div>
       )}
-    </>
+    </div>
   );
 }

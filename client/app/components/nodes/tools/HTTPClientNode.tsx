@@ -296,7 +296,15 @@ function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
             </button>
           </>
         )}
-
+        <NeonHandle
+          type="target"
+          position={Position.Left}
+          id="execute"
+          isConnectable={true}
+          size={10}
+          color1="#3b82f6"
+          glow={isHandleConnected("execute", true)}
+        />
         {/* Output Handles */}
         <NeonHandle
           type="source"

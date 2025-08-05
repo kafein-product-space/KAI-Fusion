@@ -92,7 +92,31 @@ export default function WebhookTriggerConfigForm({
 
       <Formik
         initialValues={initialValues}
-        validate={validate}
+        validate={(values) => {
+          const errors: any = {};
+
+          if (!values.max_payload_size || values.max_payload_size < 1) {
+            errors.max_payload_size = "Max payload size must be at least 1 KB";
+          }
+
+          if (
+            !values.rate_limit_per_minute ||
+            values.rate_limit_per_minute < 0
+          ) {
+            errors.rate_limit_per_minute = "Rate limit must be at least 0";
+          }
+
+          if (
+            !values.webhook_timeout ||
+            values.webhook_timeout < 5 ||
+            values.webhook_timeout > 300
+          ) {
+            errors.webhook_timeout =
+              "Webhook timeout must be between 5 and 300 seconds";
+          }
+
+          return errors;
+        }}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
           onSubmit(values);
@@ -136,18 +160,34 @@ export default function WebhookTriggerConfigForm({
 
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
-                        HTTP Method
+                        Authentication Required
                       </label>
                       <Field
                         as="select"
-                        name="http_method"
+                        name="authentication_required"
                         className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
                       >
-                        <option value="POST">POST</option>
-                        <option value="GET">GET</option>
-                        <option value="PUT">PUT</option>
-                        <option value="PATCH">PATCH</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                       </Field>
+                      <ErrorMessage
+                        name="authentication_required"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Allowed Event Types
+                      </label>
+                      <Field
+                        as="textarea"
+                        name="allowed_event_types"
+                        placeholder="user.created, order.completed, data.updated (comma-separated, empty = all)"
+                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        rows={2}
+                      />
                     </div>
                   </div>
                 )}
@@ -162,18 +202,75 @@ export default function WebhookTriggerConfigForm({
 
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
-                        Authentication Type
+                        Max Payload Size (KB)
+                      </label>
+                      <Field
+                        type="number"
+                        name="max_payload_size"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="1"
+                        max="10240"
+                      />
+                      <ErrorMessage
+                        name="max_payload_size"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Rate Limit (per minute)
+                      </label>
+                      <Field
+                        type="number"
+                        name="rate_limit_per_minute"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="0"
+                        max="1000"
+                      />
+                      <ErrorMessage
+                        name="rate_limit_per_minute"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Enable CORS
                       </label>
                       <Field
                         as="select"
-                        name="auth_type"
+                        name="enable_cors"
                         className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
                       >
-                        <option value="none">None</option>
-                        <option value="bearer">Bearer Token</option>
-                        <option value="basic">Basic Auth</option>
-                        <option value="api_key">API Key</option>
+                        <option value="true">Yes</option>
+                        <option value="false">No</option>
                       </Field>
+                      <ErrorMessage
+                        name="enable_cors"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Webhook Timeout (seconds)
+                      </label>
+                      <Field
+                        type="number"
+                        name="webhook_timeout"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="5"
+                        max="300"
+                      />
+                      <ErrorMessage
+                        name="webhook_timeout"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
                     </div>
 
                     <div>
@@ -356,7 +453,7 @@ export default function WebhookTriggerConfigForm({
                 </button>
                 <button
                   type="submit"
-                  disabled={isSubmitting || !isValid}
+                  disabled={isSubmitting}
                   className="btn btn-sm bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-400 hover:to-purple-500 text-white border-0"
                 >
                   {isSubmitting ? "Saving..." : "Save"}

@@ -25,9 +25,15 @@ export default function WebhookTriggerNode({
   const [webhookEndpoint, setWebhookEndpoint] = useState<string>("");
   const [webhookToken, setWebhookToken] = useState<string>("");
   const [isEndpointReady, setIsEndpointReady] = useState(false);
-  const [configData, setConfigData] = useState<WebhookTriggerConfig>(
-    data as WebhookTriggerConfig
-  );
+  const [configData, setConfigData] = useState<WebhookTriggerConfig>({
+    authentication_required: data?.authentication_required !== false,
+    allowed_event_types: data?.allowed_event_types || "",
+    max_payload_size: data?.max_payload_size || 1024,
+    rate_limit_per_minute: data?.rate_limit_per_minute || 60,
+    enable_cors: data?.enable_cors !== false,
+    webhook_timeout: data?.webhook_timeout || 30,
+    webhook_token: data?.webhook_token || "wht_secrettoken123",
+  });
 
   // Webhook endpoint URL'ini oluştur
   useEffect(() => {
@@ -214,8 +220,28 @@ export default function WebhookTriggerNode({
     const errors: any = {};
 
     // Required validations
-    if (!values.webhook_token || values.webhook_token.trim() === "") {
-      errors.webhook_token = "Webhook token is required";
+    if (
+      !values.allowed_event_types ||
+      values.allowed_event_types.trim() === ""
+    ) {
+      errors.allowed_event_types = "Allowed event types is required";
+    }
+
+    if (!values.max_payload_size || values.max_payload_size < 1) {
+      errors.max_payload_size = "Max payload size must be at least 1 KB";
+    }
+
+    if (!values.rate_limit_per_minute || values.rate_limit_per_minute < 0) {
+      errors.rate_limit_per_minute = "Rate limit must be at least 0";
+    }
+
+    if (
+      !values.webhook_timeout ||
+      values.webhook_timeout < 5 ||
+      values.webhook_timeout > 300
+    ) {
+      errors.webhook_timeout =
+        "Webhook timeout must be between 5 and 300 seconds";
     }
 
     return errors;

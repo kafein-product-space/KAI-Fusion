@@ -351,11 +351,8 @@ const HTTPClientConfigModal = forwardRef<
                 <div className="flex space-x-1 bg-slate-800/50 rounded-lg p-1">
                   {[
                     { id: "basic", label: "Basic", icon: Settings },
-                    { id: "auth", label: "Auth", icon: Lock },
                     { id: "advanced", label: "Advanced", icon: Zap },
                     { id: "test", label: "🎯 Test", icon: Send },
-                    { id: "curl", label: "📋 cURL", icon: Terminal },
-                    { id: "response", label: "📊 Response", icon: BarChart3 },
                   ].map((tab) => (
                     <button
                       key={tab.id}
@@ -447,112 +444,116 @@ const HTTPClientConfigModal = forwardRef<
                         />
                       </div>
                     )}
-                  </div>
-                )}
 
-                {/* Authentication Tab */}
-                {activeTab === "auth" && (
-                  <div className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {/* Auth Type */}
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-white">
-                          Authentication Type
-                        </label>
-                        <Field
-                          name="auth_type"
-                          as="select"
-                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
-                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
-                          focus:border-transparent"
-                        >
-                          <option value="none">None</option>
-                          <option value="bearer">Bearer Token</option>
-                          <option value="basic">Basic Auth</option>
-                          <option value="api_key">API Key</option>
-                        </Field>
-                      </div>
+                    {/* Authentication */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2">
+                        <Lock className="w-5 h-5" />
+                        <span>🔐 Authentication</span>
+                      </h4>
 
-                      {/* Auth Token */}
-                      {values.auth_type === "bearer" && (
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Auth Type */}
                         <div className="space-y-3">
                           <label className="block text-sm font-medium text-white">
-                            Bearer Token
+                            Authentication Type
                           </label>
                           <Field
-                            name="auth_token"
-                            type="password"
-                            placeholder="your-token-here"
+                            name="auth_type"
+                            as="select"
                             className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
-                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
-                            focus:ring-blue-500 focus:border-transparent"
-                          />
+                            text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                            focus:border-transparent"
+                          >
+                            {AUTH_TYPES.map((auth) => (
+                              <option key={auth.value} value={auth.value}>
+                                {auth.label}
+                              </option>
+                            ))}
+                          </Field>
                         </div>
-                      )}
 
-                      {/* Basic Auth */}
-                      {values.auth_type === "basic" && (
-                        <>
+                        {/* Auth Token */}
+                        {values.auth_type === "bearer" && (
                           <div className="space-y-3">
                             <label className="block text-sm font-medium text-white">
-                              Username
-                            </label>
-                            <Field
-                              name="auth_username"
-                              type="text"
-                              placeholder="username"
-                              className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
-                              text-white placeholder-slate-400 focus:outline-none focus:ring-2 
-                              focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="block text-sm font-medium text-white">
-                              Password
-                            </label>
-                            <Field
-                              name="auth_password"
-                              type="password"
-                              placeholder="password"
-                              className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
-                              text-white placeholder-slate-400 focus:outline-none focus:ring-2 
-                              focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                        </>
-                      )}
-
-                      {/* API Key */}
-                      {values.auth_type === "api_key" && (
-                        <>
-                          <div className="space-y-3">
-                            <label className="block text-sm font-medium text-white">
-                              API Key Header
-                            </label>
-                            <Field
-                              name="api_key_header"
-                              type="text"
-                              placeholder="X-API-Key"
-                              className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
-                              text-white placeholder-slate-400 focus:outline-none focus:ring-2 
-                              focus:ring-blue-500 focus:border-transparent"
-                            />
-                          </div>
-                          <div className="space-y-3">
-                            <label className="block text-sm font-medium text-white">
-                              API Key Value
+                              Bearer Token
                             </label>
                             <Field
                               name="auth_token"
                               type="password"
-                              placeholder="your-api-key"
+                              placeholder="your-token-here"
                               className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
                               text-white placeholder-slate-400 focus:outline-none focus:ring-2 
                               focus:ring-blue-500 focus:border-transparent"
                             />
                           </div>
-                        </>
-                      )}
+                        )}
+
+                        {/* Basic Auth */}
+                        {values.auth_type === "basic" && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                Username
+                              </label>
+                              <Field
+                                name="auth_username"
+                                type="text"
+                                placeholder="username"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                Password
+                              </label>
+                              <Field
+                                name="auth_password"
+                                type="password"
+                                placeholder="password"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* API Key */}
+                        {values.auth_type === "api_key" && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                API Key Header
+                              </label>
+                              <Field
+                                name="api_key_header"
+                                type="text"
+                                placeholder="X-API-Key"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                API Key Value
+                              </label>
+                              <Field
+                                name="auth_token"
+                                type="password"
+                                placeholder="your-api-key"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          </>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )}
@@ -710,12 +711,89 @@ const HTTPClientConfigModal = forwardRef<
                       </div>
                     </div>
 
+                    {/* cURL Import */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                        <Terminal className="w-5 h-5" />
+                        <span>📋 Import cURL Command</span>
+                      </h4>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Paste your cURL command below:
+                          </label>
+                          <textarea
+                            value={curlImportText}
+                            onChange={(e) => setCurlImportText(e.target.value)}
+                            placeholder={
+                              'curl -X POST "https://api.example.com/users" -H "Content-Type: application/json" -d \'{"name": "John"}\''
+                            }
+                            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                            rows={4}
+                          />
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={handleCurlImport}
+                            disabled={!curlImportText.trim()}
+                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 
+                            text-white rounded-lg hover:from-blue-400 hover:to-blue-500 
+                            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            🔄 Parse & Import
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurlImportText("")}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                          >
+                            ❌ Clear
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Generated cURL */}
+                    {generateCurlCommand && (
+                      <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                          <Terminal className="w-5 h-5" />
+                          <span>📋 Generated cURL Command</span>
+                        </h4>
+
+                        <div className="space-y-4">
+                          <div className="bg-slate-900 p-3 rounded">
+                            <pre className="text-xs text-slate-300 overflow-x-auto">
+                              {generateCurlCommand()}
+                            </pre>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCopyToClipboard?.(generateCurlCommand(), "cURL")
+                            }
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
+                            flex items-center space-x-2 transition-colors"
+                          >
+                            <Copy className="w-4 h-4" />
+                            <span>Copy cURL</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     {/* Test Results */}
                     {testResponse && (
                       <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
                         <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
                           <BarChart3 className="w-5 h-5" />
-                          <span>📊 Response</span>
+                          <span>📊 Response Analysis</span>
                         </h4>
 
                         <div className="space-y-4">
@@ -811,189 +889,6 @@ const HTTPClientConfigModal = forwardRef<
                         <p className="text-red-300 text-sm">{testError}</p>
                       </div>
                     )}
-                  </div>
-                )}
-
-                {/* cURL Import Tab */}
-                {activeTab === "curl" && (
-                  <div className="space-y-6">
-                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                        <Terminal className="w-5 h-5" />
-                        <span>📋 Import cURL Command</span>
-                      </h4>
-
-                      <div className="space-y-4">
-                        <div>
-                          <label className="block text-sm font-medium text-slate-300 mb-2">
-                            Paste your cURL command below:
-                          </label>
-                          <textarea
-                            value={curlImportText}
-                            onChange={(e) => setCurlImportText(e.target.value)}
-                            placeholder={
-                              'curl -X POST "https://api.example.com/users" -H "Content-Type: application/json" -d \'{"name": "John"}\''
-                            }
-                            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg 
-                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
-                            focus:ring-blue-500 focus:border-transparent"
-                            rows={6}
-                          />
-                        </div>
-
-                        <div className="flex space-x-2">
-                          <button
-                            type="button"
-                            onClick={handleCurlImport}
-                            disabled={!curlImportText.trim()}
-                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 
-                            text-white rounded-lg hover:from-blue-400 hover:to-blue-500 
-                            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            🔄 Parse & Import
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setCurlImportText("")}
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
-                          >
-                            ❌ Clear
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Generated cURL */}
-                    {generateCurlCommand && (
-                      <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
-                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                          <Terminal className="w-5 h-5" />
-                          <span>📋 Generated cURL Command</span>
-                        </h4>
-
-                        <div className="space-y-4">
-                          <div className="bg-slate-900 p-3 rounded">
-                            <pre className="text-xs text-slate-300 overflow-x-auto">
-                              {generateCurlCommand()}
-                            </pre>
-                          </div>
-
-                          <button
-                            type="button"
-                            onClick={() =>
-                              onCopyToClipboard?.(generateCurlCommand(), "cURL")
-                            }
-                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
-                            flex items-center space-x-2 transition-colors"
-                          >
-                            <Copy className="w-4 h-4" />
-                            <span>Copy cURL</span>
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Response Tab */}
-                {activeTab === "response" && testResponse && (
-                  <div className="space-y-6">
-                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
-                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
-                        <BarChart3 className="w-5 h-5" />
-                        <span>📊 Response Analysis</span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-4">
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-300">Status Code:</span>
-                            <span
-                              className={`font-semibold ${
-                                testResponse.status_code >= 200 &&
-                                testResponse.status_code < 300
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {testResponse.status_code}
-                            </span>
-                          </div>
-
-                          <div className="flex items-center justify-between">
-                            <span className="text-slate-300">Success:</span>
-                            <span
-                              className={`font-semibold ${
-                                testResponse.success
-                                  ? "text-green-400"
-                                  : "text-red-400"
-                              }`}
-                            >
-                              {testResponse.success ? "Yes" : "No"}
-                            </span>
-                          </div>
-
-                          {testStats && (
-                            <>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-300">
-                                  Response Time:
-                                </span>
-                                <span className="text-white font-semibold">
-                                  {formatDuration(testStats.duration_ms)}
-                                </span>
-                              </div>
-
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-300">
-                                  Response Size:
-                                </span>
-                                <span className="text-white font-semibold">
-                                  {formatSize(testStats.size_bytes)}
-                                </span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        <div className="space-y-4">
-                          <h5 className="text-sm font-medium text-slate-300">
-                            Performance:
-                          </h5>
-                          {testStats && (
-                            <div className="space-y-2">
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 text-sm">
-                                  Speed:
-                                </span>
-                                <span className="text-white text-sm">
-                                  {testStats.size_bytes > 0
-                                    ? `${(
-                                        testStats.size_bytes /
-                                        (testStats.duration_ms / 1000)
-                                      ).toFixed(1)} B/s`
-                                    : "N/A"}
-                                </span>
-                              </div>
-                              <div className="flex items-center justify-between">
-                                <span className="text-slate-400 text-sm">
-                                  Efficiency:
-                                </span>
-                                <span className="text-white text-sm">
-                                  {testStats.duration_ms < 100
-                                    ? "Excellent"
-                                    : testStats.duration_ms < 500
-                                    ? "Good"
-                                    : testStats.duration_ms < 1000
-                                    ? "Fair"
-                                    : "Poor"}
-                                </span>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
                   </div>
                 )}
 
