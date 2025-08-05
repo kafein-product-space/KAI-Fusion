@@ -2,7 +2,7 @@ import CodeMirror from "@uiw/react-codemirror";
 import { tags as t } from "@lezer/highlight";
 import { HighlightStyle, syntaxHighlighting } from "@codemirror/language";
 import { EditorView } from "@codemirror/view";
-import { forwardRef, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
 import { useThemeStore } from "~/stores/theme";
 import {
   Bot,
@@ -136,10 +136,21 @@ const ReactAgentConfigModal = forwardRef<
     nodeData?.handle_parsing_errors ?? true
   );
   const [promptTemplate, setPromptTemplate] = useState(
-    nodeData?.prompt_template ||
+    nodeData?.prompt_template || nodeData?.system_prompt ||
       "You are a helpful assistant. Use tools to answer: {input}"
   );
   const { mode } = useThemeStore();
+
+  // Update state when nodeData changes
+  useEffect(() => {
+    setAgentName(nodeData?.name || "ReAct Agent");
+    setVerbose(nodeData?.verbose ?? true);
+    setHandleErrors(nodeData?.handle_parsing_errors ?? true);
+    setPromptTemplate(
+      nodeData?.prompt_template || nodeData?.system_prompt ||
+        "You are a helpful assistant. Use tools to answer: {input}"
+    );
+  }, [nodeData]);
 
   const handleSave = () => {
     onSave({
