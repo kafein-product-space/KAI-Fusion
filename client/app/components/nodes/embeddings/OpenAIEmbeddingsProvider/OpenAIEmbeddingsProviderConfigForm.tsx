@@ -103,7 +103,7 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                       );
                       if (credentialSecret?.secret?.api_key) {
                         setFieldValue(
-                          "api_key",
+                          "openai_api_key",
                           credentialSecret.secret.api_key
                         );
                       }
@@ -116,7 +116,7 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                       setLoadingCredential(false);
                     }
                   } else {
-                    setFieldValue("api_key", "");
+                    setFieldValue("openai_api_key", "");
                   }
                 }}
               >
@@ -148,14 +148,14 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                 API Key
               </label>
               <Field
-                name="api_key"
+                name="openai_api_key"
                 type="password"
                 className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
-                name="api_key"
+                name="openai_api_key"
                 component="div"
                 className="text-red-400 text-xs mt-1"
               />
@@ -218,6 +218,27 @@ export default function OpenAIEmbeddingsProviderConfigForm({
               />
               <ErrorMessage
                 name="max_retries"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
+            </div>
+
+            {/* Request Timeout */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Request Timeout (seconds)
+              </label>
+              <Field
+                name="request_timeout"
+                type="number"
+                min={10}
+                max={300}
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
+              />
+              <ErrorMessage
+                name="request_timeout"
                 component="div"
                 className="text-red-400 text-xs mt-1"
               />
