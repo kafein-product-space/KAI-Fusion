@@ -50,6 +50,7 @@ export default function WebhookTriggerConfigForm({
   onCopyToClipboard,
 }: WebhookTriggerConfigFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  const [currentValues, setCurrentValues] = useState(initialValues);
 
   const tabs = [
     {
@@ -75,45 +76,45 @@ export default function WebhookTriggerConfigForm({
   const generateCurlCommand = () => {
     if (!webhookEndpoint) return "";
 
-    const method = initialValues.http_method || "POST";
+    const method = currentValues.http_method || "POST";
     const timestamp = new Date().toISOString();
+    const authHeader =
+      currentValues.authentication_required && currentValues.webhook_token
+        ? `-H "Authorization: Bearer ${currentValues.webhook_token}" \\\n  `
+        : "";
 
     switch (method) {
       case "GET":
         return `curl -X GET "${webhookEndpoint}?event_type=test.event&data=test&timestamp=${timestamp}" \\
-  -H "Authorization: Bearer ${webhookToken}"`;
+  ${authHeader}`;
 
       case "POST":
         return `curl -X POST "${webhookEndpoint}" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${webhookToken}" \\
-  -d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
+  ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
 
       case "PUT":
         return `curl -X PUT "${webhookEndpoint}" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${webhookToken}" \\
-  -d '{"event_type": "test.update", "data": {"id": 123, "status": "updated"}, "timestamp": "${timestamp}"}'`;
+  ${authHeader}-d '{"event_type": "test.update", "data": {"id": 123, "status": "updated"}, "timestamp": "${timestamp}"}'`;
 
       case "PATCH":
         return `curl -X PATCH "${webhookEndpoint}" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${webhookToken}" \\
-  -d '{"event_type": "test.partial_update", "data": {"status": "active"}, "timestamp": "${timestamp}"}'`;
+  ${authHeader}-d '{"event_type": "test.partial_update", "data": {"status": "active"}, "timestamp": "${timestamp}"}'`;
 
       case "DELETE":
         return `curl -X DELETE "${webhookEndpoint}?event_type=test.delete&id=123&timestamp=${timestamp}" \\
-  -H "Authorization: Bearer ${webhookToken}"`;
+  ${authHeader}`;
 
       case "HEAD":
         return `curl -X HEAD "${webhookEndpoint}" \\
-  -H "Authorization: Bearer ${webhookToken}"`;
+  ${authHeader}`;
 
       default:
         return `curl -X POST "${webhookEndpoint}" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${webhookToken}" \\
-  -d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
+  ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
     }
   };
 
@@ -132,6 +133,7 @@ export default function WebhookTriggerConfigForm({
       <Formik
         initialValues={initialValues}
         validate={(values) => {
+          setCurrentValues(values);
           const errors: any = {};
 
           if (!values.max_payload_size || values.max_payload_size < 1) {
@@ -244,6 +246,30 @@ export default function WebhookTriggerConfigForm({
                         className="text-red-400 text-xs mt-1"
                       />
                     </div>
+
+                    {/* Authentication Token - Only show if authentication is required */}
+                    {currentValues.authentication_required && (
+                      <div>
+                        <label className="text-white text-xs font-medium mb-1 block">
+                          Authentication Token
+                        </label>
+                        <Field
+                          type="text"
+                          name="webhook_token"
+                          placeholder="Enter Bearer token for authentication"
+                          className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          This token will be used as Bearer token in
+                          Authorization header
+                        </p>
+                        <ErrorMessage
+                          name="webhook_token"
+                          component="div"
+                          className="text-red-400 text-xs mt-1"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">

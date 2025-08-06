@@ -320,6 +320,7 @@ from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
+from app.api.test_endpoint import router as test_router
 
 from app.routes.export import router as export_router
 
@@ -434,6 +435,9 @@ app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=[
 app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
 app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
 app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
+
+# Include test router
+app.include_router(test_router)
 
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
