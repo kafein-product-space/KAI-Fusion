@@ -437,7 +437,7 @@ app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Stora
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
-app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints
+app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
 app.include_router(export_router, prefix="/api", tags=["Export"])
 
 

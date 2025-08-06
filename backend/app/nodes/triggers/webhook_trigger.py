@@ -20,6 +20,7 @@ from typing import Any, Dict, List, Optional, AsyncGenerator, Union
 from urllib.parse import urljoin
 
 from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks
+from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field, ValidationError
 
@@ -32,7 +33,7 @@ from app.models.node import NodeCategory
 logger = logging.getLogger(__name__)
 
 # Global webhook router (will be included in main FastAPI app)
-webhook_router = APIRouter(prefix="/api/webhooks", tags=["webhooks"])
+webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
 # Health check endpoint for webhook router
 @webhook_router.get("/")
@@ -43,6 +44,89 @@ async def webhook_router_health():
         "router": "webhook_trigger",
         "active_webhooks": len(webhook_events),
         "message": "Webhook router is operational"
+    }
+
+# Webhook streaming endpoint
+@webhook_router.get("/{webhook_id}/stream")
+async def webhook_stream(webhook_id: str):
+    """Stream webhook events for a specific webhook"""
+    if webhook_id not in webhook_events:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    
+    async def event_stream():
+        queue = asyncio.Queue()
+        webhook_subscribers[webhook_id].append(queue)
+        
+        try:
+            while True:
+                try:
+                    event = await asyncio.wait_for(queue.get(), timeout=30.0)
+                    yield f"data: {json.dumps(event)}\n\n"
+                except asyncio.TimeoutError:
+                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now().isoformat()})}\n\n"
+        except asyncio.CancelledError:
+            pass
+        finally:
+            if queue in webhook_subscribers[webhook_id]:
+                webhook_subscribers[webhook_id].remove(queue)
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+# Start listening endpoint
+@webhook_router.post("/{webhook_id}/start-listening")
+async def start_listening(webhook_id: str):
+    """Start listening for webhook events"""
+    if webhook_id not in webhook_events:
+        # Create new webhook if it doesn't exist
+        webhook_events[webhook_id] = []
+        webhook_subscribers[webhook_id] = []
+    
+    return {
+        "success": True,
+        "message": f"Started listening for webhook {webhook_id}",
+        "webhook_id": webhook_id,
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Stop listening endpoint
+@webhook_router.post("/{webhook_id}/stop-listening")
+async def stop_listening(webhook_id: str):
+    """Stop listening for webhook events"""
+    if webhook_id in webhook_events:
+        # Clear events and subscribers
+        webhook_events[webhook_id] = []
+        webhook_subscribers[webhook_id] = []
+    
+    return {
+        "success": True,
+        "message": f"Stopped listening for webhook {webhook_id}",
+        "webhook_id": webhook_id,
+        "timestamp": datetime.now().isoformat()
+    }
+
+# Stats endpoint
+@webhook_router.get("/{webhook_id}/stats")
+async def get_webhook_stats(webhook_id: str):
+    """Get webhook statistics"""
+    if webhook_id not in webhook_events:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    
+    events = webhook_events[webhook_id]
+    return {
+        "webhook_id": webhook_id,
+        "total_events": len(events),
+        "last_event_at": events[-1]["timestamp"] if events else None,
+        "active_subscribers": len(webhook_subscribers[webhook_id]),
+        "timestamp": datetime.now().isoformat()
     }
 
 # Security

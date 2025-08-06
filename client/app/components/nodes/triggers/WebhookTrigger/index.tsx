@@ -68,7 +68,7 @@ export default function WebhookTriggerNode({
       process.env.NODE_ENV === "development"
         ? "http://localhost:8000"
         : window.location.origin;
-    const endpoint = `${backendUrl}/api/webhooks/${webhookId}`;
+    const endpoint = `${backendUrl}/api/v1/webhooks/${webhookId}`;
     setWebhookEndpoint(endpoint);
     setWebhookToken(data?.webhook_token || "wht_secrettoken123");
     setIsEndpointReady(true);
@@ -84,7 +84,7 @@ export default function WebhookTriggerNode({
         ? "http://localhost:8000"
         : window.location.origin;
     const eventSource = new EventSource(
-      `${backendUrl}/api/webhooks/${webhookId}/stream`
+      `${backendUrl}/api/v1/webhooks/${webhookId}/stream`
     );
 
     eventSource.onmessage = (event) => {
@@ -128,7 +128,7 @@ export default function WebhookTriggerNode({
           ? "http://localhost:8000"
           : window.location.origin;
       const response = await fetch(
-        `${backendUrl}/api/webhooks/${webhookId}/stats`
+        `${backendUrl}/api/v1/webhooks/${webhookId}/stats`
       );
       if (response.ok) {
         const statsData = await response.json();
@@ -153,7 +153,7 @@ export default function WebhookTriggerNode({
           ? "http://localhost:8000"
           : window.location.origin;
       const response = await fetch(
-        `${backendUrl}/api/webhooks/${webhookId}/start-listening`,
+        `${backendUrl}/api/v1/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -184,7 +184,7 @@ export default function WebhookTriggerNode({
           ? "http://localhost:8000"
           : window.location.origin;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`${backendUrl}/api/webhooks/${webhookId}/stop-listening`, {
+      await fetch(`${backendUrl}/api/v1/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
