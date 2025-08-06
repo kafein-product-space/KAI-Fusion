@@ -32,6 +32,9 @@ from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
 
+# Security
+security = HTTPBearer(auto_error=False)
+
 # Global webhook router (will be included in main FastAPI app)
 webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -45,6 +48,183 @@ async def webhook_router_health():
         "active_webhooks": len(webhook_events),
         "message": "Webhook router is operational"
     }
+
+# Catch-all webhook handler for all HTTP methods
+async def handle_webhook_request(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+) -> WebhookResponse:
+    """Handle incoming webhook requests for any HTTP method."""
+    
+    # Check if webhook exists, create if not (for dynamic webhook support)
+    if webhook_id not in webhook_events:
+        # Auto-create webhook entry for valid webhook IDs
+        if webhook_id.startswith("wh_") and len(webhook_id) > 5:
+            webhook_events[webhook_id] = []
+            webhook_subscribers[webhook_id] = []
+            logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Invalid webhook ID format: {webhook_id}"
+            )
+    
+    correlation_id = str(uuid.uuid4())
+    received_at = datetime.now(timezone.utc)
+    
+    try:
+        # Parse request body based on HTTP method and content
+        payload_data = {}
+        event_type = "webhook.received"
+        source = None
+        timestamp = None
+        
+        # Handle different HTTP methods
+        if request.method in ["POST", "PUT", "PATCH"]:
+            # Methods that typically have request bodies
+            try:
+                if request.headers.get("content-type", "").startswith("application/json"):
+                    body = await request.json()
+                    if isinstance(body, dict):
+                        # Handle structured webhook payload
+                        payload_data = body.get("data", body)
+                        event_type = body.get("event_type", "webhook.received")
+                        source = body.get("source")
+                        timestamp = body.get("timestamp")
+                    else:
+                        payload_data = {"body": body}
+                else:
+                    # Handle other content types
+                    body_bytes = await request.body()
+                    if body_bytes:
+                        payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
+            except Exception as e:
+                logger.warning(f"Failed to parse request body: {e}")
+                payload_data = {"parse_error": str(e)}
+        
+        elif request.method == "GET":
+            # For GET requests, use query parameters as data
+            payload_data = dict(request.query_params)
+            event_type = payload_data.get("event_type", "webhook.received")
+            source = payload_data.get("source")
+            
+        elif request.method in ["DELETE", "HEAD"]:
+            # For DELETE/HEAD, use URL path and query parameters
+            payload_data = {
+                "path": str(request.url.path),
+                "query_params": dict(request.query_params)
+            }
+            event_type = payload_data.get("event_type", "webhook.received")
+        
+        # Process webhook event
+        webhook_event = {
+            "webhook_id": webhook_id,
+            "correlation_id": correlation_id,
+            "http_method": request.method,
+            "event_type": event_type,
+            "data": payload_data,
+            "source": source,
+            "received_at": received_at.isoformat(),
+            "client_ip": request.client.host if request.client else "unknown",
+            "user_agent": request.headers.get("user-agent"),
+            "timestamp": timestamp or received_at.isoformat(),
+            "headers": dict(request.headers),
+            "url": str(request.url),
+        }
+        
+        # Store event
+        webhook_events[webhook_id].append(webhook_event)
+        
+        # Maintain event history limit
+        if len(webhook_events[webhook_id]) > 1000:
+            webhook_events[webhook_id] = webhook_events[webhook_id][-1000:]
+        
+        # Notify subscribers (for streaming)
+        async def notify_subscribers(event: Dict[str, Any]):
+            if webhook_id in webhook_subscribers:
+                for queue in webhook_subscribers[webhook_id]:
+                    try:
+                        await queue.put(event)
+                    except Exception as e:
+                        logger.warning(f"Failed to notify subscriber: {e}")
+        
+        background_tasks.add_task(notify_subscribers, webhook_event)
+        
+        logger.info(f"📨 Webhook received: {webhook_id} - {request.method} - {event_type}")
+        
+        return WebhookResponse(
+            success=True,
+            message=f"Webhook received and processed successfully via {request.method}",
+            webhook_id=webhook_id,
+            received_at=received_at.isoformat(),
+            correlation_id=correlation_id
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"❌ Webhook processing error: {str(e)}")
+        raise HTTPException(
+            status_code=500,
+            detail=f"Webhook processing failed: {str(e)}"
+        )
+
+# Register catch-all routes for all HTTP methods
+@webhook_router.get("/{webhook_id}")
+async def get_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+
+@webhook_router.post("/{webhook_id}")
+async def post_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+
+@webhook_router.put("/{webhook_id}")
+async def put_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+
+@webhook_router.patch("/{webhook_id}")
+async def patch_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+
+@webhook_router.delete("/{webhook_id}")
+async def delete_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+
+@webhook_router.head("/{webhook_id}")
+async def head_webhook(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
 
 # Webhook streaming endpoint
 @webhook_router.get("/{webhook_id}/stream")
@@ -129,9 +309,6 @@ async def get_webhook_stats(webhook_id: str):
         "timestamp": datetime.now().isoformat()
     }
 
-# Security
-security = HTTPBearer(auto_error=False)
-
 # Webhook event storage for streaming
 webhook_events: Dict[str, List[Dict[str, Any]]] = {}
 webhook_subscribers: Dict[str, List[asyncio.Queue]] = {}
@@ -177,7 +354,7 @@ class WebhookTriggerNode(TerminatorNode):
             "display_name": "Webhook Trigger",
             "description": (
                 "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). "
-                f"Send requests to /api/webhooks{self.endpoint_path} with optional JSON payload."
+                f"Send requests to /api/v1/webhooks{self.endpoint_path} with optional JSON payload."
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
@@ -281,157 +458,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         logger.info(f"🔗 Webhook trigger created: {self.webhook_id}")
     
-    def _register_webhook_endpoint(self) -> None:
-        """Register webhook endpoint with FastAPI router for selected HTTP method."""
-        
-        # Get HTTP method from user data, default to POST for backward compatibility
-        http_method = self.user_data.get("http_method", "POST").upper()
-        
-        async def webhook_handler(
-            request: Request,
-            background_tasks: BackgroundTasks,
-            credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
-        ) -> WebhookResponse:
-            """Handle incoming webhook requests for any HTTP method."""
-            
-            correlation_id = str(uuid.uuid4())
-            received_at = datetime.now(timezone.utc)
-            
-            try:
-                # Authentication check
-                if self.user_data.get("authentication_required", True):
-                    if not credentials or credentials.credentials != self.secret_token:
-                        raise HTTPException(
-                            status_code=401,
-                            detail="Invalid or missing authentication token"
-                        )
-                
-                # Parse request body based on HTTP method and content
-                payload_data = {}
-                event_type = "webhook.received"
-                source = None
-                timestamp = None
-                
-                # Handle different HTTP methods
-                if request.method in ["POST", "PUT", "PATCH"]:
-                    # Methods that typically have request bodies
-                    try:
-                        if request.headers.get("content-type", "").startswith("application/json"):
-                            body = await request.json()
-                            if isinstance(body, dict):
-                                # Handle structured webhook payload
-                                payload_data = body.get("data", body)
-                                event_type = body.get("event_type", "webhook.received")
-                                source = body.get("source")
-                                timestamp = body.get("timestamp")
-                            else:
-                                payload_data = {"body": body}
-                        else:
-                            # Handle other content types
-                            body_bytes = await request.body()
-                            if body_bytes:
-                                payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
-                    except Exception as e:
-                        logger.warning(f"Failed to parse request body: {e}")
-                        payload_data = {"parse_error": str(e)}
-                
-                elif request.method == "GET":
-                    # For GET requests, use query parameters as data
-                    payload_data = dict(request.query_params)
-                    event_type = payload_data.get("event_type", "webhook.received")
-                    source = payload_data.get("source")
-                    
-                elif request.method in ["DELETE", "HEAD"]:
-                    # For DELETE/HEAD, use URL path and query parameters
-                    payload_data = {
-                        "path": str(request.url.path),
-                        "query_params": dict(request.query_params)
-                    }
-                    event_type = payload_data.get("event_type", "webhook.received")
-                
-                # Event type validation
-                allowed_types = self.user_data.get("allowed_event_types", "")
-                if allowed_types:
-                    allowed_list = [t.strip() for t in allowed_types.split(",")]
-                    if event_type not in allowed_list:
-                        raise HTTPException(
-                            status_code=400,
-                            detail=f"Event type '{event_type}' not allowed"
-                        )
-                
-                # Payload size check
-                max_size_kb = self.user_data.get("max_payload_size", 1024)
-                payload_size = len(json.dumps(payload_data).encode('utf-8')) / 1024
-                if payload_size > max_size_kb:
-                    raise HTTPException(
-                        status_code=413,
-                        detail=f"Payload size {payload_size:.1f}KB exceeds limit {max_size_kb}KB"
-                    )
-                
-                # Process webhook event
-                webhook_event = {
-                    "webhook_id": self.webhook_id,
-                    "correlation_id": correlation_id,
-                    "http_method": request.method,
-                    "event_type": event_type,
-                    "data": payload_data,
-                    "source": source,
-                    "received_at": received_at.isoformat(),
-                    "client_ip": request.client.host if request.client else "unknown",
-                    "user_agent": request.headers.get("user-agent"),
-                    "timestamp": timestamp or received_at.isoformat(),
-                    "headers": dict(request.headers),
-                    "url": str(request.url),
-                }
-                
-                # Store event
-                webhook_events[self.webhook_id].append(webhook_event)
-                
-                # Maintain event history limit
-                if len(webhook_events[self.webhook_id]) > 1000:
-                    webhook_events[self.webhook_id] = webhook_events[self.webhook_id][-1000:]
-                
-                # Notify subscribers (for streaming)
-                background_tasks.add_task(self._notify_subscribers, webhook_event)
-                
-                logger.info(f"📨 Webhook received: {self.webhook_id} - {request.method} - {event_type}")
-                
-                return WebhookResponse(
-                    success=True,
-                    message=f"Webhook received and processed successfully via {request.method}",
-                    webhook_id=self.webhook_id,
-                    received_at=received_at.isoformat(),
-                    correlation_id=correlation_id
-                )
-                
-            except HTTPException:
-                raise
-            except Exception as e:
-                logger.error(f"❌ Webhook processing error: {str(e)}")
-                raise HTTPException(
-                    status_code=500,
-                    detail=f"Webhook processing failed: {str(e)}"
-                )
-        
-        # Register endpoint for the selected HTTP method
-        if http_method == "GET":
-            webhook_router.get(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        elif http_method == "POST":
-            webhook_router.post(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        elif http_method == "PUT":
-            webhook_router.put(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        elif http_method == "PATCH":
-            webhook_router.patch(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        elif http_method == "DELETE":
-            webhook_router.delete(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        elif http_method == "HEAD":
-            webhook_router.head(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-        else:
-            # Default to POST for backward compatibility
-            webhook_router.post(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
-            http_method = "POST"
-        
-        logger.info(f"🌐 Webhook endpoint registered: {http_method} /api/webhooks{self.endpoint_path}")
+    # Old dynamic endpoint registration method removed - using catch-all handlers instead
     
     async def _notify_subscribers(self, event: Dict[str, Any]) -> None:
         """Notify all subscribers of new webhook event."""
@@ -467,7 +494,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
         
         webhook_data = {
             "payload": webhook_payload,
@@ -518,14 +545,11 @@ class WebhookTriggerNode(TerminatorNode):
         # Store user configuration
         self.user_data.update(kwargs)
         
-        # Register endpoint if not already registered
-        if not self._endpoint_registered:
-            self._register_webhook_endpoint()
-            self._endpoint_registered = True
+        # Note: Using catch-all webhook handlers instead of dynamic registration
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
         
         webhook_config = {
             "webhook_id": self.webhook_id,

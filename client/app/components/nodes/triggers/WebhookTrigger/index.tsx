@@ -59,20 +59,48 @@ export default function WebhookTriggerNode({
     cache_size_limit: data?.cache_size_limit || "100MB",
   });
 
-  // Webhook endpoint URL'ini oluştur
+  // Initialize webhook and get proper webhook ID from backend
   useEffect(() => {
-    // Webhook ID yoksa node ID'yi kullan
-    const webhookId = data?.webhook_id || id;
-    // Doğrudan backend URL'ini kullan (proxy sorununu önlemek için)
-    const backendUrl =
-      process.env.NODE_ENV === "development"
-        ? "http://localhost:8000"
-        : window.location.origin;
-    const endpoint = `${backendUrl}/api/v1/webhooks/${webhookId}`;
-    setWebhookEndpoint(endpoint);
-    setWebhookToken(data?.webhook_token || "wht_secrettoken123");
-    setIsEndpointReady(true);
-  }, [data?.webhook_id, id]);
+    const initializeWebhook = async () => {
+      try {
+        let webhookId = data?.webhook_id;
+        
+        if (!webhookId) {
+          // If no webhook ID exists, create a new one in proper format
+          // Use crypto.randomUUID if available, otherwise fallback to node ID conversion
+          if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+            webhookId = `wh_${crypto.randomUUID().replace(/-/g, '').substring(0, 12)}`;
+          } else {
+            webhookId = `wh_${id.replace(/[^a-zA-Z0-9]/g, '').toLowerCase()}${Date.now().toString().slice(-4)}`;
+          }
+          
+          // Update node data with the generated webhook ID
+          setNodes((nodes) =>
+            nodes.map((node) =>
+              node.id === id
+                ? { ...node, data: { ...node.data, webhook_id: webhookId } }
+                : node
+            )
+          );
+        }
+        
+        // Doğrudan backend URL'ini kullan (proxy sorununu önlemek için)
+        const backendUrl =
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:8000"
+            : window.location.origin;
+        const endpoint = `${backendUrl}/api/v1/webhooks/${webhookId}`;
+        setWebhookEndpoint(endpoint);
+        setWebhookToken(data?.webhook_token || "wht_secrettoken123");
+        setIsEndpointReady(true);
+      } catch (error) {
+        console.error('Error initializing webhook:', error);
+        setError('Failed to initialize webhook endpoint');
+      }
+    };
+
+    initializeWebhook();
+  }, [data?.webhook_id, id, setNodes]);
 
   // Real-time event streaming
   useEffect(() => {

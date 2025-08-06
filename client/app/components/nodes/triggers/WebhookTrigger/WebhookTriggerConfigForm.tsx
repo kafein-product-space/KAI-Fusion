@@ -396,14 +396,15 @@ export default function WebhookTriggerConfigForm({
                                 <div className="flex items-center gap-1">
                                   <Clock className="w-2 h-2 text-blue-400" />
                                   <span className="text-blue-400">
-                                    {new Date(
-                                      event.timestamp
-                                    ).toLocaleTimeString()}
+                                    {event.timestamp 
+                                      ? new Date(event.timestamp).toLocaleTimeString()
+                                      : 'No timestamp'
+                                    }
                                   </span>
                                 </div>
                                 <div className="text-slate-300 truncate">
-                                  {JSON.stringify(event.data).substring(0, 50)}
-                                  ...
+                                  {event.data ? JSON.stringify(event.data).substring(0, 50) : 'No data'}
+                                  {event.data ? '...' : ''}
                                 </div>
                               </div>
                             ))}
