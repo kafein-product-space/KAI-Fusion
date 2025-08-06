@@ -102,7 +102,7 @@ async def handle_webhook_request(
                         payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
             except Exception as e:
                 logger.warning(f"Failed to parse request body: {e}")
-                payload_data = {"parse_error": str(e)}
+                payload_data = {"message": "webhook_triggered", "parse_error": str(e)}
         
         elif request.method == "GET":
             # For GET requests, use query parameters as data
@@ -151,6 +151,64 @@ async def handle_webhook_request(
                         logger.warning(f"Failed to notify subscriber: {e}")
         
         background_tasks.add_task(notify_subscribers, webhook_event)
+        
+        # Always try to execute the workflow that contains this webhook
+        try:
+            # Execute workflow in background
+            async def execute_webhook_workflow():
+                try:
+                    logger.info(f"🚀 Starting workflow execution for webhook: {webhook_id}")
+                    
+                    import httpx
+                    
+                    # Simple workflow execution via API
+                    api_url = "http://localhost:8000/api/v1/workflows/execute"
+                    
+                    # Prepare simple execution payload
+                    execution_payload = {
+                        "input": {"webhook_triggered": True, "webhook_id": webhook_id}
+                    }
+                    
+                    # Make API call to execute workflow
+                    headers = {
+                        "Content-Type": "application/json",
+                        # Internal webhook call - use system token or bypass auth
+                        "X-Internal-Call": "true"
+                    }
+                    
+                    async with httpx.AsyncClient() as client:
+                        response = await client.post(
+                            api_url,
+                            json=execution_payload,
+                            headers=headers,
+                            timeout=30
+                        )
+                        
+                        if response.status_code == 200:
+                            result = response.json()
+                            logger.info(f"✅ Workflow executed successfully via webhook: {webhook_id}")
+                        else:
+                            logger.error(f"❌ Workflow execution failed: {response.status_code} - {response.text}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
+            
+            # Start workflow execution in background
+            background_tasks.add_task(execute_webhook_workflow)
+            
+            logger.info(f"📨 Webhook received and workflow queued: {webhook_id} - {request.method}")
+            
+            return WebhookResponse(
+                success=True,
+                message=f"Webhook received and workflow started via {request.method}",
+                webhook_id=webhook_id,
+                received_at=received_at.isoformat(),
+                correlation_id=correlation_id
+            )
+            
+        except Exception as e:
+            logger.error(f"❌ Workflow execution setup failed: {e}")
+            # Fall back to regular webhook response
         
         logger.info(f"📨 Webhook received: {webhook_id} - {request.method} - {event_type}")
         
