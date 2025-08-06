@@ -1,0 +1,130 @@
+{
+  "summary": {
+    "passed": 7,
+    "failed": 13,
+    "success_rate": 35.0,
+    "timestamp": "2025-08-06T09:29:27.918107"
+  },
+  "tests": [
+    {
+      "test_name": "GET Request - JSONPlaceholder",
+      "status": "FAIL",
+      "details": "Status: 200, Response Time: 0.000s",
+      "timestamp": "2025-08-06T09:28:52.265203"
+    },
+    {
+      "test_name": "POST Request - Create Resource",
+      "status": "FAIL",
+      "details": "Status: 201, Created ID: N/A",
+      "timestamp": "2025-08-06T09:28:52.941559"
+    },
+    {
+      "test_name": "PUT Request - Update Resource",
+      "status": "FAIL",
+      "details": "Status: 200, Updated ID: N/A",
+      "timestamp": "2025-08-06T09:28:53.700299"
+    },
+    {
+      "test_name": "PATCH Request - Partial Update",
+      "status": "FAIL",
+      "details": "Status: 200, Patched ID: N/A",
+      "timestamp": "2025-08-06T09:28:54.377853"
+    },
+    {
+      "test_name": "DELETE Request - Remove Resource",
+      "status": "PASS",
+      "details": "Status: 200, Response: {}",
+      "timestamp": "2025-08-06T09:28:55.942202"
+    },
+    {
+      "test_name": "HEAD Request - Headers Only",
+      "status": "PASS",
+      "details": "Status: 200, Headers Count: 24",
+      "timestamp": "2025-08-06T09:28:56.271337"
+    },
+    {
+      "test_name": "Bearer Token Authentication",
+      "status": "FAIL",
+      "details": "Status: 200, Authenticated: False",
+      "timestamp": "2025-08-06T09:28:57.064216"
+    },
+    {
+      "test_name": "Basic Authentication",
+      "status": "FAIL",
+      "details": "Status: 200, User: N/A",
+      "timestamp": "2025-08-06T09:28:57.772990"
+    },
+    {
+      "test_name": "Custom Headers",
+      "status": "FAIL",
+      "details": "Status: 200, Custom Headers Sent: 3",
+      "timestamp": "2025-08-06T09:28:59.907343"
+    },
+    {
+      "test_name": "Form Data Content Type",
+      "status": "FAIL",
+      "details": "Status: 0, Form Fields: 0",
+      "timestamp": "2025-08-06T09:29:00.010964"
+    },
+    {
+      "test_name": "Jinja2 Template Engine",
+      "status": "FAIL",
+      "details": "Status: 200, Template Variables Resolved",
+      "timestamp": "2025-08-06T09:29:01.041112"
+    },
+    {
+      "test_name": "Error Handling - 404 Not Found",
+      "status": "PASS",
+      "details": "Status: 404, Error Handled Correctly",
+      "timestamp": "2025-08-06T09:29:01.786288"
+    },
+    {
+      "test_name": "Timeout Handling",
+      "status": "FAIL",
+      "details": "Timeout not triggered",
+      "timestamp": "2025-08-06T09:29:14.673275"
+    },
+    {
+      "test_name": "Performance Metrics",
+      "status": "FAIL",
+      "details": "Response Time: 0.000s, Total Time: 1.081s",
+      "timestamp": "2025-08-06T09:29:15.858492"
+    },
+    {
+      "test_name": "SSL Certificate Verification",
+      "status": "PASS",
+      "details": "Status: 200, SSL Verified",
+      "timestamp": "2025-08-06T09:29:16.666218"
+    },
+    {
+      "test_name": "SSL Verification Disabled",
+      "status": "PASS",
+      "details": "Status: 200, SSL Verification Disabled",
+      "timestamp": "2025-08-06T09:29:19.353802"
+    },
+    {
+      "test_name": "Compression Support",
+      "status": "FAIL",
+      "details": "Status: 200, Compression Supported",
+      "timestamp": "2025-08-06T09:29:20.797477"
+    },
+    {
+      "test_name": "Redirect Following",
+      "status": "PASS",
+      "details": "Status: 200, Redirects Followed",
+      "timestamp": "2025-08-06T09:29:21.753572"
+    },
+    {
+      "test_name": "Redirect Not Following",
+      "status": "PASS",
+      "details": "Status: 302, Redirect Not Followed",
+      "timestamp": "2025-08-06T09:29:23.727624"
+    },
+    {
+      "test_name": "JSON Response Parsing",
+      "status": "FAIL",
+      "details": "Status: 0, Users Count: 0",
+      "timestamp": "2025-08-06T09:29:27.815137"
+    }
+  ]
+}

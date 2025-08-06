@@ -15,7 +15,7 @@ import json
 import logging
 import os
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, AsyncGenerator, Union
 from urllib.parse import urljoin
 
@@ -92,8 +92,8 @@ class WebhookTriggerNode(TerminatorNode):
             "name": "WebhookTrigger",
             "display_name": "Webhook Trigger",
             "description": (
-                "Unified webhook node that can start workflows or trigger mid-flow. "
-                f"POST to /api/webhooks{self.endpoint_path} with JSON payload."
+                "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). "
+                f"Send requests to /api/webhooks{self.endpoint_path} with optional JSON payload."
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
@@ -102,6 +102,21 @@ class WebhookTriggerNode(TerminatorNode):
             
             # Webhook configuration inputs
             "inputs": [
+                NodeInput(
+                    name="http_method",
+                    type="select",
+                    description="HTTP method for webhook endpoint",
+                    default="POST",
+                    choices=[
+                        {"value": "GET", "label": "GET", "description": "GET request (query parameters)"},
+                        {"value": "POST", "label": "POST", "description": "POST request (JSON body)"},
+                        {"value": "PUT", "label": "PUT", "description": "PUT request (JSON body)"},
+                        {"value": "PATCH", "label": "PATCH", "description": "PATCH request (JSON body)"},
+                        {"value": "DELETE", "label": "DELETE", "description": "DELETE request (query parameters)"},
+                        {"value": "HEAD", "label": "HEAD", "description": "HEAD request (no body)"},
+                    ],
+                    required=False,
+                ),
                 NodeInput(
                     name="authentication_required",
                     type="boolean",
@@ -177,22 +192,23 @@ class WebhookTriggerNode(TerminatorNode):
             ],
         }
         
-        # Register webhook endpoint
-        self._register_webhook_endpoint()
+        # Endpoint will be registered when execute is called with configuration
+        self._endpoint_registered = False
         
         logger.info(f"🔗 Webhook trigger created: {self.webhook_id}")
     
     def _register_webhook_endpoint(self) -> None:
-        """Register webhook endpoint with FastAPI router."""
+        """Register webhook endpoint with FastAPI router for selected HTTP method."""
         
-        @webhook_router.post(self.endpoint_path, response_model=WebhookResponse)
+        # Get HTTP method from user data, default to POST for backward compatibility
+        http_method = self.user_data.get("http_method", "POST").upper()
+        
         async def webhook_handler(
             request: Request,
             background_tasks: BackgroundTasks,
-            payload: WebhookPayload,
             credentials: Optional[HTTPAuthorizationCredentials] = Depends(security)
         ) -> WebhookResponse:
-            """Handle incoming webhook requests."""
+            """Handle incoming webhook requests for any HTTP method."""
             
             correlation_id = str(uuid.uuid4())
             received_at = datetime.now(timezone.utc)
@@ -206,19 +222,62 @@ class WebhookTriggerNode(TerminatorNode):
                             detail="Invalid or missing authentication token"
                         )
                 
+                # Parse request body based on HTTP method and content
+                payload_data = {}
+                event_type = "webhook.received"
+                source = None
+                timestamp = None
+                
+                # Handle different HTTP methods
+                if request.method in ["POST", "PUT", "PATCH"]:
+                    # Methods that typically have request bodies
+                    try:
+                        if request.headers.get("content-type", "").startswith("application/json"):
+                            body = await request.json()
+                            if isinstance(body, dict):
+                                # Handle structured webhook payload
+                                payload_data = body.get("data", body)
+                                event_type = body.get("event_type", "webhook.received")
+                                source = body.get("source")
+                                timestamp = body.get("timestamp")
+                            else:
+                                payload_data = {"body": body}
+                        else:
+                            # Handle other content types
+                            body_bytes = await request.body()
+                            if body_bytes:
+                                payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
+                    except Exception as e:
+                        logger.warning(f"Failed to parse request body: {e}")
+                        payload_data = {"parse_error": str(e)}
+                
+                elif request.method == "GET":
+                    # For GET requests, use query parameters as data
+                    payload_data = dict(request.query_params)
+                    event_type = payload_data.get("event_type", "webhook.received")
+                    source = payload_data.get("source")
+                    
+                elif request.method in ["DELETE", "HEAD"]:
+                    # For DELETE/HEAD, use URL path and query parameters
+                    payload_data = {
+                        "path": str(request.url.path),
+                        "query_params": dict(request.query_params)
+                    }
+                    event_type = payload_data.get("event_type", "webhook.received")
+                
                 # Event type validation
                 allowed_types = self.user_data.get("allowed_event_types", "")
                 if allowed_types:
                     allowed_list = [t.strip() for t in allowed_types.split(",")]
-                    if payload.event_type not in allowed_list:
+                    if event_type not in allowed_list:
                         raise HTTPException(
                             status_code=400,
-                            detail=f"Event type '{payload.event_type}' not allowed"
+                            detail=f"Event type '{event_type}' not allowed"
                         )
                 
                 # Payload size check
                 max_size_kb = self.user_data.get("max_payload_size", 1024)
-                payload_size = len(json.dumps(payload.data).encode('utf-8')) / 1024
+                payload_size = len(json.dumps(payload_data).encode('utf-8')) / 1024
                 if payload_size > max_size_kb:
                     raise HTTPException(
                         status_code=413,
@@ -229,13 +288,16 @@ class WebhookTriggerNode(TerminatorNode):
                 webhook_event = {
                     "webhook_id": self.webhook_id,
                     "correlation_id": correlation_id,
-                    "event_type": payload.event_type,
-                    "data": payload.data,
-                    "source": payload.source,
+                    "http_method": request.method,
+                    "event_type": event_type,
+                    "data": payload_data,
+                    "source": source,
                     "received_at": received_at.isoformat(),
-                    "client_ip": request.client.host,
+                    "client_ip": request.client.host if request.client else "unknown",
                     "user_agent": request.headers.get("user-agent"),
-                    "timestamp": payload.timestamp or received_at.isoformat(),
+                    "timestamp": timestamp or received_at.isoformat(),
+                    "headers": dict(request.headers),
+                    "url": str(request.url),
                 }
                 
                 # Store event
@@ -248,11 +310,11 @@ class WebhookTriggerNode(TerminatorNode):
                 # Notify subscribers (for streaming)
                 background_tasks.add_task(self._notify_subscribers, webhook_event)
                 
-                logger.info(f"📨 Webhook received: {self.webhook_id} - {payload.event_type}")
+                logger.info(f"📨 Webhook received: {self.webhook_id} - {request.method} - {event_type}")
                 
                 return WebhookResponse(
                     success=True,
-                    message="Webhook received and processed successfully",
+                    message=f"Webhook received and processed successfully via {request.method}",
                     webhook_id=self.webhook_id,
                     received_at=received_at.isoformat(),
                     correlation_id=correlation_id
@@ -267,7 +329,25 @@ class WebhookTriggerNode(TerminatorNode):
                     detail=f"Webhook processing failed: {str(e)}"
                 )
         
-        logger.info(f"🌐 Webhook endpoint registered: POST /api/webhooks{self.endpoint_path}")
+        # Register endpoint for the selected HTTP method
+        if http_method == "GET":
+            webhook_router.get(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        elif http_method == "POST":
+            webhook_router.post(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        elif http_method == "PUT":
+            webhook_router.put(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        elif http_method == "PATCH":
+            webhook_router.patch(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        elif http_method == "DELETE":
+            webhook_router.delete(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        elif http_method == "HEAD":
+            webhook_router.head(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+        else:
+            # Default to POST for backward compatibility
+            webhook_router.post(self.endpoint_path, response_model=WebhookResponse)(webhook_handler)
+            http_method = "POST"
+        
+        logger.info(f"🌐 Webhook endpoint registered: {http_method} /api/webhooks{self.endpoint_path}")
     
     async def _notify_subscribers(self, event: Dict[str, Any]) -> None:
         """Notify all subscribers of new webhook event."""
@@ -354,6 +434,11 @@ class WebhookTriggerNode(TerminatorNode):
         # Store user configuration
         self.user_data.update(kwargs)
         
+        # Register endpoint if not already registered
+        if not self._endpoint_registered:
+            self._register_webhook_endpoint()
+            self._endpoint_registered = True
+        
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
         full_endpoint = urljoin(base_url, f"/api/webhooks{self.endpoint_path}")
@@ -362,6 +447,7 @@ class WebhookTriggerNode(TerminatorNode):
             "webhook_id": self.webhook_id,
             "endpoint_url": full_endpoint,
             "endpoint_path": f"/api/webhooks{self.endpoint_path}",
+            "http_method": kwargs.get("http_method", "POST").upper(),
             "authentication_required": kwargs.get("authentication_required", True),
             "secret_token": self.secret_token if kwargs.get("authentication_required", True) else None,
             "allowed_event_types": kwargs.get("allowed_event_types", ""),
@@ -580,8 +666,9 @@ Connection Pattern:
 CONFIGURATION PARAMETERS:
 ========================
 
-📋 INPUT PARAMETERS (6 total):
+📋 INPUT PARAMETERS (7 total):
 
+• http_method (select): HTTP method for webhook endpoint (default: POST, options: GET, POST, PUT, PATCH, DELETE, HEAD)
 • authentication_required (boolean): Require bearer token auth (default: true)
 • allowed_event_types (text): Comma-separated event types (empty = all allowed)
 • max_payload_size (number): Max payload size in KB (default: 1024, max: 10240)
@@ -599,7 +686,7 @@ CONFIGURATION PARAMETERS:
 EXTERNAL INTEGRATION EXAMPLES:
 =============================
 
-Example 1: Basic Webhook Integration
+Example 1: Basic POST Webhook Integration
 ```bash
 # External system posts to webhook endpoint
 curl -X POST "http://localhost:8000/api/webhooks/wh_abc123def456" \
@@ -614,6 +701,36 @@ curl -X POST "http://localhost:8000/api/webhooks/wh_abc123def456" \
     },
     "source": "user_service"
   }'
+```
+
+Example 1b: GET Webhook with Query Parameters
+```bash
+# External system triggers webhook via GET request
+curl -X GET "http://localhost:8000/api/webhooks/wh_abc123def456?event_type=user.login&user_id=12345&session_id=xyz789" \
+  -H "Authorization: Bearer wht_secrettoken123"
+```
+
+Example 1c: PUT Webhook for Updates
+```bash
+# External system updates data via PUT request
+curl -X PUT "http://localhost:8000/api/webhooks/wh_abc123def456" \
+  -H "Authorization: Bearer wht_secrettoken123" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "event_type": "user.updated",
+    "data": {
+      "user_id": 12345,
+      "email": "newemail@example.com",
+      "updated_fields": ["email"]
+    }
+  }'
+```
+
+Example 1d: DELETE Webhook for Cleanup
+```bash
+# External system triggers cleanup via DELETE request
+curl -X DELETE "http://localhost:8000/api/webhooks/wh_abc123def456?event_type=user.deleted&user_id=12345" \
+  -H "Authorization: Bearer wht_secrettoken123"
 ```
 
 Example 2: E-commerce Order Processing
@@ -666,6 +783,7 @@ Basic Webhook → Start → End Workflow:
       "data": {
         "name": "External Webhook",
         "inputs": {
+          "http_method": "POST",
           "authentication_required": true,
           "allowed_event_types": "user.created,order.completed",
           "max_payload_size": 2048,
@@ -716,6 +834,7 @@ Advanced Webhook → Processing → API Workflow:
       "type": "WebhookTrigger",
       "data": {
         "inputs": {
+          "http_method": "PUT",
           "authentication_required": false,
           "allowed_event_types": "api.request,data.process",
           "max_payload_size": 5120
@@ -891,10 +1010,21 @@ Basic Webhook Test:
 # Test webhook endpoint availability
 curl -X GET "http://localhost:8000/api/webhooks/"
 
-# Test webhook with minimal payload
+# Test POST webhook with minimal payload
 curl -X POST "http://localhost:8000/api/webhooks/wh_your_webhook_id" \
   -H "Content-Type: application/json" \
   -d '{"event_type": "test.event", "data": {"message": "test"}}'
+
+# Test GET webhook with query parameters
+curl -X GET "http://localhost:8000/api/webhooks/wh_your_webhook_id?event_type=test.get&message=hello"
+
+# Test PUT webhook with update data
+curl -X PUT "http://localhost:8000/api/webhooks/wh_your_webhook_id" \
+  -H "Content-Type: application/json" \
+  -d '{"event_type": "test.update", "data": {"id": 123, "status": "updated"}}'
+
+# Test DELETE webhook
+curl -X DELETE "http://localhost:8000/api/webhooks/wh_your_webhook_id?event_type=test.delete&id=123"
 ```
 
 Authenticated Webhook Test:

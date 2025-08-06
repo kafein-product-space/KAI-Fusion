@@ -6,6 +6,7 @@ export interface WebhookTriggerNodeProps {
 export interface WebhookTriggerData {
   webhook_id?: string;
   webhook_token?: string;
+  http_method?: string;
   authentication_required?: boolean;
   allowed_event_types?: string;
   max_payload_size?: number;
@@ -35,14 +36,14 @@ export interface WebhookStats {
 }
 
 export interface WebhookTriggerConfig {
+  http_method: string;
   authentication_required: boolean;
   allowed_event_types: string;
   max_payload_size: number;
   rate_limit_per_minute: number;
   enable_cors: boolean;
   webhook_timeout: number;
-  webhook_token: string;
-  http_method?: string;
+  webhook_token?: string;
   auth_type?: string;
   allowed_ips?: string;
 } 
