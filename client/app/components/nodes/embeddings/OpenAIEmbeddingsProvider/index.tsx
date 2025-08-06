@@ -60,7 +60,8 @@ export default function OpenAIEmbeddingsProviderNode({
     if (!values.model) {
       errors.model = "Model is required";
     }
-    if (!values.openai_api_key) {
+    // Only validate API key if it's not empty (allow empty for initial state)
+    if (values.openai_api_key && values.openai_api_key.trim() === "") {
       errors.openai_api_key = "API key is required";
     }
     if (
@@ -79,7 +80,8 @@ export default function OpenAIEmbeddingsProviderNode({
       values.request_timeout &&
       (values.request_timeout < 10 || values.request_timeout > 300)
     ) {
-      errors.request_timeout = "Request timeout must be between 10 and 300 seconds";
+      errors.request_timeout =
+        "Request timeout must be between 10 and 300 seconds";
     }
     return errors;
   };

@@ -104,15 +104,15 @@ export default function CohereRerankerVisual({
         </>
       )}
 
-      {/* Input Handle */}
+      {/* Output Handle */}
       <NeonHandle
-        type="target"
-        position={Position.Left}
-        id="input"
+        type="source"
+        position={Position.Top}
+        id="output"
         size={10}
         isConnectable={true}
         color1="#3b82f6"
-        glow={isHandleConnected("input", false)}
+        glow={isHandleConnected("output", false)}
       />
 
       {/* Left side label for input */}

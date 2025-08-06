@@ -47,6 +47,9 @@ export default function OpenAIEmbeddingsProviderConfigForm({
         validate={validate}
         onSubmit={onSubmit}
         enableReinitialize
+        validateOnMount={false}
+        validateOnChange={false}
+        validateOnBlur={true}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="space-y-3 w-full p-3">

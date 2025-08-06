@@ -48,9 +48,17 @@ export default function ChatDisplayNode({
           }
           border border-white/20 backdrop-blur-sm hover:border-white/40
           ${isActive ? "animate-pulse ring-4 ring-green-400/50" : ""}`}
-        onDoubleClick={onDoubleClick}
-        onMouseEnter={onHoverEnter}
-        onMouseLeave={onHoverLeave}
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onDoubleClick();
+        }}
+        onMouseEnter={(e) => {
+          onHoverEnter();
+        }}
+        onMouseLeave={(e) => {
+          onHoverLeave();
+        }}
       >
         <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50" />
         <div className="relative z-10 mb-2">
