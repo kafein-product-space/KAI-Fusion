@@ -26,6 +26,7 @@ export default function WebhookTriggerNode({
   const [webhookToken, setWebhookToken] = useState<string>("");
   const [isEndpointReady, setIsEndpointReady] = useState(false);
   const [configData, setConfigData] = useState<WebhookTriggerConfig>({
+    http_method: data?.http_method || "POST",
     authentication_required: data?.authentication_required !== false,
     allowed_event_types: data?.allowed_event_types || "",
     max_payload_size: data?.max_payload_size || 1024,
@@ -33,6 +34,29 @@ export default function WebhookTriggerNode({
     enable_cors: data?.enable_cors !== false,
     webhook_timeout: data?.webhook_timeout || 30,
     webhook_token: data?.webhook_token || "wht_secrettoken123",
+    // New fields from guide
+    auth_type: data?.auth_type || "bearer",
+    allowed_ips: data?.allowed_ips || "",
+    preserve_document_metadata: data?.preserve_document_metadata !== false,
+    metadata_strategy: data?.metadata_strategy || "merge",
+    enable_hnsw_index: data?.enable_hnsw_index !== false,
+    enable_websocket_broadcast: data?.enable_websocket_broadcast || false,
+    realtime_channels: data?.realtime_channels || [],
+    tenant_isolation: data?.tenant_isolation || false,
+    tenant_header: data?.tenant_header || "X-Tenant-ID",
+    per_tenant_rate_limits: data?.per_tenant_rate_limits || {},
+    service_discovery: data?.service_discovery || false,
+    load_balancing: data?.load_balancing || false,
+    circuit_breaker: data?.circuit_breaker || false,
+    event_routing: data?.event_routing || {},
+    max_concurrent_connections: data?.max_concurrent_connections || 100,
+    connection_timeout: data?.connection_timeout || 30,
+    keep_alive: data?.keep_alive !== false,
+    request_pooling: data?.request_pooling || false,
+    enable_response_cache: data?.enable_response_cache || false,
+    cache_duration: data?.cache_duration || 300,
+    cache_keys: data?.cache_keys || ["event_type", "source"],
+    cache_size_limit: data?.cache_size_limit || "100MB",
   });
 
   // Webhook endpoint URL'ini oluştur
@@ -244,6 +268,32 @@ export default function WebhookTriggerNode({
         "Webhook timeout must be between 5 and 300 seconds";
     }
 
+    // New validations for advanced features
+    if (
+      values.max_concurrent_connections &&
+      (values.max_concurrent_connections < 1 ||
+        values.max_concurrent_connections > 1000)
+    ) {
+      errors.max_concurrent_connections =
+        "Max concurrent connections must be between 1 and 1000";
+    }
+
+    if (
+      values.connection_timeout &&
+      (values.connection_timeout < 5 || values.connection_timeout > 300)
+    ) {
+      errors.connection_timeout =
+        "Connection timeout must be between 5 and 300 seconds";
+    }
+
+    if (
+      values.cache_duration &&
+      (values.cache_duration < 60 || values.cache_duration > 3600)
+    ) {
+      errors.cache_duration =
+        "Cache duration must be between 60 and 3600 seconds";
+    }
+
     return errors;
   };
 
@@ -269,6 +319,7 @@ export default function WebhookTriggerNode({
           stats={stats}
           isListening={isListening}
           onTestEvent={startListening}
+          onStopListening={stopListening}
           onCopyToClipboard={copyToClipboard}
         />
       ) : (
