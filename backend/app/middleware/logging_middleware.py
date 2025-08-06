@@ -315,7 +315,22 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         
         # Check for suspicious patterns if enabled
         if self.enable_suspicious_detection:
-            await self._detect_suspicious_activity(request, client_ip, user_agent, request_id)
+            # Skip detection for legitimate endpoints (whitelist)
+            whitelisted_paths = [
+                "/api/http-client/",
+                "/api/v1/webhooks/",
+                "/api/v1/nodes/",
+                "/api/v1/workflows/"
+            ]
+            
+            should_detect = True
+            for whitelisted_path in whitelisted_paths:
+                if request.url.path.startswith(whitelisted_path):
+                    should_detect = False
+                    break
+            
+            if should_detect:
+                await self._detect_suspicious_activity(request, client_ip, user_agent, request_id)
         
         # Log security headers if enabled
         if self.log_all_security_headers:
