@@ -58,12 +58,37 @@ interface HTTPClientConfig {
   auth_username: string;
   auth_password: string;
   api_key_header: string;
+  api_key_value: string;
   timeout: number;
   max_retries: number;
   retry_delay: number;
+  retry_exponential_backoff: boolean;
+  retry_on_status_codes: string;
+  circuit_breaker_enabled: boolean;
   follow_redirects: boolean;
   verify_ssl: boolean;
   enable_templating: boolean;
+  // New fields from guide
+  proxy_url: string;
+  proxy_username: string;
+  proxy_password: string;
+  ssl_cert_path: string;
+  ssl_key_path: string;
+  ssl_ca_bundle: string;
+  rate_limit_enabled: boolean;
+  requests_per_second: number;
+  burst_size: number;
+  response_filter: string;
+  extract_field: string;
+  save_to_variable: string;
+  test_mode: boolean;
+  mock_response: string;
+  debug_logging: boolean;
+  save_request_response: boolean;
+  connection_pooling: boolean;
+  keep_alive: boolean;
+  compression: string;
+  timeout_optimization: boolean;
 }
 
 interface HttpResponse {
@@ -99,8 +124,7 @@ const HTTP_METHODS = [
   {
     value: "PUT",
     label: "PUT",
-    description:
-      "Update resource completely • Idempotent • Best for full updates",
+    description: "Update entire resource • Idempotent • Replaces existing data",
     icon: "🔄",
     color: "from-orange-500 to-amber-500",
   },
@@ -108,31 +132,29 @@ const HTTP_METHODS = [
     value: "PATCH",
     label: "PATCH",
     description:
-      "Partially update resource • Efficient • Best for partial updates",
+      "Partial resource update • Non-idempotent • Updates specific fields",
     icon: "🔧",
     color: "from-purple-500 to-pink-500",
   },
   {
     value: "DELETE",
     label: "DELETE",
-    description:
-      "Remove resource from server • Idempotent • Best for deletions",
+    description: "Remove resource • Idempotent • Safe to retry",
     icon: "🗑️",
     color: "from-red-500 to-rose-500",
   },
   {
     value: "HEAD",
     label: "HEAD",
-    description: "Get response headers only • Lightweight • Best for metadata",
+    description: "Get headers only • No response body • Metadata retrieval",
     icon: "📋",
     color: "from-gray-500 to-slate-500",
   },
   {
     value: "OPTIONS",
     label: "OPTIONS",
-    description:
-      "Get available methods • CORS support • Best for API discovery",
-    icon: "🔍",
+    description: "Get allowed methods • CORS preflight • API discovery",
+    icon: "❓",
     color: "from-indigo-500 to-blue-500",
   },
 ];
@@ -140,35 +162,53 @@ const HTTP_METHODS = [
 // Content Type Options with enhanced descriptions
 const CONTENT_TYPES = [
   {
-    value: "json",
+    value: "application/json",
     label: "JSON ⭐",
     description: "application/json • Structured data • Most common for APIs",
     icon: "📊",
   },
   {
-    value: "form",
+    value: "application/x-www-form-urlencoded",
     label: "Form Data",
     description:
       "application/x-www-form-urlencoded • Traditional forms • Legacy support",
     icon: "📝",
   },
   {
-    value: "xml",
+    value: "multipart/form-data",
+    label: "Multipart Form",
+    description: "multipart/form-data • File uploads • Binary data support",
+    icon: "📎",
+  },
+  {
+    value: "application/xml",
     label: "XML",
     description: "application/xml • Structured markup • Enterprise systems",
     icon: "📄",
   },
   {
-    value: "text",
+    value: "text/plain",
     label: "Plain Text",
     description: "text/plain • Simple text • Minimal overhead",
     icon: "📝",
   },
   {
-    value: "html",
+    value: "text/html",
     label: "HTML",
     description: "text/html • Web content • Browser rendering",
     icon: "🌐",
+  },
+  {
+    value: "application/octet-stream",
+    label: "Binary Data",
+    description: "application/octet-stream • Raw binary • File downloads",
+    icon: "💾",
+  },
+  {
+    value: "custom",
+    label: "Custom",
+    description: "Custom content type • Specify manually • Special cases",
+    icon: "🔧",
   },
 ];
 
@@ -237,12 +277,38 @@ const HTTPClientConfigModal = forwardRef<
       auth_username: nodeData?.auth_username || "",
       auth_password: nodeData?.auth_password || "",
       api_key_header: nodeData?.api_key_header || "X-API-Key",
+      api_key_value: nodeData?.api_key_value || "",
       timeout: nodeData?.timeout || 30,
       max_retries: nodeData?.max_retries || 3,
       retry_delay: nodeData?.retry_delay || 1.0,
+      retry_exponential_backoff: nodeData?.retry_exponential_backoff || false,
+      retry_on_status_codes:
+        nodeData?.retry_on_status_codes || "[502, 503, 504]",
+      circuit_breaker_enabled: nodeData?.circuit_breaker_enabled || false,
       follow_redirects: nodeData?.follow_redirects !== false,
       verify_ssl: nodeData?.verify_ssl !== false,
       enable_templating: nodeData?.enable_templating !== false,
+      // New fields from guide
+      proxy_url: nodeData?.proxy_url || "",
+      proxy_username: nodeData?.proxy_username || "",
+      proxy_password: nodeData?.proxy_password || "",
+      ssl_cert_path: nodeData?.ssl_cert_path || "",
+      ssl_key_path: nodeData?.ssl_key_path || "",
+      ssl_ca_bundle: nodeData?.ssl_ca_bundle || "",
+      rate_limit_enabled: nodeData?.rate_limit_enabled || false,
+      requests_per_second: nodeData?.requests_per_second || 10,
+      burst_size: nodeData?.burst_size || 50,
+      response_filter: nodeData?.response_filter || "",
+      extract_field: nodeData?.extract_field || "",
+      save_to_variable: nodeData?.save_to_variable || "",
+      test_mode: nodeData?.test_mode || false,
+      mock_response: nodeData?.mock_response || "{}",
+      debug_logging: nodeData?.debug_logging || false,
+      save_request_response: nodeData?.save_request_response || false,
+      connection_pooling: nodeData?.connection_pooling || false,
+      keep_alive: nodeData?.keep_alive !== false,
+      compression: nodeData?.compression || "none",
+      timeout_optimization: nodeData?.timeout_optimization || false,
     };
 
     const parseCurlCommand = (curlText: string) => {
@@ -351,7 +417,13 @@ const HTTPClientConfigModal = forwardRef<
                 <div className="flex space-x-1 bg-slate-800/50 rounded-lg p-1">
                   {[
                     { id: "basic", label: "Basic", icon: Settings },
+                    { id: "security", label: "Security", icon: Shield },
                     { id: "advanced", label: "Advanced", icon: Zap },
+                    {
+                      id: "performance",
+                      label: "Performance",
+                      icon: BarChart3,
+                    },
                     { id: "test", label: "🎯 Test", icon: Send },
                   ].map((tab) => (
                     <button
@@ -444,6 +516,33 @@ const HTTPClientConfigModal = forwardRef<
                         />
                       </div>
                     )}
+
+                    {/* Content Type */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-white">
+                        Content Type
+                      </label>
+                      <Field
+                        name="content_type"
+                        as="select"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                        text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                        focus:border-transparent"
+                      >
+                        {CONTENT_TYPES.map((type) => (
+                          <option key={type.value} value={type.value}>
+                            {type.label}
+                          </option>
+                        ))}
+                      </Field>
+                      <p className="text-xs text-slate-400">
+                        {
+                          CONTENT_TYPES.find(
+                            (t) => t.value === values.content_type
+                          )?.description
+                        }
+                      </p>
+                    </div>
 
                     {/* Authentication */}
                     <div className="space-y-4">
@@ -650,6 +749,315 @@ const HTTPClientConfigModal = forwardRef<
                         <label className="text-sm font-medium text-white">
                           Enable Templating
                         </label>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Security Settings Tab */}
+                {activeTab === "security" && (
+                  <div className="space-y-6">
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2 mb-4">
+                        <Shield className="w-5 h-5" />
+                        <span>🛡️ Security & SSL</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* SSL Certificate Path */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            SSL Certificate Path
+                          </label>
+                          <Field
+                            name="ssl_cert_path"
+                            type="text"
+                            placeholder="/path/to/cert.pem"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* SSL Key Path */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            SSL Key Path
+                          </label>
+                          <Field
+                            name="ssl_key_path"
+                            type="text"
+                            placeholder="/path/to/key.pem"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* SSL CA Bundle */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            SSL CA Bundle
+                          </label>
+                          <Field
+                            name="ssl_ca_bundle"
+                            type="text"
+                            placeholder="/path/to/ca-bundle.crt"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Verify SSL */}
+                        <div className="flex items-center space-x-3">
+                          <Field
+                            name="verify_ssl"
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                            focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label className="text-sm font-medium text-white">
+                            Verify SSL Certificates
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Proxy Settings */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2 mb-4">
+                        <Globe className="w-5 h-5" />
+                        <span>🌐 Proxy Configuration</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Proxy URL */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Proxy URL
+                          </label>
+                          <Field
+                            name="proxy_url"
+                            type="text"
+                            placeholder="http://proxy.company.com:8080"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Proxy Username */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Proxy Username
+                          </label>
+                          <Field
+                            name="proxy_username"
+                            type="text"
+                            placeholder="proxy_user"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Proxy Password */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Proxy Password
+                          </label>
+                          <Field
+                            name="proxy_password"
+                            type="password"
+                            placeholder="proxy_pass"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Performance Settings Tab */}
+                {activeTab === "performance" && (
+                  <div className="space-y-6">
+                    {/* Rate Limiting */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2 mb-4">
+                        <BarChart3 className="w-5 h-5" />
+                        <span>📊 Rate Limiting</span>
+                      </h4>
+
+                      <div className="flex items-center space-x-3 mb-4">
+                        <Field
+                          name="rate_limit_enabled"
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                          focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label className="text-sm font-medium text-white">
+                          Enable Rate Limiting
+                        </label>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Requests Per Second */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Requests Per Second
+                          </label>
+                          <Field
+                            name="requests_per_second"
+                            type="number"
+                            min="1"
+                            max="1000"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                            focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Burst Size */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Burst Size
+                          </label>
+                          <Field
+                            name="burst_size"
+                            type="number"
+                            min="1"
+                            max="1000"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                            focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Connection Settings */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2 mb-4">
+                        <Activity className="w-5 h-5" />
+                        <span>🔗 Connection Settings</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Connection Pooling */}
+                        <div className="flex items-center space-x-3">
+                          <Field
+                            name="connection_pooling"
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                            focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label className="text-sm font-medium text-white">
+                            Connection Pooling
+                          </label>
+                        </div>
+
+                        {/* Keep Alive */}
+                        <div className="flex items-center space-x-3">
+                          <Field
+                            name="keep_alive"
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                            focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label className="text-sm font-medium text-white">
+                            Keep Alive
+                          </label>
+                        </div>
+
+                        {/* Timeout Optimization */}
+                        <div className="flex items-center space-x-3">
+                          <Field
+                            name="timeout_optimization"
+                            type="checkbox"
+                            className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                            focus:ring-blue-500 focus:ring-2"
+                          />
+                          <label className="text-sm font-medium text-white">
+                            Timeout Optimization
+                          </label>
+                        </div>
+                      </div>
+
+                      {/* Compression */}
+                      <div className="mt-4">
+                        <label className="block text-sm font-medium text-white mb-2">
+                          Compression
+                        </label>
+                        <Field
+                          name="compression"
+                          as="select"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent"
+                        >
+                          <option value="none">None</option>
+                          <option value="gzip">Gzip</option>
+                          <option value="deflate">Deflate</option>
+                          <option value="br">Brotli</option>
+                        </Field>
+                      </div>
+                    </div>
+
+                    {/* Response Processing */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2 mb-4">
+                        <Code className="w-5 h-5" />
+                        <span>🔧 Response Processing</span>
+                      </h4>
+
+                      <div className="space-y-4">
+                        {/* Response Filter */}
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2">
+                            Response Filter (JSONPath)
+                          </label>
+                          <Field
+                            name="response_filter"
+                            type="text"
+                            placeholder="$.data.users[*].{id: id, name: name}"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Extract Field */}
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2">
+                            Extract Field
+                          </label>
+                          <Field
+                            name="extract_field"
+                            type="text"
+                            placeholder="data.access_token"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        {/* Save to Variable */}
+                        <div>
+                          <label className="block text-sm font-medium text-white mb-2">
+                            Save to Variable
+                          </label>
+                          <Field
+                            name="save_to_variable"
+                            type="text"
+                            placeholder="user_token"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
                       </div>
                     </div>
                   </div>

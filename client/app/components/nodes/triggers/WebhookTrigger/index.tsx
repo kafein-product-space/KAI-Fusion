@@ -63,8 +63,12 @@ export default function WebhookTriggerNode({
   useEffect(() => {
     // Webhook ID yoksa node ID'yi kullan
     const webhookId = data?.webhook_id || id;
-    const baseUrl = window.location.origin;
-    const endpoint = `${baseUrl}/api/webhooks/${webhookId}`;
+    // Doğrudan backend URL'ini kullan (proxy sorununu önlemek için)
+    const backendUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:8000"
+        : window.location.origin;
+    const endpoint = `${backendUrl}/api/webhooks/${webhookId}`;
     setWebhookEndpoint(endpoint);
     setWebhookToken(data?.webhook_token || "wht_secrettoken123");
     setIsEndpointReady(true);
@@ -75,7 +79,13 @@ export default function WebhookTriggerNode({
     if (!isListening) return;
 
     const webhookId = data?.webhook_id || id;
-    const eventSource = new EventSource(`/api/webhooks/${webhookId}/stream`);
+    const backendUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:8000"
+        : window.location.origin;
+    const eventSource = new EventSource(
+      `${backendUrl}/api/webhooks/${webhookId}/stream`
+    );
 
     eventSource.onmessage = (event) => {
       try {
@@ -113,7 +123,13 @@ export default function WebhookTriggerNode({
     if (!webhookId) return;
 
     try {
-      const response = await fetch(`/api/webhooks/${webhookId}/stats`);
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
+      const response = await fetch(
+        `${backendUrl}/api/webhooks/${webhookId}/stats`
+      );
       if (response.ok) {
         const statsData = await response.json();
         setStats(statsData);
@@ -132,8 +148,12 @@ export default function WebhookTriggerNode({
 
     try {
       // Backend'e listening başlatma isteği gönder
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
       const response = await fetch(
-        `/api/webhooks/${webhookId}/start-listening`,
+        `${backendUrl}/api/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -159,8 +179,12 @@ export default function WebhookTriggerNode({
 
     try {
       const webhookId = data?.webhook_id || id;
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`/api/webhooks/${webhookId}/stop-listening`, {
+      await fetch(`${backendUrl}/api/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
