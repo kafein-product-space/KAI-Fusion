@@ -19,6 +19,7 @@ interface ChatStore {
   updateMessage: (chatflow_id: string, message: ChatMessage) => void;
   removeMessage: (chatflow_id: string, message_id: string) => void;
   clearMessages: (chatflow_id: string) => void;
+  loadChatHistory: () => Promise<void>;
   // LLM entegrasyonu:
   startLLMChat: (flow_data: any, input_text: string, workflow_id: string) => Promise<void>;
   sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
@@ -29,33 +30,50 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   activeChatflowId: null,
   loading: false,
   error: null,
+
   fetchAllChats: async () => {
     set({ loading: true, error: null });
     try {
-      const chats = await chatService.getAllChats();
-      set({ chats, loading: false });
+      const allChats = await chatService.getAllChats();
+      set((state) => ({
+        chats: { ...state.chats, ...allChats },
+        loading: false,
+      }));
     } catch (e: any) {
-      set({ error: e.message || 'Chatleri alırken hata', loading: false });
+      set({ error: e.message || 'Chat geçmişi yüklenemedi', loading: false });
     }
   },
+
+  loadChatHistory: async () => {
+    set({ loading: true, error: null });
+    try {
+      const allChats = await chatService.getAllChats();
+      set((state) => ({
+        chats: { ...state.chats, ...allChats },
+        loading: false,
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Chat geçmişi yüklenemedi', loading: false });
+    }
+  },
+
   startNewChat: async (content) => {
     set({ loading: true, error: null });
     try {
       const messages = await chatService.startNewChat(content);
-      if (messages.length > 0) {
-        const chatflow_id = messages[0].chatflow_id;
+      const chatflow_id = messages[0]?.chatflow_id;
+      if (chatflow_id) {
         set((state) => ({
           chats: { ...state.chats, [chatflow_id]: messages },
           activeChatflowId: chatflow_id,
           loading: false,
         }));
-      } else {
-        set({ loading: false });
       }
     } catch (e: any) {
       set({ error: e.message || 'Yeni chat başlatılamadı', loading: false });
     }
   },
+
   fetchChatMessages: async (chatflow_id) => {
     set({ loading: true, error: null });
     try {
@@ -81,6 +99,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ error: e.message || 'Mesajlar alınamadı', loading: false });
     }
   },
+
   interactWithChat: async (chatflow_id, content) => {
     set({ loading: true, error: null });
     try {
@@ -93,9 +112,11 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ error: e.message || 'Mesaj gönderilemedi', loading: false });
     }
   },
+
   setActiveChatflowId: (chatflow_id) => set({ activeChatflowId: chatflow_id }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+
   addMessage: (chatflow_id, message) =>
     set((state) => {
       const existingMessages = state.chats[chatflow_id] || [];
@@ -114,6 +135,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         },
       };
     }),
+
   updateMessage: (chatflow_id, message) =>
     set((state) => ({
       chats: {
@@ -123,6 +145,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         ),
       },
     })),
+
   removeMessage: (chatflow_id, message_id) =>
     set((state) => ({
       chats: {
@@ -130,13 +153,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         [chatflow_id]: (state.chats[chatflow_id] || []).filter((m) => m.id !== message_id),
       },
     })),
+
   clearMessages: (chatflow_id) =>
-    set((state) => ({
-      chats: {
-        ...state.chats,
-        [chatflow_id]: [],
-      },
-    })),
+    set((state) => {
+      const newChats = { ...state.chats };
+      delete newChats[chatflow_id];
+      return {
+        chats: newChats,
+        activeChatflowId: state.activeChatflowId === chatflow_id ? null : state.activeChatflowId,
+      };
+    }),
+
   // LLM entegrasyonu:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
     set({ loading: true, error: null });
@@ -163,6 +190,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({ loading: false });
     }
   },
+
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, error: null });
     

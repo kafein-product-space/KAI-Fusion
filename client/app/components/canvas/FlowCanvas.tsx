@@ -35,6 +35,7 @@ import type {
 
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
+import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -183,11 +184,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     loading: chatLoading,
     error: chatError,
     addMessage,
+    fetchChatMessages,
+    loadChatHistory,
   } = useChatStore();
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
@@ -257,6 +261,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setHasUnsavedChanges(hasChanges);
     }
   }, [nodes, edges, currentWorkflow]);
+
+  // Load chat history on component mount
+  useEffect(() => {
+    loadChatHistory();
+  }, [loadChatHistory]);
+
+  // Load chat messages when active chat changes
+  useEffect(() => {
+    if (activeChatflowId) {
+      fetchChatMessages(activeChatflowId);
+    }
+  }, [activeChatflowId, fetchChatMessages]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -732,6 +748,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
+  const handleShowHistory = () => {
+    setChatHistoryOpen(true);
+  };
+
+  const handleSelectChat = (chatflowId: string) => {
+    if (chatflowId === "") {
+      // New chat
+      setActiveChatflowId(null);
+    } else {
+      // Select existing chat
+      setActiveChatflowId(chatflowId);
+    }
+  };
+
   // Edge'leri render ederken CustomEdge'a isActive prop'u ilet
   const edgeTypes = useMemo(
     () => ({
@@ -838,6 +868,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             setChatInput={setChatInput}
             onSendMessage={handleSendMessage}
             onClearChat={handleClearChat}
+            onShowHistory={handleShowHistory}
+            activeChatflowId={activeChatflowId}
+          />
+
+          {/* Chat History Sidebar */}
+          <ChatHistorySidebar
+            isOpen={chatHistoryOpen}
+            onClose={() => setChatHistoryOpen(false)}
+            onSelectChat={handleSelectChat}
+            activeChatflowId={activeChatflowId}
           />
 
           {/* Execution Status Indicator */}

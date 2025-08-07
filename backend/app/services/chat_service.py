@@ -491,15 +491,47 @@ class ChatService:
             
         return grouped_chats
 
-    async def get_chat_messages(self, chatflow_id: UUID) -> list[ChatMessage]:
-        result = await self.db.execute(
-            select(ChatMessage).filter(ChatMessage.chatflow_id == chatflow_id)
-        )
+    async def get_all_chats_grouped_by_user(self, user_id: UUID) -> dict[UUID, list[ChatMessage]]:
+        """
+        Retrieves all chat messages for a specific user from the database and groups them by chatflow_id.
+        """
+        stmt = select(ChatMessage).filter(ChatMessage.user_id == user_id).order_by(ChatMessage.chatflow_id, ChatMessage.created_at)
+        result = await self.db.execute(stmt)
+        all_messages = result.scalars().all()
+        
+        # Group messages by chatflow_id and decrypt content
+        grouped_chats = defaultdict(list)
+        for message in all_messages:
+            decrypted_message = self._prepare_message_response(message)
+            grouped_chats[message.chatflow_id].append(decrypted_message)
+            
+        return grouped_chats
+
+    async def get_chat_messages(self, chatflow_id: UUID, user_id: UUID = None) -> list[ChatMessage]:
+        if user_id:
+            result = await self.db.execute(
+                select(ChatMessage).filter(
+                    ChatMessage.chatflow_id == chatflow_id,
+                    ChatMessage.user_id == user_id
+                )
+            )
+        else:
+            result = await self.db.execute(
+                select(ChatMessage).filter(ChatMessage.chatflow_id == chatflow_id)
+            )
         messages = result.scalars().all()
         return [self._prepare_message_response(msg) for msg in messages]
 
-    async def update_chat_message(self, chat_message_id: UUID, chat_message_update: ChatMessageUpdate) -> list[ChatMessage]:
-        result = await self.db.execute(select(ChatMessage).filter(ChatMessage.id == chat_message_id))
+    async def update_chat_message(self, chat_message_id: UUID, chat_message_update: ChatMessageUpdate, user_id: UUID = None) -> list[ChatMessage]:
+        if user_id:
+            result = await self.db.execute(
+                select(ChatMessage).filter(
+                    ChatMessage.id == chat_message_id,
+                    ChatMessage.user_id == user_id
+                )
+            )
+        else:
+            result = await self.db.execute(select(ChatMessage).filter(ChatMessage.id == chat_message_id))
         db_chat_message = result.scalars().first()
 
         if not db_chat_message:
@@ -513,8 +545,8 @@ class ChatService:
                     setattr(db_chat_message, key, self._encrypt_content(value))
                 else:
                     setattr(db_chat_message, key, value)
-            await self.db.commit()
-            return await self.get_chat_messages(db_chat_message.chatflow_id)
+                    await self.db.commit()
+        return await self.get_chat_messages(db_chat_message.chatflow_id, user_id)
 
         # --- Logic for cascading update on a user message ---
         chatflow_id = db_chat_message.chatflow_id
@@ -545,10 +577,18 @@ class ChatService:
         await self.db.commit()
 
         # 4. Return the new state of the conversation
-        return await self.get_chat_messages(chatflow_id)
+        return await self.get_chat_messages(chatflow_id, user_id)
 
-    async def delete_chat_message(self, chat_message_id: UUID) -> bool:
-        result = await self.db.execute(select(ChatMessage).filter(ChatMessage.id == chat_message_id))
+    async def delete_chat_message(self, chat_message_id: UUID, user_id: UUID = None) -> bool:
+        if user_id:
+            result = await self.db.execute(
+                select(ChatMessage).filter(
+                    ChatMessage.id == chat_message_id,
+                    ChatMessage.user_id == user_id
+                )
+            )
+        else:
+            result = await self.db.execute(select(ChatMessage).filter(ChatMessage.id == chat_message_id))
         db_chat_message = result.scalars().first()
 
         if not db_chat_message:
@@ -567,7 +607,7 @@ class ChatService:
         await self.db.commit()
         return True
 
-    async def start_new_chat(self, user_input: str) -> list[ChatMessage]:
+    async def start_new_chat(self, user_input: str, user_id: UUID = None) -> list[ChatMessage]:
         # 1. Generate a new chatflow_id for the new conversation
         chatflow_id = uuid.uuid4()
 
@@ -575,7 +615,8 @@ class ChatService:
         user_message = ChatMessageCreate(
             role="user",
             content=user_input,
-            chatflow_id=chatflow_id
+            chatflow_id=chatflow_id,
+            user_id=user_id
         )
         await self.create_chat_message(user_message)
 
@@ -586,19 +627,21 @@ class ChatService:
         llm_message = ChatMessageCreate(
             role="assistant",
             content=llm_response_content,
-            chatflow_id=chatflow_id
+            chatflow_id=chatflow_id,
+            user_id=user_id
         )
         await self.create_chat_message(llm_message)
         
         # 5. Return all messages for the newly created chatflow
-        return await self.get_chat_messages(chatflow_id)
+        return await self.get_chat_messages(chatflow_id, user_id)
 
-    async def handle_chat_interaction(self, chatflow_id: UUID, user_input: str) -> list[ChatMessage]:
+    async def handle_chat_interaction(self, chatflow_id: UUID, user_input: str, user_id: UUID = None) -> list[ChatMessage]:
         # 1. Save user's message
         user_message = ChatMessageCreate(
             role="user",
             content=user_input,
-            chatflow_id=chatflow_id
+            chatflow_id=chatflow_id,
+            user_id=user_id
         )
         await self.create_chat_message(user_message)
 
@@ -609,9 +652,10 @@ class ChatService:
         llm_message = ChatMessageCreate(
             role="assistant",
             content=llm_response_content,
-            chatflow_id=chatflow_id
+            chatflow_id=chatflow_id,
+            user_id=user_id
         )
         await self.create_chat_message(llm_message)
         
         # 4. Return all messages for the chatflow
-        return await self.get_chat_messages(chatflow_id) 
+        return await self.get_chat_messages(chatflow_id, user_id) 

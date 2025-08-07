@@ -6,58 +6,68 @@ from typing import List, Dict
 from app.schemas.chat import ChatMessageResponse, ChatMessageUpdate, ChatMessageInput
 from app.services.chat_service import ChatService
 from app.core.database import get_db_session
+from app.auth.dependencies import get_current_user
+from app.models.user import User
 
 router = APIRouter()
 
 @router.get("/", response_model=Dict[UUID, List[ChatMessageResponse]])
-async def get_all_chats(db: AsyncSession = Depends(get_db_session)):
+async def get_all_chats(
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+):
     """
-    Retrieves all chat conversations, grouped by their chatflow_id.
+    Retrieves all chat conversations for the current user, grouped by their chatflow_id.
     """
     service = ChatService(db)
-    return await service.get_all_chats_grouped()
+    return await service.get_all_chats_grouped_by_user(current_user.id)
 
 @router.post("/", response_model=List[ChatMessageResponse], status_code=status.HTTP_201_CREATED)
 async def start_new_chat(
     user_input: ChatMessageInput,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Starts a new chat conversation.
+    Starts a new chat conversation for the current user.
     This creates a new chatflow_id, saves the user's first message,
     triggers an LLM response, and returns the initial exchange.
     """
     service = ChatService(db)
-    return await service.start_new_chat(user_input=user_input.content)
+    return await service.start_new_chat(user_input=user_input.content, user_id=current_user.id)
 
 @router.get("/{chatflow_id}", response_model=List[ChatMessageResponse])
 async def get_chat_messages(
     chatflow_id: UUID,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
-    return await service.get_chat_messages(chatflow_id=chatflow_id)
+    return await service.get_chat_messages(chatflow_id=chatflow_id, user_id=current_user.id)
 
 @router.post("/{chatflow_id}/interact", response_model=List[ChatMessageResponse])
 async def handle_chat_interaction(
     chatflow_id: UUID,
     user_input: ChatMessageInput,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
-    return await service.handle_chat_interaction(chatflow_id=chatflow_id, user_input=user_input.content)
+    return await service.handle_chat_interaction(chatflow_id=chatflow_id, user_input=user_input.content, user_id=current_user.id)
 
 @router.put("/{chat_message_id}", response_model=List[ChatMessageResponse])
 async def update_chat_message(
     chat_message_id: UUID,
     chat_message_update: ChatMessageInput, # Changed to ChatMessageInput for simplicity
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
     # The service method now handles all logic and returns the full chat history
     updated_chat_history = await service.update_chat_message(
         chat_message_id, 
-        ChatMessageUpdate(content=chat_message_update.content)
+        ChatMessageUpdate(content=chat_message_update.content),
+        user_id=current_user.id
     )
     if updated_chat_history is None:
         raise HTTPException(status_code=404, detail="Chat message not found")
@@ -66,9 +76,10 @@ async def update_chat_message(
 @router.delete("/{chat_message_id}", status_code=status.HTTP_200_OK)
 async def delete_chat_message(
     chat_message_id: UUID,
-    db: AsyncSession = Depends(get_db_session)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
-    if not await service.delete_chat_message(chat_message_id):
+    if not await service.delete_chat_message(chat_message_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Chat message not found")
     return {"detail": "Mesaj başarı ile silindi"} 
