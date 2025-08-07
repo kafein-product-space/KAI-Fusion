@@ -58,7 +58,7 @@ import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
 import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
 import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
-import HTTPClientNode from "../nodes/tools/HTTPClientNode";
+import HTTPClientNode from "../nodes/tools/HTTPClient/index";
 import DocumentRerankerNode from "../nodes/tools/DocumentReranker/index";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
 import WebhookTriggerNode from "../nodes/triggers/WebhookTrigger";

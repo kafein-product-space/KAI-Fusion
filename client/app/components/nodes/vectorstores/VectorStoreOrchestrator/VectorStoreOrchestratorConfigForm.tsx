@@ -9,6 +9,7 @@ import {
   Filter,
   Search,
   Zap,
+  Info,
 } from "lucide-react";
 import type { VectorStoreOrchestratorConfigFormProps } from "./types";
 import JSONEditor from "~/components/common/JSONEditor";
@@ -179,17 +180,75 @@ export default function VectorStoreOrchestratorConfigForm({
                     </div>
 
                     {/* Custom Metadata */}
-                    <JSONEditor
-                      value={values.custom_metadata || "{}"}
-                      onChange={(value) =>
-                        setFieldValue("custom_metadata", value)
-                      }
-                      label="Custom Metadata"
-                      placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
-                      description="Custom metadata to add to all documents (JSON format)"
-                      height={80}
-                      error={errors.custom_metadata}
-                    />
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-white text-xs font-medium">
+                          Custom Metadata
+                        </label>
+                        <div className="relative group">
+                          <Info className="w-3 h-3 text-blue-400 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 w-80">
+                            <div className="space-y-2">
+                              <div>
+                                <strong className="text-blue-400">
+                                  Recommended Format:
+                                </strong>
+                                <pre className="text-xs text-slate-300 bg-slate-900 p-2 rounded mt-1 overflow-x-auto">
+                                  {`{
+  "source": "amazon_catalog",
+  "category": "electronics", 
+  "version": "2024",
+  "language": "en",
+  "author": "company_name",
+  "tags": ["product", "review"],
+  "priority": "high"
+}`}
+                                </pre>
+                              </div>
+                              <div>
+                                <strong className="text-green-400">
+                                  Common Fields:
+                                </strong>
+                                <ul className="text-xs text-slate-300 mt-1 space-y-1">
+                                  <li>
+                                    • <code>source</code>: Data source
+                                    identifier
+                                  </li>
+                                  <li>
+                                    • <code>category</code>: Content category
+                                  </li>
+                                  <li>
+                                    • <code>language</code>: Content language
+                                  </li>
+                                  <li>
+                                    • <code>author</code>: Content
+                                    author/creator
+                                  </li>
+                                  <li>
+                                    • <code>tags</code>: Array of tags
+                                  </li>
+                                  <li>
+                                    • <code>priority</code>: Content priority
+                                    level
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <JSONEditor
+                        value={values.custom_metadata || "{}"}
+                        onChange={(value) =>
+                          setFieldValue("custom_metadata", value)
+                        }
+                        placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
+                        description="Custom metadata to add to all documents (JSON format)"
+                        height={80}
+                        error={errors.custom_metadata}
+                      />
+                    </div>
 
                     {/* Preserve Document Metadata */}
                     <div>

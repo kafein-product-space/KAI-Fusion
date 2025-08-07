@@ -60,8 +60,9 @@ export default function OpenAIEmbeddingsProviderNode({
     if (!values.model) {
       errors.model = "Model is required";
     }
-    if (!values.api_key) {
-      errors.api_key = "API key is required";
+    // Only validate API key if it's not empty (allow empty for initial state)
+    if (values.openai_api_key && values.openai_api_key.trim() === "") {
+      errors.openai_api_key = "API key is required";
     }
     if (
       values.batch_size &&
@@ -75,6 +76,13 @@ export default function OpenAIEmbeddingsProviderNode({
     ) {
       errors.max_retries = "Max retries must be between 0 and 10";
     }
+    if (
+      values.request_timeout &&
+      (values.request_timeout < 10 || values.request_timeout > 300)
+    ) {
+      errors.request_timeout =
+        "Request timeout must be between 10 and 300 seconds";
+    }
     return errors;
   };
 
@@ -87,11 +95,12 @@ export default function OpenAIEmbeddingsProviderNode({
       <OpenAIEmbeddingsProviderConfigForm
         initialValues={{
           model: configData.model || "text-embedding-3-small",
-          api_key: configData.api_key || "",
+          openai_api_key: configData.openai_api_key || "",
           credential_id: configData.credential_id || "",
           organization: configData.organization || "",
           batch_size: configData.batch_size || 20,
           max_retries: configData.max_retries || 3,
+          request_timeout: configData.request_timeout || 60,
           dimensions: dimensions,
         }}
         validate={validate}

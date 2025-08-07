@@ -57,22 +57,56 @@ This provider can be connected to:
 """
 
 from typing import Dict, Any, Optional, List
+import logging
 from langchain_core.runnables import Runnable
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
 # Auto-detect which API to use based on IntelligentVectorStore
 try:
-    from langchain_postgres import PGVector
-    USING_NEW_API = True
+    from langchain_postgres import PGVector as NewPGVector
+    NEW_API_AVAILABLE = True
 except ImportError:
-    import warnings
-    with warnings.catch_warnings():
-        warnings.filterwarnings("ignore", category=DeprecationWarning)
-        from langchain_community.vectorstores import PGVector
-    USING_NEW_API = False
+    NewPGVector = None
+    NEW_API_AVAILABLE = False
+
+try:
+    from langchain_community.vectorstores import PGVector as LegacyPGVector
+    LEGACY_API_AVAILABLE = True
+except ImportError:
+    LegacyPGVector = None
+    LEGACY_API_AVAILABLE = False
+
 from langchain.retrievers import ContextualCompressionRetriever
 
 from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
+
+logger = logging.getLogger(__name__)
+
+def _check_schema_compatibility(connection_string: str) -> bool:
+    """Check if the database schema is compatible with the new API."""
+    if not NEW_API_AVAILABLE:
+        return False
+
+    import psycopg2
+    try:
+        conn = psycopg2.connect(connection_string)
+        cursor = conn.cursor()
+        # Check if langchain_pg_embedding table has 'id' column
+        cursor.execute("""
+            SELECT EXISTS (
+                SELECT FROM information_schema.columns
+                WHERE table_schema = 'public'
+                AND table_name = 'langchain_pg_embedding'
+                AND column_name = 'id'
+            );
+        """)
+        has_id_column = cursor.fetchone()[0]
+        conn.close()
+        logger.info(f"Schema compatibility check: id column exists = {has_id_column}")
+        return has_id_column
+    except Exception as e:
+        logger.warning(f"Schema compatibility check failed: {e}")
+        return False # Assume incompatible on error
 
 
 class MetadataFilterRetriever(BaseRetriever):
@@ -434,35 +468,27 @@ class RetrieverNode(ProviderNode):
             raise ValueError("score_threshold must be a float between 0.0 and 1.0")
         
         try:
-            # Create vector store instance using auto-detected API
-            if USING_NEW_API:
-                # New langchain_postgres API with proper table creation
-                vectorstore = PGVector(
+            # Check schema compatibility and select the appropriate API
+            use_new_api = NEW_API_AVAILABLE and _check_schema_compatibility(database_connection)
+
+            # Create vector store instance using the detected API
+            if use_new_api:
+                logger.info(f"Creating PGVector store '{collection_name}' using new API.")
+                vectorstore = NewPGVector(
                     embeddings=embedder,
                     connection=database_connection,
                     collection_name=collection_name,
-                    use_jsonb=True,  # Use JSONB for better performance
-                    pre_delete_collection=False,  # Don't delete existing data
-                    create_extension=True,  # Ensure vector extension exists
+                    use_jsonb=True,
                 )
-                print(f"📦 Created PGVector with new API for collection: {collection_name}")
-                
-                # Ensure the collection table is properly initialized
-                try:
-                    # This will create the table if it doesn't exist with proper schema
-                    vectorstore._create_collection()
-                except Exception as table_error:
-                    print(f"⚠️ Collection creation info: {table_error}")
-                    # Continue anyway as collection might already exist
-                    
-            else:
-                # Legacy API
-                vectorstore = PGVector(
+            elif LEGACY_API_AVAILABLE:
+                logger.info(f"Creating PGVector store '{collection_name}' using legacy API.")
+                vectorstore = LegacyPGVector(
                     collection_name=collection_name,
                     connection_string=database_connection,
                     embedding_function=embedder,
                 )
-                print(f"📦 Created PGVector with legacy API for collection: {collection_name}")
+            else:
+                raise ValueError("No compatible PGVector library found.")
             
             # Configure search parameters
             search_kwargs = {
