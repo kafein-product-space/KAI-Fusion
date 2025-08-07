@@ -6,6 +6,7 @@ import {
   Download,
   Trash,
   Loader,
+  Clock,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
@@ -21,6 +22,10 @@ interface NavbarProps {
   setNodes?: (nodes: any[]) => void;
   setEdges?: (edges: any[]) => void;
   isLoading: boolean;
+  checkUnsavedChanges?: (url: string) => boolean;
+  autoSaveStatus?: "idle" | "saving" | "saved" | "error";
+  lastAutoSave?: Date | null;
+  onAutoSaveSettings?: () => void;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -33,6 +38,10 @@ const Navbar: React.FC<NavbarProps> = ({
   setNodes,
   setEdges,
   isLoading,
+  checkUnsavedChanges,
+  autoSaveStatus,
+  lastAutoSave,
+  onAutoSaveSettings,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -61,7 +70,11 @@ const Navbar: React.FC<NavbarProps> = ({
   }, [isDropdownOpen]);
 
   const handleRouteBack = () => {
-    navigate(-1);
+    if (checkUnsavedChanges) {
+      const canNavigate = checkUnsavedChanges("/workflows");
+      if (!canNavigate) return;
+    }
+    navigate("/workflows");
   };
 
   const handleBlur = () => {
@@ -166,6 +179,38 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
+            {/* Auto-save indicator */}
+            {autoSaveStatus && (
+              <div className="flex items-center gap-2">
+                {autoSaveStatus === "saving" && (
+                  <div className="flex items-center gap-1 text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                    <span className="text-xs">Saving...</span>
+                  </div>
+                )}
+                {autoSaveStatus === "saved" && (
+                  <div className="flex items-center gap-1 text-green-400">
+                    <div className="w-2 h-2 bg-green-400 rounded-full"></div>
+                    <span className="text-xs">Saved</span>
+                  </div>
+                )}
+                {autoSaveStatus === "error" && (
+                  <div className="flex items-center gap-1 text-red-400">
+                    <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                    <span className="text-xs">Error</span>
+                  </div>
+                )}
+                {lastAutoSave && autoSaveStatus === "idle" && (
+                  <div className="flex items-center gap-1 text-gray-400">
+                    <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                    <span className="text-xs">
+                      Last saved: {lastAutoSave.toLocaleTimeString()}
+                    </span>
+                  </div>
+                )}
+              </div>
+            )}
+
             <div>
               {isLoading ? (
                 <Loader className="animate-spin text-white cursor-pointer w-10 h-10 p-2 rounded-4xl" />
@@ -176,6 +221,16 @@ const Navbar: React.FC<NavbarProps> = ({
                 />
               )}
             </div>
+
+            {/* Auto-save settings button */}
+            {onAutoSaveSettings && (
+              <div>
+                <Clock
+                  className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
+                  onClick={onAutoSaveSettings}
+                />
+              </div>
+            )}
             <div className="text-xs text-foreground relative">
               <Settings
                 className="text-white hover:text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"

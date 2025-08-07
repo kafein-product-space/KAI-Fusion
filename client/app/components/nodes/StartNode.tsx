@@ -21,6 +21,7 @@ interface StartNodeProps {
   onExecute?: (id: string) => void;
   validationStatus?: "success" | "error" | null;
   isExecuting?: boolean;
+  isActive?: boolean;
 }
 
 function StartNode({
@@ -29,6 +30,7 @@ function StartNode({
   onExecute,
   validationStatus,
   isExecuting,
+  isActive,
 }: StartNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
   const [isHovered, setIsHovered] = useState(false);
@@ -56,6 +58,9 @@ function StartNode({
   );
 
   const getStatusColor = () => {
+    if (isActive) {
+      return "from-green-400 to-emerald-500";
+    }
     if (localExecuting || isExecuting) {
       return "from-yellow-500 to-orange-600";
     }
@@ -70,6 +75,9 @@ function StartNode({
   };
 
   const getGlowColor = () => {
+    if (isActive) {
+      return "shadow-green-400/70";
+    }
     if (localExecuting || isExecuting) {
       return "shadow-yellow-500/50";
     }
@@ -98,7 +106,8 @@ function StartNode({
           }
           border border-white/20 backdrop-blur-sm
           hover:border-white/40
-          ${localExecuting || isExecuting ? "animate-pulse" : ""}`}
+          ${localExecuting || isExecuting ? "animate-pulse" : ""}
+          ${isActive ? "animate-pulse ring-4 ring-green-400/50" : ""}`}
         onDoubleClick={handleDoubleClick}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

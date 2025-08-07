@@ -22,12 +22,28 @@ import {
   Hash,
   CheckCircle,
   AlertCircle,
+  Send,
+  Square,
+  Copy,
+  ExternalLink,
+  FileText,
+  Download,
+  Upload,
+  Terminal,
+  Activity,
 } from "lucide-react";
 
 interface HTTPClientConfigModalProps {
   nodeData: any;
   onSave: (data: any) => void;
   nodeId: string;
+  isTesting?: boolean;
+  testResponse?: any;
+  testError?: string | null;
+  testStats?: any;
+  onSendTestRequest?: () => void;
+  onCopyToClipboard?: (text: string, type: string) => void;
+  generateCurlCommand?: () => string;
 }
 
 interface HTTPClientConfig {
@@ -48,6 +64,18 @@ interface HTTPClientConfig {
   follow_redirects: boolean;
   verify_ssl: boolean;
   enable_templating: boolean;
+}
+
+interface HttpResponse {
+  status_code: number;
+  content: any;
+  headers: Record<string, string>;
+  success: boolean;
+  request_stats?: {
+    duration_ms: number;
+    size_bytes: number;
+    timestamp: string;
+  };
 }
 
 // HTTP Method Options with enhanced descriptions
@@ -102,8 +130,9 @@ const HTTP_METHODS = [
   {
     value: "OPTIONS",
     label: "OPTIONS",
-    description: "Get allowed methods • CORS support • Best for preflight",
-    icon: "❓",
+    description:
+      "Get available methods • CORS support • Best for API discovery",
+    icon: "🔍",
     color: "from-indigo-500 to-blue-500",
   },
 ];
@@ -175,548 +204,722 @@ const AUTH_TYPES = [
 const HTTPClientConfigModal = forwardRef<
   HTMLDialogElement,
   HTTPClientConfigModalProps
->(({ nodeData, onSave, nodeId }, ref) => {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-  useImperativeHandle(ref, () => dialogRef.current!);
-  const [activeTab, setActiveTab] = useState("basic");
+>(
+  (
+    {
+      nodeData,
+      onSave,
+      nodeId,
+      isTesting = false,
+      testResponse,
+      testError,
+      testStats,
+      onSendTestRequest,
+      onCopyToClipboard,
+      generateCurlCommand,
+    },
+    ref
+  ) => {
+    const dialogRef = useRef<HTMLDialogElement>(null);
+    useImperativeHandle(ref, () => dialogRef.current!);
+    const [activeTab, setActiveTab] = useState("basic");
+    const [curlImportText, setCurlImportText] = useState("");
 
-  const initialValues: HTTPClientConfig = {
-    method: nodeData?.method || "GET",
-    url: nodeData?.url || "",
-    headers: nodeData?.headers || "{}",
-    url_params: nodeData?.url_params || "{}",
-    body: nodeData?.body || "",
-    content_type: nodeData?.content_type || "json",
-    auth_type: nodeData?.auth_type || "none",
-    auth_token: nodeData?.auth_token || "",
-    auth_username: nodeData?.auth_username || "",
-    auth_password: nodeData?.auth_password || "",
-    api_key_header: nodeData?.api_key_header || "X-API-Key",
-    timeout: nodeData?.timeout || 30,
-    max_retries: nodeData?.max_retries || 3,
-    retry_delay: nodeData?.retry_delay || 1.0,
-    follow_redirects: nodeData?.follow_redirects !== false,
-    verify_ssl: nodeData?.verify_ssl !== false,
-    enable_templating: nodeData?.enable_templating !== false,
-  };
+    const initialValues: HTTPClientConfig = {
+      method: nodeData?.method || "GET",
+      url: nodeData?.url || "",
+      headers: nodeData?.headers || "{}",
+      url_params: nodeData?.url_params || "{}",
+      body: nodeData?.body || "",
+      content_type: nodeData?.content_type || "application/json",
+      auth_type: nodeData?.auth_type || "none",
+      auth_token: nodeData?.auth_token || "",
+      auth_username: nodeData?.auth_username || "",
+      auth_password: nodeData?.auth_password || "",
+      api_key_header: nodeData?.api_key_header || "X-API-Key",
+      timeout: nodeData?.timeout || 30,
+      max_retries: nodeData?.max_retries || 3,
+      retry_delay: nodeData?.retry_delay || 1.0,
+      follow_redirects: nodeData?.follow_redirects !== false,
+      verify_ssl: nodeData?.verify_ssl !== false,
+      enable_templating: nodeData?.enable_templating !== false,
+    };
 
-  return (
-    <dialog
-      ref={dialogRef}
-      className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
-    >
-      <div
-        className="modal-box max-w-5xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 
-        border border-slate-700/50 shadow-2xl shadow-blue-500/10 backdrop-blur-xl"
-      >
-        {/* Header */}
-        <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-700/50">
-          <div
-            className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl 
-            flex items-center justify-center shadow-lg"
-          >
-            <Globe className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-xl text-white">
-              HTTP Client Configuration
-            </h3>
-            <p className="text-slate-400 text-sm">
-              Configure HTTP request settings and authentication
-            </p>
-          </div>
-        </div>
+    const parseCurlCommand = (curlText: string) => {
+      try {
+        // Basit cURL parsing logic
+        const lines = curlText.split("\n");
+        let method = "GET";
+        let url = "";
+        const headers: Record<string, string> = {};
+        let body = "";
 
-        <Formik
-          initialValues={initialValues}
-          enableReinitialize
-          validate={(values) => {
-            const errors: Record<string, string> = {};
-            if (!values.url) {
-              errors.url = "URL is required.";
+        for (const line of lines) {
+          const trimmed = line.trim();
+          if (trimmed.startsWith("curl")) {
+            // Extract method and URL
+            const methodMatch = trimmed.match(/-X\s+(\w+)/);
+            if (methodMatch) method = methodMatch[1];
+
+            const urlMatch = trimmed.match(/"([^"]+)"/);
+            if (urlMatch) url = urlMatch[1];
+          } else if (trimmed.startsWith("-H")) {
+            // Extract headers
+            const headerMatch = trimmed.match(/"([^:]+):\s*([^"]+)"/);
+            if (headerMatch) {
+              headers[headerMatch[1]] = headerMatch[2];
             }
-            return errors;
-          }}
-          onSubmit={(values, { setSubmitting }) => {
-            onSave(values);
-            dialogRef.current?.close();
-            setSubmitting(false);
-          }}
+          } else if (trimmed.startsWith("-d")) {
+            // Extract body
+            const bodyMatch = trimmed.match(/'([^']+)'/);
+            if (bodyMatch) body = bodyMatch[1];
+          }
+        }
+
+        return { method, url, headers, body };
+      } catch (err) {
+        console.error("Failed to parse cURL command:", err);
+        return null;
+      }
+    };
+
+    const handleCurlImport = () => {
+      const parsed = parseCurlCommand(curlImportText);
+      if (parsed) {
+        // Update form values
+        onSave({
+          ...initialValues,
+          method: parsed.method,
+          url: parsed.url,
+          headers: JSON.stringify(parsed.headers, null, 2),
+          body: parsed.body,
+        });
+        setCurlImportText("");
+      }
+    };
+
+    const formatDuration = (ms: number) => {
+      if (ms < 1000) return `${ms}ms`;
+      return `${(ms / 1000).toFixed(2)}s`;
+    };
+
+    const formatSize = (bytes: number) => {
+      if (bytes < 1024) return `${bytes}B`;
+      if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+      return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+    };
+
+    return (
+      <dialog
+        ref={dialogRef}
+        className="modal modal-bottom sm:modal-middle backdrop-blur-sm"
+      >
+        <div
+          className="modal-box max-w-6xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 
+        border border-slate-700/50 shadow-2xl shadow-purple-500/10 backdrop-blur-xl"
         >
-          {({ isSubmitting, values, setFieldValue }) => (
-            <Form className="space-y-6">
-              {/* Tab Navigation */}
-              <div className="flex space-x-1 bg-slate-800/50 rounded-lg p-1">
-                {[
-                  { id: "basic", label: "Basic", icon: Settings },
-                  { id: "auth", label: "Authentication", icon: Key },
-                  { id: "advanced", label: "Advanced", icon: Zap },
-                ].map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-md 
+          {/* Header */}
+          <div className="flex items-center space-x-3 mb-6 pb-4 border-b border-slate-700/50">
+            <div
+              className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl 
+            flex items-center justify-center shadow-lg"
+            >
+              <Globe className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="font-bold text-xl text-white">
+                HTTP Request Configuration
+              </h3>
+              <p className="text-slate-400 text-sm">
+                Configure HTTP requests and test endpoints
+              </p>
+            </div>
+          </div>
+
+          <Formik
+            initialValues={initialValues}
+            enableReinitialize
+            onSubmit={(values, { setSubmitting }) => {
+              onSave(values);
+              dialogRef.current?.close();
+              setSubmitting(false);
+            }}
+          >
+            {({ isSubmitting, values, setFieldValue }) => (
+              <Form className="space-y-6">
+                {/* Tab Navigation */}
+                <div className="flex space-x-1 bg-slate-800/50 rounded-lg p-1">
+                  {[
+                    { id: "basic", label: "Basic", icon: Settings },
+                    { id: "advanced", label: "Advanced", icon: Zap },
+                    { id: "test", label: "🎯 Test", icon: Send },
+                  ].map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`flex-1 flex items-center justify-center space-x-2 px-4 py-2 rounded-md 
                       transition-all duration-200 ${
                         activeTab === tab.id
                           ? "bg-gradient-to-r from-blue-500 to-purple-600 text-white shadow-lg"
                           : "text-slate-400 hover:text-white hover:bg-slate-700/50"
                       }`}
-                  >
-                    <tab.icon className="w-4 h-4" />
-                    <span className="text-sm font-medium">{tab.label}</span>
-                  </button>
-                ))}
-              </div>
+                    >
+                      <tab.icon className="w-4 h-4" />
+                      <span className="text-sm font-medium">{tab.label}</span>
+                    </button>
+                  ))}
+                </div>
 
-              {/* Basic Configuration Tab */}
-              {activeTab === "basic" && (
-                <div className="space-y-6">
-                  {/* Request Configuration */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <ArrowUpCircle className="w-5 h-5 text-blue-400" />
-                      <label className="text-white font-semibold">
-                        Request Configuration
-                      </label>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
+                {/* Basic Settings Tab */}
+                {activeTab === "basic" && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* HTTP Method */}
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
                           HTTP Method
                         </label>
                         <Field
-                          as="select"
-                          className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white px-4 py-3 focus:border-blue-500 focus:ring-2 
-                            focus:ring-blue-500/20 transition-all"
                           name="method"
+                          as="select"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent"
                         >
                           {HTTP_METHODS.map((method) => (
                             <option key={method.value} value={method.value}>
-                              {method.icon} {method.label}
+                              {method.label}
                             </option>
                           ))}
                         </Field>
-                        <div className="mt-2 p-2 bg-slate-900/30 rounded text-xs text-slate-400">
-                          {
-                            HTTP_METHODS.find((m) => m.value === values.method)
-                              ?.description
-                          }
-                        </div>
                       </div>
 
                       {/* URL */}
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
                           URL
                         </label>
                         <Field
-                          className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white placeholder-slate-400 px-4 py-3 focus:border-blue-500 focus:ring-2 
-                            focus:ring-blue-500/20 transition-all"
                           name="url"
+                          type="text"
                           placeholder="https://api.example.com/endpoint"
-                        />
-                        <ErrorMessage
-                          name="url"
-                          component="div"
-                          className="text-red-400 text-sm mt-2"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                          focus:ring-blue-500 focus:border-transparent"
                         />
                       </div>
                     </div>
-                  </div>
 
-                  {/* Headers and Parameters */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Hash className="w-5 h-5 text-purple-400" />
-                      <label className="text-white font-semibold">
-                        Headers & Parameters
+                    {/* Headers */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-white">
+                        Headers (JSON)
                       </label>
+                      <Field
+                        name="headers"
+                        as="textarea"
+                        placeholder='{"Content-Type": "application/json", "Accept": "application/json"}'
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                        text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                        focus:ring-blue-500 focus:border-transparent"
+                        rows={4}
+                      />
                     </div>
 
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Headers (JSON)
-                        </label>
-                        <Field
-                          as="textarea"
-                          className="w-full h-24 bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white placeholder-slate-400 px-4 py-3 focus:border-purple-500 focus:ring-2 
-                            focus:ring-purple-500/20 transition-all resize-none font-mono text-sm"
-                          name="headers"
-                          placeholder='{"Content-Type": "application/json", "User-Agent": "KAI-Fusion/1.0"}'
-                        />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Request headers as JSON object
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          URL Parameters (JSON)
-                        </label>
-                        <Field
-                          as="textarea"
-                          className="w-full h-24 bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white placeholder-slate-400 px-4 py-3 focus:border-purple-500 focus:ring-2 
-                            focus:ring-purple-500/20 transition-all resize-none font-mono text-sm"
-                          name="url_params"
-                          placeholder='{"page": 1, "limit": 10, "sort": "created_at"}'
-                        />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Query parameters as JSON object
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Request Body and Content Type */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Code className="w-5 h-5 text-green-400" />
-                      <label className="text-white font-semibold">
-                        Request Body
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
+                    {/* Request Body */}
+                    {values.method !== "GET" && (
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
                           Request Body
                         </label>
                         <Field
-                          as="textarea"
-                          className="w-full h-24 bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white placeholder-slate-400 px-4 py-3 focus:border-green-500 focus:ring-2 
-                            focus:ring-green-500/20 transition-all resize-none font-mono text-sm"
                           name="body"
-                          placeholder='{"key": "value", "data": "example"}'
+                          as="textarea"
+                          placeholder='{"key": "value"}'
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                          focus:ring-blue-500 focus:border-transparent"
+                          rows={6}
                         />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Request body (supports Jinja2 templating)
-                        </div>
                       </div>
+                    )}
 
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Content Type
-                        </label>
-                        <Field
-                          as="select"
-                          className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white px-4 py-3 focus:border-green-500 focus:ring-2 
-                            focus:ring-green-500/20 transition-all"
-                          name="content_type"
-                        >
-                          {CONTENT_TYPES.map((type) => (
-                            <option key={type.value} value={type.value}>
-                              {type.icon} {type.label}
-                            </option>
-                          ))}
-                        </Field>
-                        <div className="mt-2 p-2 bg-slate-900/30 rounded text-xs text-slate-400">
-                          {
-                            CONTENT_TYPES.find(
-                              (t) => t.value === values.content_type
-                            )?.description
-                          }
+                    {/* Authentication */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-semibold text-white flex items-center space-x-2">
+                        <Lock className="w-5 h-5" />
+                        <span>🔐 Authentication</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        {/* Auth Type */}
+                        <div className="space-y-3">
+                          <label className="block text-sm font-medium text-white">
+                            Authentication Type
+                          </label>
+                          <Field
+                            name="auth_type"
+                            as="select"
+                            className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                            text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                            focus:border-transparent"
+                          >
+                            {AUTH_TYPES.map((auth) => (
+                              <option key={auth.value} value={auth.value}>
+                                {auth.label}
+                              </option>
+                            ))}
+                          </Field>
                         </div>
+
+                        {/* Auth Token */}
+                        {values.auth_type === "bearer" && (
+                          <div className="space-y-3">
+                            <label className="block text-sm font-medium text-white">
+                              Bearer Token
+                            </label>
+                            <Field
+                              name="auth_token"
+                              type="password"
+                              placeholder="your-token-here"
+                              className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                              text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                              focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        )}
+
+                        {/* Basic Auth */}
+                        {values.auth_type === "basic" && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                Username
+                              </label>
+                              <Field
+                                name="auth_username"
+                                type="text"
+                                placeholder="username"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                Password
+                              </label>
+                              <Field
+                                name="auth_password"
+                                type="password"
+                                placeholder="password"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          </>
+                        )}
+
+                        {/* API Key */}
+                        {values.auth_type === "api_key" && (
+                          <>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                API Key Header
+                              </label>
+                              <Field
+                                name="api_key_header"
+                                type="text"
+                                placeholder="X-API-Key"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                            <div className="space-y-3">
+                              <label className="block text-sm font-medium text-white">
+                                API Key Value
+                              </label>
+                              <Field
+                                name="auth_token"
+                                type="password"
+                                placeholder="your-api-key"
+                                className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                                text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                                focus:ring-blue-500 focus:border-transparent"
+                              />
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Authentication Tab */}
-              {activeTab === "auth" && (
-                <div className="space-y-6">
-                  {/* Authentication Type */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Key className="w-5 h-5 text-emerald-400" />
-                      <label className="text-white font-semibold">
-                        Authentication
-                      </label>
-                    </div>
-
-                    <div className="flex flex-col gap-4">
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Authentication Type
+                {/* Advanced Settings Tab */}
+                {activeTab === "advanced" && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Timeout */}
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
+                          Timeout (seconds)
                         </label>
                         <Field
-                          as="select"
-                          className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white px-4 py-3 focus:border-emerald-500 focus:ring-2 
-                            focus:ring-emerald-500/20 transition-all"
-                          name="auth_type"
-                        >
-                          {AUTH_TYPES.map((auth) => (
-                            <option key={auth.value} value={auth.value}>
-                              {auth.icon} {auth.label}
-                            </option>
-                          ))}
-                        </Field>
-                        <div className="mt-2 p-2 bg-slate-900/30 rounded text-xs text-slate-400">
-                          {
-                            AUTH_TYPES.find((a) => a.value === values.auth_type)
-                              ?.description
-                          }
-                        </div>
-                      </div>
-
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Auth Token/API Key
-                        </label>
-                        <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
-                          <Field
-                            className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                              text-white pl-10 pr-4 py-3 focus:border-emerald-500 focus:ring-2 
-                              focus:ring-emerald-500/20 transition-all"
-                            type="password"
-                            name="auth_token"
-                            placeholder="your-token-or-api-key"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Basic Auth Fields */}
-                  {values.auth_type === "basic" && (
-                    <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Shield className="w-5 h-5 text-blue-400" />
-                        <label className="text-white font-semibold">
-                          Basic Authentication
-                        </label>
-                      </div>
-
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                        <div>
-                          <label className="text-slate-300 text-sm mb-2 block">
-                            Username
-                          </label>
-                          <Field
-                            className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                              text-white placeholder-slate-400 px-4 py-3 focus:border-blue-500 focus:ring-2 
-                              focus:ring-blue-500/20 transition-all"
-                            name="auth_username"
-                            placeholder="username"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-slate-300 text-sm mb-2 block">
-                            Password
-                          </label>
-                          <Field
-                            className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                              text-white placeholder-slate-400 px-4 py-3 focus:border-blue-500 focus:ring-2 
-                              focus:ring-blue-500/20 transition-all"
-                            type="password"
-                            name="auth_password"
-                            placeholder="password"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* API Key Header */}
-                  {values.auth_type === "api_key" && (
-                    <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                      <div className="flex items-center space-x-2 mb-4">
-                        <Hash className="w-5 h-5 text-purple-400" />
-                        <label className="text-white font-semibold">
-                          API Key Configuration
-                        </label>
-                      </div>
-
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          API Key Header Name
-                        </label>
-                        <Field
-                          className="w-full bg-slate-900/80 border border-slate-600/50 rounded-lg 
-                            text-white placeholder-slate-400 px-4 py-3 focus:border-purple-500 focus:ring-2 
-                            focus:ring-purple-500/20 transition-all"
-                          name="api_key_header"
-                          placeholder="X-API-Key"
-                        />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Header name for API key (e.g., 'X-API-Key',
-                          'Authorization')
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Advanced Tab */}
-              {activeTab === "advanced" && (
-                <div className="space-y-6">
-                  {/* Performance Settings */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Zap className="w-5 h-5 text-yellow-400" />
-                      <label className="text-white font-semibold">
-                        Performance Settings
-                      </label>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Timeout:{" "}
-                          <span className="text-yellow-400 font-mono">
-                            {values.timeout}s
-                          </span>
-                        </label>
-                        <Field
-                          type="range"
-                          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
-                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
-                            [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-500
-                            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
                           name="timeout"
+                          type="number"
                           min="1"
                           max="300"
-                          step="1"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent"
                         />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Request timeout in seconds
-                        </div>
                       </div>
 
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Max Retries:{" "}
-                          <span className="text-yellow-400 font-mono">
-                            {values.max_retries}
-                          </span>
+                      {/* Max Retries */}
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
+                          Max Retries
                         </label>
                         <Field
-                          type="range"
-                          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
-                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
-                            [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-500
-                            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
                           name="max_retries"
+                          type="number"
                           min="0"
                           max="10"
-                          step="1"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent"
                         />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Maximum retry attempts
-                        </div>
                       </div>
 
-                      <div>
-                        <label className="text-slate-300 text-sm mb-2 block">
-                          Retry Delay:{" "}
-                          <span className="text-yellow-400 font-mono">
-                            {values.retry_delay}s
-                          </span>
+                      {/* Retry Delay */}
+                      <div className="space-y-3">
+                        <label className="block text-sm font-medium text-white">
+                          Retry Delay (seconds)
                         </label>
                         <Field
-                          type="range"
-                          className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer
-                            [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 
-                            [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-yellow-500
-                            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
                           name="retry_delay"
+                          type="number"
                           min="0.1"
-                          max="10.0"
+                          max="10"
                           step="0.1"
+                          className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                          text-white focus:outline-none focus:ring-2 focus:ring-blue-500 
+                          focus:border-transparent"
                         />
-                        <div className="text-xs text-slate-400 mt-1">
-                          Delay between retries
-                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {/* Follow Redirects */}
+                      <div className="flex items-center space-x-3">
+                        <Field
+                          name="follow_redirects"
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                          focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label className="text-sm font-medium text-white">
+                          Follow Redirects
+                        </label>
+                      </div>
+
+                      {/* Verify SSL */}
+                      <div className="flex items-center space-x-3">
+                        <Field
+                          name="verify_ssl"
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                          focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label className="text-sm font-medium text-white">
+                          Verify SSL
+                        </label>
+                      </div>
+
+                      {/* Enable Templating */}
+                      <div className="flex items-center space-x-3">
+                        <Field
+                          name="enable_templating"
+                          type="checkbox"
+                          className="w-4 h-4 text-blue-600 bg-slate-800 border-slate-600 rounded 
+                          focus:ring-blue-500 focus:ring-2"
+                        />
+                        <label className="text-sm font-medium text-white">
+                          Enable Templating
+                        </label>
                       </div>
                     </div>
                   </div>
+                )}
 
-                  {/* Processing Options */}
-                  <div className="bg-slate-800/50 rounded-xl p-6 border border-slate-700/50">
-                    <div className="flex items-center space-x-2 mb-4">
-                      <Settings className="w-5 h-5 text-orange-400" />
-                      <label className="text-white font-semibold">
-                        Processing Options
-                      </label>
+                {/* Test Panel Tab */}
+                {activeTab === "test" && (
+                  <div className="space-y-6">
+                    {/* Test Control */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <div className="flex items-center justify-between mb-4">
+                        <h4 className="text-lg font-semibold text-white flex items-center space-x-2">
+                          <Send className="w-5 h-5" />
+                          <span>🎯 Test Request</span>
+                        </h4>
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={onSendTestRequest}
+                            disabled={isTesting || !values.url}
+                            className="px-4 py-2 bg-gradient-to-r from-green-500 to-green-600 
+                            text-white rounded-lg flex items-center space-x-2 hover:from-green-400 
+                            hover:to-green-500 transition-all duration-200 disabled:opacity-50 
+                            disabled:cursor-not-allowed"
+                          >
+                            <Send className="w-4 h-4" />
+                            <span>
+                              {isTesting ? "TESTING..." : "SEND REQUEST"}
+                            </span>
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="flex items-center space-x-2">
+                          <div
+                            className={`w-3 h-3 rounded-full ${
+                              isTesting
+                                ? "bg-yellow-400 animate-pulse"
+                                : testResponse
+                                ? "bg-green-400"
+                                : "bg-gray-400"
+                            }`}
+                          ></div>
+                          <span className="text-slate-300">
+                            {isTesting
+                              ? "🟡 Testing request..."
+                              : testResponse
+                              ? "🟢 Ready to send"
+                              : "⚪ Ready to test"}
+                          </span>
+                        </div>
+
+                        {values.url && (
+                          <div className="text-slate-400 text-sm">
+                            Status: {values.method} {values.url}
+                          </div>
+                        )}
+                      </div>
                     </div>
 
-                    <div className="space-y-3">
-                      <ToggleField
-                        name="follow_redirects"
-                        icon={<ArrowUpCircle className="w-4 h-4" />}
-                        label="Follow Redirects"
-                        description="Follow HTTP redirects automatically"
-                      />
-                      <ToggleField
-                        name="verify_ssl"
-                        icon={<Shield className="w-4 h-4" />}
-                        label="Verify SSL"
-                        description="Verify SSL certificates for security"
-                      />
-                      <ToggleField
-                        name="enable_templating"
-                        icon={<Code className="w-4 h-4" />}
-                        label="Enable Templating"
-                        description="Enable Jinja2 templating for URL and body"
-                      />
+                    {/* cURL Import */}
+                    <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                      <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                        <Terminal className="w-5 h-5" />
+                        <span>📋 Import cURL Command</span>
+                      </h4>
+
+                      <div className="space-y-4">
+                        <div>
+                          <label className="block text-sm font-medium text-slate-300 mb-2">
+                            Paste your cURL command below:
+                          </label>
+                          <textarea
+                            value={curlImportText}
+                            onChange={(e) => setCurlImportText(e.target.value)}
+                            placeholder={
+                              'curl -X POST "https://api.example.com/users" -H "Content-Type: application/json" -d \'{"name": "John"}\''
+                            }
+                            className="w-full px-4 py-3 bg-slate-900 border border-slate-600 rounded-lg 
+                            text-white placeholder-slate-400 focus:outline-none focus:ring-2 
+                            focus:ring-blue-500 focus:border-transparent"
+                            rows={4}
+                          />
+                        </div>
+
+                        <div className="flex space-x-2">
+                          <button
+                            type="button"
+                            onClick={handleCurlImport}
+                            disabled={!curlImportText.trim()}
+                            className="px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-600 
+                            text-white rounded-lg hover:from-blue-400 hover:to-blue-500 
+                            transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            🔄 Parse & Import
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setCurlImportText("")}
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg transition-colors"
+                          >
+                            ❌ Clear
+                          </button>
+                        </div>
+                      </div>
                     </div>
+
+                    {/* Generated cURL */}
+                    {generateCurlCommand && (
+                      <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                          <Terminal className="w-5 h-5" />
+                          <span>📋 Generated cURL Command</span>
+                        </h4>
+
+                        <div className="space-y-4">
+                          <div className="bg-slate-900 p-3 rounded">
+                            <pre className="text-xs text-slate-300 overflow-x-auto">
+                              {generateCurlCommand()}
+                            </pre>
+                          </div>
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCopyToClipboard?.(generateCurlCommand(), "cURL")
+                            }
+                            className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
+                            flex items-center space-x-2 transition-colors"
+                          >
+                            <Copy className="w-4 h-4" />
+                            <span>Copy cURL</span>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Test Results */}
+                    {testResponse && (
+                      <div className="bg-slate-800/50 rounded-lg p-6 border border-slate-700/50">
+                        <h4 className="text-lg font-semibold text-white mb-4 flex items-center space-x-2">
+                          <BarChart3 className="w-5 h-5" />
+                          <span>📊 Response Analysis</span>
+                        </h4>
+
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between">
+                            <span className="text-slate-300">Status:</span>
+                            <span
+                              className={`font-semibold ${
+                                testResponse.success
+                                  ? "text-green-400"
+                                  : "text-red-400"
+                              }`}
+                            >
+                              {testResponse.status_code}{" "}
+                              {testResponse.success ? "✅ Success" : "❌ Error"}
+                            </span>
+                          </div>
+
+                          {testStats && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-300">Duration:</span>
+                              <span className="text-white font-semibold">
+                                {formatDuration(testStats.duration_ms)}
+                              </span>
+                            </div>
+                          )}
+
+                          {testStats && (
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-300">Size:</span>
+                              <span className="text-white font-semibold">
+                                {formatSize(testStats.size_bytes)}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Response Headers */}
+                          {testResponse.headers &&
+                            Object.keys(testResponse.headers).length > 0 && (
+                              <div className="space-y-2">
+                                <h5 className="text-sm font-medium text-slate-300">
+                                  Headers:
+                                </h5>
+                                <div className="bg-slate-900 p-3 rounded max-h-32 overflow-y-auto">
+                                  {Object.entries(testResponse.headers).map(
+                                    ([key, value]) => (
+                                      <div
+                                        key={key}
+                                        className="text-xs text-slate-300"
+                                      >
+                                        <span className="text-blue-400">
+                                          {key}:
+                                        </span>{" "}
+                                        {value as any}
+                                      </div>
+                                    )
+                                  )}
+                                </div>
+                              </div>
+                            )}
+
+                          {/* Response Body */}
+                          {testResponse.content && (
+                            <div className="space-y-2">
+                              <h5 className="text-sm font-medium text-slate-300">
+                                Body:
+                              </h5>
+                              <div className="bg-slate-900 p-3 rounded max-h-64 overflow-y-auto">
+                                <pre className="text-xs text-slate-300">
+                                  {typeof testResponse.content === "string"
+                                    ? testResponse.content
+                                    : JSON.stringify(
+                                        testResponse.content,
+                                        null,
+                                        2
+                                      )}
+                                </pre>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Error Display */}
+                    {testError && (
+                      <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <AlertCircle className="w-5 h-5 text-red-400" />
+                          <span className="text-red-400 font-semibold">
+                            Error
+                          </span>
+                        </div>
+                        <p className="text-red-300 text-sm">{testError}</p>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-4 pt-6 border-t border-slate-700/50">
-                <button
-                  type="button"
-                  className="px-6 py-3 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
-                    border border-slate-600 transition-all duration-200 hover:scale-105
-                    flex items-center space-x-2"
-                  onClick={() => dialogRef.current?.close()}
-                  disabled={isSubmitting}
-                >
-                  <span>Cancel</span>
-                </button>
-                <button
-                  type="submit"
-                  className="px-8 py-3 bg-gradient-to-r from-blue-500 to-purple-600 
+                {/* Footer */}
+                <div className="flex justify-end space-x-3 pt-6 border-t border-slate-700/50">
+                  <button
+                    type="button"
+                    onClick={() => dialogRef.current?.close()}
+                    className="px-6 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
+                    transition-colors duration-200"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="px-6 py-2 bg-gradient-to-r from-blue-500 to-purple-600 
                     hover:from-blue-400 hover:to-purple-500 text-white rounded-lg 
-                    shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105
-                    flex items-center space-x-2 disabled:opacity-50 disabled:cursor-not-allowed"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                      <span>Saving...</span>
-                    </>
-                  ) : (
-                    <>
-                      <CheckCircle className="w-4 h-4" />
-                      <span>Save Configuration</span>
-                    </>
-                  )}
-                </button>
-              </div>
-            </Form>
-          )}
-        </Formik>
-      </div>
-    </dialog>
-  );
-});
+                    transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSubmitting ? "Saving..." : "Save Configuration"}
+                  </button>
+                </div>
+              </Form>
+            )}
+          </Formik>
+        </div>
+      </dialog>
+    );
+  }
+);
 
 // Toggle Field Component
 const ToggleField = ({

@@ -299,7 +299,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy import desc
 from app.models.execution import WorkflowExecution
-from app.core.engine_v2 import get_engine
+from app.core.engine import get_engine
 from app.core.database import get_db_session, get_db_session_context
 from app.auth.dependencies import get_current_user, get_optional_user
 from app.models.user import User

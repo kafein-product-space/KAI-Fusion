@@ -282,6 +282,7 @@ IMPLEMENTATION DETAILS:
 """
 
 import logging
+from app.core.enhanced_logging import auto_configure_enhanced_logging
 import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status, Body, Depends
@@ -291,7 +292,7 @@ from fastapi import APIRouter
 
 # Core imports
 from app.core.node_registry import node_registry
-from app.core.engine_v2 import get_engine
+from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
@@ -315,6 +316,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.nodes.triggers.webhook_trigger import webhook_router as webhook_node_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
@@ -327,6 +329,10 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan manager."""
+    
+    # Initialize enhanced logging system first
+    auto_configure_enhanced_logging()
+    
     logger.info("🚀 Starting Agent-Flow V2 Backend...")
     
     # Initialize node registry
@@ -432,6 +438,7 @@ app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Stora
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints
 app.include_router(export_router, prefix="/api", tags=["Export"])
 
 

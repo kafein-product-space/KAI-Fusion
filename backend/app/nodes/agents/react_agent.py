@@ -605,15 +605,56 @@ class ReactAgentNode(ProcessorNode):
             else:
                 user_input = inputs.get("input", "")
             
+            # 🔥 CRITICAL FIX: Load conversation history from memory
+            conversation_history = ""
+            if memory is not None:
+                try:
+                    # Load memory variables to get conversation history
+                    memory_vars = memory.load_memory_variables({})
+                    if memory_vars:
+                        # Get the memory key (usually "memory" or "history")
+                        memory_key = getattr(memory, 'memory_key', 'memory')
+                        if memory_key in memory_vars:
+                            history_content = memory_vars[memory_key]
+                            if isinstance(history_content, list):
+                                # Format message list into readable conversation
+                                formatted_history = []
+                                for msg in history_content:
+                                    if hasattr(msg, 'type') and hasattr(msg, 'content'):
+                                        role = "Human" if msg.type == "human" else "Assistant"
+                                        formatted_history.append(f"{role}: {msg.content}")
+                                    elif isinstance(msg, dict):
+                                        role = "Human" if msg.get('type') == 'human' else "Assistant"
+                                        formatted_history.append(f"{role}: {msg.get('content', '')}")
+                                
+                                if formatted_history:
+                                    conversation_history = "\n".join(formatted_history[-10:])  # Last 10 messages
+                                    print(f"   💭 Loaded conversation history: {len(formatted_history)} messages")
+                            elif isinstance(history_content, str) and history_content.strip():
+                                conversation_history = history_content
+                                print(f"   💭 Loaded conversation history: {len(history_content)} chars")
+                except Exception as memory_error:
+                    print(f"   ⚠️  Failed to load memory variables: {memory_error}")
+                    conversation_history = ""
+            
             final_input = {
                 "input": user_input,
                 "tools": tools_list,  # LangChain create_react_agent için gerekli
-                "tool_names": [tool.name for tool in tools_list]
+                "tool_names": [tool.name for tool in tools_list],
+                "chat_history": conversation_history  # Add conversation history to input
             }
             
             print(f"   ⚙️  Executing with input: '{final_input['input'][:50]}...'")
             
-            return executor.invoke(final_input)
+            # Execute the agent
+            result = executor.invoke(final_input)
+            
+            # Debug: Check memory after execution (AgentExecutor handles saving automatically)
+            if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                new_message_count = len(memory.chat_memory.messages)
+                print(f"   📚 Memory now contains: {new_message_count} messages")
+            
+            return result
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -699,6 +740,9 @@ ARAÇ KULLANIM KURALLARI:
         # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
         react_template = """You are an expert assistant with access to conversation history and tools.
 
+CONVERSATION HISTORY:
+{chat_history}
+
 AVAILABLE TOOLS:
 {tools}
 
@@ -708,14 +752,26 @@ Tool Names: {tool_names}
 🔴 NEVER say "I'm sorry" or provide error messages 🔴
 🔴 ALWAYS synthesize available information into a Final Answer 🔴
 
+IMPORTANT CONTEXT RULES:
+- If the user asks about something mentioned in conversation history (like "benim adım ne?" / "what is my name?"), refer to the conversation history
+- Look for names, topics, or information previously discussed
+- If user uses pronouns (o, bu, şu, he, she, that), check conversation history for context
+- Use conversation history to understand the full context of the question
+
 RULES:
-1. Use tools ONCE to get information
-2. After getting tool results, immediately provide Final Answer
-3. Never repeat tool usage
-4. Never provide error messages or apologies
-5. Always extract useful information from tool results
+1. Check conversation history FIRST before using tools
+2. Use tools ONCE to get information if needed
+3. After getting tool results, immediately provide Final Answer
+4. Never repeat tool usage
+5. Never provide error messages or apologies
+6. Always extract useful information from available sources
 
 MANDATORY FORMAT:
+
+For questions with context in conversation history:
+Question: the input question you must answer
+Thought: Let me check the conversation history for relevant information about [topic/name/reference]
+Final Answer: [Based on conversation history, provide the specific information requested]
 
 For questions requiring document search:
 Question: the input question you must answer
@@ -732,9 +788,10 @@ Thought: This is a simple question that doesn't require tool usage
 Final Answer: [direct response]
 
 IMPORTANT INSTRUCTIONS:
+- ALWAYS check conversation history for context before using tools
 - After receiving tool results, you MUST immediately move to Final Answer
 - Never say there was an error - always work with the information provided
-- Extract any relevant information from the documents, even if incomplete
+- Extract any relevant information from available sources
 - Provide Final Answer based on available information
 
 Begin!

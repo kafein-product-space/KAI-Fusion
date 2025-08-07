@@ -1,7 +1,8 @@
 // DocumentLoaderConfigForm.tsx
 import React, { useRef, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { Settings, FileText, Upload, X, File } from "lucide-react";
+import { useSnackbar } from "notistack";
+import { Settings, Database, Key, Lock } from "lucide-react";
 import type { DocumentLoaderConfigFormProps } from "./types";
 
 interface FileItem {
@@ -17,7 +18,11 @@ export default function DocumentLoaderConfigForm({
   onSubmit,
   onCancel,
 }: DocumentLoaderConfigFormProps) {
+  const { enqueueSnackbar } = useSnackbar();
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
+  const [authType, setAuthType] = useState(
+    initialValues.google_drive_auth_type || "service_account"
+  );
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -128,118 +133,212 @@ export default function DocumentLoaderConfigForm({
     }
   };
 
+  const handleSaveConfig = async (values: any) => {
+    try {
+      // Show loading message
+      enqueueSnackbar(
+        "Google Drive Document Loader konfigürasyonu kaydediliyor...",
+        {
+          variant: "info",
+        }
+      );
+
+      // Call the original onSubmit
+      await onSubmit(values);
+
+      // Show success message
+      enqueueSnackbar("Google Drive Document Loader başarıyla kaydedildi! 🎉", {
+        variant: "success",
+      });
+    } catch (error) {
+      // Show error message
+      enqueueSnackbar("Konfigürasyon kaydedilirken hata oluştu!", {
+        variant: "error",
+      });
+      console.error("DocumentLoader config save error:", error);
+    }
+  };
+
   return (
-    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
-          <FileText className="w-4 h-4 text-white" />
+          <Database className="w-4 h-4 text-white" />
           <span className="text-white text-xs font-medium">
-            Document Loader
+            Google Drive Document Loader
           </span>
         </div>
         <Settings className="w-4 h-4 text-white" />
       </div>
 
       <Formik
-        initialValues={initialValues}
+        initialValues={{
+          ...initialValues,
+          google_drive_auth_type: authType,
+        }}
         validate={validate}
-        onSubmit={onSubmit}
-        enableReinitialize
+        onSubmit={handleSaveConfig}
+        enableReinitialize={true}
       >
-        {({ values, errors, touched, isSubmitting }) => (
+        {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="space-y-3 w-full p-3">
-            {/* File Upload */}
+            {/* Google Drive Links */}
             <div>
               <label className="text-white text-xs font-medium mb-1 block">
-                Upload Files
+                Google Drive Links
               </label>
-
-              {/* Drag & Drop Area */}
-              <div
-                className="border-2 border-dashed border-gray-600 rounded-lg p-3 text-center cursor-pointer hover:border-gray-500 transition-colors"
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Upload className="w-6 h-6 text-gray-400 mx-auto mb-2" />
-                <p className="text-gray-400 text-xs">
-                  Dosyaları sürükleyin veya tıklayın
-                </p>
-                <p className="text-gray-500 text-xs mt-1">
-                  TXT, JSON, DOCX, PDF
-                </p>
-              </div>
-
-              {/* Hidden file input */}
-              <input
-                ref={fileInputRef}
-                type="file"
-                multiple
-                accept=".txt,.json,.docx,.pdf"
-                onChange={handleFileSelect}
-                className="hidden"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
+              <Field
+                as="textarea"
+                name="drive_links"
+                placeholder="https://drive.google.com/file/d/...&#10;https://drive.google.com/drive/folders/..."
+                className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none"
+                rows={3}
               />
-
-              {/* Selected Files List */}
-              {selectedFiles.length > 0 && (
-                <div className="mt-2 space-y-1">
-                  <p className="text-white text-xs font-medium">
-                    Seçilen Dosyalar:
-                  </p>
-                  {selectedFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between bg-slate-700/50 rounded p-2"
-                    >
-                      <div className="flex items-center space-x-2">
-                        <File className="w-3 h-3 text-blue-400" />
-                        <div>
-                          <p className="text-white text-xs truncate max-w-24">
-                            {file.name}
-                          </p>
-                          <p className="text-gray-400 text-xs">
-                            {formatFileSize(file.size)} •{" "}
-                            {formatDate(file.lastModified)}
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(index)}
-                        className="text-red-400 hover:text-red-300"
-                        onMouseDown={(e: any) => e.stopPropagation()}
-                        onTouchStart={(e: any) => e.stopPropagation()}
-                      >
-                        <X className="w-3 h-3" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <ErrorMessage
+                name="drive_links"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
             </div>
+
+            {/* Authentication Type */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Authentication Method
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthType("service_account");
+                    setFieldValue("google_drive_auth_type", "service_account");
+                  }}
+                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                    authType === "service_account"
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  <Key className="w-3 h-3 inline mr-1" />
+                  Service Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthType("oauth2");
+                    setFieldValue("google_drive_auth_type", "oauth2");
+                  }}
+                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                    authType === "oauth2"
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  <Lock className="w-3 h-3 inline mr-1" />
+                  OAuth2
+                </button>
+              </div>
+            </div>
+
+            {/* Service Account Configuration */}
+            {authType === "service_account" && (
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Service Account JSON
+                </label>
+                <Field
+                  as="textarea"
+                  name="service_account_json"
+                  placeholder='{"type": "service_account", "project_id": "...", ...}'
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none font-mono"
+                  rows={6}
+                />
+                <ErrorMessage
+                  name="service_account_json"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
+              </div>
+            )}
+
+            {/* OAuth2 Configuration */}
+            {authType === "oauth2" && (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Client ID
+                  </label>
+                  <Field
+                    type="password"
+                    name="oauth2_client_id"
+                    placeholder="Your Google OAuth2 Client ID"
+                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                  />
+                  <ErrorMessage
+                    name="oauth2_client_id"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Client Secret
+                  </label>
+                  <Field
+                    type="password"
+                    name="oauth2_client_secret"
+                    placeholder="Your Google OAuth2 Client Secret"
+                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                  />
+                  <ErrorMessage
+                    name="oauth2_client_secret"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Supported Formats */}
             <div>
               <label className="text-white text-xs font-medium mb-1 block">
                 Supported Formats
               </label>
-              <div className="space-y-1">
-                {["txt", "json", "docx", "pdf"].map((format) => (
-                  <label key={format} className="flex items-center space-x-2">
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    value: "txt",
+                    label: "Text Files",
+                    description: ".txt, .md, .log",
+                  },
+                  {
+                    value: "json",
+                    label: "JSON",
+                    description: ".json, .jsonl",
+                  },
+                  {
+                    value: "docx",
+                    label: "Word Docs",
+                    description: ".docx, .doc",
+                  },
+                  { value: "pdf", label: "PDF", description: ".pdf" },
+                  { value: "csv", label: "CSV", description: ".csv" },
+                ].map((format) => (
+                  <label
+                    key={format.value}
+                    className="flex items-center space-x-2 cursor-pointer"
+                  >
                     <Field
-                      name="supported_formats"
                       type="checkbox"
-                      value={format}
-                      className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
-                      onMouseDown={(e: any) => e.stopPropagation()}
-                      onTouchStart={(e: any) => e.stopPropagation()}
+                      name="supported_formats"
+                      value={format.value}
+                      className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
                     />
-                    <span className="text-white text-xs">
-                      {format.toUpperCase()}
-                    </span>
+                    <div className="text-white text-xs">
+                      <div className="font-medium">{format.label}</div>
+                      <div className="text-gray-400">{format.description}</div>
+                    </div>
                   </label>
                 ))}
               </div>
@@ -250,84 +349,54 @@ export default function DocumentLoaderConfigForm({
               />
             </div>
 
-            {/* Min Content Length */}
-            <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Min Content Length
-              </label>
-              <Field
-                name="min_content_length"
-                type="range"
-                min={1}
-                max={1000}
-                className="w-full text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>1</span>
-                <span className="font-bold text-blue-400">
-                  {values.min_content_length}
-                </span>
-                <span>1000</span>
+            {/* Processing Options */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Min Content Length
+                </label>
+                <Field
+                  type="number"
+                  name="min_content_length"
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                />
+                <ErrorMessage
+                  name="min_content_length"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
               </div>
-              <ErrorMessage
-                name="min_content_length"
-                component="div"
-                className="text-red-400 text-xs mt-1"
-              />
+
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Max File Size (MB)
+                </label>
+                <Field
+                  type="number"
+                  name="max_file_size_mb"
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                />
+                <ErrorMessage
+                  name="max_file_size_mb"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
+              </div>
             </div>
 
-            {/* Max File Size */}
+            {/* Quality Settings */}
             <div>
               <label className="text-white text-xs font-medium mb-1 block">
-                Max File Size (MB)
+                Quality Threshold: {values.quality_threshold || 0.5}
               </label>
               <Field
-                name="max_file_size_mb"
                 type="range"
-                min={1}
-                max={100}
-                className="w-full text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>1MB</span>
-                <span className="font-bold text-green-400">
-                  {values.max_file_size_mb}MB
-                </span>
-                <span>100MB</span>
-              </div>
-              <ErrorMessage
-                name="max_file_size_mb"
-                component="div"
-                className="text-red-400 text-xs mt-1"
-              />
-            </div>
-
-            {/* Quality Threshold */}
-            <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Quality Threshold
-              </label>
-              <Field
                 name="quality_threshold"
-                type="range"
-                min={0}
-                max={1}
-                step={0.1}
-                className="w-full text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
+                min="0"
+                max="1"
+                step="0.1"
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
               />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>0.0</span>
-                <span className="font-bold text-purple-400">
-                  {values.quality_threshold?.toFixed(1) || "0.0"}
-                </span>
-                <span>1.0</span>
-              </div>
               <ErrorMessage
                 name="quality_threshold"
                 component="div"
@@ -335,63 +404,44 @@ export default function DocumentLoaderConfigForm({
               />
             </div>
 
-            {/* Storage Enabled */}
-            <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Storage Enabled
+            {/* Processing Options */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <Field
+                  type="checkbox"
+                  name="storage_enabled"
+                  className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-white text-xs">
+                  Enable Document Storage
+                </span>
               </label>
-              <Field
-                name="storage_enabled"
-                type="checkbox"
-                className="w-4 h-4 text-blue-600 bg-slate-900/80 border rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              />
-              <ErrorMessage
-                name="storage_enabled"
-                component="div"
-                className="text-red-400 text-xs mt-1"
-              />
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <Field
+                  type="checkbox"
+                  name="deduplicate"
+                  className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-white text-xs">Remove Duplicates</span>
+              </label>
             </div>
 
-            {/* Deduplicate */}
-            <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Deduplicate
-              </label>
-              <Field
-                name="deduplicate"
-                type="checkbox"
-                className="w-4 h-4 text-blue-600 bg-slate-900/80 border rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              />
-              <ErrorMessage
-                name="deduplicate"
-                component="div"
-                className="text-red-400 text-xs mt-1"
-              />
-            </div>
-
-            {/* Buttons */}
-            <div className="flex space-x-2">
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-medium py-2 px-3 rounded hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? "Kaydediliyor..." : "Konfigürasyonu Kaydet"}
+              </button>
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
+                className="bg-slate-700 text-white text-xs font-medium py-2 px-3 rounded hover:bg-slate-600 transition-all"
               >
-                ✕
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✓
+                İptal
               </button>
             </div>
           </Form>

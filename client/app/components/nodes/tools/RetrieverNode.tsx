@@ -1,8 +1,18 @@
 import React, { useRef, useState } from "react";
 import { useReactFlow, Position } from "@xyflow/react";
-import { Search, Settings, Database, Zap, Trash, Save, X } from "lucide-react";
+import {
+  Search,
+  Settings,
+  Database,
+  Zap,
+  Trash,
+  Save,
+  X,
+  Filter,
+} from "lucide-react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import NeonHandle from "~/components/common/NeonHandle";
+import JSONEditor from "~/components/common/JSONEditor";
 
 interface RetrieverNodeProps {
   data: any;
@@ -45,7 +55,7 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
 
-  // Simple validation function
+  // Enhanced validation function
   const validate = (values: any) => {
     const errors: any = {};
     if (!values.database_connection) {
@@ -67,21 +77,35 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
     ) {
       errors.score_threshold = "Score threshold must be between 0 and 1";
     }
+
+    // Validate metadata filter JSON if enabled
+    if (values.enable_metadata_filtering && values.metadata_filter) {
+      try {
+        JSON.parse(values.metadata_filter);
+      } catch {
+        errors.metadata_filter = "Invalid JSON format";
+      }
+    }
+
     return errors;
   };
 
-  // Initial values
+  // Enhanced initial values
   const initialValues = {
     database_connection: configData?.database_connection || "",
     collection_name: configData?.collection_name || "",
     search_k: configData?.search_k || 6,
     search_type: configData?.search_type || "similarity",
     score_threshold: configData?.score_threshold || 0.0,
+    // New metadata filtering options
+    enable_metadata_filtering: configData?.enable_metadata_filtering || false,
+    metadata_filter: configData?.metadata_filter || "{}",
+    filter_strategy: configData?.filter_strategy || "exact",
   };
 
   if (isConfigMode) {
     return (
-      <div className="relative w-48 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+      <div className="relative w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
         <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
           <div className="flex items-center gap-2">
             <Search className="w-4 h-4 text-white" />
@@ -96,131 +120,214 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
           onSubmit={handleSaveConfig}
           enableReinitialize
         >
-          {({ values, errors, touched, isSubmitting }) => (
+          {({ values, errors, touched, isSubmitting, setFieldValue }) => (
             <Form className="space-y-3 w-full p-3">
-              {/* Database Connection */}
-              <div>
-                <label className="text-white text-xs font-medium mb-1 block">
-                  Database Connection
-                </label>
-                <Field
-                  name="database_connection"
-                  type="password"
-                  className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                />
-                <ErrorMessage
-                  name="database_connection"
-                  component="div"
-                  className="text-red-400 text-xs mt-1"
-                />
-              </div>
-
-              {/* Collection Name */}
-              <div>
-                <label className="text-white text-xs font-medium mb-1 block">
-                  Collection Name
-                </label>
-                <Field
-                  name="collection_name"
-                  type="text"
-                  className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                />
-                <ErrorMessage
-                  name="collection_name"
-                  component="div"
-                  className="text-red-400 text-xs mt-1"
-                />
-              </div>
-
-              {/* Search Type */}
-              <div>
-                <label className="text-white text-xs font-medium mb-1 block">
-                  Search Type
-                </label>
-                <Field
-                  as="select"
-                  name="search_type"
-                  className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                >
-                  <option value="similarity">Similarity Search</option>
-                  <option value="mmr">MMR (Maximal Marginal Relevance)</option>
-                </Field>
-                <ErrorMessage
-                  name="search_type"
-                  component="div"
-                  className="text-red-400 text-xs mt-1"
-                />
-              </div>
-
-              {/* Search K */}
-              <div>
-                <label className="text-white text-xs font-medium mb-1 block">
-                  Search K
-                </label>
-                <Field
-                  name="search_k"
-                  type="range"
-                  min={1}
-                  max={50}
-                  className="w-full text-white"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                />
-                <div className="flex justify-between text-xs text-gray-300 mt-1">
-                  <span>1</span>
-                  <span className="font-bold text-blue-400">
-                    {values.search_k}
-                  </span>
-                  <span>50</span>
+              {/* Search Configuration Section */}
+              <div className="space-y-3">
+                <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                  <Search className="w-3 h-3" />
+                  Search Configuration
                 </div>
-                <ErrorMessage
-                  name="search_k"
-                  component="div"
-                  className="text-red-400 text-xs mt-1"
-                />
+
+                {/* Database Connection */}
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Database Connection
+                  </label>
+                  <Field
+                    name="database_connection"
+                    type="password"
+                    className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
+                  />
+                  <ErrorMessage
+                    name="database_connection"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                {/* Collection Name */}
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Collection Name
+                  </label>
+                  <Field
+                    name="collection_name"
+                    type="text"
+                    className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
+                  />
+                  <ErrorMessage
+                    name="collection_name"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                {/* Search Type */}
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Search Type
+                  </label>
+                  <Field
+                    as="select"
+                    name="search_type"
+                    className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
+                  >
+                    <option value="similarity">Similarity Search</option>
+                    <option value="mmr">
+                      MMR (Maximal Marginal Relevance)
+                    </option>
+                  </Field>
+                  <ErrorMessage
+                    name="search_type"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                {/* Search K */}
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Search K
+                  </label>
+                  <Field
+                    name="search_k"
+                    type="range"
+                    min={1}
+                    max={50}
+                    className="w-full text-white"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
+                  />
+                  <div className="flex justify-between text-xs text-gray-300 mt-1">
+                    <span>1</span>
+                    <span className="font-bold text-blue-400">
+                      {values.search_k}
+                    </span>
+                    <span>50</span>
+                  </div>
+                  <ErrorMessage
+                    name="search_k"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                {/* Score Threshold */}
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Score Threshold
+                  </label>
+                  <Field
+                    name="score_threshold"
+                    type="range"
+                    min={0}
+                    max={1}
+                    step={0.05}
+                    className="w-full text-white"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
+                  />
+                  <div className="flex justify-between text-xs text-gray-300 mt-1">
+                    <span>0.0</span>
+                    <span className="font-bold text-purple-400">
+                      {values.score_threshold.toFixed(2)}
+                    </span>
+                    <span>1.0</span>
+                  </div>
+                  <ErrorMessage
+                    name="score_threshold"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
               </div>
 
-              {/* Score Threshold */}
-              <div>
-                <label className="text-white text-xs font-medium mb-1 block">
-                  Score Threshold
-                </label>
-                <Field
-                  name="score_threshold"
-                  type="range"
-                  min={0}
-                  max={1}
-                  step={0.05}
-                  className="w-full text-white"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                />
-                <div className="flex justify-between text-xs text-gray-300 mt-1">
-                  <span>0.0</span>
-                  <span className="font-bold text-purple-400">
-                    {values.score_threshold.toFixed(2)}
-                  </span>
-                  <span>1.0</span>
+              {/* Metadata Filtering Section */}
+              <div className="space-y-3 pt-2 border-t border-slate-600/30">
+                <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                  <Filter className="w-3 h-3" />
+                  Metadata Filtering
                 </div>
-                <ErrorMessage
-                  name="score_threshold"
-                  component="div"
-                  className="text-red-400 text-xs mt-1"
-                />
+
+                {/* Enable Metadata Filtering */}
+                <div>
+                  <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                    <Field
+                      name="enable_metadata_filtering"
+                      type="checkbox"
+                      className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                      onMouseDown={(e: any) => e.stopPropagation()}
+                      onTouchStart={(e: any) => e.stopPropagation()}
+                    />
+                    Enable Metadata Filtering
+                  </label>
+                  <p className="text-xs text-slate-400 ml-5">
+                    Enable metadata-based filtering for search results
+                  </p>
+                  <ErrorMessage
+                    name="enable_metadata_filtering"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                {/* Metadata Filter - Conditional */}
+                {values.enable_metadata_filtering && (
+                  <JSONEditor
+                    value={values.metadata_filter || "{}"}
+                    onChange={(value) =>
+                      setFieldValue("metadata_filter", value)
+                    }
+                    label="Metadata Filter"
+                    placeholder='{"data_type": "products", "category": "electronics"}'
+                    description="Filter documents by metadata (JSON format)"
+                    height={80}
+                    error={errors.metadata_filter}
+                  />
+                )}
+
+                {/* Filter Strategy - Conditional */}
+                {values.enable_metadata_filtering && (
+                  <div>
+                    <label className="text-white text-xs font-medium mb-1 block">
+                      Filter Strategy
+                    </label>
+                    <Field
+                      as="select"
+                      name="filter_strategy"
+                      className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                      onMouseDown={(e: any) => e.stopPropagation()}
+                      onTouchStart={(e: any) => e.stopPropagation()}
+                    >
+                      <option value="exact">Exact Match</option>
+                      <option value="contains">Contains</option>
+                      <option value="or">Any Match (OR)</option>
+                    </Field>
+                    <p className="text-xs text-slate-400 mt-1">
+                      How to apply metadata filters
+                    </p>
+                    <ErrorMessage
+                      name="filter_strategy"
+                      component="div"
+                      className="text-red-400 text-xs mt-1"
+                    />
+                  </div>
+                )}
               </div>
 
               {/* Buttons */}
-              <div className="flex space-x-2">
+              <div className="flex space-x-2 pt-2 border-t border-slate-600/30">
                 <button
                   type="button"
                   onClick={handleCancelConfig}
-                  className="text-xs px-2 py-1 bg-slate-700 rounded"
+                  className="text-xs px-2 py-1 bg-slate-700 rounded text-white hover:bg-slate-600 transition-colors"
                   onMouseDown={(e: any) => e.stopPropagation()}
                   onTouchStart={(e: any) => e.stopPropagation()}
                 >
@@ -229,11 +336,15 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
                 <button
                   type="submit"
                   disabled={isSubmitting || Object.keys(errors).length > 0}
-                  className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
+                  className={`text-xs px-2 py-1 rounded text-white transition-colors ${
+                    isSubmitting || Object.keys(errors).length > 0
+                      ? "bg-gray-500 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
                   onMouseDown={(e: any) => e.stopPropagation()}
                   onTouchStart={(e: any) => e.stopPropagation()}
                 >
-                  ✓
+                  {isSubmitting ? "..." : "✓"}
                 </button>
               </div>
             </Form>
@@ -297,6 +408,16 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
           {data?.displayName || data?.name || "Retriever"}
         </div>
+
+        {/* Metadata Filtering Badge */}
+        {data?.enable_metadata_filtering && (
+          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
+            <div className="px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg">
+              <Filter className="w-3 h-3 inline mr-1" />
+              Filter
+            </div>
+          </div>
+        )}
 
         {/* Input Handles */}
         <NeonHandle

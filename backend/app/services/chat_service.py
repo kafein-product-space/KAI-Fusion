@@ -275,7 +275,7 @@ from sqlalchemy import delete, select
 from app.models.chat import ChatMessage
 from app.schemas.chat import ChatMessageCreate, ChatMessageUpdate
 from app.core.encryption import encrypt_data, decrypt_data
-from app.core.engine_v2 import get_engine
+from app.core.engine import get_engine
 from collections import defaultdict
 
 logger = logging.getLogger(__name__)

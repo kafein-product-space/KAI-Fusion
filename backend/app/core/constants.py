@@ -280,7 +280,7 @@ DB_POOL_PRE_PING = "true"
 
 CREDENTIAL_MASTER_KEY = "1234567890"
 # Logging
-LOG_LEVEL = "INFO"
+LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t")
 
 # CORS Settings

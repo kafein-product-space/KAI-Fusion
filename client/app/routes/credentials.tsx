@@ -180,9 +180,6 @@ function CredentialsLayout() {
                         <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
                           <span>Created: {timeAgo(credential.created_at)}</span>
                           <span>Updated: {timeAgo(credential.updated_at)}</span>
-                          <span className="text-xs text-gray-400 font-mono">
-                            ID: {credential.id.slice(0, 8)}...
-                          </span>
                         </div>
                       </div>
                     </div>
@@ -353,30 +350,9 @@ function CredentialsLayout() {
         {/* Pagination */}
         {!isLoading && !error && userCredentials.length > 0 && (
           <div className="mt-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white border border-gray-200 rounded-2xl shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white  rounded-2xl ">
               {/* Items per page */}
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-gray-600">Items per page:</span>
-                <select
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  value={itemsPerPage}
-                  onChange={(e) => {
-                    setItemsPerPage(Number(e.target.value));
-                    setPage(1);
-                  }}
-                >
-                  {[6, 10, 20, 50, 100].map((opt) => (
-                    <option
-                      key={opt}
-                      value={opt}
-                      className="bg-white text-gray-900"
-                    >
-                      {opt}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
+              <div></div>
               {/* Sayfa numaraları */}
               <div className="flex items-center gap-2 justify-center">
                 <button
@@ -411,7 +387,6 @@ function CredentialsLayout() {
                   <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-
               {/* Items X to Y of Z */}
               <div className="text-sm text-gray-600 text-right">
                 Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}

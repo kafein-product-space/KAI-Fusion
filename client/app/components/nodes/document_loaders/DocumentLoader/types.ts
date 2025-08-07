@@ -6,8 +6,17 @@ export interface DocumentLoaderData {
   name?: string;
   displayName?: string;
   
-  // Configuration
+  // Google Drive Configuration
+  drive_links?: string;
+  google_drive_auth_type?: "service_account" | "oauth2";
+  service_account_json?: string;
+  oauth2_client_id?: string;
+  oauth2_client_secret?: string;
+  
+  // Legacy file configuration (for backward compatibility)
   file_paths?: string;
+  
+  // Configuration
   supported_formats?: string[];
   min_content_length?: number;
   max_file_size_mb?: number;
@@ -28,7 +37,7 @@ export interface DocumentLoaderData {
   // Activity
   has_error?: boolean;
   error_status?: string;
-  source_type?: "web_only" | "files_only" | "mixed";
+  source_type?: "google_drive" | "web_only" | "files_only" | "mixed";
 }
 
 export interface DocumentLoaderConfigFormProps {

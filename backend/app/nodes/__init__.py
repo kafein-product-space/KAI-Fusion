@@ -11,7 +11,7 @@ from .llms.openai_node import OpenAINode, OpenAIChatNode
 from .agents.react_agent import ReactAgentNode, ToolAgentNode
 
 # Embedding Nodes
-from .embeddings.openai_embeddings import OpenAIEmbedderNode
+from .embeddings.openai_embeddings_provider import OpenAIEmbeddingsProvider
 
 # Memory Nodes
 from .memory.conversation_memory import ConversationMemoryNode
@@ -19,7 +19,6 @@ from .memory.buffer_memory import BufferMemoryNode
 
 # Tool Nodes
 from .tools.tavily_search import TavilySearchNode
-from .tools.reranker import RerankerNode
 from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
 
@@ -30,12 +29,7 @@ from .document_loaders.web_scraper import WebScraperNode
 from .splitters.chunk_splitter import ChunkSplitterNode
 
 # Vector Stores
-from .vector_stores.pgvector_store import PGVectorStoreNode
 from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
-from .vector_stores.intelligent_vector_store import IntelligentVectorStore
-
-# Chains
-from .chains.retrieval_qa import RetrievalQANode
 
 # Default Nodes
 from .default.start_node import StartNode
@@ -64,13 +58,13 @@ __all__ = [
     "ReactAgentNode", "ToolAgentNode",
     
     # Embeddings
-    "OpenAIEmbedderNode",
+    "OpenAIEmbeddingsProvider",
     
     # Memory
     "ConversationMemoryNode", "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "RerankerNode", "HttpClientNode", "CohereRerankerNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode",
     
     # Document Loaders
     "WebScraperNode",
@@ -79,10 +73,7 @@ __all__ = [
     "ChunkSplitterNode",
     
     # Vector Stores
-    "PGVectorStoreNode", "VectorStoreOrchestrator", "IntelligentVectorStore",
-    
-    # Chains
-    "RetrievalQANode",
+    "VectorStoreOrchestrator",
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",

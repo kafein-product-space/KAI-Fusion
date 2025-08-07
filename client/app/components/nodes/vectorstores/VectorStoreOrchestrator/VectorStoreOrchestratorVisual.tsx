@@ -15,6 +15,9 @@ import {
   CheckCircle,
   AlertCircle,
   Clock,
+  Tag,
+  Hash,
+  Filter,
 } from "lucide-react";
 import type { VectorStoreOrchestratorVisualProps } from "./types";
 
@@ -48,6 +51,13 @@ export default function VectorStoreOrchestratorVisual({
         return "shadow-purple-500/30";
     }
   };
+
+  // Check if metadata is configured
+  const hasCustomMetadata =
+    data.custom_metadata && data.custom_metadata !== "{}";
+  const hasTablePrefix = data.table_prefix && data.table_prefix.trim() !== "";
+  const hasMetadataStrategy =
+    data.metadata_strategy && data.metadata_strategy !== "merge";
 
   return (
     <div
@@ -84,6 +94,28 @@ export default function VectorStoreOrchestratorVisual({
       {/* Node title */}
       <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
         {data?.displayName || data?.name || "Orchestrator"}
+      </div>
+
+      {/* Metadata Configuration Badges */}
+      <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10 flex gap-1">
+        {hasCustomMetadata && (
+          <div className="px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg">
+            <Tag className="w-3 h-3 inline mr-1" />
+            Meta
+          </div>
+        )}
+        {hasTablePrefix && (
+          <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg">
+            <Hash className="w-3 h-3 inline mr-1" />
+            Prefix
+          </div>
+        )}
+        {hasMetadataStrategy && (
+          <div className="px-2 py-1 rounded bg-orange-600 text-white text-xs font-bold shadow-lg">
+            <Filter className="w-3 h-3 inline mr-1" />
+            {data.metadata_strategy}
+          </div>
+        )}
       </div>
 
       {/* Hover effects */}
@@ -131,21 +163,10 @@ export default function VectorStoreOrchestratorVisual({
         type="source"
         position={Position.Right}
         id="retriever"
-        size={10}
+        size={12}
         isConnectable={true}
         color1="#10b981"
         glow={isHandleConnected("retriever", true)}
-        style={{ top: "30%" }}
-      />
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="vectorstore"
-        size={10}
-        isConnectable={true}
-        color1="#8b5cf6"
-        glow={isHandleConnected("vectorstore", true)}
-        style={{ top: "70%" }}
       />
 
       {/* Input labels - Sol taraf */}
@@ -165,15 +186,9 @@ export default function VectorStoreOrchestratorVisual({
       {/* Output labels - Sağ taraf */}
       <div
         className="absolute -right-20 text-xs text-gray-500 font-medium"
-        style={{ top: "25%" }}
+        style={{ top: "50%" }}
       >
         Retriever
-      </div>
-      <div
-        className="absolute -right-20 text-xs text-gray-500 font-medium"
-        style={{ top: "65%" }}
-      >
-        VectorStore
       </div>
 
       {/* Connection Status Indicator */}

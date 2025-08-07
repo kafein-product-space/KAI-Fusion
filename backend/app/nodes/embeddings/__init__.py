@@ -18,8 +18,8 @@ Features:
 - Vector normalization options
 """
 
-from .openai_embeddings import OpenAIEmbedderNode
+from .openai_embeddings_provider import OpenAIEmbeddingsProvider
 
 __all__ = [
-    "OpenAIEmbedderNode"
+    "OpenAIEmbeddingsProvider"
 ]

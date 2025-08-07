@@ -6,13 +6,9 @@ import React, {
   useMemo,
 } from "react";
 import {
-  ReactFlow,
   useNodesState,
   useEdgesState,
   addEdge,
-  MiniMap,
-  Controls,
-  Background,
   useReactFlow,
   ReactFlowProvider,
   type Node,
@@ -23,6 +19,7 @@ import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import { useExecutionsStore } from "~/stores/executions";
+import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../nodes/StartNode";
 import ToolAgentNode from "../nodes/agents/ToolAgent/index";
 
@@ -38,7 +35,6 @@ import type {
 
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
-import TestButtonsComponent from "./TestButtonsComponent";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -57,21 +53,23 @@ import { useChatStore } from "../../stores/chat";
 import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
 import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
-import WebScraperNode from "../nodes/document_loaders/WebScraperNode";
+import WebScraperNode from "../nodes/document_loaders/WebScraper";
 import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
 import RetrievalQANode from "../nodes/chains/RetrievalQANode";
 import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
 import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
 import HTTPClientNode from "../nodes/tools/HTTPClientNode";
-import DocumentRerankerNode from "../nodes/tools/DocumentReranker";
+import DocumentRerankerNode from "../nodes/tools/DocumentReranker/index";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
-import WebhookTriggerNode from "../nodes/triggers/WebhookTriggerNode";
+import WebhookTriggerNode from "../nodes/triggers/WebhookTrigger";
 import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
 import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
 import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
 import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
 import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorStoreNode";
 import RetrieverNode from "../nodes/tools/RetrieverNode";
+import UnsavedChangesModal from "../modals/UnsavedChangesModal";
+import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -125,6 +123,24 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [nodeId, setNodeId] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
+  const [activeNodes, setActiveNodes] = useState<string[]>([]);
+
+  // Auto-save state
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
+  const [autoSaveInterval, setAutoSaveInterval] = useState(30000); // 30 seconds
+  const [lastAutoSave, setLastAutoSave] = useState<Date | null>(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState<
+    "idle" | "saving" | "saved" | "error"
+  >("idle");
+
+  // Unsaved changes modal ref
+  const unsavedChangesModalRef = useRef<HTMLDialogElement>(null);
+  const [pendingNavigation, setPendingNavigation] = useState<string | null>(
+    null
+  );
+
+  // Auto-save settings modal ref
+  const autoSaveSettingsModalRef = useRef<HTMLDialogElement>(null);
 
   const {
     currentWorkflow,
@@ -141,6 +157,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
+
+  // Smart suggestions integration
+  const { setLastAddedNode, updateRecommendations } = useSmartSuggestions();
 
   // Execution store integration
   const {
@@ -306,8 +325,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       setNodes((nds: Node[]) => nds.concat(newNode));
       setNodeId((id: number) => id + 1);
+
+      // Update smart suggestions with the last added node
+      setLastAddedNode(nodeType.type);
+
+      // Update recommendations after setting the last added node
+      updateRecommendations(availableNodes);
     },
-    [screenToFlowPosition, nodeId, availableNodes]
+    [
+      screenToFlowPosition,
+      nodeId,
+      availableNodes,
+      setLastAddedNode,
+      updateRecommendations,
+    ]
   );
 
   const handleSave = useCallback(async () => {
@@ -329,6 +360,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           flow_data: flowData,
         });
         setCurrentWorkflow(newWorkflow);
+        setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
         enqueueSnackbar(`Workflow "${workflowName}" created and saved!`, {
           variant: "success",
         });
@@ -344,6 +376,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         description: currentWorkflow.description,
         flow_data: flowData,
       });
+      setHasUnsavedChanges(false); // Kaydetme başarılı olduğunda false yap
       enqueueSnackbar("Workflow saved successfully!", { variant: "success" });
     } catch (error) {
       console.error("Failed to save workflow:", error);
@@ -357,7 +390,91 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     updateWorkflow,
     enqueueSnackbar,
     setCurrentWorkflow,
+    setHasUnsavedChanges,
     workflowName,
+  ]);
+
+  // Auto-save function
+  const handleAutoSave = useCallback(async () => {
+    if (!autoSaveEnabled || !hasUnsavedChanges || !currentWorkflow) {
+      return;
+    }
+
+    setAutoSaveStatus("saving");
+
+    try {
+      const flowData: WorkflowData = {
+        nodes: nodes as WorkflowNode[],
+        edges: edges as WorkflowEdge[],
+      };
+
+      await updateWorkflow(currentWorkflow.id, {
+        name: workflowName,
+        description: currentWorkflow.description,
+        flow_data: flowData,
+      });
+
+      setHasUnsavedChanges(false);
+      setLastAutoSave(new Date());
+      setAutoSaveStatus("saved");
+
+      // Show subtle notification
+      enqueueSnackbar("Auto-saved", {
+        variant: "success",
+        autoHideDuration: 2000,
+        anchorOrigin: { vertical: "bottom", horizontal: "right" },
+      });
+
+      // Reset status after 3 seconds
+      setTimeout(() => {
+        setAutoSaveStatus("idle");
+      }, 3000);
+    } catch (error) {
+      console.error("Auto-save failed:", error);
+      setAutoSaveStatus("error");
+
+      enqueueSnackbar("Auto-save failed", {
+        variant: "error",
+        autoHideDuration: 3000,
+        anchorOrigin: { vertical: "bottom", horizontal: "right" },
+      });
+
+      // Reset error status after 5 seconds
+      setTimeout(() => {
+        setAutoSaveStatus("idle");
+      }, 5000);
+    }
+  }, [
+    autoSaveEnabled,
+    hasUnsavedChanges,
+    currentWorkflow,
+    nodes,
+    edges,
+    updateWorkflow,
+    workflowName,
+    setHasUnsavedChanges,
+    enqueueSnackbar,
+  ]);
+
+  // Auto-save timer effect
+  useEffect(() => {
+    if (!autoSaveEnabled || !currentWorkflow) {
+      return;
+    }
+
+    const timer = setInterval(() => {
+      if (hasUnsavedChanges) {
+        handleAutoSave();
+      }
+    }, autoSaveInterval);
+
+    return () => clearInterval(timer);
+  }, [
+    autoSaveEnabled,
+    autoSaveInterval,
+    hasUnsavedChanges,
+    currentWorkflow,
+    handleAutoSave,
   ]);
 
   // Function to handle StartNode execution with proper service integration
@@ -387,6 +504,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           trigger_source: "start_node_double_click",
         };
 
+        // Animate execution path before executing
+        const executionPath = await animateExecutionPath(nodeId);
+
+        // Clear animations after execution
+        setTimeout(() => {
+          setActiveEdges([]);
+          setActiveNodes([]);
+        }, 2000);
+
         // Use the execution service to execute workflow
         await executeWorkflow(currentWorkflow.id, executionData);
 
@@ -411,6 +537,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       executeWorkflow,
       clearExecutionError,
       enqueueSnackbar,
+      setActiveEdges,
     ]
   );
 
@@ -452,10 +579,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           {...props}
           onExecute={handleStartNodeExecution}
           isExecuting={executionLoading}
+          isActive={activeNodes.includes(props.id)}
         />
       ),
+      OpenAIChat: (props: any) => (
+        <OpenAIChatNode {...props} isActive={activeNodes.includes(props.id)} />
+      ),
     }),
-    [handleStartNodeExecution, executionLoading]
+    [handleStartNodeExecution, executionLoading, activeNodes]
   );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -471,6 +602,90 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setEdges([]);
     setCurrentWorkflow(null);
   }, [hasUnsavedChanges, setCurrentWorkflow]);
+
+  // Handle navigation after modal actions
+  const handleNavigation = useCallback((url: string) => {
+    window.location.href = url;
+  }, []);
+
+  // Auto-save settings handler
+  const handleAutoSaveSettings = useCallback(() => {
+    autoSaveSettingsModalRef.current?.showModal();
+  }, []);
+
+  // Unsaved changes modal handlers
+  const handleUnsavedChangesSave = useCallback(async () => {
+    try {
+      await handleSave();
+      // Navigate to pending location after successful save
+      if (pendingNavigation) {
+        handleNavigation(pendingNavigation);
+      }
+    } catch (error) {
+      enqueueSnackbar("Kaydetme başarısız oldu", { variant: "error" });
+    }
+  }, [handleSave, pendingNavigation, enqueueSnackbar, handleNavigation]);
+
+  const handleUnsavedChangesDiscard = useCallback(() => {
+    setHasUnsavedChanges(false);
+    // Navigate to pending location
+    if (pendingNavigation) {
+      handleNavigation(pendingNavigation);
+    }
+  }, [setHasUnsavedChanges, pendingNavigation, handleNavigation]);
+
+  const handleUnsavedChangesCancel = useCallback(() => {
+    setPendingNavigation(null);
+  }, []);
+
+  // Function to animate execution path
+  const animateExecutionPath = useCallback(
+    async (startNodeId: string) => {
+      const visited = new Set<string>();
+      const path: string[] = [];
+
+      const traverse = async (nodeId: string) => {
+        if (visited.has(nodeId)) return;
+        visited.add(nodeId);
+
+        // Add node to active nodes
+        setActiveNodes([nodeId]);
+        path.push(nodeId);
+
+        // Wait a bit to show the node is active
+        await new Promise((resolve) => setTimeout(resolve, 800));
+
+        // Find connected edges
+        const connectedEdges = edges.filter((edge) => edge.source === nodeId);
+
+        for (const edge of connectedEdges) {
+          // Animate edge
+          setActiveEdges([edge.id]);
+          await new Promise((resolve) => setTimeout(resolve, 500));
+
+          // Traverse to target node
+          await traverse(edge.target);
+        }
+      };
+
+      await traverse(startNodeId);
+      return path;
+    },
+    [edges]
+  );
+
+  // Function to check unsaved changes before navigation
+  const checkUnsavedChanges = useCallback(
+    (url: string) => {
+      if (hasUnsavedChanges) {
+        setPendingNavigation(url);
+        unsavedChangesModalRef.current?.showModal();
+        return false;
+      }
+      return true;
+    },
+    [hasUnsavedChanges]
+  );
 
   // handleSendMessage fonksiyonu güncellendi
   const handleSendMessage = async () => {
@@ -530,16 +745,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [activeEdges]
   );
 
-  const executionPath = edges.map((e) => e.id); // Tüm edge'leri sırayla elektriklendir
-
-  const animateExecution = async () => {
-    for (const edgeId of executionPath) {
-      setActiveEdges([edgeId]);
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-    }
-    setActiveEdges([]);
-  };
-
   return (
     <>
       <Navbar
@@ -552,6 +757,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setEdges={setEdges}
         deleteWorkflow={deleteWorkflow}
         isLoading={isLoading}
+        checkUnsavedChanges={checkUnsavedChanges}
+        autoSaveStatus={autoSaveStatus}
+        lastAutoSave={lastAutoSave}
+        onAutoSaveSettings={handleAutoSaveSettings}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
@@ -661,11 +870,22 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         </div>
       </div>
 
-      {/* Test Buttons Component */}
-      <TestButtonsComponent
-        edges={edges}
-        setActiveEdges={setActiveEdges}
-        animateExecution={animateExecution}
+      {/* Unsaved Changes Modal */}
+      <UnsavedChangesModal
+        ref={unsavedChangesModalRef}
+        onSave={handleUnsavedChangesSave}
+        onDiscard={handleUnsavedChangesDiscard}
+        onCancel={handleUnsavedChangesCancel}
+      />
+
+      {/* Auto-save Settings Modal */}
+      <AutoSaveSettingsModal
+        ref={autoSaveSettingsModalRef}
+        autoSaveEnabled={autoSaveEnabled}
+        setAutoSaveEnabled={setAutoSaveEnabled}
+        autoSaveInterval={autoSaveInterval}
+        setAutoSaveInterval={setAutoSaveInterval}
+        lastAutoSave={lastAutoSave}
       />
     </>
   );

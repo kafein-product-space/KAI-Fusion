@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { Eraser } from "lucide-react";
 import ChatBubble from "../common/ChatBubble";
 
@@ -25,6 +25,16 @@ export default function ChatComponent({
   onSendMessage,
   onClearChat,
 }: ChatComponentProps) {
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatHistory, chatLoading]);
+
   if (!chatOpen) return null;
 
   return (
@@ -51,15 +61,18 @@ export default function ChatComponent({
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {chatError && <div className="text-xs text-red-400">{chatError}</div>}
-        {chatHistory.map((msg, i) => (
-          <ChatBubble
-            key={msg.id || i}
-            from={msg.role === "user" ? "user" : "assistant"}
-            message={msg.content}
-            userInitial={msg.role === "user" ? "U" : undefined}
-          />
-        ))}
+        {chatHistory
+          .sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime())
+          .map((msg, i) => (
+            <ChatBubble
+              key={msg.id || i}
+              from={msg.role === "user" ? "user" : "assistant"}
+              message={msg.content}
+              userInitial={msg.role === "user" ? "U" : undefined}
+            />
+          ))}
         {chatLoading && <ChatBubble from="assistant" message="" loading />}
+        <div ref={messagesEndRef} />
       </div>
       <div className="p-3 border-t border-gray-700 flex gap-2">
         <input

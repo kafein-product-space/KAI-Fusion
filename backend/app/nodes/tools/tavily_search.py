@@ -423,7 +423,7 @@ class TavilySearchNode(ProviderNode):
             "name": "TavilySearch",
             "display_name": "Tavily Web Search",
             "description": "Performs a web search using the Tavily API.",
-            "category": NodeCategory.TOOL,
+            "category": "Tool",
             "node_type": NodeType.PROVIDER,
             "inputs": [
                 NodeInput(

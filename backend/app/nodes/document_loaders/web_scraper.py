@@ -323,7 +323,9 @@ from typing import List, Any, Dict
 from urllib.parse import urlparse
 
 from langchain_core.documents import Document
-from langchain_tavily import TavilySearch
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
 from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
@@ -665,7 +667,7 @@ class WebScraperNode(ProcessorNode):
                 "Fetches web pages using Tavily API and extracts clean text content. "
                 "Input multiple URLs (one per line) to scrape content from web pages."
             ),
-            "category": NodeCategory.DOCUMENT_LOADER,
+            "category": "Tool",
             "node_type": NodeType.PROCESSOR,
             "icon": "globe-alt",
             "color": "#0ea5e9",
@@ -684,11 +686,11 @@ class WebScraperNode(ProcessorNode):
                     is_connection=True,
                 ),
                 NodeInput(
-                    name="tavily_api_key",
+                    name="user_agent",
                     type="str",
-                    description="Tavily API Key (leave empty to use environment variable)",
+                    description="User agent string for web requests",
+                    default="Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)",
                     required=False,
-                    is_secret=True
                 ),
                 NodeInput(
                     name="remove_selectors",
@@ -795,10 +797,19 @@ class WebScraperNode(ProcessorNode):
         # Combine URLs from both sources
         all_urls = []
         
-        # Parse URLs from user input (one per line)
+        # Parse URLs from user input (one per line OR comma-separated)
         if raw_urls:
-            user_urls = [url.strip() for url in raw_urls.splitlines() if url.strip()]
-            all_urls.extend(user_urls)
+            # First try splitting by lines
+            lines = raw_urls.splitlines()
+            for line in lines:
+                line = line.strip()
+                if line:
+                    # If line contains commas, split by comma as well
+                    if ',' in line:
+                        comma_urls = [url.strip() for url in line.split(',') if url.strip()]
+                        all_urls.extend(comma_urls)
+                    else:
+                        all_urls.append(line)
         
         # Handle URLs from connected nodes
         if connected_urls:
@@ -829,31 +840,34 @@ class WebScraperNode(ProcessorNode):
         
         logger.info(f"📋 Found {len(all_urls)} URLs to scrape")
         
-        # Get Tavily API key
-        api_key = inputs.get("tavily_api_key") or os.getenv("TAVILY_API_KEY")
-        if not api_key:
-            raise ValueError(
-                "Tavily API key is required. Please provide it in the node configuration "
-                "or set TAVILY_API_KEY environment variable."
-            )
-        
-        # Get other parameters
+        # Get parameters
         remove_selectors_str = inputs.get("remove_selectors", "nav,footer,header,script,style,aside,noscript,form")
         remove_selectors = [s.strip() for s in remove_selectors_str.split(",") if s.strip()]
         min_content_length = int(inputs.get("min_content_length", 100))
+        user_agent = inputs.get("user_agent", "Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)")
         
-        # Initialize Tavily tool
-        try:
-            tavily_tool = TavilySearch(
-                tavily_api_key=api_key,
-                max_results=1,  # We only need the direct page content
-                search_depth="advanced",  # Use advanced search depth
-                include_raw_content=True,  # Get HTML content
-                include_answer=False,  # We don't need Tavily's answer
-            )
-            logger.info("✅ Tavily tool initialized successfully")
-        except Exception as e:
-            raise ValueError(f"Failed to initialize Tavily Search: {e}") from e
+        # Setup HTTP session with retry strategy
+        session = requests.Session()
+        retry_strategy = Retry(
+            total=3,
+            backoff_factor=1,
+            status_forcelist=[429, 500, 502, 503, 504],
+        )
+        adapter = HTTPAdapter(max_retries=retry_strategy)
+        session.mount("http://", adapter)
+        session.mount("https://", adapter)
+        
+        # Set headers
+        session.headers.update({
+            'User-Agent': user_agent,
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'en-US,en;q=0.5',
+            'Accept-Encoding': 'gzip, deflate',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1',
+        })
+        
+        logger.info("✅ HTTP session initialized successfully")
         
         documents: List[Document] = []
         successful_scrapes = 0
@@ -862,19 +876,14 @@ class WebScraperNode(ProcessorNode):
         # Process each URL
         for i, url in enumerate(all_urls, 1):
             try:
-                logger.info(f"🔄 [{i}/{len(urls)}] Scraping: {url}")
+                logger.info(f"🔄 [{i}/{len(all_urls)}] Scraping: {url}")
                 
-                # Use Tavily to fetch the page content
-                result = tavily_tool.run(url)
+                # Make HTTP request to fetch the page
+                response = session.get(url, timeout=30)
+                response.raise_for_status()
                 
-                # Extract HTML content
-                html_content = ""
-                if isinstance(result, dict):
-                    html_content = result.get("raw_content", "")
-                elif isinstance(result, str):
-                    html_content = result
-                else:
-                    html_content = str(result)
+                # Get HTML content
+                html_content = response.text
                 
                 if not html_content:
                     logger.warning(f"⚠️ No content retrieved for {url}")
@@ -915,8 +924,8 @@ class WebScraperNode(ProcessorNode):
         
         if not documents:
             raise ValueError(
-                f"No content could be scraped from {len(urls)} URLs. "
-                "Please check the URLs and your Tavily API quota."
+                f"No content could be scraped from {len(all_urls)} URLs. "
+                "Please check the URLs and network connectivity."
             )
         
         logger.info(f"🎉 Returning {len(documents)} documents for downstream processing")
