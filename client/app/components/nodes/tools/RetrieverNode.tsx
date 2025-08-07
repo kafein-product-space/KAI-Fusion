@@ -289,7 +289,7 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
                     placeholder='{"data_type": "products", "category": "electronics"}'
                     description="Filter documents by metadata (JSON format)"
                     height={80}
-                    error={errors.metadata_filter}
+                    error={errors.metadata_filter as string}
                   />
                 )}
 
@@ -476,16 +476,6 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         >
           Retriever Tool
         </div>
-
-        {/* Database Type Badge */}
-        {data?.database_connection && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow-lg">
-              <Database className="w-3 h-3 inline mr-1" />
-              Database
-            </div>
-          </div>
-        )}
 
         {/* Connection Status Indicator */}
         {data?.connected && (

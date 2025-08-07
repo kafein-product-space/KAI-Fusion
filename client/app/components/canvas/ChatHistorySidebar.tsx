@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { MessageSquare, Plus, Trash2, Clock } from "lucide-react";
+import { MessageSquare, Plus, Trash2, Clock, Heart } from "lucide-react";
 import { useChatStore } from "../../stores/chat";
+import { usePinnedItems } from "../../stores/pinnedItems";
 import type { ChatMessage } from "../../types/api";
+import PinButton from "../common/PinButton";
 
 interface ChatHistorySidebarProps {
   isOpen: boolean;
@@ -17,6 +19,7 @@ export default function ChatHistorySidebar({
   activeChatflowId,
 }: ChatHistorySidebarProps) {
   const { chats, fetchAllChats, loading, clearMessages } = useChatStore();
+  const { getPinnedItems } = usePinnedItems();
   const [chatSummaries, setChatSummaries] = useState<
     Array<{
       chatflowId: string;
@@ -69,6 +72,18 @@ export default function ChatHistorySidebar({
 
     setChatSummaries(summaries);
   }, [chats]);
+
+  // Get pinned chats
+  const pinnedChats = getPinnedItems("chat");
+  const pinnedChatIds = new Set(pinnedChats.map((chat) => chat.id));
+
+  // Separate pinned and unpinned chats
+  const pinnedChatSummaries = chatSummaries.filter((chat) =>
+    pinnedChatIds.has(chat.chatflowId)
+  );
+  const unpinnedChatSummaries = chatSummaries.filter(
+    (chat) => !pinnedChatIds.has(chat.chatflowId)
+  );
 
   const formatTimestamp = (timestamp: string) => {
     const date = new Date(timestamp);
@@ -145,56 +160,164 @@ export default function ChatHistorySidebar({
             </div>
           ) : (
             <div className="p-2">
-              {chatSummaries.map((chat) => (
-                <div
-                  key={chat.chatflowId}
-                  onClick={() => {
-                    onSelectChat(chat.chatflowId);
-                    onClose();
-                  }}
-                  className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
-                    activeChatflowId === chat.chatflowId
-                      ? "bg-blue-600 text-white"
-                      : "hover:bg-gray-800 text-gray-200"
-                  }`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-medium text-sm truncate">
-                        {chat.title}
-                      </h3>
-                      <p
-                        className={`text-xs mt-1 truncate ${
-                          activeChatflowId === chat.chatflowId
-                            ? "text-blue-100"
-                            : "text-gray-400"
-                        }`}
-                      >
-                        {chat.lastMessage}
-                      </p>
-                      <div className="flex items-center gap-2 mt-2">
-                        <Clock className="w-3 h-3" />
-                        <span className="text-xs">
-                          {formatTimestamp(chat.timestamp)}
-                        </span>
-                        <span className="text-xs">
-                          • {chat.messageCount} mesaj
-                        </span>
-                      </div>
-                    </div>
-                    <button
-                      onClick={(e) => handleDeleteChat(chat.chatflowId, e)}
-                      className={`ml-2 p-1 rounded hover:bg-opacity-20 transition-colors ${
+              {/* Pinned Chats Section */}
+              {pinnedChatSummaries.length > 0 && (
+                <div className="mb-4">
+                  <div className="flex items-center gap-2 mb-2 px-2">
+                    <Heart className="w-4 h-4 text-red-500 fill-current" />
+                    <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                      Pinned Chats
+                    </span>
+                  </div>
+                  {pinnedChatSummaries.map((chat) => (
+                    <div
+                      key={chat.chatflowId}
+                      onClick={() => {
+                        onSelectChat(chat.chatflowId);
+                        onClose();
+                      }}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 border-l-2 border-red-500 ${
                         activeChatflowId === chat.chatflowId
-                          ? "hover:bg-white"
-                          : "hover:bg-red-500"
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-800 text-gray-200 bg-gray-800/50"
                       }`}
                     >
-                      <Trash2 className="w-3 h-3" />
-                    </button>
-                  </div>
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm truncate">
+                            {chat.title}
+                          </h3>
+                          <p
+                            className={`text-xs mt-1 truncate ${
+                              activeChatflowId === chat.chatflowId
+                                ? "text-blue-100"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {chat.lastMessage}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-xs">
+                              {formatTimestamp(chat.timestamp)}
+                            </span>
+                            <span className="text-xs">
+                              • {chat.messageCount} mesaj
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <PinButton
+                            id={chat.chatflowId}
+                            type="chat"
+                            title={chat.title}
+                            description={chat.lastMessage}
+                            metadata={{
+                              messageCount: chat.messageCount,
+                              lastActivity: chat.timestamp,
+                            }}
+                            size="sm"
+                            variant="minimal"
+                            className="text-gray-400 hover:text-red-500"
+                          />
+                          <button
+                            onClick={(e) =>
+                              handleDeleteChat(chat.chatflowId, e)
+                            }
+                            className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
+                              activeChatflowId === chat.chatflowId
+                                ? "hover:bg-white"
+                                : "hover:bg-red-500"
+                            }`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {/* Regular Chats Section */}
+              {unpinnedChatSummaries.length > 0 && (
+                <div>
+                  {pinnedChatSummaries.length > 0 && (
+                    <div className="flex items-center gap-2 mb-2 px-2">
+                      <span className="text-xs font-medium text-gray-400 uppercase tracking-wider">
+                        Recent Chats
+                      </span>
+                    </div>
+                  )}
+                  {unpinnedChatSummaries.map((chat) => (
+                    <div
+                      key={chat.chatflowId}
+                      onClick={() => {
+                        onSelectChat(chat.chatflowId);
+                        onClose();
+                      }}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors mb-2 ${
+                        activeChatflowId === chat.chatflowId
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-800 text-gray-200"
+                      }`}
+                    >
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-sm truncate">
+                            {chat.title}
+                          </h3>
+                          <p
+                            className={`text-xs mt-1 truncate ${
+                              activeChatflowId === chat.chatflowId
+                                ? "text-blue-100"
+                                : "text-gray-400"
+                            }`}
+                          >
+                            {chat.lastMessage}
+                          </p>
+                          <div className="flex items-center gap-2 mt-2">
+                            <Clock className="w-3 h-3" />
+                            <span className="text-xs">
+                              {formatTimestamp(chat.timestamp)}
+                            </span>
+                            <span className="text-xs">
+                              • {chat.messageCount} mesaj
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <PinButton
+                            id={chat.chatflowId}
+                            type="chat"
+                            title={chat.title}
+                            description={chat.lastMessage}
+                            metadata={{
+                              messageCount: chat.messageCount,
+                              lastActivity: chat.timestamp,
+                            }}
+                            size="sm"
+                            variant="minimal"
+                            className="text-gray-400 hover:text-red-500"
+                          />
+                          <button
+                            onClick={(e) =>
+                              handleDeleteChat(chat.chatflowId, e)
+                            }
+                            className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
+                              activeChatflowId === chat.chatflowId
+                                ? "hover:bg-white"
+                                : "hover:bg-red-500"
+                            }`}
+                          >
+                            <Trash2 className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

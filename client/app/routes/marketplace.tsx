@@ -9,9 +9,11 @@ import {
 import { useSnackbar } from "notistack";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
+import { usePinnedItems } from "~/stores/pinnedItems";
 import { timeAgo } from "~/lib/dateFormatter";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
+import PinButton from "~/components/common/PinButton";
 
 function MarketplaceLayout() {
   const { enqueueSnackbar } = useSnackbar();
@@ -22,6 +24,7 @@ function MarketplaceLayout() {
     isLoading,
     error,
   } = useWorkflows();
+  const { getPinnedItems } = usePinnedItems();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [duplicating, setDuplicating] = useState<string | null>(null);
@@ -101,6 +104,63 @@ function MarketplaceLayout() {
             </div>
           </div>
 
+          {/* Pinned Workflows Section */}
+          {(() => {
+            const pinnedWorkflows = getPinnedItems("workflow");
+            if (pinnedWorkflows.length > 0) {
+              return (
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4">
+                    <span className="text-lg font-semibold text-gray-900">
+                      Your Pinned Workflows
+                    </span>
+                    <span className="px-2 py-1 text-xs font-medium bg-red-100 text-red-700 rounded-full">
+                      {pinnedWorkflows.length}
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {pinnedWorkflows.map((wf) => (
+                      <div
+                        key={wf.id}
+                        className="bg-gradient-to-br from-red-50 to-pink-50 border-2 border-red-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300"
+                      >
+                        <div className="flex justify-between mb-4">
+                          <h3 className="text-lg font-semibold text-gray-900">
+                            {wf.title}
+                          </h3>
+                          <PinButton
+                            id={wf.id}
+                            type="workflow"
+                            title={wf.title}
+                            description={wf.description}
+                            metadata={wf.metadata}
+                            size="sm"
+                            variant="minimal"
+                          />
+                        </div>
+                        <p className="text-gray-600 text-sm mb-4">
+                          {wf.description || "No description available"}
+                        </p>
+                        <div className="text-xs text-gray-500 space-y-1 mb-4">
+                          <div>
+                            <strong>Pinned:</strong> {timeAgo(wf.pinnedAt)}
+                          </div>
+                        </div>
+                        <div className="flex justify-end pt-4 border-t border-red-100">
+                          <button className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-red-600 to-pink-600 text-white rounded-xl hover:from-red-700 hover:to-pink-700">
+                            <Copy className="w-4 h-4" />
+                            Copy Workflow
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            }
+            return null;
+          })()}
+
           {/* Content */}
           {isLoading ? (
             <div className="flex items-center justify-center py-12">
@@ -133,6 +193,18 @@ function MarketplaceLayout() {
                     <h3 className="text-lg font-semibold text-gray-900 hover:text-purple-600">
                       {wf.name}
                     </h3>
+                    <PinButton
+                      id={wf.id}
+                      type="workflow"
+                      title={wf.name}
+                      description={wf.description}
+                      metadata={{
+                        status: "Public",
+                        lastActivity: wf.created_at,
+                      }}
+                      size="sm"
+                      variant="minimal"
+                    />
                   </div>
                   <p className="text-gray-600 text-sm mb-4">
                     {wf.description || "No description available"}
