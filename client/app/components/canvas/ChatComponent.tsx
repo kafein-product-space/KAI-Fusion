@@ -59,7 +59,7 @@ export default function ChatComponent({
   if (!chatOpen) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 w-96 h-[520px] bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700">
+    <div className="fixed bottom-20 right-4 w-124 h-[620px] bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700">
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-blue-400" />

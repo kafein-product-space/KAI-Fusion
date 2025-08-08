@@ -107,18 +107,13 @@ export default function CohereRerankerVisual({
       {/* Output Handle */}
       <NeonHandle
         type="source"
-        position={Position.Top}
+        position={Position.Right}
         id="output"
         size={10}
         isConnectable={true}
         color1="#3b82f6"
         glow={isHandleConnected("output", false)}
       />
-
-      {/* Left side label for input */}
-      <div className="absolute -left-10 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
-        Input
-      </div>
 
       {/* Connection Status Indicator */}
       {data?.connection_status && (

@@ -3,7 +3,7 @@
 @plugin "daisyui";
 @plugin "@tailwindcss/typography";
 @import "@xyflow/react/dist/style.css";
-
+@import "katex/dist/katex.min.css";
 html {
   color-scheme: light;
   font-family: "Inter", sans-serif;
