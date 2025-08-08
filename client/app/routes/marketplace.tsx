@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Search,
 } from "lucide-react";
+import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
@@ -25,6 +26,7 @@ function MarketplaceLayout() {
     error,
   } = useWorkflows();
   const { getPinnedItems } = usePinnedItems();
+  const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [duplicating, setDuplicating] = useState<string | null>(null);
@@ -66,6 +68,267 @@ function MarketplaceLayout() {
     }
   };
 
+  // Pre-built Templates
+  const prebuiltTemplates = [
+    {
+      id: "email_automation",
+      name: "Email Automation Workflow",
+      description:
+        "Trigger-driven email sending via HTTP client (integrate your provider).",
+      colorFrom: "from-blue-500",
+      colorTo: "to-indigo-600",
+      buildFlow: () => {
+        const nodes = [
+          {
+            id: "StartNode-1",
+            type: "StartNode",
+            position: { x: 100, y: 100 },
+            data: { name: "Start" },
+          },
+          {
+            id: "HttpRequest-2",
+            type: "HttpRequest",
+            position: { x: 350, y: 100 },
+            data: {
+              name: "Send Email",
+              method: "POST",
+              url: "https://api.your-email-provider.com/send",
+              headers: '{\n  "Authorization": "Bearer <API_KEY>"\n}',
+              body: '{\n  "to": "user@example.com",\n  "subject": "Hello",\n  "text": "Hi from KAI-Fusion!"\n}',
+            },
+          },
+          {
+            id: "EndNode-3",
+            type: "EndNode",
+            position: { x: 600, y: 100 },
+            data: { name: "End" },
+          },
+        ];
+        const edges = [
+          {
+            id: "e1-2",
+            source: "StartNode-1",
+            target: "HttpRequest-2",
+            type: "custom",
+          },
+          {
+            id: "e2-3",
+            source: "HttpRequest-2",
+            target: "EndNode-3",
+            type: "custom",
+          },
+        ];
+        return { nodes, edges };
+      },
+    },
+    {
+      id: "content_generation",
+      name: "Content Generation Pipeline",
+      description:
+        "Generate content using OpenAI Chat node with a simple start/end flow.",
+      colorFrom: "from-purple-500",
+      colorTo: "to-pink-600",
+      buildFlow: () => {
+        const nodes = [
+          {
+            id: "StartNode-1",
+            type: "StartNode",
+            position: { x: 100, y: 200 },
+            data: { name: "Start" },
+          },
+          {
+            id: "OpenAIChat-2",
+            type: "OpenAIChat",
+            position: { x: 350, y: 200 },
+            data: {
+              name: "OpenAI Chat",
+              systemPrompt: "You are a helpful content generator.",
+            },
+          },
+          {
+            id: "EndNode-3",
+            type: "EndNode",
+            position: { x: 600, y: 200 },
+            data: { name: "End" },
+          },
+        ];
+        const edges = [
+          {
+            id: "e1-2",
+            source: "StartNode-1",
+            target: "OpenAIChat-2",
+            type: "custom",
+          },
+          {
+            id: "e2-3",
+            source: "OpenAIChat-2",
+            target: "EndNode-3",
+            type: "custom",
+          },
+        ];
+        return { nodes, edges };
+      },
+    },
+    {
+      id: "data_analysis",
+      name: "Data Analysis Flow",
+      description:
+        "Load, split, embed and retrieve data for Q&A style analysis.",
+      colorFrom: "from-emerald-500",
+      colorTo: "to-teal-600",
+      buildFlow: () => {
+        const nodes = [
+          {
+            id: "DocumentLoader-1",
+            type: "DocumentLoader",
+            position: { x: 100, y: 320 },
+            data: { name: "Load Docs" },
+          },
+          {
+            id: "ChunkSplitter-2",
+            type: "ChunkSplitter",
+            position: { x: 350, y: 320 },
+            data: { name: "Split Chunks", chunk_size: 500, chunk_overlap: 50 },
+          },
+          {
+            id: "OpenAIEmbedder-3",
+            type: "OpenAIEmbedder",
+            position: { x: 600, y: 320 },
+            data: { name: "Embed" },
+          },
+          {
+            id: "PGVectorStore-4",
+            type: "PGVectorStore",
+            position: { x: 850, y: 320 },
+            data: { name: "Store" },
+          },
+          {
+            id: "RetrievalQA-5",
+            type: "RetrievalQA",
+            position: { x: 1100, y: 320 },
+            data: { name: "Retrieval QA" },
+          },
+          {
+            id: "EndNode-6",
+            type: "EndNode",
+            position: { x: 1350, y: 320 },
+            data: { name: "End" },
+          },
+        ];
+        const edges = [
+          {
+            id: "e1-2",
+            source: "DocumentLoader-1",
+            target: "ChunkSplitter-2",
+            type: "custom",
+          },
+          {
+            id: "e2-3",
+            source: "ChunkSplitter-2",
+            target: "OpenAIEmbedder-3",
+            type: "custom",
+          },
+          {
+            id: "e3-4",
+            source: "OpenAIEmbedder-3",
+            target: "PGVectorStore-4",
+            type: "custom",
+          },
+          {
+            id: "e4-5",
+            source: "PGVectorStore-4",
+            target: "RetrievalQA-5",
+            type: "custom",
+          },
+          {
+            id: "e5-6",
+            source: "RetrievalQA-5",
+            target: "EndNode-6",
+            type: "custom",
+          },
+        ];
+        return { nodes, edges };
+      },
+    },
+    {
+      id: "customer_support",
+      name: "Customer Support Automation",
+      description:
+        "Webhook-triggered support assistant with retrieval-augmented answers.",
+      colorFrom: "from-amber-500",
+      colorTo: "to-orange-600",
+      buildFlow: () => {
+        const nodes = [
+          {
+            id: "WebhookTrigger-1",
+            type: "WebhookTrigger",
+            position: { x: 100, y: 440 },
+            data: { name: "Webhook" },
+          },
+          {
+            id: "RetrievalQA-2",
+            type: "RetrievalQA",
+            position: { x: 350, y: 440 },
+            data: { name: "Answer" },
+          },
+          {
+            id: "OpenAIChat-3",
+            type: "OpenAIChat",
+            position: { x: 600, y: 440 },
+            data: { name: "Reply" },
+          },
+          {
+            id: "EndNode-4",
+            type: "EndNode",
+            position: { x: 850, y: 440 },
+            data: { name: "End" },
+          },
+        ];
+        const edges = [
+          {
+            id: "e1-2",
+            source: "WebhookTrigger-1",
+            target: "RetrievalQA-2",
+            type: "custom",
+          },
+          {
+            id: "e2-3",
+            source: "RetrievalQA-2",
+            target: "OpenAIChat-3",
+            type: "custom",
+          },
+          {
+            id: "e3-4",
+            source: "OpenAIChat-3",
+            target: "EndNode-4",
+            type: "custom",
+          },
+        ];
+        return { nodes, edges };
+      },
+    },
+  ] as const;
+
+  const handleUseTemplate = async (tplId: string) => {
+    const tpl = prebuiltTemplates.find((t) => t.id === tplId);
+    if (!tpl) return;
+
+    try {
+      const flow = tpl.buildFlow();
+      const created = await useWorkflows.getState().createWorkflow({
+        name: tpl.name,
+        description: tpl.description,
+        flow_data: flow,
+      });
+      enqueueSnackbar("Template workflow created!", { variant: "success" });
+      navigate(`/canvas?workflow=${created.id}`);
+    } catch (e: any) {
+      enqueueSnackbar("Failed to create template workflow", {
+        variant: "error",
+      });
+    }
+  };
+
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
@@ -101,6 +364,41 @@ function MarketplaceLayout() {
                 />
                 Refresh
               </button>
+            </div>
+          </div>
+
+          {/* Pre-built Templates */}
+          <div className="mb-8">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold text-gray-900">
+                Pre-built Templates
+              </h2>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              {prebuiltTemplates.map((tpl) => (
+                <div
+                  key={tpl.id}
+                  className={`rounded-2xl p-5 border border-gray-200 bg-white hover:shadow-lg transition-all duration-300`}
+                >
+                  <div
+                    className={`w-10 h-10 rounded-lg mb-3 bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo}`}
+                  />
+                  <h3 className="text-base font-semibold text-gray-900">
+                    {tpl.name}
+                  </h3>
+                  <p className="text-sm text-gray-600 mt-1 min-h-[40px]">
+                    {tpl.description}
+                  </p>
+                  <div className="mt-4">
+                    <button
+                      className="px-3 py-2 text-sm rounded-lg bg-gradient-to-r from-purple-600 to-blue-600 text-white hover:from-purple-700 hover:to-blue-700"
+                      onClick={() => handleUseTemplate(tpl.id)}
+                    >
+                      Use Template
+                    </button>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
 

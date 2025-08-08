@@ -6,10 +6,7 @@ import {
   Filter,
   Trash,
   Activity,
-  Search,
-  BarChart3,
   Zap,
-  Settings,
   Key,
   CheckCircle,
   AlertCircle,
@@ -73,7 +70,7 @@ export default function CohereRerankerVisual({
       {/* Main icon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <Filter className="w-12 h-12 text-white drop-shadow-lg" />
+          <Filter className="w-10 h-10 text-white drop-shadow-lg" />
           {/* Activity indicator */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-orange-400 to-red-500 rounded-full flex items-center justify-center">
             <Key className="w-2 h-2 text-white" />
@@ -112,7 +109,7 @@ export default function CohereRerankerVisual({
         size={10}
         isConnectable={true}
         color1="#3b82f6"
-        glow={isHandleConnected("output", false)}
+        glow={isHandleConnected("output", true)}
       />
 
       {/* Connection Status Indicator */}

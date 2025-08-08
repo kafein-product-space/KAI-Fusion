@@ -110,7 +110,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       const codeContent = String(children).replace(/\n$/, "");
 
                       return !isInline ? (
-                        <div className="relative group my-4">
+                        <div className="relative group my-4 ">
                           <div className="flex items-center justify-between bg-gray-800 text-gray-300 px-4 py-2 rounded-t-lg text-xs font-medium">
                             <span className="capitalize">
                               {language || "text"}
