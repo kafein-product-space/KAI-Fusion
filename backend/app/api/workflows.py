@@ -908,6 +908,21 @@ async def execute_adhoc_workflow(
     # Use chatflow_id as session_id for memory persistence
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
+    
+    # 🔥 DEBUG: Log received session_id and chatflow_id
+    print(f"🔍 DEBUG: Received session_id: {req.session_id}")
+    print(f"🔍 DEBUG: Received chatflow_id: {req.chatflow_id}")
+    print(f"🔍 DEBUG: Final session_id: {session_id}")
+    
+    # 🔥 CRITICAL: session_id her zaman olmalı
+    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+        session_id = str(chatflow_id)
+        print(f"⚠️  Invalid session_id in workflow execution, using chatflow_id: {session_id}")
+    
+    # Ensure session_id is consistent with chatflow_id
+    if not req.session_id:
+        session_id = str(chatflow_id)
+    
     user_id = current_user.id
     user_email = current_user.email
     user_context = {

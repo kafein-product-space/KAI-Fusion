@@ -466,11 +466,12 @@ class ConversationMemoryNode(ProviderNode):
     def execute(self, **kwargs) -> Runnable:
         """Execute with session-aware memory support"""
         # 🔥 SESSION ID PRIORITY - user_id yerine session_id öncelikli
+        # 🔥 CRITICAL: Use self.session_id as primary source (set by GraphBuilder)
         session_id = getattr(self, 'session_id', None)
         
-        # Try to get session_id from kwargs if not set
+        # If not set on self, try kwargs
         if not session_id:
-            session_id = kwargs.get('session_id', None)
+            session_id = kwargs.get('session_id')
         
         # 🔥 ENHANCED SESSION ID VALIDATION
         if not session_id or session_id == 'default_session':
@@ -489,6 +490,8 @@ class ConversationMemoryNode(ProviderNode):
             print(f"⚠️  Invalid session_id format, generated: {session_id}")
         
         print(f"💾 ConversationMemoryNode session_id: {session_id}")
+        print(f"🔍 Debug: self.session_id = {getattr(self, 'session_id', 'NOT_SET')}")
+        print(f"🔍 Debug: kwargs.session_id = {kwargs.get('session_id', 'NOT_PROVIDED')}")
         
         k = kwargs.get("k", 5)
         memory_key = kwargs.get("memory_key", "chat_history")
@@ -505,11 +508,4 @@ class ConversationMemoryNode(ProviderNode):
             print(f"💾 Reusing existing ConversationMemory for session: {session_id}")
             
         memory = self._session_memories[session_id]
-        
-        # Debug memory content
-        if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-            print(f"💾 ConversationMemory has {len(memory.chat_memory.messages)} messages")
-            for i, msg in enumerate(memory.chat_memory.messages[-3:]):  # Show last 3 messages
-                print(f"  {i}: {getattr(msg, 'type', 'unknown')}: {getattr(msg, 'content', str(msg))[:100]}")
-        
-        return cast(Runnable, memory)
+        return memory

@@ -419,7 +419,12 @@ class BufferMemoryNode(ProviderNode):
         """Execute buffer memory node with session persistence and tracing"""
         try:
             # 🔥 SESSION ID PRIORITY - user_id yerine session_id öncelikli
-            session_id = kwargs.get('session_id') or getattr(self, 'session_id', None)
+            # 🔥 CRITICAL: Use self.session_id as primary source (set by GraphBuilder)
+            session_id = getattr(self, 'session_id', None)
+            
+            # If not set on self, try kwargs
+            if not session_id:
+                session_id = kwargs.get('session_id')
             
             # 🔥 ENHANCED SESSION ID HANDLING
             if not session_id or session_id == 'default_session':
@@ -439,6 +444,8 @@ class BufferMemoryNode(ProviderNode):
             
             print(f"\n💾 BUFFER MEMORY SETUP")
             print(f"   📝 Session: {str(session_id)[:8]}...")
+            print(f"   🔍 Debug: self.session_id = {getattr(self, 'session_id', 'NOT_SET')}")
+            print(f"   🔍 Debug: kwargs.session_id = {kwargs.get('session_id', 'NOT_PROVIDED')}")
             
             # Ensure global memory dictionary is initialized
             if not hasattr(BufferMemoryNode, '_global_session_memories') or BufferMemoryNode._global_session_memories is None:
