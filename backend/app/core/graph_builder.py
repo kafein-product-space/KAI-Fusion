@@ -936,12 +936,20 @@ class GraphBuilder:
                 # 🔥 ENHANCED: Pass session information to ReAct Agents and Memory nodes
                 if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
+                    # 🔥 CRITICAL: Ensure session_id is valid
+                    if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
+                        session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
                     gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id on agent {node_id}: {session_id}")
                 
-                # Set session_id for memory nodes
+                # Set session_id for memory nodes (priority over user_id)
                 if 'Memory' in gnode.type and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
+                    # 🔥 CRITICAL: Ensure session_id is valid
+                    if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
+                        session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
                     gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id on memory node {node_id}: {session_id}")
                 
                 # Initialize tracer for this node
                 try:

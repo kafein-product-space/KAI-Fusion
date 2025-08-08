@@ -200,6 +200,7 @@ from ..base import ProviderNode, NodeMetadata, NodeInput, NodeType
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.runnables import Runnable
 from typing import cast, Dict
+import uuid
 
 # ================================================================================
 # CONVERSATION MEMORY NODE - ENTERPRISE MEMORY MANAGEMENT
@@ -464,8 +465,29 @@ class ConversationMemoryNode(ProviderNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute with session-aware memory support"""
-        # Get session ID from context (set by graph builder)
-        session_id = getattr(self, 'session_id', 'default_session')
+        # 🔥 SESSION ID PRIORITY - user_id yerine session_id öncelikli
+        session_id = getattr(self, 'session_id', None)
+        
+        # Try to get session_id from kwargs if not set
+        if not session_id:
+            session_id = kwargs.get('session_id', None)
+        
+        # 🔥 ENHANCED SESSION ID VALIDATION
+        if not session_id or session_id == 'default_session':
+            # Try to get from context
+            session_id = kwargs.get('context_session_id', None)
+        
+        # 🔥 CRITICAL: session_id her zaman olmalı
+        if not session_id or session_id == 'default_session' or session_id == 'None':
+            # Generate a unique session_id
+            session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
+            print(f"⚠️  No valid session_id provided, generated: {session_id}")
+        
+        # Ensure session_id is a valid string
+        if not isinstance(session_id, str) or len(session_id.strip()) == 0:
+            session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
+            print(f"⚠️  Invalid session_id format, generated: {session_id}")
+        
         print(f"💾 ConversationMemoryNode session_id: {session_id}")
         
         k = kwargs.get("k", 5)
