@@ -407,17 +407,6 @@ const Sidebar = () => {
 
       {/* Footer Section */}
       <div className="space-y-4">
-        {/* Notifications */}
-        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Bell className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-slate-300">3 new updates</span>
-            </div>
-            <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-          </div>
-        </div>
-
         {/* User Profile */}
         <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
           <div className="flex items-center space-x-3">
