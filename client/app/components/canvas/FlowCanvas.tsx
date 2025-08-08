@@ -870,6 +870,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onClearChat={handleClearChat}
             onShowHistory={handleShowHistory}
             activeChatflowId={activeChatflowId}
+            currentWorkflow={currentWorkflow}
+            flowData={{
+              nodes: nodes as WorkflowNode[],
+              edges: edges as WorkflowEdge[],
+            }}
           />
 
           {/* Chat History Sidebar */}

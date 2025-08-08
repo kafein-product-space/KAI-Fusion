@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Eraser, History, MessageSquare } from "lucide-react";
 import ChatBubble from "../common/ChatBubble";
+import { useChatStore } from "~/stores/chat";
 
 interface ChatComponentProps {
   chatOpen: boolean;
@@ -14,6 +15,8 @@ interface ChatComponentProps {
   onClearChat: () => void;
   onShowHistory: () => void;
   activeChatflowId: string | null;
+  currentWorkflow?: any;
+  flowData?: any;
 }
 
 export default function ChatComponent({
@@ -28,8 +31,12 @@ export default function ChatComponent({
   onClearChat,
   onShowHistory,
   activeChatflowId,
+  currentWorkflow,
+  flowData,
 }: ChatComponentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const { updateMessage, removeMessage, sendEditedMessage } = useChatStore();
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -54,6 +61,79 @@ export default function ChatComponent({
     }
 
     return "Yeni Konuşma";
+  };
+
+  const handleEditMessage = (messageId: string, currentContent: string) => {
+    setEditingMessageId(messageId);
+  };
+
+  const handleSaveEdit = async (messageId: string, newContent: string) => {
+    if (activeChatflowId) {
+      const message = chatHistory.find((msg) => msg.id === messageId);
+      if (message) {
+        // Immediately close the edit modal
+        setEditingMessageId(null);
+
+        const updatedMessage = { ...message, content: newContent };
+        updateMessage(activeChatflowId, updatedMessage);
+
+        // Remove all assistant messages that came after this user message
+        const messageIndex = chatHistory.findIndex(
+          (msg) => msg.id === messageId
+        );
+        const messagesToRemove = chatHistory
+          .slice(messageIndex + 1)
+          .filter((msg) => msg.role === "assistant")
+          .map((msg) => msg.id);
+
+        messagesToRemove.forEach((id) => {
+          removeMessage(activeChatflowId!, id);
+        });
+
+        // Trigger new response with updated message
+        if (currentWorkflow && flowData) {
+          try {
+            await sendEditedMessage(
+              flowData,
+              newContent,
+              activeChatflowId,
+              currentWorkflow.id
+            );
+          } catch (error) {
+            console.error("Error sending updated message:", error);
+          }
+        }
+      }
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditingMessageId(null);
+  };
+
+  const handleDeleteMessage = (messageId: string) => {
+    if (activeChatflowId) {
+      const message = chatHistory.find((msg) => msg.id === messageId);
+      if (message) {
+        // Remove the selected message
+        removeMessage(activeChatflowId, messageId);
+
+        // If it's a user message, also remove all assistant messages that came after it
+        if (message.role === "user") {
+          const messageIndex = chatHistory.findIndex(
+            (msg) => msg.id === messageId
+          );
+          const messagesToRemove = chatHistory
+            .slice(messageIndex + 1)
+            .filter((msg) => msg.role === "assistant")
+            .map((msg) => msg.id);
+
+          messagesToRemove.forEach((id) => {
+            removeMessage(activeChatflowId!, id);
+          });
+        }
+      }
+    }
   };
 
   if (!chatOpen) return null;
@@ -104,6 +184,12 @@ export default function ChatComponent({
               from={msg.role === "user" ? "user" : "assistant"}
               message={msg.content}
               userInitial={msg.role === "user" ? "U" : undefined}
+              messageId={msg.id}
+              onEdit={handleEditMessage}
+              onDelete={handleDeleteMessage}
+              isEditing={editingMessageId === msg.id}
+              onSaveEdit={handleSaveEdit}
+              onCancelEdit={handleCancelEdit}
             />
           ))}
         {chatLoading && <ChatBubble from="assistant" message="" loading />}

@@ -23,6 +23,7 @@ interface ChatStore {
   // LLM entegrasyonu:
   startLLMChat: (flow_data: any, input_text: string, workflow_id: string) => Promise<void>;
   sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
+  sendEditedMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
 }
 
 export const useChatStore = create<ChatStore>((set, get) => ({
@@ -194,15 +195,23 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, error: null });
     
-    // Immediately add user message to UI
-    const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
-      chatflow_id,
-      role: 'user',
-      content: input_text,
-      created_at: new Date().toISOString(),
-    };
-    get().addMessage(chatflow_id, userMessage);
+    // Check if this is an edit operation by looking for existing user message
+    const existingMessages = get().chats[chatflow_id] || [];
+    const lastUserMessage = existingMessages
+      .filter(msg => msg.role === 'user')
+      .pop();
+    
+    // Only add new user message if this is not an edit operation
+    if (!lastUserMessage || lastUserMessage.content !== input_text) {
+      const userMessage: ChatMessage = {
+        id: crypto.randomUUID(),
+        chatflow_id,
+        role: 'user',
+        content: input_text,
+        created_at: new Date().toISOString(),
+      };
+      get().addMessage(chatflow_id, userMessage);
+    }
     
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
@@ -210,6 +219,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });
+    } finally {
+      set({ loading: false });
+    }
+  },
+
+  // New function specifically for handling edited messages
+  sendEditedMessage: async (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => {
+    set({ loading: true, error: null });
+    
+    try {
+      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      // Fetch only new messages (agent responses) instead of all messages
+      await get().fetchChatMessages(chatflow_id);
+    } catch (e: any) {
+      set({ error: e.message || 'Düzenlenen mesaj gönderilemedi' });
     } finally {
       set({ loading: false });
     }

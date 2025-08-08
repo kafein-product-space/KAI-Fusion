@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Bot, Copy, Check, ExternalLink } from "lucide-react";
+import { Bot, Copy, Check, ExternalLink, Edit, Trash2 } from "lucide-react";
 import { useAuth } from "~/stores/auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
@@ -15,6 +15,12 @@ interface ChatBubbleProps {
   userAvatarUrl?: string;
   userInitial?: string;
   timestamp?: Date;
+  messageId?: string;
+  onEdit?: (messageId: string, newContent: string) => void;
+  onDelete?: (messageId: string) => void;
+  isEditing?: boolean;
+  onSaveEdit?: (messageId: string, newContent: string) => void;
+  onCancelEdit?: () => void;
 }
 
 const ChatBubble: React.FC<ChatBubbleProps> = ({
@@ -24,9 +30,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   userAvatarUrl,
   userInitial,
   timestamp,
+  messageId,
+  onEdit,
+  onDelete,
+  isEditing,
+  onSaveEdit,
+  onCancelEdit,
 }) => {
   const { user } = useAuth();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState(message);
   const isUser = from === "user";
 
   const copyToClipboard = async (text: string) => {
@@ -46,6 +59,31 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       hour: "2-digit",
       minute: "2-digit",
     });
+  };
+
+  const handleEdit = () => {
+    if (messageId && onEdit) {
+      onEdit(messageId, message);
+    }
+  };
+
+  const handleDelete = () => {
+    if (messageId && onDelete) {
+      onDelete(messageId);
+    }
+  };
+
+  const handleSaveEdit = () => {
+    if (messageId && onSaveEdit) {
+      onSaveEdit(messageId, editContent);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditContent(message);
+    if (onCancelEdit) {
+      onCancelEdit();
+    }
   };
 
   return (
@@ -73,8 +111,28 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
             : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
         }
-        relative transition-all duration-200 hover:shadow-xl`}
+        relative transition-all duration-200 hover:shadow-xl group`}
       >
+        {/* Action buttons for user messages */}
+        {isUser && messageId && !isEditing && (
+          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
+            <button
+              onClick={handleEdit}
+              className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+              title="Düzenle"
+            >
+              <Edit className="w-3 h-3" />
+            </button>
+            <button
+              onClick={handleDelete}
+              className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
+              title="Sil"
+            >
+              <Trash2 className="w-3 h-3" />
+            </button>
+          </div>
+        )}
+
         {loading && !isUser ? (
           <div className="flex items-center gap-3">
             <div className="flex space-x-1">
@@ -92,7 +150,31 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
           </div>
         ) : (
           <div className="w-full">
-            {isUser ? (
+            {isUser && isEditing ? (
+              <div className="space-y-2">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white resize-none"
+                  rows={Math.max(2, editContent.split("\n").length)}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleSaveEdit}
+                    className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
+                  >
+                    Kaydet
+                  </button>
+                  <button
+                    onClick={handleCancelEdit}
+                    className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
+                  >
+                    İptal
+                  </button>
+                </div>
+              </div>
+            ) : isUser ? (
               <div className="whitespace-pre-wrap break-words leading-relaxed">
                 {message}
               </div>
