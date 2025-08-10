@@ -160,20 +160,65 @@ async def handle_webhook_request(
                     logger.info(f"🚀 Starting workflow execution for webhook: {webhook_id}")
                     
                     import httpx
+                    import time
+                    from sqlalchemy import select
+                    from sqlalchemy.ext.asyncio import AsyncSession
+                    from app.core.database import get_db_session
+                    from app.models.webhook import WebhookEndpoint
+                    from app.models.workflow import Workflow
                     
-                    # Simple workflow execution via API
+                    # Get database session
+                    async for db_session in get_db_session():
+                        try:
+                            # Step 1: Lookup webhook endpoint to get workflow_id
+                            webhook_query = select(WebhookEndpoint).filter(WebhookEndpoint.webhook_id == webhook_id)
+                            webhook_result = await db_session.execute(webhook_query)
+                            webhook_endpoint = webhook_result.scalar_one_or_none()
+                            
+                            if not webhook_endpoint:
+                                logger.warning(f"⚠️  Webhook endpoint not found in database: {webhook_id}. Skipping execution.")
+                                return
+                                
+                            if not webhook_endpoint.workflow_id:
+                                logger.warning(f"⚠️  Webhook {webhook_id} has no associated workflow_id. Skipping execution.")
+                                return
+                            
+                            # Step 2: Fetch the actual workflow data
+                            workflow_query = select(Workflow).filter(Workflow.id == webhook_endpoint.workflow_id)
+                            workflow_result = await db_session.execute(workflow_query)
+                            workflow = workflow_result.scalar_one_or_none()
+                            
+                            if not workflow:
+                                logger.error(f"❌ Workflow not found for webhook {webhook_id}, workflow_id: {webhook_endpoint.workflow_id}")
+                                return
+                                
+                            if not workflow.flow_data or not workflow.flow_data.get('nodes'):
+                                logger.warning(f"⚠️  Workflow {workflow.id} has empty flow_data. Skipping execution.")
+                                return
+                            
+                            # Step 3: Prepare execution payload with real workflow data
+                            execution_payload = {
+                                "flow_data": workflow.flow_data,  # Use real workflow data
+                                "input_text": f"Webhook triggered: {webhook_id}",
+                                "session_id": f"webhook_{webhook_id}_{int(time.time())}",
+                                "webhook_data": webhook_event  # Include webhook event data
+                            }
+                            
+                            logger.info(f"📊 Executing workflow {workflow.id} with {len(workflow.flow_data.get('nodes', []))} nodes")
+                            
+                        except Exception as db_error:
+                            logger.error(f"❌ Database error for webhook {webhook_id}: {db_error}")
+                            return
+                        finally:
+                            await db_session.close()
+                        
+                        break  # Exit the async generator loop
+                    
+                    # Step 4: Execute the workflow via API
                     api_url = "http://localhost:8000/api/v1/workflows/execute"
-                    
-                    # Prepare simple execution payload
-                    execution_payload = {
-                        "input": {"webhook_triggered": True, "webhook_id": webhook_id}
-                    }
-                    
-                    # Make API call to execute workflow
                     headers = {
                         "Content-Type": "application/json",
-                        # Internal webhook call - use system token or bypass auth
-                        "X-Internal-Call": "true"
+                        "X-Internal-Call": "true"  # Internal webhook call
                     }
                     
                     async with httpx.AsyncClient() as client:

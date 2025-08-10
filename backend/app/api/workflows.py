@@ -292,7 +292,7 @@ from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -894,7 +894,8 @@ async def get_dashboard_stats(
 @router.post("/execute")
 async def execute_adhoc_workflow(
     req: AdhocExecuteRequest,
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db_session),
     execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
@@ -902,19 +903,40 @@ async def execute_adhoc_workflow(
     Execute a workflow directly from flow data and stream the output.
     This is the primary endpoint for running workflows from the frontend.
     """
+    # Check if this is an internal webhook call
+    is_internal_call = request.headers.get("X-Internal-Call") == "true"
+    
+    # For internal calls, allow execution without authentication
+    if not current_user and not is_internal_call:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required"
+        )
+    
     engine = get_engine()
     chat_service = ChatService(db)
     
     # Use chatflow_id as session_id for memory persistence
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
-    user_id = current_user.id
-    user_email = current_user.email
-    user_context = {
-        "session_id": session_id,
-        "user_id": str(user_id),
-        "user_email": user_email
-    }
+    
+    # Handle user context for internal calls
+    if is_internal_call:
+        user_id = "webhook_system"
+        user_email = "webhook@system.internal"
+        user_context = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "user_email": user_email
+        }
+    else:
+        user_id = current_user.id
+        user_email = current_user.email
+        user_context = {
+            "session_id": session_id,
+            "user_id": str(user_id),
+            "user_email": user_email
+        }
 
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
