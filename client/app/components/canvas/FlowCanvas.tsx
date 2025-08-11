@@ -182,6 +182,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     startLLMChat,
     sendLLMMessage,
     loading: chatLoading,
+    thinking: chatThinking, // thinking state'ini al
     error: chatError,
     addMessage,
     fetchChatMessages,
@@ -892,6 +893,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               nodes: nodes as WorkflowNode[],
               edges: edges as WorkflowEdge[],
             }}
+            chatThinking={chatThinking}
           />
 
           {/* Chat History Sidebar */}
