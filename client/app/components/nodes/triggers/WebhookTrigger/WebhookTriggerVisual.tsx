@@ -149,15 +149,6 @@ export default function WebhookTriggerVisual({
           {data?.displayName || data?.name || "Webhook"}
         </div>
 
-        {/* Listening badge */}
-        {isListening && isEndpointReady && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold shadow-lg">
-              LISTENING
-            </div>
-          </div>
-        )}
-
         {/* Loading badge when endpoint is not ready */}
         {isListening && !isEndpointReady && (
           <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
@@ -223,75 +214,7 @@ export default function WebhookTriggerVisual({
         size={10}
         color1="#8b5cf6"
         glow={isHandleConnected("webhook_endpoint", true)}
-        style={{
-          top: "20%",
-        }}
       />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_token"
-        isConnectable={true}
-        size={10}
-        color1="#ec4899"
-        glow={isHandleConnected("webhook_token", true)}
-        style={{
-          top: "40%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_runnable"
-        isConnectable={true}
-        size={10}
-        color1="#10b981"
-        glow={isHandleConnected("webhook_runnable", true)}
-        style={{
-          top: "60%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="webhook_config"
-        isConnectable={true}
-        size={10}
-        color1="#f59e0b"
-        glow={isHandleConnected("webhook_config", true)}
-        style={{
-          top: "80%",
-        }}
-      />
-
-      {/* Right side labels for outputs */}
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "15%" }}
-      >
-        Endpoint
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "35%" }}
-      >
-        Token
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "55%" }}
-      >
-        Runnable
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "75%" }}
-      >
-        Config
-      </div>
 
       {/* URL Badge */}
       {webhookEndpoint && (

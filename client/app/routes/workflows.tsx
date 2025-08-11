@@ -12,6 +12,7 @@ import React, { useState, useEffect } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
+import { usePinnedItems } from "~/stores/pinnedItems";
 
 import type {
   Workflow,
@@ -24,6 +25,8 @@ import { Link } from "react-router";
 import { useSnackbar } from "notistack";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
+import PinnedItemsSection from "~/components/common/PinnedItemsSection";
+import PinButton from "~/components/common/PinButton";
 
 const ErrorMessageBlock = ({
   error,
@@ -253,6 +256,9 @@ function WorkflowsLayout() {
             </div>
           </div>
 
+          {/* Pinned Workflows Section */}
+          <PinnedItemsSection type="workflow" />
+
           {/* Workflows Grid */}
           {error ? (
             <ErrorMessageBlock error={error} onRetry={handleRetry} />
@@ -283,16 +289,30 @@ function WorkflowsLayout() {
                       </p>
                     </div>
 
-                    {/* Status Badge */}
-                    <span
-                      className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                        workflow.is_public
-                          ? "bg-blue-100 text-blue-800 border border-blue-200"
-                          : "bg-gray-100 text-gray-800 border border-gray-200"
-                      }`}
-                    >
-                      {workflow.is_public ? "Public" : "Private"}
-                    </span>
+                    {/* Status Badge and Pin Button */}
+                    <div className="flex items-center gap-2">
+                      <PinButton
+                        id={workflow.id}
+                        type="workflow"
+                        title={workflow.name}
+                        description={workflow.description}
+                        metadata={{
+                          status: workflow.is_public ? "Public" : "Private",
+                          lastActivity: workflow.updated_at,
+                        }}
+                        size="sm"
+                        variant="minimal"
+                      />
+                      <span
+                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                          workflow.is_public
+                            ? "bg-blue-100 text-blue-800 border border-blue-200"
+                            : "bg-gray-100 text-gray-800 border border-gray-200"
+                        }`}
+                      >
+                        {workflow.is_public ? "Public" : "Private"}
+                      </span>
+                    </div>
                   </div>
 
                   {/* Metadata */}

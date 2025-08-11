@@ -10,14 +10,12 @@ export default [
 
   // Workflows
   route("workflows", "routes/workflows.tsx"),
-  
 
-  // Canvas 
- 
+  // Pinned Items
+  route("pinned", "routes/pinned.tsx"),
+
+  // Canvas
   route("canvas", "routes/canvas.tsx"),
- 
-  
-  
 
   // Others
   route("executions", "routes/executions.tsx"),

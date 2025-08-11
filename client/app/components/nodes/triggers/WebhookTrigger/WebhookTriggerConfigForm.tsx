@@ -16,6 +16,9 @@ import {
   Globe,
   Key,
   Lock,
+  Radio,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import type { WebhookTriggerConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
@@ -71,6 +74,12 @@ export default function WebhookTriggerConfigForm({
       icon: Zap,
       description: "Advanced features and performance",
     },
+    {
+      id: "testing",
+      label: "🎯 Testing & Events",
+      icon: TestTube,
+      description: "Test webhook and view events",
+    },
   ];
 
   const generateCurlCommand = () => {
@@ -118,8 +127,16 @@ export default function WebhookTriggerConfigForm({
     }
   };
 
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString();
+  };
+
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString();
+  };
+
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+    <div className="relative p-2 w-124 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
           <Webhook className="w-4 h-4 text-white" />
@@ -282,161 +299,6 @@ export default function WebhookTriggerConfigForm({
                         className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
                         rows={2}
                       />
-                    </div>
-
-                    {/* Testing Section */}
-                    <div className="pt-4 border-t border-white/20">
-                      <div className="flex items-center gap-2 text-xs font-semibold text-yellow-400 uppercase tracking-wider mb-3">
-                        <TestTube className="w-3 h-3" />
-                        <span>Testing & Events</span>
-                      </div>
-
-                      {/* Webhook Endpoint Display */}
-                      <div className="mb-3">
-                        <label className="text-white text-xs font-medium mb-1 block">
-                          Webhook Endpoint
-                        </label>
-                        <div className="bg-slate-800/50 p-3 rounded border border-slate-600/50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Globe className="w-3 h-3 text-blue-400" />
-                            <span className="text-blue-400 text-xs font-semibold">
-                              Listening URL:
-                            </span>
-                          </div>
-                          <div className="flex gap-2">
-                            <input
-                              type="text"
-                              value={webhookEndpoint || "Loading..."}
-                              readOnly
-                              className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 font-mono"
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onCopyToClipboard?.(
-                                  webhookEndpoint || "",
-                                  "endpoint"
-                                )
-                              }
-                              className="btn btn-sm btn-ghost text-white"
-                              title="Copy URL"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
-                          <div className="text-slate-400 text-xs mt-2">
-                            Send {initialValues.http_method || "POST"} requests
-                            to this URL to trigger the webhook
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Test Event Buttons */}
-                      <div className="flex gap-2 mb-3">
-                        <button
-                          type="button"
-                          onClick={onTestEvent}
-                          disabled={isListening}
-                          className="btn btn-sm flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white border-0"
-                        >
-                          <TestTube className="w-3 h-3 mr-1" />
-                          {isListening ? "Listening..." : "Start Listening"}
-                        </button>
-                        {isListening && (
-                          <button
-                            type="button"
-                            onClick={onStopListening}
-                            className="btn btn-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-0"
-                          >
-                            <Activity className="w-3 h-3 mr-1" />
-                            Stop
-                          </button>
-                        )}
-                      </div>
-
-                      {/* Stream Status */}
-                      <div className="bg-slate-800/50 p-2 rounded text-xs text-white mb-3">
-                        <div className="flex items-center gap-1 mb-1">
-                          <Activity className="w-2 h-2 text-blue-400" />
-                          <span>
-                            Stream Status: {isListening ? "Active" : "Inactive"}
-                          </span>
-                        </div>
-                        {isListening && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                            <span className="text-green-400">
-                              Listening for events...
-                            </span>
-                          </div>
-                        )}
-                        {!isListening && (
-                          <div className="flex items-center gap-1">
-                            <div className="w-2 h-2 bg-red-400 rounded-full"></div>
-                            <span className="text-red-400">Not listening</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* cURL Command */}
-                      {webhookEndpoint && (
-                        <div className="mb-3">
-                          <label className="text-white text-xs font-medium mb-1 block">
-                            cURL Command
-                          </label>
-                          <div className="flex gap-2">
-                            <textarea
-                              value={generateCurlCommand()}
-                              readOnly
-                              className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50"
-                              rows={4}
-                            />
-                            <button
-                              type="button"
-                              onClick={() =>
-                                onCopyToClipboard?.(
-                                  generateCurlCommand(),
-                                  "curl"
-                                )
-                              }
-                              className="btn btn-sm btn-ghost text-white"
-                            >
-                              <Copy className="w-3 h-3" />
-                            </button>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Recent Events */}
-                      {events && events.length > 0 && (
-                        <div>
-                          <label className="text-white text-xs font-medium mb-1 block">
-                            Recent Events ({events.length})
-                          </label>
-                          <div className="max-h-32 overflow-y-auto space-y-1">
-                            {events.slice(0, 3).map((event, index) => (
-                              <div
-                                key={index}
-                                className="bg-slate-800/50 p-2 rounded text-xs text-white"
-                              >
-                                <div className="flex items-center gap-1">
-                                  <Clock className="w-2 h-2 text-blue-400" />
-                                  <span className="text-blue-400">
-                                    {event.timestamp 
-                                      ? new Date(event.timestamp).toLocaleTimeString()
-                                      : 'No timestamp'
-                                    }
-                                  </span>
-                                </div>
-                                <div className="text-slate-300 truncate">
-                                  {event.data ? JSON.stringify(event.data).substring(0, 50) : 'No data'}
-                                  {event.data ? '...' : ''}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </div>
                 )}
@@ -690,6 +552,194 @@ export default function WebhookTriggerConfigForm({
                         Automatically handle failures and timeouts
                       </p>
                     </div>
+                  </div>
+                )}
+
+                {/* Testing & Events Tab */}
+                {activeTab === "testing" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-yellow-400 uppercase tracking-wider">
+                      <TestTube className="w-3 h-3" />
+                      <span>Testing & Events</span>
+                    </div>
+
+                    {/* Webhook Endpoint Display */}
+                    <div className="mb-3">
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Webhook Endpoint
+                      </label>
+                      <div className="bg-slate-800/50 p-3 rounded border border-slate-600/50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <Globe className="w-3 h-3 text-blue-400" />
+                          <span className="text-blue-400 text-xs font-semibold">
+                            Listening URL:
+                          </span>
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={webhookEndpoint || "Loading..."}
+                            readOnly
+                            className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 font-mono"
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCopyToClipboard?.(
+                                webhookEndpoint || "",
+                                "endpoint"
+                              )
+                            }
+                            className="btn btn-sm btn-ghost text-white"
+                            title="Copy URL"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                        <div className="text-slate-400 text-xs mt-2">
+                          Send {initialValues.http_method || "POST"} requests to
+                          this URL to trigger the webhook
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Test Event Buttons */}
+                    <div className="flex gap-2 mb-3">
+                      <button
+                        type="button"
+                        onClick={onTestEvent}
+                        disabled={isListening}
+                        className="btn btn-sm flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white border-0"
+                      >
+                        <Radio className="w-3 h-3 mr-1" />
+                        {isListening ? "Listening..." : "Start Listening"}
+                      </button>
+                      {isListening && (
+                        <button
+                          type="button"
+                          onClick={onStopListening}
+                          className="btn btn-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-0"
+                        >
+                          <Activity className="w-3 h-3 mr-1" />
+                          Stop
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Stream Status */}
+                    <div className="bg-slate-800/50 p-2 rounded text-xs text-white mb-3">
+                      <div className="flex items-center gap-1 mb-1">
+                        <Activity className="w-2 h-2 text-blue-400" />
+                        <span>
+                          Stream Status: {isListening ? "Active" : "Inactive"}
+                        </span>
+                      </div>
+                      {isListening && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
+                          <span className="text-green-400">
+                            Listening for events...
+                          </span>
+                        </div>
+                      )}
+                      {!isListening && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-red-400 rounded-full"></div>
+                          <span className="text-red-400">Not listening</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* cURL Command */}
+                    {webhookEndpoint && (
+                      <div className="mb-3">
+                        <label className="text-white text-xs font-medium mb-1 block">
+                          cURL Command
+                        </label>
+                        <div className="flex gap-2">
+                          <textarea
+                            value={generateCurlCommand()}
+                            readOnly
+                            className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50"
+                            rows={4}
+                          />
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onCopyToClipboard?.(generateCurlCommand(), "curl")
+                            }
+                            className="btn btn-sm btn-ghost text-white"
+                          >
+                            <Copy className="w-3 h-3" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Recent Events */}
+                    {events && events.length > 0 && (
+                      <div>
+                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                          <FileText className="w-3 h-3" />
+                          Recent Events ({events.length})
+                        </label>
+                        <div className="max-h-32 overflow-y-auto space-y-1">
+                          {events.slice(0, 3).map((event, index) => (
+                            <div
+                              key={index}
+                              className="bg-slate-800/50 p-2 rounded text-xs text-white"
+                            >
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-2 h-2 text-blue-400" />
+                                <span className="text-blue-400">
+                                  {event.timestamp
+                                    ? new Date(
+                                        event.timestamp
+                                      ).toLocaleTimeString()
+                                    : "No timestamp"}
+                                </span>
+                              </div>
+                              <div className="text-slate-300 truncate">
+                                {event.data
+                                  ? JSON.stringify(event.data).substring(0, 50)
+                                  : "No data"}
+                                {event.data ? "..." : ""}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Statistics */}
+                    {stats && (
+                      <div>
+                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                          <BarChart3 className="w-3 h-3" />
+                          Statistics
+                        </label>
+                        <div className="bg-slate-800/50 p-2 rounded text-xs text-white space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">
+                              Total Events:
+                            </span>
+                            <span className="text-white font-semibold">
+                              {stats.total_events || 0}
+                            </span>
+                          </div>
+                          {stats.last_event_at && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">
+                                Last Event:
+                              </span>
+                              <span className="text-white">
+                                {formatTime(stats.last_event_at)}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

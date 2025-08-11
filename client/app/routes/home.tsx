@@ -174,7 +174,7 @@ function DashboardLayout() {
               </div>
 
               {/* Chart */}
-              <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <div className="bg-white border border-gray-200 rounded-2xl ">
                 <DashboardChart
                   title="Production Executions"
                   description={

@@ -142,15 +142,6 @@ export default function HTTPClientVisual({
         </div>
       )}
 
-      {/* Error status */}
-      {testError && !isTesting && (
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-red-600 text-white text-xs font-bold shadow-lg">
-            ❌ ERROR
-          </div>
-        </div>
-      )}
-
       {/* Hover effects */}
       {isHovered && (
         <>
@@ -165,41 +156,6 @@ export default function HTTPClientVisual({
             title="Delete Node"
           >
             <Trash size={14} />
-          </button>
-
-          {/* Config button */}
-          <button
-            className="absolute -top-3 -left-3 w-8 h-8 
-              bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
-              text-white rounded-full border border-white/30 shadow-xl 
-              transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
-              backdrop-blur-sm"
-            onClick={onOpenConfig}
-            title="Configure"
-          >
-            <Settings size={14} />
-          </button>
-
-          {/* Test button */}
-          <button
-            className={`absolute -bottom-3 -right-3 w-8 h-8 
-              ${
-                isTesting
-                  ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
-                  : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
-              }
-              text-white rounded-full border border-white/30 shadow-xl 
-              transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
-              backdrop-blur-sm`}
-            onClick={(e) => {
-              e.stopPropagation();
-              if (onSendTestRequest) {
-                onSendTestRequest();
-              }
-            }}
-            title={isTesting ? "Cancel Test" : "Send Test Request"}
-          >
-            {isTesting ? <Square size={14} /> : <Send size={14} />}
           </button>
 
           {/* Copy cURL button */}
@@ -242,74 +198,14 @@ export default function HTTPClientVisual({
         size={10}
         color1="#3b82f6"
         glow={isHandleConnected("response", true)}
-        style={{
-          top: "20%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="status_code"
-        isConnectable={true}
-        size={10}
-        color1="#8b5cf6"
-        glow={isHandleConnected("status_code", true)}
-        style={{
-          top: "40%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="content"
-        isConnectable={true}
-        size={10}
-        color1="#10b981"
-        glow={isHandleConnected("content", true)}
-        style={{
-          top: "60%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="headers"
-        isConnectable={true}
-        size={10}
-        color1="#f59e0b"
-        glow={isHandleConnected("headers", true)}
-        style={{
-          top: "80%",
-        }}
       />
 
       {/* Right side labels for outputs */}
       <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "15%" }}
+        className="absolute -right-20 text-xs text-gray-500 font-medium"
+        style={{ top: "40%" }}
       >
         Response
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "35%" }}
-      >
-        Status
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "55%" }}
-      >
-        Content
-      </div>
-      <div
-        className="absolute -right-22 text-xs text-gray-500 font-medium"
-        style={{ top: "75%" }}
-      >
-        Headers
       </div>
 
       {/* HTTP Method Badge */}

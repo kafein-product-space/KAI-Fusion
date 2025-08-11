@@ -142,15 +142,6 @@ export default function OpenAIEmbeddingsProviderVisual({
         Embeddings
       </div>
 
-      {/* Model Type Indicator */}
-      {data?.model && (
-        <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-0.5 rounded bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold shadow-lg">
-            {getModelLabel()}
-          </div>
-        </div>
-      )}
-
       {/* API Key Status Indicator */}
       {data?.api_key_configured && (
         <div className="absolute top-1 left-1 z-10">
@@ -219,24 +210,6 @@ export default function OpenAIEmbeddingsProviderVisual({
         <div className="absolute top-1 left-1 z-10">
           <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
             <Zap className="w-2 h-2 text-white" />
-          </div>
-        </div>
-      )}
-
-      {/* Dimensions Badge */}
-      {data?.dimensions && (
-        <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-0.5 rounded bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-bold shadow-lg">
-            {data.dimensions}D
-          </div>
-        </div>
-      )}
-
-      {/* Organization Badge */}
-      {data?.organization && (
-        <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg transform -rotate-90">
-            {data.organization}
           </div>
         </div>
       )}
