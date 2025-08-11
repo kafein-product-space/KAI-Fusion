@@ -713,6 +713,11 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
         session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
+        # 🔥 CRITICAL: session_id her zaman olmalı
+        if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+            session_id = f"engine_session_{uuid.uuid4().hex[:8]}"
+            print(f"⚠️  No valid session_id in user_context, generated: {session_id}")
+
         print("\n" + "="*60)
         print("🚀 WORKFLOW EXECUTION STARTED")
         print("="*60)

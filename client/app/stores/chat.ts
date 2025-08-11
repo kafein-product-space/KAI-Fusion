@@ -199,8 +199,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // LLM entegrasyonu:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
     set({ loading: true, error: null });
-    const chatflow_id = crypto.randomUUID();
-    get().setActiveChatflowId(chatflow_id);
+    
+    // Use existing activeChatflowId or generate new one
+    let chatflow_id = get().activeChatflowId;
+    if (!chatflow_id) {
+      chatflow_id = crypto.randomUUID();
+      get().setActiveChatflowId(chatflow_id);
+    }
     
     // Immediately add user message to UI
     const userMessage: ChatMessage = {
@@ -213,7 +218,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().addMessage(chatflow_id, userMessage);
     
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      // Use chatflow_id as session_id for memory consistency
+      await executeWorkflow(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
@@ -245,7 +251,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
     
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
+      // Use chatflow_id as session_id for memory consistency
+      await executeWorkflow(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {

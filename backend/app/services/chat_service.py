@@ -305,10 +305,18 @@ class ChatService:
                 logger.error("No default workflow found")
                 return "I apologize, but no workflow is configured for this chat."
             
-            # Build the workflow if not already built
+            # 🔥 SESSION ID BASED CONTEXT - user_id yerine session_id kullan
+            # 🔥 CRITICAL: session_id her zaman olmalı
+            session_id = str(chatflow_id)  # chatflow_id'yi session_id olarak kullan
+            
+            # Ensure session_id is valid
+            if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
+                session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
+                print(f"⚠️  Invalid session_id, generated: {session_id}")
+            
             user_context = {
-                "user_id": str(chatflow_id),  # Using chatflow_id as user_id for now
-                "session_id": str(chatflow_id),
+                "session_id": session_id,  # chatflow_id'yi session_id olarak kullan
+                "user_id": str(chatflow_id),     # Fallback için tut
                 "workflow_id": default_workflow.get("id", "default")
             }
             
