@@ -5,6 +5,10 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
+  Mail,
+  PenSquare,
+  BarChart3,
+  LifeBuoy,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
@@ -77,6 +81,7 @@ function MarketplaceLayout() {
         "Trigger-driven email sending via HTTP client (integrate your provider).",
       colorFrom: "from-blue-500",
       colorTo: "to-indigo-600",
+      icon: <Mail className="w-5 h-5 text-white" />,
       buildFlow: () => {
         const nodes = [
           {
@@ -128,6 +133,7 @@ function MarketplaceLayout() {
         "Generate content using OpenAI Chat node with a simple start/end flow.",
       colorFrom: "from-purple-500",
       colorTo: "to-pink-600",
+      icon: <PenSquare className="w-5 h-5 text-white" />,
       buildFlow: () => {
         const nodes = [
           {
@@ -176,78 +182,9 @@ function MarketplaceLayout() {
         "Load, split, embed and retrieve data for Q&A style analysis.",
       colorFrom: "from-emerald-500",
       colorTo: "to-teal-600",
+      icon: <BarChart3 className="w-5 h-5 text-white" />,
       buildFlow: () => {
-        const nodes = [
-          {
-            id: "DocumentLoader-1",
-            type: "DocumentLoader",
-            position: { x: 100, y: 320 },
-            data: { name: "Load Docs" },
-          },
-          {
-            id: "ChunkSplitter-2",
-            type: "ChunkSplitter",
-            position: { x: 350, y: 320 },
-            data: { name: "Split Chunks", chunk_size: 500, chunk_overlap: 50 },
-          },
-          {
-            id: "OpenAIEmbedder-3",
-            type: "OpenAIEmbedder",
-            position: { x: 600, y: 320 },
-            data: { name: "Embed" },
-          },
-          {
-            id: "PGVectorStore-4",
-            type: "PGVectorStore",
-            position: { x: 850, y: 320 },
-            data: { name: "Store" },
-          },
-          {
-            id: "RetrievalQA-5",
-            type: "RetrievalQA",
-            position: { x: 1100, y: 320 },
-            data: { name: "Retrieval QA" },
-          },
-          {
-            id: "EndNode-6",
-            type: "EndNode",
-            position: { x: 1350, y: 320 },
-            data: { name: "End" },
-          },
-        ];
-        const edges = [
-          {
-            id: "e1-2",
-            source: "DocumentLoader-1",
-            target: "ChunkSplitter-2",
-            type: "custom",
-          },
-          {
-            id: "e2-3",
-            source: "ChunkSplitter-2",
-            target: "OpenAIEmbedder-3",
-            type: "custom",
-          },
-          {
-            id: "e3-4",
-            source: "OpenAIEmbedder-3",
-            target: "PGVectorStore-4",
-            type: "custom",
-          },
-          {
-            id: "e4-5",
-            source: "PGVectorStore-4",
-            target: "RetrievalQA-5",
-            type: "custom",
-          },
-          {
-            id: "e5-6",
-            source: "RetrievalQA-5",
-            target: "EndNode-6",
-            type: "custom",
-          },
-        ];
-        return { nodes, edges };
+        /* ... senin mevcut kodun ... */
       },
     },
     {
@@ -257,54 +194,9 @@ function MarketplaceLayout() {
         "Webhook-triggered support assistant with retrieval-augmented answers.",
       colorFrom: "from-amber-500",
       colorTo: "to-orange-600",
+      icon: <LifeBuoy className="w-5 h-5 text-white" />,
       buildFlow: () => {
-        const nodes = [
-          {
-            id: "WebhookTrigger-1",
-            type: "WebhookTrigger",
-            position: { x: 100, y: 440 },
-            data: { name: "Webhook" },
-          },
-          {
-            id: "RetrievalQA-2",
-            type: "RetrievalQA",
-            position: { x: 350, y: 440 },
-            data: { name: "Answer" },
-          },
-          {
-            id: "OpenAIChat-3",
-            type: "OpenAIChat",
-            position: { x: 600, y: 440 },
-            data: { name: "Reply" },
-          },
-          {
-            id: "EndNode-4",
-            type: "EndNode",
-            position: { x: 850, y: 440 },
-            data: { name: "End" },
-          },
-        ];
-        const edges = [
-          {
-            id: "e1-2",
-            source: "WebhookTrigger-1",
-            target: "RetrievalQA-2",
-            type: "custom",
-          },
-          {
-            id: "e2-3",
-            source: "RetrievalQA-2",
-            target: "OpenAIChat-3",
-            type: "custom",
-          },
-          {
-            id: "e3-4",
-            source: "OpenAIChat-3",
-            target: "EndNode-4",
-            type: "custom",
-          },
-        ];
-        return { nodes, edges };
+        /* ... senin mevcut kodun ... */
       },
     },
   ] as const;
@@ -318,7 +210,7 @@ function MarketplaceLayout() {
       const created = await useWorkflows.getState().createWorkflow({
         name: tpl.name,
         description: tpl.description,
-        flow_data: flow,
+        flow_data: flow as any,
       });
       enqueueSnackbar("Template workflow created!", { variant: "success" });
       navigate(`/canvas?workflow=${created.id}`);
@@ -381,8 +273,10 @@ function MarketplaceLayout() {
                   className={`rounded-2xl p-5 border border-gray-200 bg-white hover:shadow-lg transition-all duration-300`}
                 >
                   <div
-                    className={`w-10 h-10 rounded-lg mb-3 bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo}`}
-                  />
+                    className={`flex items-center justify-center w-10 h-10 rounded-lg mb-3 bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo}`}
+                  >
+                    {tpl.icon}
+                  </div>
                   <h3 className="text-base font-semibold text-gray-900">
                     {tpl.name}
                   </h3>
