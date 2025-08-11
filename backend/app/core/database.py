@@ -385,13 +385,20 @@ def setup_database_logging():
         """Log database errors."""
         _query_stats["failed_queries"] += 1
         
-        logger.error("Database error occurred", extra={
-            "error_type": type(exception_context.original_exception).__name__,
-            "error_message": str(exception_context.original_exception),
-            "sql_statement": str(exception_context.statement)[:500] if exception_context.statement else None,
-            "sql_parameters": str(exception_context.parameters)[:200] if exception_context.parameters else None,
-            "connection_info": str(exception_context.connection.info) if exception_context.connection else None
-        })
+        # Only log database errors if they're not connection timeouts or normal disconnections
+        error_type = type(exception_context.original_exception).__name__
+        error_message = str(exception_context.original_exception)
+        
+        if "timeout" in error_message.lower() or "connection" in error_message.lower():
+            logger.warning(f"Database connection issue: {error_type} - {error_message}")
+        else:
+            logger.error("Database error occurred", extra={
+                "error_type": error_type,
+                "error_message": error_message,
+                "sql_statement": str(exception_context.statement)[:500] if exception_context.statement else None,
+                "sql_parameters": str(exception_context.parameters)[:200] if exception_context.parameters else None,
+                "connection_info": str(exception_context.connection.info) if exception_context.connection else None
+            })
     
     @event.listens_for(Engine, "connect")
     def receive_connect(dbapi_connection, connection_record):
