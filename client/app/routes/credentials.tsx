@@ -263,7 +263,7 @@ function CredentialsLayout() {
                               <Field
                                 name="name"
                                 type="text"
-                                className="input"
+                                className="input w-full"
                                 placeholder="Credential Name"
                               />
                               <ErrorMessage
@@ -274,7 +274,7 @@ function CredentialsLayout() {
                               <Field
                                 name="apiKey"
                                 type="password"
-                                className="input"
+                                className="input w-full"
                                 placeholder="API Key"
                               />
                               <ErrorMessage
@@ -411,7 +411,7 @@ function CredentialsLayout() {
                 <Field
                   name="name"
                   type="text"
-                  className="input"
+                  className="input w-full"
                   placeholder="Credential Name"
                 />
                 <ErrorMessage
@@ -422,7 +422,7 @@ function CredentialsLayout() {
                 <Field
                   name="apiKey"
                   type="password"
-                  className="input"
+                  className="input w-full"
                   placeholder="API Key"
                 />
                 <ErrorMessage

@@ -150,6 +150,7 @@ from langchain.memory import ConversationBufferMemory
 from langchain_core.runnables import Runnable
 from typing import cast, Dict
 from app.core.tracing import trace_memory_operation
+import uuid
 
 # ================================================================================
 # BUFFER MEMORY NODE - ENTERPRISE COMPLETE HISTORY MANAGEMENT  
@@ -417,18 +418,34 @@ class BufferMemoryNode(ProviderNode):
     def execute(self, **kwargs) -> Runnable:
         """Execute buffer memory node with session persistence and tracing"""
         try:
-            # Get session ID from context (set by graph builder)
-            # Handle both direct session_id parameter and attribute access
-            session_id = kwargs.get('session_id') or getattr(self, 'session_id', None)
-            if not session_id:
-                session_id = 'default_session'
+            # 🔥 SESSION ID PRIORITY - user_id yerine session_id öncelikli
+            # 🔥 CRITICAL: Use self.session_id as primary source (set by GraphBuilder)
+            session_id = getattr(self, 'session_id', None)
             
-            # Ensure session_id is a string and not None
-            if session_id is None:
-                session_id = 'default_session'
+            # If not set on self, try kwargs
+            if not session_id:
+                session_id = kwargs.get('session_id')
+            
+            # 🔥 ENHANCED SESSION ID HANDLING
+            if not session_id or session_id == 'default_session':
+                # Try to get from chat context
+                session_id = kwargs.get('chat_session_id') or kwargs.get('context_session_id')
+            
+            # 🔥 CRITICAL: session_id her zaman olmalı
+            if not session_id or session_id == 'default_session' or session_id == 'None':
+                # Generate a unique session_id
+                session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
+                print(f"⚠️  No valid session_id provided, generated: {session_id}")
+            
+            # Ensure session_id is a valid string
+            if not isinstance(session_id, str) or len(session_id.strip()) == 0:
+                session_id = f"chat_session_{uuid.uuid4().hex[:8]}"
+                print(f"⚠️  Invalid session_id format, generated: {session_id}")
             
             print(f"\n💾 BUFFER MEMORY SETUP")
             print(f"   📝 Session: {str(session_id)[:8]}...")
+            print(f"   🔍 Debug: self.session_id = {getattr(self, 'session_id', 'NOT_SET')}")
+            print(f"   🔍 Debug: kwargs.session_id = {kwargs.get('session_id', 'NOT_PROVIDED')}")
             
             # Ensure global memory dictionary is initialized
             if not hasattr(BufferMemoryNode, '_global_session_memories') or BufferMemoryNode._global_session_memories is None:
@@ -442,9 +459,9 @@ class BufferMemoryNode(ProviderNode):
                     input_key=kwargs.get("input_key", "input"),
                     output_key=kwargs.get("output_key", "output")
                 )
-                print(f"   ✅ Created new memory")
+                print(f"   ✅ Created new memory for chat session")
             else:
-                print(f"   ♻️  Reusing existing memory")
+                print(f"   ♻️  Reusing existing memory for chat session")
                 
             memory = BufferMemoryNode._global_session_memories[session_id]
             

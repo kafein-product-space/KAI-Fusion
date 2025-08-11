@@ -1,5 +1,5 @@
 // VectorStoreOrchestratorConfigForm.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import {
   Settings,
@@ -9,10 +9,13 @@ import {
   Filter,
   Search,
   Zap,
+  Info,
 } from "lucide-react";
 import type { VectorStoreOrchestratorConfigFormProps } from "./types";
 import JSONEditor from "~/components/common/JSONEditor";
 import TabNavigation from "~/components/common/TabNavigation";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 export default function VectorStoreOrchestratorConfigForm({
   initialValues,
@@ -21,6 +24,12 @@ export default function VectorStoreOrchestratorConfigForm({
   onCancel,
 }: VectorStoreOrchestratorConfigFormProps) {
   const [activeTab, setActiveTab] = useState("data");
+  const { userCredentials, fetchCredentials } = useUserCredentialStore();
+
+  // Fetch credentials on component mount
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
 
   const tabs = [
     {
@@ -101,6 +110,57 @@ export default function VectorStoreOrchestratorConfigForm({
                       Data Configuration
                     </div>
 
+                    {/* Credential ID */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Select Credential
+                      </label>
+                      <Field
+                        as="select"
+                        name="credential_id"
+                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        onMouseDown={(e: any) => e.stopPropagation()}
+                        onTouchStart={(e: any) => e.stopPropagation()}
+                        onChange={async (e: any) => {
+                          const selectedCredentialId = e.target.value;
+                          setFieldValue("credential_id", selectedCredentialId);
+
+                          // Auto-fill API key from selected credential
+                          if (selectedCredentialId) {
+                            try {
+                              const credentialSecret =
+                                await getUserCredentialSecret(
+                                  selectedCredentialId
+                                );
+                              if (credentialSecret?.secret?.api_key) {
+                                setFieldValue(
+                                  "connection_string",
+                                  credentialSecret.secret.api_key
+                                );
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Failed to fetch credential secret:",
+                                error
+                              );
+                            }
+                          }
+                        }}
+                      >
+                        <option value="">Select Credential</option>
+                        {userCredentials.map((credential) => (
+                          <option key={credential.id} value={credential.id}>
+                            {credential.name || credential.id}
+                          </option>
+                        ))}
+                      </Field>
+                      <ErrorMessage
+                        name="credential_id"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
                     {/* Connection String */}
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
@@ -179,17 +239,75 @@ export default function VectorStoreOrchestratorConfigForm({
                     </div>
 
                     {/* Custom Metadata */}
-                    <JSONEditor
-                      value={values.custom_metadata || "{}"}
-                      onChange={(value) =>
-                        setFieldValue("custom_metadata", value)
-                      }
-                      label="Custom Metadata"
-                      placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
-                      description="Custom metadata to add to all documents (JSON format)"
-                      height={80}
-                      error={errors.custom_metadata}
-                    />
+                    <div className="relative">
+                      <div className="flex items-center gap-2 mb-2">
+                        <label className="text-white text-xs font-medium">
+                          Custom Metadata
+                        </label>
+                        <div className="relative group">
+                          <Info className="w-3 h-3 text-blue-400 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 w-80">
+                            <div className="space-y-2">
+                              <div>
+                                <strong className="text-blue-400">
+                                  Recommended Format:
+                                </strong>
+                                <pre className="text-xs text-slate-300 bg-slate-900 p-2 rounded mt-1 overflow-x-auto">
+                                  {`{
+  "source": "amazon_catalog",
+  "category": "electronics", 
+  "version": "2024",
+  "language": "en",
+  "author": "company_name",
+  "tags": ["product", "review"],
+  "priority": "high"
+}`}
+                                </pre>
+                              </div>
+                              <div>
+                                <strong className="text-green-400">
+                                  Common Fields:
+                                </strong>
+                                <ul className="text-xs text-slate-300 mt-1 space-y-1">
+                                  <li>
+                                    • <code>source</code>: Data source
+                                    identifier
+                                  </li>
+                                  <li>
+                                    • <code>category</code>: Content category
+                                  </li>
+                                  <li>
+                                    • <code>language</code>: Content language
+                                  </li>
+                                  <li>
+                                    • <code>author</code>: Content
+                                    author/creator
+                                  </li>
+                                  <li>
+                                    • <code>tags</code>: Array of tags
+                                  </li>
+                                  <li>
+                                    • <code>priority</code>: Content priority
+                                    level
+                                  </li>
+                                </ul>
+                              </div>
+                            </div>
+                            <div className="absolute top-full left-1/2 transform -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-transparent border-t-slate-800"></div>
+                          </div>
+                        </div>
+                      </div>
+                      <JSONEditor
+                        value={values.custom_metadata || "{}"}
+                        onChange={(value) =>
+                          setFieldValue("custom_metadata", value)
+                        }
+                        placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
+                        description="Custom metadata to add to all documents (JSON format)"
+                        height={80}
+                        error={errors.custom_metadata}
+                      />
+                    </div>
 
                     {/* Preserve Document Metadata */}
                     <div>

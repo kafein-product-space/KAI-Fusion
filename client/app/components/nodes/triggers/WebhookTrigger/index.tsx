@@ -26,6 +26,7 @@ export default function WebhookTriggerNode({
   const [webhookToken, setWebhookToken] = useState<string>("");
   const [isEndpointReady, setIsEndpointReady] = useState(false);
   const [configData, setConfigData] = useState<WebhookTriggerConfig>({
+    http_method: data?.http_method || "POST",
     authentication_required: data?.authentication_required !== false,
     allowed_event_types: data?.allowed_event_types || "",
     max_payload_size: data?.max_payload_size || 1024,
@@ -33,25 +34,91 @@ export default function WebhookTriggerNode({
     enable_cors: data?.enable_cors !== false,
     webhook_timeout: data?.webhook_timeout || 30,
     webhook_token: data?.webhook_token || "wht_secrettoken123",
+    // New fields from guide
+    auth_type: data?.auth_type || "bearer",
+    allowed_ips: data?.allowed_ips || "",
+    preserve_document_metadata: data?.preserve_document_metadata !== false,
+    metadata_strategy: data?.metadata_strategy || "merge",
+    enable_hnsw_index: data?.enable_hnsw_index !== false,
+    enable_websocket_broadcast: data?.enable_websocket_broadcast || false,
+    realtime_channels: data?.realtime_channels || [],
+    tenant_isolation: data?.tenant_isolation || false,
+    tenant_header: data?.tenant_header || "X-Tenant-ID",
+    per_tenant_rate_limits: data?.per_tenant_rate_limits || {},
+    service_discovery: data?.service_discovery || false,
+    load_balancing: data?.load_balancing || false,
+    circuit_breaker: data?.circuit_breaker || false,
+    event_routing: data?.event_routing || {},
+    max_concurrent_connections: data?.max_concurrent_connections || 100,
+    connection_timeout: data?.connection_timeout || 30,
+    keep_alive: data?.keep_alive !== false,
+    request_pooling: data?.request_pooling || false,
+    enable_response_cache: data?.enable_response_cache || false,
+    cache_duration: data?.cache_duration || 300,
+    cache_keys: data?.cache_keys || ["event_type", "source"],
+    cache_size_limit: data?.cache_size_limit || "100MB",
   });
 
-  // Webhook endpoint URL'ini oluştur
+  // Initialize webhook and get proper webhook ID from backend
   useEffect(() => {
-    // Webhook ID yoksa node ID'yi kullan
-    const webhookId = data?.webhook_id || id;
-    const baseUrl = window.location.origin;
-    const endpoint = `${baseUrl}/api/webhooks/${webhookId}`;
-    setWebhookEndpoint(endpoint);
-    setWebhookToken(data?.webhook_token || "wht_secrettoken123");
-    setIsEndpointReady(true);
-  }, [data?.webhook_id, id]);
+    const initializeWebhook = async () => {
+      try {
+        let webhookId = data?.webhook_id;
+
+        if (!webhookId) {
+          // If no webhook ID exists, create a new one in proper format
+          // Use crypto.randomUUID if available, otherwise fallback to node ID conversion
+          if (typeof crypto !== "undefined" && crypto.randomUUID) {
+            webhookId = `wh_${crypto
+              .randomUUID()
+              .replace(/-/g, "")
+              .substring(0, 12)}`;
+          } else {
+            webhookId = `wh_${id
+              .replace(/[^a-zA-Z0-9]/g, "")
+              .toLowerCase()}${Date.now().toString().slice(-4)}`;
+          }
+
+          // Update node data with the generated webhook ID
+          setNodes((nodes) =>
+            nodes.map((node) =>
+              node.id === id
+                ? { ...node, data: { ...node.data, webhook_id: webhookId } }
+                : node
+            )
+          );
+        }
+
+        // Doğrudan backend URL'ini kullan (proxy sorununu önlemek için)
+        const backendUrl =
+          process.env.NODE_ENV === "development"
+            ? "http://localhost:8000"
+            : window.location.origin;
+        const endpoint = `${backendUrl}/api/v1/webhooks/${webhookId}`;
+        setWebhookEndpoint(endpoint);
+        setWebhookToken(data?.webhook_token || "wht_secrettoken123");
+        setIsEndpointReady(true);
+      } catch (error) {
+        console.error("Error initializing webhook:", error);
+        setError("Failed to initialize webhook endpoint");
+      }
+    };
+
+    initializeWebhook();
+  }, [data?.webhook_id, id, setNodes]);
 
   // Real-time event streaming
   useEffect(() => {
     if (!isListening) return;
 
     const webhookId = data?.webhook_id || id;
-    const eventSource = new EventSource(`/api/webhooks/${webhookId}/stream`);
+    const backendUrl =
+      process.env.NODE_ENV === "development"
+        ? "http://localhost:8000"
+        : window.location.origin;
+    const eventSource = new EventSource(
+      `${backendUrl}/api/v1/webhooks/${webhookId}/stream`
+    );
 
     eventSource.onmessage = (event) => {
       try {
@@ -89,7 +156,13 @@ export default function WebhookTriggerNode({
     if (!webhookId) return;
 
     try {
-      const response = await fetch(`/api/webhooks/${webhookId}/stats`);
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
+      const response = await fetch(
+        `${backendUrl}/api/v1/webhooks/${webhookId}/stats`
+      );
       if (response.ok) {
         const statsData = await response.json();
         setStats(statsData);
@@ -108,8 +181,12 @@ export default function WebhookTriggerNode({
 
     try {
       // Backend'e listening başlatma isteği gönder
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
       const response = await fetch(
-        `/api/webhooks/${webhookId}/start-listening`,
+        `${backendUrl}/api/v1/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -135,8 +212,12 @@ export default function WebhookTriggerNode({
 
     try {
       const webhookId = data?.webhook_id || id;
+      const backendUrl =
+        process.env.NODE_ENV === "development"
+          ? "http://localhost:8000"
+          : window.location.origin;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`/api/webhooks/${webhookId}/stop-listening`, {
+      await fetch(`${backendUrl}/api/v1/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
@@ -244,6 +325,32 @@ export default function WebhookTriggerNode({
         "Webhook timeout must be between 5 and 300 seconds";
     }
 
+    // New validations for advanced features
+    if (
+      values.max_concurrent_connections &&
+      (values.max_concurrent_connections < 1 ||
+        values.max_concurrent_connections > 1000)
+    ) {
+      errors.max_concurrent_connections =
+        "Max concurrent connections must be between 1 and 1000";
+    }
+
+    if (
+      values.connection_timeout &&
+      (values.connection_timeout < 5 || values.connection_timeout > 300)
+    ) {
+      errors.connection_timeout =
+        "Connection timeout must be between 5 and 300 seconds";
+    }
+
+    if (
+      values.cache_duration &&
+      (values.cache_duration < 60 || values.cache_duration > 3600)
+    ) {
+      errors.cache_duration =
+        "Cache duration must be between 60 and 3600 seconds";
+    }
+
     return errors;
   };
 
@@ -269,6 +376,7 @@ export default function WebhookTriggerNode({
           stats={stats}
           isListening={isListening}
           onTestEvent={startListening}
+          onStopListening={stopListening}
           onCopyToClipboard={copyToClipboard}
         />
       ) : (

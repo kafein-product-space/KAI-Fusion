@@ -16,6 +16,9 @@ import {
   Globe,
   Key,
   Lock,
+  Radio,
+  ExternalLink,
+  FileText,
 } from "lucide-react";
 import type { WebhookTriggerConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
@@ -31,6 +34,7 @@ interface WebhookTriggerConfigFormProps {
   stats?: any;
   isListening?: boolean;
   onTestEvent?: () => void;
+  onStopListening?: () => void;
   onCopyToClipboard?: (text: string, type: string) => void;
 }
 
@@ -45,9 +49,11 @@ export default function WebhookTriggerConfigForm({
   stats,
   isListening,
   onTestEvent,
+  onStopListening,
   onCopyToClipboard,
 }: WebhookTriggerConfigFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  const [currentValues, setCurrentValues] = useState(initialValues);
 
   const tabs = [
     {
@@ -63,8 +69,14 @@ export default function WebhookTriggerConfigForm({
       description: "Security and authentication settings",
     },
     {
+      id: "advanced",
+      label: "Advanced",
+      icon: Zap,
+      description: "Advanced features and performance",
+    },
+    {
       id: "testing",
-      label: "Testing",
+      label: "🎯 Testing & Events",
       icon: TestTube,
       description: "Test webhook and view events",
     },
@@ -72,14 +84,59 @@ export default function WebhookTriggerConfigForm({
 
   const generateCurlCommand = () => {
     if (!webhookEndpoint) return "";
-    return `curl -X POST "${webhookEndpoint}" \\
+
+    const method = currentValues.http_method || "POST";
+    const timestamp = new Date().toISOString();
+    const authHeader =
+      currentValues.authentication_required && currentValues.webhook_token
+        ? `-H "Authorization: Bearer ${currentValues.webhook_token}" \\\n  `
+        : "";
+
+    switch (method) {
+      case "GET":
+        return `curl -X GET "${webhookEndpoint}?event_type=test.event&data=test&timestamp=${timestamp}" \\
+  ${authHeader}`;
+
+      case "POST":
+        return `curl -X POST "${webhookEndpoint}" \\
   -H "Content-Type: application/json" \\
-  -H "Authorization: Bearer ${webhookToken}" \\
-  -d '{"test": "data", "timestamp": "${new Date().toISOString()}"}'`;
+  ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
+
+      case "PUT":
+        return `curl -X PUT "${webhookEndpoint}" \\
+  -H "Content-Type: application/json" \\
+  ${authHeader}-d '{"event_type": "test.update", "data": {"id": 123, "status": "updated"}, "timestamp": "${timestamp}"}'`;
+
+      case "PATCH":
+        return `curl -X PATCH "${webhookEndpoint}" \\
+  -H "Content-Type: application/json" \\
+  ${authHeader}-d '{"event_type": "test.partial_update", "data": {"status": "active"}, "timestamp": "${timestamp}"}'`;
+
+      case "DELETE":
+        return `curl -X DELETE "${webhookEndpoint}?event_type=test.delete&id=123&timestamp=${timestamp}" \\
+  ${authHeader}`;
+
+      case "HEAD":
+        return `curl -X HEAD "${webhookEndpoint}" \\
+  ${authHeader}`;
+
+      default:
+        return `curl -X POST "${webhookEndpoint}" \\
+  -H "Content-Type: application/json" \\
+  ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
+    }
+  };
+
+  const formatTime = (timestamp: string) => {
+    return new Date(timestamp).toLocaleTimeString();
+  };
+
+  const formatDate = (timestamp: string) => {
+    return new Date(timestamp).toLocaleDateString();
   };
 
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+    <div className="relative p-2 w-124 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
           <Webhook className="w-4 h-4 text-white" />
@@ -93,6 +150,7 @@ export default function WebhookTriggerConfigForm({
       <Formik
         initialValues={initialValues}
         validate={(values) => {
+          setCurrentValues(values);
           const errors: any = {};
 
           if (!values.max_payload_size || values.max_payload_size < 1) {
@@ -158,6 +216,35 @@ export default function WebhookTriggerConfigForm({
                       <span>Basic Settings</span>
                     </div>
 
+                    {/* HTTP Method */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        HTTP Method
+                      </label>
+                      <Field
+                        as="select"
+                        name="http_method"
+                        className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                      >
+                        <option value="POST">POST - JSON Body (Default)</option>
+                        <option value="GET">GET - Query Parameters</option>
+                        <option value="PUT">PUT - Full Resource Update</option>
+                        <option value="PATCH">PATCH - Partial Update</option>
+                        <option value="DELETE">
+                          DELETE - Query Parameters
+                        </option>
+                        <option value="HEAD">HEAD - Headers Only</option>
+                      </Field>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Choose the HTTP method for webhook requests
+                      </p>
+                      <ErrorMessage
+                        name="http_method"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
                         Authentication Required
@@ -176,6 +263,30 @@ export default function WebhookTriggerConfigForm({
                         className="text-red-400 text-xs mt-1"
                       />
                     </div>
+
+                    {/* Authentication Token - Only show if authentication is required */}
+                    {currentValues.authentication_required && (
+                      <div>
+                        <label className="text-white text-xs font-medium mb-1 block">
+                          Authentication Token
+                        </label>
+                        <Field
+                          type="text"
+                          name="webhook_token"
+                          placeholder="Enter Bearer token for authentication"
+                          className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        />
+                        <p className="text-xs text-slate-400 mt-1">
+                          This token will be used as Bearer token in
+                          Authorization header
+                        </p>
+                        <ErrorMessage
+                          name="webhook_token"
+                          component="div"
+                          className="text-red-400 text-xs mt-1"
+                        />
+                      </div>
+                    )}
 
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
@@ -300,7 +411,151 @@ export default function WebhookTriggerConfigForm({
                   </div>
                 )}
 
-                {/* Testing Configuration Tab */}
+                {/* Advanced Configuration Tab */}
+                {activeTab === "advanced" && (
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                      <Zap className="w-3 h-3" />
+                      <span>Advanced Features</span>
+                    </div>
+
+                    {/* Performance Settings */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Max Concurrent Connections
+                      </label>
+                      <Field
+                        type="number"
+                        name="max_concurrent_connections"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="1"
+                        max="1000"
+                        placeholder="100"
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Maximum number of concurrent webhook connections
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Connection Timeout (seconds)
+                      </label>
+                      <Field
+                        type="number"
+                        name="connection_timeout"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="5"
+                        max="300"
+                        placeholder="30"
+                      />
+                    </div>
+
+                    {/* Caching Settings */}
+                    <div>
+                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                        <Field
+                          name="enable_response_cache"
+                          type="checkbox"
+                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                        />
+                        Enable Response Caching
+                      </label>
+                      <p className="text-xs text-slate-400 ml-5">
+                        Cache webhook responses for better performance
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Cache Duration (seconds)
+                      </label>
+                      <Field
+                        type="number"
+                        name="cache_duration"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        min="60"
+                        max="3600"
+                        placeholder="300"
+                      />
+                    </div>
+
+                    {/* WebSocket Broadcasting */}
+                    <div>
+                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                        <Field
+                          name="enable_websocket_broadcast"
+                          type="checkbox"
+                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                        />
+                        Enable WebSocket Broadcasting
+                      </label>
+                      <p className="text-xs text-slate-400 ml-5">
+                        Broadcast webhook events via WebSocket
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Realtime Channels
+                      </label>
+                      <Field
+                        as="textarea"
+                        name="realtime_channels"
+                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        placeholder="admin, analytics, monitoring"
+                        rows={2}
+                      />
+                      <p className="text-xs text-slate-400 mt-1">
+                        Comma-separated list of WebSocket channels
+                      </p>
+                    </div>
+
+                    {/* Tenant Isolation */}
+                    <div>
+                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                        <Field
+                          name="tenant_isolation"
+                          type="checkbox"
+                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                        />
+                        Enable Tenant Isolation
+                      </label>
+                      <p className="text-xs text-slate-400 ml-5">
+                        Separate webhook processing per tenant
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Tenant Header
+                      </label>
+                      <Field
+                        type="text"
+                        name="tenant_header"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        placeholder="X-Tenant-ID"
+                      />
+                    </div>
+
+                    {/* Circuit Breaker */}
+                    <div>
+                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                        <Field
+                          name="circuit_breaker"
+                          type="checkbox"
+                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                        />
+                        Enable Circuit Breaker
+                      </label>
+                      <p className="text-xs text-slate-400 ml-5">
+                        Automatically handle failures and timeouts
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Testing & Events Tab */}
                 {activeTab === "testing" && (
                   <div className="space-y-3">
                     <div className="flex items-center gap-2 text-xs font-semibold text-yellow-400 uppercase tracking-wider">
@@ -309,7 +564,7 @@ export default function WebhookTriggerConfigForm({
                     </div>
 
                     {/* Webhook Endpoint Display */}
-                    <div>
+                    <div className="mb-3">
                       <label className="text-white text-xs font-medium mb-1 block">
                         Webhook Endpoint
                       </label>
@@ -342,26 +597,37 @@ export default function WebhookTriggerConfigForm({
                           </button>
                         </div>
                         <div className="text-slate-400 text-xs mt-2">
-                          Send POST requests to this URL to trigger the webhook
+                          Send {initialValues.http_method || "POST"} requests to
+                          this URL to trigger the webhook
                         </div>
                       </div>
                     </div>
 
-                    {/* Test Event Button */}
-                    <div>
+                    {/* Test Event Buttons */}
+                    <div className="flex gap-2 mb-3">
                       <button
                         type="button"
                         onClick={onTestEvent}
                         disabled={isListening}
-                        className="btn btn-sm w-full bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white border-0"
+                        className="btn btn-sm flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white border-0"
                       >
-                        <TestTube className="w-3 h-3 mr-1" />
+                        <Radio className="w-3 h-3 mr-1" />
                         {isListening ? "Listening..." : "Start Listening"}
                       </button>
+                      {isListening && (
+                        <button
+                          type="button"
+                          onClick={onStopListening}
+                          className="btn btn-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-0"
+                        >
+                          <Activity className="w-3 h-3 mr-1" />
+                          Stop
+                        </button>
+                      )}
                     </div>
 
                     {/* Stream Status */}
-                    <div className="bg-slate-800/50 p-2 rounded text-xs text-white">
+                    <div className="bg-slate-800/50 p-2 rounded text-xs text-white mb-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Activity className="w-2 h-2 text-blue-400" />
                         <span>
@@ -386,7 +652,7 @@ export default function WebhookTriggerConfigForm({
 
                     {/* cURL Command */}
                     {webhookEndpoint && (
-                      <div>
+                      <div className="mb-3">
                         <label className="text-white text-xs font-medium mb-1 block">
                           cURL Command
                         </label>
@@ -413,7 +679,8 @@ export default function WebhookTriggerConfigForm({
                     {/* Recent Events */}
                     {events && events.length > 0 && (
                       <div>
-                        <label className="text-white text-xs font-medium mb-1 block">
+                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                          <FileText className="w-3 h-3" />
                           Recent Events ({events.length})
                         </label>
                         <div className="max-h-32 overflow-y-auto space-y-1">
@@ -425,16 +692,51 @@ export default function WebhookTriggerConfigForm({
                               <div className="flex items-center gap-1">
                                 <Clock className="w-2 h-2 text-blue-400" />
                                 <span className="text-blue-400">
-                                  {new Date(
-                                    event.timestamp
-                                  ).toLocaleTimeString()}
+                                  {event.timestamp
+                                    ? new Date(
+                                        event.timestamp
+                                      ).toLocaleTimeString()
+                                    : "No timestamp"}
                                 </span>
                               </div>
                               <div className="text-slate-300 truncate">
-                                {JSON.stringify(event.data).substring(0, 50)}...
+                                {event.data
+                                  ? JSON.stringify(event.data).substring(0, 50)
+                                  : "No data"}
+                                {event.data ? "..." : ""}
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Statistics */}
+                    {stats && (
+                      <div>
+                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                          <BarChart3 className="w-3 h-3" />
+                          Statistics
+                        </label>
+                        <div className="bg-slate-800/50 p-2 rounded text-xs text-white space-y-1">
+                          <div className="flex justify-between">
+                            <span className="text-slate-400">
+                              Total Events:
+                            </span>
+                            <span className="text-white font-semibold">
+                              {stats.total_events || 0}
+                            </span>
+                          </div>
+                          {stats.last_event_at && (
+                            <div className="flex justify-between">
+                              <span className="text-slate-400">
+                                Last Event:
+                              </span>
+                              <span className="text-white">
+                                {formatTime(stats.last_event_at)}
+                              </span>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}

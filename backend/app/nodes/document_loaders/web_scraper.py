@@ -876,6 +876,11 @@ class WebScraperNode(ProcessorNode):
         # Process each URL
         for i, url in enumerate(all_urls, 1):
             try:
+                # Fix URL scheme if missing
+                if not url.startswith(('http://', 'https://')):
+                    url = f'https://{url}'
+                    logger.info(f"🔧 Fixed URL scheme: {url}")
+                
                 logger.info(f"🔄 [{i}/{len(all_urls)}] Scraping: {url}")
                 
                 # Make HTTP request to fetch the page

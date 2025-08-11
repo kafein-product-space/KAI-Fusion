@@ -58,11 +58,36 @@ export default function OpenAIChatNode({
     setNodes((nodes) =>
       nodes.map((node) =>
         node.id === id
-          ? { ...node, data: { ...node.data, ...newValues } }
+          ? {
+              ...node,
+              data: { ...node.data, ...newValues, isConfigMode: false },
+            }
           : node
       )
     );
     setIsConfigMode(false);
+  };
+
+  const handleCancelConfig = () => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isConfigMode: false } }
+          : node
+      )
+    );
+    setIsConfigMode(false);
+  };
+
+  const handleStartConfig = () => {
+    setNodes((nodes) =>
+      nodes.map((node) =>
+        node.id === id
+          ? { ...node, data: { ...node.data, isConfigMode: true } }
+          : node
+      )
+    );
+    setIsConfigMode(true);
   };
 
   const handleDeleteNode = (e: React.MouseEvent) => {
@@ -70,19 +95,28 @@ export default function OpenAIChatNode({
     setNodes((nodes) => nodes.filter((node) => node.id !== id));
   };
 
-  return isConfigMode ? (
+  // Check both local state and data state
+  const shouldShowConfig = isConfigMode || data.isConfigMode;
+
+  return shouldShowConfig ? (
     <ChatConfigForm
       configData={configData}
-      onCancel={() => setIsConfigMode(false)}
+      onCancel={handleCancelConfig}
       onSave={handleSaveConfig}
     />
   ) : (
     <ChatDisplayNode
       data={data}
       isHovered={isHovered}
-      onDoubleClick={() => setIsConfigMode(true)}
-      onHoverEnter={() => setIsHovered(true)}
-      onHoverLeave={() => setIsHovered(false)}
+      onDoubleClick={() => {
+        handleStartConfig();
+      }}
+      onHoverEnter={() => {
+        setIsHovered(true);
+      }}
+      onHoverLeave={() => {
+        setIsHovered(false);
+      }}
       onDelete={handleDeleteNode}
       isHandleConnected={isHandleConnected}
       getStatusColor={getStatusColor}

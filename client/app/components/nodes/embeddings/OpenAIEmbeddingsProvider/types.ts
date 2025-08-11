@@ -7,13 +7,14 @@ export interface OpenAIEmbeddingsProviderData {
   displayName?: string;
   
   // Configuration
-  api_key?: string;
+  openai_api_key?: string;
   credential_id?: string;
   model?: string;
   organization?: string;
   dimensions?: number;
   batch_size?: number;
   max_retries?: number;
+  request_timeout?: number;
   
   // Status
   validationStatus?: "success" | "error" | "warning" | "pending";

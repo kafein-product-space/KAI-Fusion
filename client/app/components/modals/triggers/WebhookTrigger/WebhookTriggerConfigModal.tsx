@@ -116,6 +116,7 @@ const WebhookTriggerConfigModal = forwardRef<
     const [activeTab, setActiveTab] = useState("basic");
 
     const initialValues: WebhookTriggerConfig = {
+      http_method: nodeData?.http_method || "POST",
       authentication_required: nodeData?.authentication_required !== false,
       allowed_event_types: nodeData?.allowed_event_types || "",
       max_payload_size: nodeData?.max_payload_size || 1024,
@@ -204,6 +205,31 @@ const WebhookTriggerConfigModal = forwardRef<
                 {/* Basic Settings Tab */}
                 {activeTab === "basic" && (
                   <div className="space-y-6">
+                    {/* HTTP Method Selection */}
+                    <div className="space-y-3">
+                      <label className="block text-sm font-medium text-white flex items-center space-x-2">
+                        <Server className="w-4 h-4" />
+                        <span>HTTP Method</span>
+                      </label>
+                      <Field
+                        name="http_method"
+                        as="select"
+                        className="w-full px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg 
+                        text-white focus:outline-none focus:ring-2 focus:ring-purple-500 
+                        focus:border-transparent"
+                      >
+                        <option value="GET">GET - Retrieve data (query parameters)</option>
+                        <option value="POST">POST - Create/send data (JSON body)</option>
+                        <option value="PUT">PUT - Update/replace data (JSON body)</option>
+                        <option value="PATCH">PATCH - Partial update (JSON body)</option>
+                        <option value="DELETE">DELETE - Remove data (query parameters)</option>
+                        <option value="HEAD">HEAD - Headers only (no body)</option>
+                      </Field>
+                      <p className="text-slate-400 text-sm">
+                        Choose the HTTP method your webhook endpoint should accept
+                      </p>
+                    </div>
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       {/* Authentication Required */}
                       <ToggleField
@@ -372,7 +398,7 @@ const WebhookTriggerConfigModal = forwardRef<
                             Waiting for webhook call to:
                             <br />
                             <code className="bg-slate-900 px-2 py-1 rounded text-green-400">
-                              POST {webhookEndpoint}
+                              {values.http_method || "POST"} {webhookEndpoint}
                             </code>
                           </div>
                         )}
@@ -456,7 +482,7 @@ const WebhookTriggerConfigModal = forwardRef<
                             Method:
                           </label>
                           <code className="bg-slate-900 px-3 py-2 rounded text-blue-400 text-sm">
-                            POST
+                            {values.http_method || "POST"}
                           </code>
                         </div>
 
