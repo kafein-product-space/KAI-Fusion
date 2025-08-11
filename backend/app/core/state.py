@@ -366,6 +366,14 @@ class FlowState(BaseModel):
         "extra": "allow"
     }
     
+    def __init__(self, **data):
+        super().__init__(**data)
+        # 🔥 CRITICAL: Ensure session_id is always set
+        if not self.session_id or self.session_id == 'None' or len(str(self.session_id).strip()) == 0:
+            import uuid
+            self.session_id = f"state_session_{uuid.uuid4().hex[:8]}"
+            print(f"⚠️  No valid session_id in FlowState, generated: {self.session_id}")
+        
     def add_message(self, message: str, role: str = "user") -> None:
         """Add a message to chat history"""
         self.chat_history.append(f"{role}: {message}")
