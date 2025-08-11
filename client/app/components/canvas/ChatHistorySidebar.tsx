@@ -10,6 +10,7 @@ interface ChatHistorySidebarProps {
   onClose: () => void;
   onSelectChat: (chatflowId: string) => void;
   activeChatflowId: string | null;
+  workflow_id?: string; // Workflow ID eklendi
 }
 
 export default function ChatHistorySidebar({
@@ -17,8 +18,10 @@ export default function ChatHistorySidebar({
   onClose,
   onSelectChat,
   activeChatflowId,
+  workflow_id,
 }: ChatHistorySidebarProps) {
-  const { chats, fetchAllChats, loading, clearMessages } = useChatStore();
+  const { chats, fetchAllChats, fetchWorkflowChats, loading, clearMessages } =
+    useChatStore();
   const { getPinnedItems } = usePinnedItems();
   const [chatSummaries, setChatSummaries] = useState<
     Array<{
@@ -32,9 +35,15 @@ export default function ChatHistorySidebar({
 
   useEffect(() => {
     if (isOpen) {
-      fetchAllChats();
+      if (workflow_id) {
+        // Workflow'a özel chat history getir
+        fetchWorkflowChats(workflow_id);
+      } else {
+        // Tüm chat history'yi getir
+        fetchAllChats();
+      }
     }
-  }, [isOpen, fetchAllChats]);
+  }, [isOpen, fetchAllChats, fetchWorkflowChats, workflow_id]);
 
   useEffect(() => {
     // Create chat summaries from the chats data
@@ -107,7 +116,12 @@ export default function ChatHistorySidebar({
   const handleDeleteChat = async (chatflowId: string, e: React.MouseEvent) => {
     e.stopPropagation();
     if (confirm("Bu konuşmayı silmek istediğinizden emin misiniz?")) {
-      clearMessages(chatflowId);
+      try {
+        await clearMessages(chatflowId);
+      } catch (error) {
+        console.error("Chat silinirken hata oluştu:", error);
+        alert("Chat silinirken bir hata oluştu. Lütfen tekrar deneyin.");
+      }
     }
   };
 

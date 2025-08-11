@@ -186,6 +186,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     addMessage,
     fetchChatMessages,
     loadChatHistory,
+    clearAllChats,
   } = useChatStore();
 
   const [chatOpen, setChatOpen] = useState(false);
@@ -199,6 +200,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Tekil workflow'u doğrudan fetch et
       fetchWorkflow(workflowId).catch(() => {
         setCurrentWorkflow(null);
+        clearAllChats(); // Clear chats when workflow loading fails
         enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
           variant: "error",
         });
@@ -209,6 +211,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setNodes([]);
       setEdges([]);
       setWorkflowName("isimsiz dosya");
+      clearAllChats(); // Clear chats for new workflow
     }
   }, [workflowId]);
 
@@ -219,6 +222,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setWorkflowName("isimsiz dosya");
     }
   }, [currentWorkflow?.name]);
+
+  // Clear chats when workflow changes to prevent accumulation
+  useEffect(() => {
+    if (currentWorkflow?.id) {
+      // Clear chats when switching to a different workflow
+      clearAllChats();
+    }
+  }, [currentWorkflow?.id, clearAllChats]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -264,8 +275,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Load chat history on component mount
   useEffect(() => {
-    loadChatHistory();
-  }, [loadChatHistory]);
+    if (currentWorkflow?.id) {
+      // Load workflow-specific chats
+      loadChatHistory();
+    } else {
+      // Clear chats when no workflow is selected (new workflow)
+      clearAllChats();
+    }
+  }, [currentWorkflow?.id, loadChatHistory, clearAllChats]);
 
   // Load chat messages when active chat changes
   useEffect(() => {
@@ -883,6 +900,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onClose={() => setChatHistoryOpen(false)}
             onSelectChat={handleSelectChat}
             activeChatflowId={activeChatflowId}
+            workflow_id={currentWorkflow?.id}
           />
 
           {/* Execution Status Indicator */}

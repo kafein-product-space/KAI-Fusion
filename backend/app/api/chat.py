@@ -22,9 +22,22 @@ async def get_all_chats(
     service = ChatService(db)
     return await service.get_all_chats_grouped_by_user(current_user.id)
 
+@router.get("/workflow/{workflow_id}", response_model=Dict[UUID, List[ChatMessageResponse]])
+async def get_workflow_chats(
+    workflow_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Retrieves all chat conversations for a specific workflow, grouped by their chatflow_id.
+    """
+    service = ChatService(db)
+    return await service.get_workflow_chats_grouped_by_user(workflow_id, current_user.id)
+
 @router.post("/", response_model=List[ChatMessageResponse], status_code=status.HTTP_201_CREATED)
 async def start_new_chat(
     user_input: ChatMessageInput,
+    workflow_id: UUID = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
@@ -34,7 +47,7 @@ async def start_new_chat(
     triggers an LLM response, and returns the initial exchange.
     """
     service = ChatService(db)
-    return await service.start_new_chat(user_input=user_input.content, user_id=current_user.id)
+    return await service.start_new_chat(user_input=user_input.content, user_id=current_user.id, workflow_id=workflow_id)
 
 @router.get("/{chatflow_id}", response_model=List[ChatMessageResponse])
 async def get_chat_messages(
@@ -49,11 +62,12 @@ async def get_chat_messages(
 async def handle_chat_interaction(
     chatflow_id: UUID,
     user_input: ChatMessageInput,
+    workflow_id: UUID = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
-    return await service.handle_chat_interaction(chatflow_id=chatflow_id, user_input=user_input.content, user_id=current_user.id)
+    return await service.handle_chat_interaction(chatflow_id=chatflow_id, user_input=user_input.content, user_id=current_user.id, workflow_id=workflow_id)
 
 @router.put("/{chat_message_id}", response_model=List[ChatMessageResponse])
 async def update_chat_message(
@@ -82,4 +96,18 @@ async def delete_chat_message(
     service = ChatService(db)
     if not await service.delete_chat_message(chat_message_id, user_id=current_user.id):
         raise HTTPException(status_code=404, detail="Chat message not found")
-    return {"detail": "Mesaj başarı ile silindi"} 
+    return {"detail": "Mesaj başarı ile silindi"}
+
+@router.delete("/chatflow/{chatflow_id}", status_code=status.HTTP_200_OK)
+async def delete_chatflow(
+    chatflow_id: UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    Deletes all messages for a specific chatflow_id.
+    """
+    service = ChatService(db)
+    if not await service.delete_chatflow(chatflow_id, user_id=current_user.id):
+        raise HTTPException(status_code=404, detail="Chatflow not found")
+    return {"detail": "Konuşma geçmişi başarı ile silindi"} 
