@@ -922,7 +922,7 @@ async def execute_adhoc_workflow(
     
     # Handle user context for internal calls
     if is_internal_call:
-        user_id = "webhook_system"
+        user_id = "webhook_system"  # Webhook system identifier
         user_email = "webhook@system.internal"
         user_context = {
             "session_id": session_id,
@@ -1007,16 +1007,20 @@ async def execute_adhoc_workflow(
             )
 
     # --- CHAT ENTEGRASYONU ---
-    try:
-        await chat_service.create_chat_message(ChatMessageCreate(
-            role="user",
-            content=req.input_text,
-            chatflow_id=chatflow_id,
-            user_id=user_id,  # user_id ekle
-            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
-        ))
-    except Exception as e:
-        logger.warning(f"Failed to create chat message: {e}")
+    # Skip chat message creation for webhook calls to avoid UUID validation issues
+    if not is_internal_call:
+        try:
+            await chat_service.create_chat_message(ChatMessageCreate(
+                role="user",
+                content=req.input_text,
+                chatflow_id=chatflow_id,
+                user_id=user_id,  # user_id ekle
+                workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+            ))
+        except Exception as e:
+            logger.warning(f"Failed to create chat message: {e}")
+    else:
+        logger.debug("Skipping chat message creation for internal webhook call")
 
     # Cache execution ID before potential session issues
     execution_id = execution.id if execution else None
@@ -1133,8 +1137,8 @@ async def execute_adhoc_workflow(
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to failed during streaming: {update_e}", exc_info=True)
         finally:
-            # LLM cevabını chat'e kaydet
-            if llm_output:
+            # LLM cevabını chat'e kaydet - skip for webhook calls
+            if llm_output and not is_internal_call:
                 try:
                     await chat_service.create_chat_message(
                         ChatMessageCreate(

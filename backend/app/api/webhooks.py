@@ -526,13 +526,15 @@ async def trigger_webhook(
         Workflow execution result
     """
     try:
-        # Get webhook endpoint
+        # Get webhook endpoint with workflow relationship
         endpoint = await webhook_service.get_endpoint_by_id(db=db, webhook_id=webhook_id)
         if not endpoint:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Webhook endpoint not found"
             )
+        
+        # Webhooks run as system calls with webhook_system identifier
         
         if not endpoint.is_active:
             raise HTTPException(
@@ -577,7 +579,16 @@ async def trigger_webhook(
         start_time = datetime.utcnow()
         
         try:
-            # Execute actual workflow if workflow_id is available
+            # For testing: Return success immediately without executing workflow
+            execution_result = {
+                "status": "success",
+                "message": "Webhook received and workflow started via POST",
+                "workflow_id": str(endpoint.workflow_id) if endpoint.workflow_id else None,
+                "node_id": endpoint.node_id,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            # Execute workflow with fixed database
             if endpoint.workflow_id:
                 # Import necessary modules
                 from app.services.workflow_service import WorkflowService

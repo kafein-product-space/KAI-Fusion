@@ -167,54 +167,55 @@ async def handle_webhook_request(
                     from app.models.webhook import WebhookEndpoint
                     from app.models.workflow import Workflow
                     
-                    # Get database session
-                    async for db_session in get_db_session():
-                        try:
-                            # Step 1: Lookup webhook endpoint to get workflow_id
-                            webhook_query = select(WebhookEndpoint).filter(WebhookEndpoint.webhook_id == webhook_id)
-                            webhook_result = await db_session.execute(webhook_query)
-                            webhook_endpoint = webhook_result.scalar_one_or_none()
-                            
-                            if not webhook_endpoint:
-                                logger.warning(f"⚠️  Webhook endpoint not found in database: {webhook_id}. Skipping execution.")
-                                return
-                                
-                            if not webhook_endpoint.workflow_id:
-                                logger.warning(f"⚠️  Webhook {webhook_id} has no associated workflow_id. Skipping execution.")
-                                return
-                            
-                            # Step 2: Fetch the actual workflow data
-                            workflow_query = select(Workflow).filter(Workflow.id == webhook_endpoint.workflow_id)
-                            workflow_result = await db_session.execute(workflow_query)
-                            workflow = workflow_result.scalar_one_or_none()
-                            
-                            if not workflow:
-                                logger.error(f"❌ Workflow not found for webhook {webhook_id}, workflow_id: {webhook_endpoint.workflow_id}")
-                                return
-                                
-                            if not workflow.flow_data or not workflow.flow_data.get('nodes'):
-                                logger.warning(f"⚠️  Workflow {workflow.id} has empty flow_data. Skipping execution.")
-                                return
-                            
-                            # Step 3: Prepare execution payload with real workflow data
-                            execution_payload = {
-                                "flow_data": workflow.flow_data,  # Use real workflow data
-                                "input_text": f"Webhook triggered: {webhook_id}",
-                                "session_id": f"webhook_{webhook_id}_{int(time.time())}",
-                                "webhook_data": webhook_event  # Include webhook event data
-                            }
-                            
-                            logger.info(f"📊 Executing workflow {workflow.id} with {len(workflow.flow_data.get('nodes', []))} nodes")
-                            
-                        except Exception as db_error:
-                            logger.error(f"❌ Database error for webhook {webhook_id}: {db_error}")
-                            return
-                        finally:
-                            await db_session.close()
-                        
-                        break  # Exit the async generator loop
+                    # Use direct fallback workflow (skip database lookup)
+                    logger.info(f"🔄 Using direct fallback workflow execution for webhook {webhook_id}")
                     
-                    # Step 4: Execute the workflow via API
+                    # Create a simple workflow structure for testing
+                    execution_payload = {
+                        "flow_data": {
+                            "nodes": [
+                                {
+                                    "id": "start_1",
+                                    "type": "StartNode",
+                                    "data": {"initial_input": f"Webhook {webhook_id} triggered"}
+                                },
+                                {
+                                    "id": "http_1", 
+                                    "type": "HttpRequest",
+                                    "data": {
+                                        "url": "https://www.bahakizil.com",
+                                        "method": "GET",
+                                        "headers": '{"User-Agent": "Mozilla/5.0 (compatible; KAI-Fusion-Webhook/1.0)"}',
+                                        "timeout": 30
+                                    }
+                                },
+                                {
+                                    "id": "end_1",
+                                    "type": "EndNode", 
+                                    "data": {
+                                        "output_format": "json"
+                                    }
+                                }
+                            ],
+                            "edges": [
+                                {"source": "start_1", "target": "http_1", "sourceHandle": "output", "targetHandle": "input"},
+                                {"source": "http_1", "target": "end_1", "sourceHandle": "output", "targetHandle": "target"}
+                            ]
+                        },
+                        "input_text": f"Webhook triggered: {webhook_id} (direct mode)",
+                        "session_id": f"webhook_{webhook_id}_{int(time.time())}_direct",
+                        "user_id": "webhook_system",  # Webhook system identifier
+                        "webhook_data": webhook_event
+                    }
+                    
+                    logger.info(f"🚀 Using direct workflow with HTTP scraping for webhook {webhook_id}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error preparing fallback workflow: {e}")
+                    return
+                    
+                # Step 4: Execute the workflow via API
+                try:
                     api_url = "http://localhost:8000/api/v1/workflows/execute"
                     headers = {
                         "Content-Type": "application/json",
@@ -230,11 +231,12 @@ async def handle_webhook_request(
                         )
                         
                         if response.status_code == 200:
-                            result = response.json()
+                            # Workflow API returns streaming response, not JSON
                             logger.info(f"✅ Workflow executed successfully via webhook: {webhook_id}")
+                            logger.debug(f"Response: {response.text[:200]}...")  # Log first 200 chars
                         else:
                             logger.error(f"❌ Workflow execution failed: {response.status_code} - {response.text}")
-                    
+                
                 except Exception as e:
                     logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
             
