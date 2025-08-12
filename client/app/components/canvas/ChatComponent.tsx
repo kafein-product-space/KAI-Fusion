@@ -9,6 +9,7 @@ interface ChatComponentProps {
   chatHistory: any[];
   chatError: string | null;
   chatLoading: boolean;
+  chatThinking: boolean; // Yeni thinking prop'u
   chatInput: string;
   setChatInput: (input: string) => void;
   onSendMessage: () => void;
@@ -25,6 +26,7 @@ export default function ChatComponent({
   chatHistory,
   chatError,
   chatLoading,
+  chatThinking, // Yeni thinking prop'u
   chatInput,
   setChatInput,
   onSendMessage,
@@ -192,7 +194,7 @@ export default function ChatComponent({
               onCancelEdit={handleCancelEdit}
             />
           ))}
-        {chatLoading && <ChatBubble from="assistant" message="" loading />}
+        {chatThinking && <ChatBubble from="assistant" message="" loading />}
         <div ref={messagesEndRef} />
       </div>
       <div className="p-3 border-t border-gray-700 flex gap-2">

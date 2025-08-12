@@ -136,17 +136,19 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         {loading && !isUser ? (
           <div className="flex items-center gap-3">
             <div className="flex space-x-1">
-              <div className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
+              <div className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"></div>
               <div
-                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
-                style={{ animationDelay: "0.1s" }}
-              ></div>
-              <div
-                className="w-2 h-2 bg-blue-500 rounded-full animate-bounce"
+                className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"
                 style={{ animationDelay: "0.2s" }}
               ></div>
+              <div
+                className="w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full animate-pulse"
+                style={{ animationDelay: "0.4s" }}
+              ></div>
             </div>
-            <span className="italic text-gray-500">Düşünüyor...</span>
+            <span className="italic text-gray-600 font-medium">
+              Düşünüyor...
+            </span>
           </div>
         ) : (
           <div className="w-full">

@@ -937,7 +937,7 @@ async def execute_adhoc_workflow(
             "user_id": str(user_id),
             "user_email": user_email
         }
-    # 🔥 DEBUG: Log received session_id and chatflow_id
+
     print(f"🔍 DEBUG: Received session_id: {req.session_id}")
     print(f"🔍 DEBUG: Received chatflow_id: {req.chatflow_id}")
     print(f"🔍 DEBUG: Final session_id: {session_id}")
@@ -951,7 +951,6 @@ async def execute_adhoc_workflow(
     if not req.session_id:
         session_id = str(chatflow_id)
     
-
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
     if req.workflow_id:

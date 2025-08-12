@@ -7,6 +7,7 @@ interface ChatStore {
   chats: Record<string, ChatMessage[]>;
   activeChatflowId: string | null;
   loading: boolean;
+  thinking: boolean; // Yeni thinking state'i
   error: string | null;
   fetchAllChats: () => Promise<void>;
   fetchWorkflowChats: (workflow_id: string) => Promise<void>;
@@ -15,6 +16,7 @@ interface ChatStore {
   interactWithChat: (chatflow_id: string, content: string, workflow_id: string) => Promise<void>;
   setActiveChatflowId: (chatflow_id: string | null) => void;
   setLoading: (loading: boolean) => void;
+  setThinking: (thinking: boolean) => void; // Yeni setter
   setError: (error: string | null) => void;
   addMessage: (chatflow_id: string, message: ChatMessage) => void;
   updateMessage: (chatflow_id: string, message: ChatMessage) => void;
@@ -32,6 +34,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
   activeChatflowId: null,
   loading: false,
+  thinking: false, // Initialize thinking state
   error: null,
 
   fetchAllChats: async () => {
@@ -134,6 +137,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   setActiveChatflowId: (chatflow_id) => set({ activeChatflowId: chatflow_id }),
   setLoading: (loading) => set({ loading }),
+  setThinking: (thinking) => set({ thinking }), // Add setThinking
   setError: (error) => set({ error }),
 
   addMessage: (chatflow_id, message) =>
@@ -198,7 +202,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // LLM entegrasyonu:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
-    set({ loading: true, error: null });
+    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
     
     // Use existing activeChatflowId or generate new one
     let chatflow_id = get().activeChatflowId;
@@ -225,12 +229,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (e: any) {
       set({ error: e.message || 'LLM ile konuşma başlatılamadı' });
     } finally {
-      set({ loading: false });
+      set({ loading: false, thinking: false }); // thinking'i false yap
     }
   },
 
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
-    set({ loading: true, error: null });
+    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
     
     // Check if this is an edit operation by looking for existing user message
     const existingMessages = get().chats[chatflow_id] || [];
@@ -258,13 +262,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });
     } finally {
-      set({ loading: false });
+      set({ loading: false, thinking: false }); // thinking'i false yap
     }
   },
 
   // New function specifically for handling edited messages
   sendEditedMessage: async (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => {
-    set({ loading: true, error: null });
+    set({ loading: true, thinking: true, error: null }); // thinking'i true yap
     
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
@@ -273,7 +277,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     } catch (e: any) {
       set({ error: e.message || 'Düzenlenen mesaj gönderilemedi' });
     } finally {
-      set({ loading: false });
+      set({ loading: false, thinking: false }); // thinking'i false yap
     }
   },
 })); 

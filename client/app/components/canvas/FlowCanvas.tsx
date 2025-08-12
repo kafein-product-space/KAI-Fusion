@@ -71,6 +71,7 @@ import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorS
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
+import { TutorialButton } from "../tutorial";
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -182,6 +183,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     startLLMChat,
     sendLLMMessage,
     loading: chatLoading,
+    thinking: chatThinking, // thinking state'ini al
     error: chatError,
     addMessage,
     fetchChatMessages,
@@ -892,6 +894,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               nodes: nodes as WorkflowNode[],
               edges: edges as WorkflowEdge[],
             }}
+            chatThinking={chatThinking}
           />
 
           {/* Chat History Sidebar */}
@@ -932,6 +935,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           )}
         </div>
       </div>
+      <TutorialButton />
 
       {/* Unsaved Changes Modal */}
       <UnsavedChangesModal
