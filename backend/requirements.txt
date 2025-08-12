@@ -49,11 +49,11 @@ requests>=2.31.0
 # Template Engine
 jinja2>=3.1.0
 
-# File Storage
 google-api-python-client>=2.100.0  # Google Drive API
 google-auth>=2.22.0
 google-auth-oauthlib>=1.0.0
 google-auth-httplib2>=0.1.0
+boto3>=1.34.0
 
 # System Monitoring
 psutil>=5.9.0

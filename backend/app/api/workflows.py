@@ -951,8 +951,6 @@ async def execute_adhoc_workflow(
     if not req.session_id:
         session_id = str(chatflow_id)
     
-   
-
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
     if req.workflow_id:
