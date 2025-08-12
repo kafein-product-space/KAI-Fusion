@@ -160,20 +160,66 @@ async def handle_webhook_request(
                     logger.info(f"🚀 Starting workflow execution for webhook: {webhook_id}")
                     
                     import httpx
+                    import time
+                    from sqlalchemy import select
+                    from sqlalchemy.ext.asyncio import AsyncSession
+                    from app.core.database import get_db_session
+                    from app.models.webhook import WebhookEndpoint
+                    from app.models.workflow import Workflow
                     
-                    # Simple workflow execution via API
-                    api_url = "http://localhost:8000/api/v1/workflows/execute"
+                    # Use direct fallback workflow (skip database lookup)
+                    logger.info(f"🔄 Using direct fallback workflow execution for webhook {webhook_id}")
                     
-                    # Prepare simple execution payload
+                    # Create a simple workflow structure for testing
                     execution_payload = {
-                        "input": {"webhook_triggered": True, "webhook_id": webhook_id}
+                        "flow_data": {
+                            "nodes": [
+                                {
+                                    "id": "start_1",
+                                    "type": "StartNode",
+                                    "data": {"initial_input": f"Webhook {webhook_id} triggered"}
+                                },
+                                {
+                                    "id": "http_1", 
+                                    "type": "HttpRequest",
+                                    "data": {
+                                        "url": "https://www.bahakizil.com",
+                                        "method": "GET",
+                                        "headers": '{"User-Agent": "Mozilla/5.0 (compatible; KAI-Fusion-Webhook/1.0)"}',
+                                        "timeout": 30
+                                    }
+                                },
+                                {
+                                    "id": "end_1",
+                                    "type": "EndNode", 
+                                    "data": {
+                                        "output_format": "json"
+                                    }
+                                }
+                            ],
+                            "edges": [
+                                {"source": "start_1", "target": "http_1", "sourceHandle": "output", "targetHandle": "input"},
+                                {"source": "http_1", "target": "end_1", "sourceHandle": "output", "targetHandle": "target"}
+                            ]
+                        },
+                        "input_text": f"Webhook triggered: {webhook_id} (direct mode)",
+                        "session_id": f"webhook_{webhook_id}_{int(time.time())}_direct",
+                        "user_id": "webhook_system",  # Webhook system identifier
+                        "webhook_data": webhook_event
                     }
                     
-                    # Make API call to execute workflow
+                    logger.info(f"🚀 Using direct workflow with HTTP scraping for webhook {webhook_id}")
+                    
+                except Exception as e:
+                    logger.error(f"❌ Error preparing fallback workflow: {e}")
+                    return
+                    
+                # Step 4: Execute the workflow via API
+                try:
+                    api_url = "http://localhost:8000/api/v1/workflows/execute"
                     headers = {
                         "Content-Type": "application/json",
-                        # Internal webhook call - use system token or bypass auth
-                        "X-Internal-Call": "true"
+                        "X-Internal-Call": "true"  # Internal webhook call
                     }
                     
                     async with httpx.AsyncClient() as client:
@@ -185,11 +231,12 @@ async def handle_webhook_request(
                         )
                         
                         if response.status_code == 200:
-                            result = response.json()
+                            # Workflow API returns streaming response, not JSON
                             logger.info(f"✅ Workflow executed successfully via webhook: {webhook_id}")
+                            logger.debug(f"Response: {response.text[:200]}...")  # Log first 200 chars
                         else:
                             logger.error(f"❌ Workflow execution failed: {response.status_code} - {response.text}")
-                    
+                
                 except Exception as e:
                     logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
             

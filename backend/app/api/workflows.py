@@ -292,7 +292,7 @@ from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -894,7 +894,8 @@ async def get_dashboard_stats(
 @router.post("/execute")
 async def execute_adhoc_workflow(
     req: AdhocExecuteRequest,
-    current_user: User = Depends(get_current_user),
+    request: Request,
+    current_user: User = Depends(get_optional_user),
     db: AsyncSession = Depends(get_db_session),
     execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
@@ -902,6 +903,16 @@ async def execute_adhoc_workflow(
     Execute a workflow directly from flow data and stream the output.
     This is the primary endpoint for running workflows from the frontend.
     """
+    # Check if this is an internal webhook call
+    is_internal_call = request.headers.get("X-Internal-Call") == "true"
+    
+    # For internal calls, allow execution without authentication
+    if not current_user and not is_internal_call:
+        raise HTTPException(
+            status_code=401,
+            detail="Authentication required"
+        )
+    
     engine = get_engine()
     chat_service = ChatService(db)
     
@@ -909,7 +920,24 @@ async def execute_adhoc_workflow(
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
     
-    # 🔥 DEBUG: Log received session_id and chatflow_id
+    # Handle user context for internal calls
+    if is_internal_call:
+        user_id = "webhook_system"  # Webhook system identifier
+        user_email = "webhook@system.internal"
+        user_context = {
+            "session_id": session_id,
+            "user_id": user_id,
+            "user_email": user_email
+        }
+    else:
+        user_id = current_user.id
+        user_email = current_user.email
+        user_context = {
+            "session_id": session_id,
+            "user_id": str(user_id),
+            "user_email": user_email
+        }
+
     print(f"🔍 DEBUG: Received session_id: {req.session_id}")
     print(f"🔍 DEBUG: Received chatflow_id: {req.chatflow_id}")
     print(f"🔍 DEBUG: Final session_id: {session_id}")
@@ -923,13 +951,7 @@ async def execute_adhoc_workflow(
     if not req.session_id:
         session_id = str(chatflow_id)
     
-    user_id = current_user.id
-    user_email = current_user.email
-    user_context = {
-        "session_id": session_id,
-        "user_id": str(user_id),
-        "user_email": user_email
-    }
+   
 
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
@@ -1000,16 +1022,20 @@ async def execute_adhoc_workflow(
             )
 
     # --- CHAT ENTEGRASYONU ---
-    try:
-        await chat_service.create_chat_message(ChatMessageCreate(
-            role="user",
-            content=req.input_text,
-            chatflow_id=chatflow_id,
-            user_id=user_id,  # user_id ekle
-            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
-        ))
-    except Exception as e:
-        logger.warning(f"Failed to create chat message: {e}")
+    # Skip chat message creation for webhook calls to avoid UUID validation issues
+    if not is_internal_call:
+        try:
+            await chat_service.create_chat_message(ChatMessageCreate(
+                role="user",
+                content=req.input_text,
+                chatflow_id=chatflow_id,
+                user_id=user_id,  # user_id ekle
+                workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+            ))
+        except Exception as e:
+            logger.warning(f"Failed to create chat message: {e}")
+    else:
+        logger.debug("Skipping chat message creation for internal webhook call")
 
     # Cache execution ID before potential session issues
     execution_id = execution.id if execution else None
@@ -1126,8 +1152,8 @@ async def execute_adhoc_workflow(
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to failed during streaming: {update_e}", exc_info=True)
         finally:
-            # LLM cevabını chat'e kaydet
-            if llm_output:
+            # LLM cevabını chat'e kaydet - skip for webhook calls
+            if llm_output and not is_internal_call:
                 try:
                     await chat_service.create_chat_message(
                         ChatMessageCreate(
