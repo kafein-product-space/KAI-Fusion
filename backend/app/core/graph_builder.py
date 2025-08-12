@@ -936,12 +936,20 @@ class GraphBuilder:
                 # 🔥 ENHANCED: Pass session information to ReAct Agents and Memory nodes
                 if gnode.type in ['ReactAgent', 'ToolAgentNode'] and hasattr(gnode.node_instance, 'session_id'):
                     session_id = state.session_id or f"session_{node_id}"
+                    # 🔥 CRITICAL: Ensure session_id is valid
+                    if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
+                        session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
                     gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id on agent {node_id}: {session_id}")
                 
-                # Set session_id for memory nodes
+                # Set session_id for memory nodes (priority over user_id)
                 if 'Memory' in gnode.type and hasattr(gnode.node_instance, 'session_id'):
-                    session_id = state.session_id or f"session_{node_id}"
+                    # 🔥 CRITICAL: Use state.session_id as primary source
+                    session_id = state.session_id
+                    if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
+                        session_id = f"session_{node_id}_{uuid.uuid4().hex[:8]}"
                     gnode.node_instance.session_id = session_id
+                    print(f"[DEBUG] Set session_id on memory node {node_id}: {session_id}")
                 
                 # Initialize tracer for this node
                 try:
@@ -1164,7 +1172,14 @@ class GraphBuilder:
                 if source_node_instance.metadata.node_type.value == "provider":
                     try:
                         # 🔥 CRITICAL FIX: Pass session_id to memory nodes
-                        if hasattr(source_node_instance.metadata, 'name') and source_node_instance.metadata.name in ['BufferMemory', 'ConversationMemory']:
+                        meta = getattr(source_node_instance, 'metadata', None)
+                        meta_name = None
+                        if isinstance(meta, dict):
+                            meta_name = meta.get('name')
+                        else:
+                            meta_name = getattr(meta, 'name', None)
+
+                        if meta_name in ['BufferMemory', 'ConversationMemory'] and hasattr(source_node_instance, 'session_id'):
                             # Set session_id on memory nodes before execution
                             source_node_instance.session_id = state.session_id
                             print(f"[DEBUG] Set session_id on {source_node_id}: {state.session_id}")
@@ -1570,6 +1585,22 @@ class GraphBuilder:
                                     if source_gnode.node_instance.metadata.node_type.value == "provider":
                                         # For provider nodes that need connected inputs, we need to resolve their connections first
                                         provider_kwargs = source_gnode.user_data.copy()
+
+                                        # Ensure session_id is propagated to provider nodes that require it (e.g., Memory)
+                                        try:
+                                            meta = getattr(source_gnode.node_instance, 'metadata', None)
+                                            meta_name = None
+                                            if isinstance(meta, dict):
+                                                meta_name = meta.get('name')
+                                            else:
+                                                meta_name = getattr(meta, 'name', None)
+                                            if meta_name in ['BufferMemory', 'ConversationMemory']:
+                                                if hasattr(source_gnode.node_instance, 'session_id'):
+                                                    source_gnode.node_instance.session_id = state.session_id
+                                                provider_kwargs['session_id'] = state.session_id
+                                                print(f"[DEBUG] Propagated session_id to {source_node_id}: {state.session_id}")
+                                        except Exception as meta_e:
+                                            print(f"[WARNING] Failed to propagate session_id to provider {source_node_id}: {meta_e}")
                                         
                                         # Check if this provider node has connection dependencies
                                         if hasattr(source_gnode.node_instance, '_input_connections') and source_gnode.node_instance._input_connections:

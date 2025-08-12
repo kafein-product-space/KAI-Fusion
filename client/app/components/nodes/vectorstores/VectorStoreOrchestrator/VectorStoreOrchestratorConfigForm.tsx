@@ -1,5 +1,5 @@
 // VectorStoreOrchestratorConfigForm.tsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import {
   Settings,
@@ -14,6 +14,8 @@ import {
 import type { VectorStoreOrchestratorConfigFormProps } from "./types";
 import JSONEditor from "~/components/common/JSONEditor";
 import TabNavigation from "~/components/common/TabNavigation";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 export default function VectorStoreOrchestratorConfigForm({
   initialValues,
@@ -22,6 +24,12 @@ export default function VectorStoreOrchestratorConfigForm({
   onCancel,
 }: VectorStoreOrchestratorConfigFormProps) {
   const [activeTab, setActiveTab] = useState("data");
+  const { userCredentials, fetchCredentials } = useUserCredentialStore();
+
+  // Fetch credentials on component mount
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
 
   const tabs = [
     {
@@ -100,6 +108,57 @@ export default function VectorStoreOrchestratorConfigForm({
                     <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
                       <Database className="w-3 h-3" />
                       Data Configuration
+                    </div>
+
+                    {/* Credential ID */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Select Credential
+                      </label>
+                      <Field
+                        as="select"
+                        name="credential_id"
+                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        onMouseDown={(e: any) => e.stopPropagation()}
+                        onTouchStart={(e: any) => e.stopPropagation()}
+                        onChange={async (e: any) => {
+                          const selectedCredentialId = e.target.value;
+                          setFieldValue("credential_id", selectedCredentialId);
+
+                          // Auto-fill API key from selected credential
+                          if (selectedCredentialId) {
+                            try {
+                              const credentialSecret =
+                                await getUserCredentialSecret(
+                                  selectedCredentialId
+                                );
+                              if (credentialSecret?.secret?.api_key) {
+                                setFieldValue(
+                                  "connection_string",
+                                  credentialSecret.secret.api_key
+                                );
+                              }
+                            } catch (error) {
+                              console.error(
+                                "Failed to fetch credential secret:",
+                                error
+                              );
+                            }
+                          }
+                        }}
+                      >
+                        <option value="">Select Credential</option>
+                        {userCredentials.map((credential) => (
+                          <option key={credential.id} value={credential.id}>
+                            {credential.name || credential.id}
+                          </option>
+                        ))}
+                      </Field>
+                      <ErrorMessage
+                        name="credential_id"
+                        component="div"
+                        className="text-red-400 text-xs mt-1"
+                      />
                     </div>
 
                     {/* Connection String */}

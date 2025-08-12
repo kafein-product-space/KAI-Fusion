@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useReactFlow, Position } from "@xyflow/react";
 import {
   Search,
@@ -25,6 +25,11 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
   const [isConfigMode, setIsConfigMode] = useState(false);
   const [configData, setConfigData] = useState(data);
 
+  // Keep local configData in sync with incoming node data
+  useEffect(() => {
+    setConfigData(data);
+  }, [data]);
+
   const handleDoubleClick = () => {
     setIsConfigMode(true);
   };
@@ -35,6 +40,8 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         node.id === id ? { ...node, data: { ...node.data, ...values } } : node
       )
     );
+    // Update local state so reopening config shows latest values
+    setConfigData((prev: any) => ({ ...prev, ...values }));
     setIsConfigMode(false);
   };
 
@@ -289,7 +296,7 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
                     placeholder='{"data_type": "products", "category": "electronics"}'
                     description="Filter documents by metadata (JSON format)"
                     height={80}
-                    error={errors.metadata_filter}
+                    error={errors.metadata_filter as string}
                   />
                 )}
 
@@ -409,16 +416,6 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
           {data?.displayName || data?.name || "Retriever"}
         </div>
 
-        {/* Metadata Filtering Badge */}
-        {data?.enable_metadata_filtering && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-purple-600 text-white text-xs font-bold shadow-lg">
-              <Filter className="w-3 h-3 inline mr-1" />
-              Filter
-            </div>
-          </div>
-        )}
-
         {/* Input Handles */}
         <NeonHandle
           type="target"
@@ -476,16 +473,6 @@ function RetrieverNode({ data, id }: RetrieverNodeProps) {
         >
           Retriever Tool
         </div>
-
-        {/* Database Type Badge */}
-        {data?.database_connection && (
-          <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-            <div className="px-2 py-1 rounded bg-indigo-600 text-white text-xs font-bold shadow-lg">
-              <Database className="w-3 h-3 inline mr-1" />
-              Database
-            </div>
-          </div>
-        )}
 
         {/* Connection Status Indicator */}
         {data?.connected && (

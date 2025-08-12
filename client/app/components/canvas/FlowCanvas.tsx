@@ -35,6 +35,7 @@ import type {
 
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
+import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -70,6 +71,7 @@ import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorS
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
+import { TutorialButton } from "../tutorial";
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -181,13 +183,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     startLLMChat,
     sendLLMMessage,
     loading: chatLoading,
+    thinking: chatThinking, // thinking state'ini al
     error: chatError,
     addMessage,
+    fetchChatMessages,
+    loadChatHistory,
+    clearAllChats,
   } = useChatStore();
 
   const [chatOpen, setChatOpen] = useState(false);
   const [chatInput, setChatInput] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
@@ -195,6 +202,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Tekil workflow'u doğrudan fetch et
       fetchWorkflow(workflowId).catch(() => {
         setCurrentWorkflow(null);
+        clearAllChats(); // Clear chats when workflow loading fails
         enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
           variant: "error",
         });
@@ -205,6 +213,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setNodes([]);
       setEdges([]);
       setWorkflowName("isimsiz dosya");
+      clearAllChats(); // Clear chats for new workflow
     }
   }, [workflowId]);
 
@@ -215,6 +224,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setWorkflowName("isimsiz dosya");
     }
   }, [currentWorkflow?.name]);
+
+  // Clear chats when workflow changes to prevent accumulation
+  useEffect(() => {
+    if (currentWorkflow?.id) {
+      // Clear chats when switching to a different workflow
+      clearAllChats();
+    }
+  }, [currentWorkflow?.id, clearAllChats]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -257,6 +274,24 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       setHasUnsavedChanges(hasChanges);
     }
   }, [nodes, edges, currentWorkflow]);
+
+  // Load chat history on component mount
+  useEffect(() => {
+    if (currentWorkflow?.id) {
+      // Load workflow-specific chats
+      loadChatHistory();
+    } else {
+      // Clear chats when no workflow is selected (new workflow)
+      clearAllChats();
+    }
+  }, [currentWorkflow?.id, loadChatHistory, clearAllChats]);
+
+  // Load chat messages when active chat changes
+  useEffect(() => {
+    if (activeChatflowId) {
+      fetchChatMessages(activeChatflowId);
+    }
+  }, [activeChatflowId, fetchChatMessages]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -732,6 +767,20 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setActiveChatflowId(null);
   };
 
+  const handleShowHistory = () => {
+    setChatHistoryOpen(true);
+  };
+
+  const handleSelectChat = (chatflowId: string) => {
+    if (chatflowId === "") {
+      // New chat
+      setActiveChatflowId(null);
+    } else {
+      // Select existing chat
+      setActiveChatflowId(chatflowId);
+    }
+  };
+
   // Edge'leri render ederken CustomEdge'a isActive prop'u ilet
   const edgeTypes = useMemo(
     () => ({
@@ -838,6 +887,23 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             setChatInput={setChatInput}
             onSendMessage={handleSendMessage}
             onClearChat={handleClearChat}
+            onShowHistory={handleShowHistory}
+            activeChatflowId={activeChatflowId}
+            currentWorkflow={currentWorkflow}
+            flowData={{
+              nodes: nodes as WorkflowNode[],
+              edges: edges as WorkflowEdge[],
+            }}
+            chatThinking={chatThinking}
+          />
+
+          {/* Chat History Sidebar */}
+          <ChatHistorySidebar
+            isOpen={chatHistoryOpen}
+            onClose={() => setChatHistoryOpen(false)}
+            onSelectChat={handleSelectChat}
+            activeChatflowId={activeChatflowId}
+            workflow_id={currentWorkflow?.id}
           />
 
           {/* Execution Status Indicator */}
@@ -869,6 +935,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           )}
         </div>
       </div>
+      <TutorialButton />
 
       {/* Unsaved Changes Modal */}
       <UnsavedChangesModal

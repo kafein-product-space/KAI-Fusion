@@ -2,7 +2,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Brain, Settings } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 interface ChatConfigFormProps {
   configData: any;
@@ -16,7 +16,6 @@ export default function ChatConfigForm({
   onCancel,
 }: ChatConfigFormProps) {
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
-  const [loadingCredential, setLoadingCredential] = useState(false);
 
   // Fetch credentials on component mount
   useEffect(() => {
@@ -24,7 +23,7 @@ export default function ChatConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative w-48 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm z-50">
+    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
           <Brain className="w-4 h-4 text-white" />
@@ -59,29 +58,6 @@ export default function ChatConfigForm({
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="space-y-3 w-full p-3">
-            {/* Model */}
-            <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Model
-              </label>
-              <Field
-                as="select"
-                name="model_name"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-              >
-                <option value="gpt-4o">GPT-4o ⭐</option>
-                <option value="gpt-4o-mini">GPT-4o Mini</option>
-                <option value="gpt-4-turbo">GPT-4 Turbo</option>
-                <option value="gpt-4">GPT-4</option>
-                <option value="gpt-4-32k">GPT-4 32K</option>
-              </Field>
-              <ErrorMessage
-                name="model_name"
-                component="div"
-                className="text-red-400 text-xs mt-1"
-              />
-            </div>
-
             {/* Credential ID */}
             <div>
               <label className="text-white text-xs font-medium mb-1 block">
@@ -91,13 +67,14 @@ export default function ChatConfigForm({
                 as="select"
                 name="credential_id"
                 className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
                 onChange={async (e: any) => {
                   const selectedCredentialId = e.target.value;
                   setFieldValue("credential_id", selectedCredentialId);
 
                   // Auto-fill API key from selected credential
                   if (selectedCredentialId) {
-                    setLoadingCredential(true);
                     try {
                       const credentialSecret = await getUserCredentialSecret(
                         selectedCredentialId
@@ -113,11 +90,7 @@ export default function ChatConfigForm({
                         "Failed to fetch credential secret:",
                         error
                       );
-                    } finally {
-                      setLoadingCredential(false);
                     }
-                  } else {
-                    setFieldValue("api_key", "");
                   }
                 }}
               >
@@ -128,14 +101,6 @@ export default function ChatConfigForm({
                   </option>
                 ))}
               </Field>
-              {loadingCredential && (
-                <div className="flex items-center space-x-2 mt-1">
-                  <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-cyan-400 text-xs">
-                    Loading credential...
-                  </span>
-                </div>
-              )}
               <ErrorMessage
                 name="credential_id"
                 component="div"
@@ -151,10 +116,37 @@ export default function ChatConfigForm({
               <Field
                 name="api_key"
                 type="password"
-                className="w-full text-white text-xs px-2 py-1 rounded bg-slate-900/80 border"
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="api_key"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
+            </div>
+
+            {/* Model */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Model
+              </label>
+              <Field
+                as="select"
+                name="model_name"
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
+              >
+                <option value="gpt-4o">GPT-4o ⭐</option>
+                <option value="gpt-4o-mini">GPT-4o Mini</option>
+                <option value="gpt-4-turbo">GPT-4 Turbo</option>
+                <option value="gpt-4">GPT-4</option>
+                <option value="gpt-4-32k">GPT-4 32K</option>
+              </Field>
+              <ErrorMessage
+                name="model_name"
                 component="div"
                 className="text-red-400 text-xs mt-1"
               />
@@ -172,7 +164,16 @@ export default function ChatConfigForm({
                 max={2}
                 step={0.1}
                 className="w-full text-white"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               />
+              <div className="flex justify-between text-xs text-gray-300 mt-1">
+                <span>0</span>
+                <span className="font-bold text-blue-400">
+                  {values.temperature}
+                </span>
+                <span>2</span>
+              </div>
               <ErrorMessage
                 name="temperature"
                 component="div"
@@ -188,7 +189,9 @@ export default function ChatConfigForm({
               <Field
                 name="max_tokens"
                 type="number"
-                className="w-full text-white text-xs px-2 py-1 rounded bg-slate-900/80 border"
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="max_tokens"
@@ -203,6 +206,8 @@ export default function ChatConfigForm({
                 type="button"
                 onClick={onCancel}
                 className="text-xs px-2 py-1 bg-slate-700 rounded"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               >
                 ✕
               </button>
@@ -210,6 +215,8 @@ export default function ChatConfigForm({
                 type="submit"
                 disabled={isSubmitting || Object.keys(errors).length > 0}
                 className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               >
                 ✓
               </button>

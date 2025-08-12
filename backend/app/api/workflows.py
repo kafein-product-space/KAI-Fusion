@@ -938,6 +938,21 @@ async def execute_adhoc_workflow(
             "user_email": user_email
         }
 
+    print(f"🔍 DEBUG: Received session_id: {req.session_id}")
+    print(f"🔍 DEBUG: Received chatflow_id: {req.chatflow_id}")
+    print(f"🔍 DEBUG: Final session_id: {session_id}")
+    
+    # 🔥 CRITICAL: session_id her zaman olmalı
+    if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
+        session_id = str(chatflow_id)
+        print(f"⚠️  Invalid session_id in workflow execution, using chatflow_id: {session_id}")
+    
+    # Ensure session_id is consistent with chatflow_id
+    if not req.session_id:
+        session_id = str(chatflow_id)
+    
+   
+
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
     if req.workflow_id:

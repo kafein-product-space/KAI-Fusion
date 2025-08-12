@@ -1,8 +1,9 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
 @import "tailwindcss";
 @plugin "daisyui";
+@plugin "@tailwindcss/typography";
 @import "@xyflow/react/dist/style.css";
-
+@import "katex/dist/katex.min.css";
 html {
   color-scheme: light;
   font-family: "Inter", sans-serif;

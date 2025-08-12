@@ -7,6 +7,9 @@ import {
   Search,
   Trash,
   X,
+  Clock,
+  Play,
+  FileText,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
@@ -27,8 +30,13 @@ function ExecutionsLayout() {
   // Sayfalama hesaplamaları
   const filteredExecutions = executions.filter(
     (execution) =>
-      execution.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      execution.status.toLowerCase().includes(searchQuery.toLowerCase())
+      (execution.input_text?.toLowerCase() || "").includes(
+        searchQuery.toLowerCase()
+      ) ||
+      execution.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (currentWorkflow?.name?.toLowerCase() || "").includes(
+        searchQuery.toLowerCase()
+      )
   );
   const totalItems = filteredExecutions.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
@@ -70,6 +78,31 @@ function ExecutionsLayout() {
         return "bg-gray-100 text-gray-800";
     }
   };
+
+  // Helper function to truncate text
+  const truncateText = (text: string, maxLength: number = 60) => {
+    if (text.length <= maxLength) return text;
+    return text.substring(0, maxLength) + "...";
+  };
+
+  // Helper function to get execution duration
+  const getExecutionDuration = (startedAt: string, completedAt?: string) => {
+    if (!startedAt) return "-";
+    if (!completedAt) return "Running...";
+
+    const start = new Date(startedAt);
+    const end = new Date(completedAt);
+    const duration = end.getTime() - start.getTime();
+
+    const seconds = Math.floor(duration / 1000);
+    const minutes = Math.floor(seconds / 60);
+    const hours = Math.floor(minutes / 60);
+
+    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
+    return `${seconds}s`;
+  };
+
   return (
     <div className="flex h-screen w-screen bg-background text-foreground">
       <DashboardSidebar />
@@ -127,6 +160,7 @@ function ExecutionsLayout() {
               </div>
             </div>
           </div>
+
           {/* Executions Content */}
           {error && (
             <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-600">
@@ -166,9 +200,17 @@ function ExecutionsLayout() {
                   {/* Header */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1">
-                      <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
-                        {execution.id}
-                      </h3>
+                      <div className="flex items-center gap-2 mb-2">
+                        <Play className="w-4 h-4 text-purple-600" />
+                        <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
+                          {currentWorkflow?.name || "Unknown Workflow"}
+                        </h3>
+                      </div>
+                      <p className="text-sm text-gray-600 line-clamp-2">
+                        {execution.input_text
+                          ? truncateText(execution.input_text)
+                          : "No input provided"}
+                      </p>
                     </div>
 
                     {/* Status Badge */}
@@ -192,8 +234,9 @@ function ExecutionsLayout() {
                   </div>
 
                   {/* Metadata */}
-                  <div className="space-y-2 mb-4">
+                  <div className="space-y-3 mb-4">
                     <div className="flex items-center text-xs text-gray-500">
+                      <Clock className="w-3 h-3 mr-2" />
                       <span className="font-medium">Started:</span>
                       <span className="ml-2">
                         {execution.started_at
@@ -201,20 +244,33 @@ function ExecutionsLayout() {
                           : "-"}
                       </span>
                     </div>
+
+                    {execution.completed_at && (
+                      <div className="flex items-center text-xs text-gray-500">
+                        <Check className="w-3 h-3 mr-2" />
+                        <span className="font-medium">Completed:</span>
+                        <span className="ml-2">
+                          {timeAgo(execution.completed_at)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="flex items-center text-xs text-gray-500">
-                      <span className="font-medium">Completed:</span>
+                      <FileText className="w-3 h-3 mr-2" />
+                      <span className="font-medium">Duration:</span>
                       <span className="ml-2">
-                        {execution.completed_at
-                          ? timeAgo(execution.completed_at)
-                          : "-"}
+                        {getExecutionDuration(
+                          execution.started_at,
+                          execution.completed_at
+                        )}
                       </span>
                     </div>
                   </div>
 
                   {/* Actions */}
                   <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <span className="text-xs text-gray-400 font-mono">
-                      ID: {execution.id.slice(0, 8)}...
+                    <span className="text-xs text-gray-400">
+                      #{execution.id.slice(0, 8)}...
                     </span>
 
                     <div className="flex items-center gap-1">
@@ -273,9 +329,8 @@ function ExecutionsLayout() {
               </div>
 
               {/* Items X to Y of Z */}
-              <div className="text-sm text-gray-600 text-right">
-                Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
-                {totalItems}
+              <div className="text-sm text-gray-500">
+                {startIdx + 1}-{endIdx} of {totalItems} executions
               </div>
             </div>
           </div>

@@ -5,16 +5,13 @@ import {
   Database,
   LogOut,
   Store,
-  Sparkles,
   Zap,
-  Settings,
   User,
   Bell,
   Search,
   X,
   Clock,
-  FileText,
-  Globe,
+  Heart,
 } from "lucide-react";
 import React, { useState, useEffect, useMemo } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
@@ -26,6 +23,7 @@ import { useWorkflows } from "~/stores/workflows";
 import { useExecutionsStore } from "~/stores/executions";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { useVariableStore } from "~/stores/variables";
+import { usePinnedItems } from "~/stores/pinnedItems";
 import type {
   Workflow,
   WorkflowExecution,
@@ -65,6 +63,7 @@ const Sidebar = () => {
   const { userCredentials: credentials, fetchCredentials } =
     useUserCredentialStore();
   const { variables, fetchVariables } = useVariableStore();
+  const { getPinnedItems } = usePinnedItems();
 
   // Fetch data on component mount
   useEffect(() => {
@@ -342,6 +341,23 @@ const Sidebar = () => {
         {/* Navigation */}
         <nav className="flex-1">
           <div className="space-y-2">
+            {/* Pinned Items Link */}
+            {(() => {
+              const pinnedItems = getPinnedItems();
+              if (pinnedItems.length > 0) {
+                return (
+                  <SidebarLink
+                    icon={<Heart className="w-5 h-5" />}
+                    label="Pinned Items"
+                    path="/pinned"
+                    active={location.pathname === "/pinned"}
+                    badge={`${pinnedItems.length}`}
+                  />
+                );
+              }
+              return null;
+            })()}
+
             <SidebarLink
               icon={<Play className="w-5 h-5" />}
               label="Workflows"
@@ -391,17 +407,6 @@ const Sidebar = () => {
 
       {/* Footer Section */}
       <div className="space-y-4">
-        {/* Notifications */}
-        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Bell className="w-4 h-4 text-blue-400" />
-              <span className="text-xs text-slate-300">3 new updates</span>
-            </div>
-            <div className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
-          </div>
-        </div>
-
         {/* User Profile */}
         <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
           <div className="flex items-center space-x-3">
@@ -418,10 +423,6 @@ const Sidebar = () => {
               </p>
               <p className="text-xs text-slate-400 truncate">{user?.email}</p>
             </div>
-
-            <button className="p-1 rounded-lg hover:bg-slate-700/50 transition-all duration-200">
-              <Settings className="w-4 h-4 text-slate-400" />
-            </button>
           </div>
         </div>
 
