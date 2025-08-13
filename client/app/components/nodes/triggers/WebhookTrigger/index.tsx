@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useEffect } from "react";
 import { useReactFlow } from "@xyflow/react";
 import { useSnackbar } from "notistack";
+import { v4 as uuidv4 } from 'uuid';
 import WebhookTriggerVisual from "./WebhookTriggerVisual";
 import WebhookTriggerConfigForm from "./WebhookTriggerConfigForm";
 import {
@@ -67,17 +68,10 @@ export default function WebhookTriggerNode({
 
         if (!webhookId) {
           // If no webhook ID exists, create a new one in proper format
-          // Use crypto.randomUUID if available, otherwise fallback to node ID conversion
-          if (typeof crypto !== "undefined" && crypto.randomUUID) {
-            webhookId = `wh_${crypto
-              .randomUUID()
-              .replace(/-/g, "")
-              .substring(0, 12)}`;
-          } else {
-            webhookId = `wh_${id
-              .replace(/[^a-zA-Z0-9]/g, "")
-              .toLowerCase()}${Date.now().toString().slice(-4)}`;
-          }
+          // Use uuidv4 for consistent UUID generation
+          webhookId = `wh_${uuidv4()
+            .replace(/-/g, "")
+            .substring(0, 12)}`;
 
           // Update node data with the generated webhook ID
           setNodes((nodes) =>
