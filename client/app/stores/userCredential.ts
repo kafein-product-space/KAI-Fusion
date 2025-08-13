@@ -12,7 +12,7 @@ interface UserCredentialStore {
   isLoading: boolean;
   error: string | null;
   fetchCredentials: () => Promise<void>;
-  addCredential: (data: CredentialCreateRequest) => Promise<void>;
+  addCredential: (data: CredentialCreateRequest) => Promise<UserCredential>;
   updateCredential: (id: string, data: Partial<CredentialCreateRequest>) => Promise<void>;
   removeCredential: (id: string) => Promise<void>;
 }
@@ -40,8 +40,10 @@ export const useUserCredentialStore = create<UserCredentialStore>((set, get) => 
         userCredentials: [...state.userCredentials, created],
         isLoading: false,
       }));
+      return created;
     } catch (e: any) {
       set({ error: e.message || 'Failed to add credential', isLoading: false });
+      throw e;
     }
   },
 

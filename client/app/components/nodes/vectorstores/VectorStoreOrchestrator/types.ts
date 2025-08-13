@@ -5,6 +5,7 @@ export interface VectorStoreOrchestratorData {
   id?: string;
   name?: string;
   displayName?: string;
+  credential_id?: string;
   
   // Configuration
   connection_string?: string;

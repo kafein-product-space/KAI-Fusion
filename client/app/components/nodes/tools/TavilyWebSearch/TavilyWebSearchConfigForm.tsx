@@ -1,5 +1,5 @@
 // TavilyWebSearchConfigForm.tsx
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import {
   Settings,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
+import CredentialSelector from "~/components/credentials/CredentialSelector";
 import type { TavilyWebSearchConfigFormProps } from "./types";
 
 export default function TavilyWebSearchConfigForm({
@@ -24,9 +25,9 @@ export default function TavilyWebSearchConfigForm({
   const [loadingCredential, setLoadingCredential] = useState(false);
 
   // Fetch credentials on component mount
-  useEffect(() => {
-    fetchCredentials();
-  }, [fetchCredentials]);
+  // useEffect(() => {
+  //   fetchCredentials();
+  // }, [fetchCredentials]);
 
   return (
     <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
@@ -75,22 +76,17 @@ export default function TavilyWebSearchConfigForm({
               <label className="text-white text-xs font-medium mb-1 block">
                 Select Credential
               </label>
-              <Field
-                as="select"
-                name="credential_id"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-                onChange={async (e: any) => {
-                  const selectedCredentialId = e.target.value;
-                  setFieldValue("credential_id", selectedCredentialId);
+              <CredentialSelector
+                value={values.credential_id}
+                onChange={async (credentialId) => {
+                  setFieldValue("credential_id", credentialId);
 
                   // Auto-fill API key from selected credential
-                  if (selectedCredentialId) {
+                  if (credentialId) {
                     setLoadingCredential(true);
                     try {
                       const credentialSecret = await getUserCredentialSecret(
-                        selectedCredentialId
+                        credentialId
                       );
                       if (credentialSecret?.secret?.api_key) {
                         setFieldValue(
@@ -110,22 +106,16 @@ export default function TavilyWebSearchConfigForm({
                     setFieldValue("tavily_api_key", "");
                   }
                 }}
-              >
-                <option value="">Select Credential</option>
-                {userCredentials.map((credential) => (
-                  <option key={credential.id} value={credential.id}>
-                    {credential.name || credential.id}
-                  </option>
-                ))}
-              </Field>
-              {loadingCredential && (
-                <div className="flex items-center space-x-2 mt-1">
-                  <div className="w-3 h-3 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-blue-400 text-xs">
-                    Loading credential...
-                  </span>
-                </div>
-              )}
+                onCredentialLoad={(secret) => {
+                  if (secret?.api_key) {
+                    setFieldValue("tavily_api_key", secret.api_key);
+                  }
+                }}
+                serviceType="tavily_search"
+                placeholder="Select Credential"
+                showCreateNew={true}
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+              />
               <ErrorMessage
                 name="credential_id"
                 component="div"

@@ -16,6 +16,7 @@ import JSONEditor from "~/components/common/JSONEditor";
 import TabNavigation from "~/components/common/TabNavigation";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
+import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 export default function VectorStoreOrchestratorConfigForm({
   initialValues,
@@ -115,27 +116,18 @@ export default function VectorStoreOrchestratorConfigForm({
                       <label className="text-white text-xs font-medium mb-1 block">
                         Select Credential
                       </label>
-                      <Field
-                        as="select"
-                        name="credential_id"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                        onMouseDown={(e: any) => e.stopPropagation()}
-                        onTouchStart={(e: any) => e.stopPropagation()}
-                        onChange={async (e: any) => {
-                          const selectedCredentialId = e.target.value;
-                          setFieldValue("credential_id", selectedCredentialId);
-
-                          // Auto-fill API key from selected credential
-                          if (selectedCredentialId) {
+                      <CredentialSelector
+                        value={values.credential_id}
+                        onChange={async (credentialId) => {
+                          setFieldValue("credential_id", credentialId);
+                          if (credentialId) {
                             try {
                               const credentialSecret =
-                                await getUserCredentialSecret(
-                                  selectedCredentialId
-                                );
-                              if (credentialSecret?.secret?.api_key) {
+                                await getUserCredentialSecret(credentialId);
+                              if (credentialSecret?.secret?.connection_string) {
                                 setFieldValue(
                                   "connection_string",
-                                  credentialSecret.secret.api_key
+                                  credentialSecret.secret.connection_string
                                 );
                               }
                             } catch (error) {
@@ -146,14 +138,19 @@ export default function VectorStoreOrchestratorConfigForm({
                             }
                           }
                         }}
-                      >
-                        <option value="">Select Credential</option>
-                        {userCredentials.map((credential) => (
-                          <option key={credential.id} value={credential.id}>
-                            {credential.name || credential.id}
-                          </option>
-                        ))}
-                      </Field>
+                        onCredentialLoad={(secret) => {
+                          if (secret?.connection_string) {
+                            setFieldValue(
+                              "connection_string",
+                              secret.connection_string
+                            );
+                          }
+                        }}
+                        serviceType="postgresql_vectorstore"
+                        placeholder="Select Credential"
+                        showCreateNew={true}
+                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                      />
                       <ErrorMessage
                         name="credential_id"
                         component="div"
