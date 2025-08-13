@@ -31,6 +31,10 @@ const STORAGE_KEY = 'kai_fusion_pinned_items';
 // Helper function to load pinned items from localStorage
 const loadPinnedItems = (): PinnedItem[] => {
   try {
+    // Check if localStorage is available (client-side only)
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return [];
+    }
     const stored = localStorage.getItem(STORAGE_KEY);
     return stored ? JSON.parse(stored) : [];
   } catch (error) {
@@ -42,6 +46,10 @@ const loadPinnedItems = (): PinnedItem[] => {
 // Helper function to save pinned items to localStorage
 const savePinnedItems = (items: PinnedItem[]): void => {
   try {
+    // Check if localStorage is available (client-side only)
+    if (typeof window === 'undefined' || typeof localStorage === 'undefined') {
+      return;
+    }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
   } catch (error) {
     console.error('Failed to save pinned items to localStorage:', error);

@@ -5,6 +5,7 @@ import React, {
   useEffect,
   useMemo,
 } from "react";
+import { v4 as uuidv4 } from "uuid";
 import {
   useNodesState,
   useEdgesState,
@@ -751,7 +752,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     } catch (e: any) {
       // Hata mesajını chat'e ekle
       addMessage(activeChatflowId || "error", {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         chatflow_id: activeChatflowId || "error",
         role: "assistant",
         content: e.message || "Bilinmeyen bir hata oluştu.",

@@ -1,5 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { Eraser, History, MessageSquare } from "lucide-react";
+import {
+  Eraser,
+  History,
+  MessageSquare,
+  Maximize2,
+  Minimize2,
+} from "lucide-react";
 import ChatBubble from "../common/ChatBubble";
 import { useChatStore } from "~/stores/chat";
 
@@ -38,6 +44,7 @@ export default function ChatComponent({
 }: ChatComponentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [isExpanded, setIsExpanded] = useState(false);
   const { updateMessage, removeMessage, sendEditedMessage } = useChatStore();
 
   const scrollToBottom = () => {
@@ -141,7 +148,13 @@ export default function ChatComponent({
   if (!chatOpen) return null;
 
   return (
-    <div className="fixed bottom-20 right-4 w-124 h-[620px] bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700">
+    <div
+      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${
+        isExpanded
+          ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
+          : "w-124 h-[620px]"
+      }`}
+    >
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
         <div className="flex items-center gap-2">
           <MessageSquare className="w-4 h-4 text-blue-400" />
@@ -150,6 +163,17 @@ export default function ChatComponent({
           </span>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsExpanded(!isExpanded)}
+            className="text-gray-400 hover:text-gray-300 p-1 rounded hover:bg-gray-700"
+            title={isExpanded ? "Küçült" : "Büyüt"}
+          >
+            {isExpanded ? (
+              <Minimize2 className="w-4 h-4" />
+            ) : (
+              <Maximize2 className="w-4 h-4" />
+            )}
+          </button>
           <button
             onClick={onShowHistory}
             className="text-gray-400 hover:text-gray-300 p-1 rounded hover:bg-gray-700"

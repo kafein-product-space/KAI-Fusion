@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { v4 as uuidv4 } from 'uuid';
 import type { ChatMessage } from '../types/api';
 import * as chatService from '../services/chatService';
 import { executeWorkflow } from '../services/workflowService';
@@ -207,13 +208,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Use existing activeChatflowId or generate new one
     let chatflow_id = get().activeChatflowId;
     if (!chatflow_id) {
-      chatflow_id = crypto.randomUUID();
+      chatflow_id = uuidv4();
       get().setActiveChatflowId(chatflow_id);
     }
     
     // Immediately add user message to UI
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: uuidv4(),
       chatflow_id,
       role: 'user',
       content: input_text,
@@ -245,7 +246,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     // Only add new user message if this is not an edit operation
     if (!lastUserMessage || lastUserMessage.content !== input_text) {
       const userMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: uuidv4(),
         chatflow_id,
         role: 'user',
         content: input_text,
