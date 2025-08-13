@@ -331,6 +331,15 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
+    # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
+    if (
+        # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)
+        ("connection_string" in data and isinstance(data.get("connection_string"), str) and data.get("connection_string", "").lower().startswith("postgresql"))
+        # Discrete fields form
+        or (all(k in data for k in ["host", "port", "database", "username", "password"]))
+    ):
+        return "postgresql_vectorstore"
+
     if "api_key" in data:
         if "organization" in data or "project_id" in data:
             return "openai"

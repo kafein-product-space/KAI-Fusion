@@ -124,11 +124,43 @@ export default function VectorStoreOrchestratorConfigForm({
                             try {
                               const credentialSecret =
                                 await getUserCredentialSecret(credentialId);
-                              if (credentialSecret?.secret?.connection_string) {
+                              const secret = credentialSecret?.secret || {};
+                              // Prefer direct connection_string if provided
+                              if (secret.connection_string) {
                                 setFieldValue(
                                   "connection_string",
-                                  credentialSecret.secret.connection_string
+                                  secret.connection_string
                                 );
+                              } else {
+                                // Build connection string from discrete fields if possible
+                                const host = secret.host;
+                                const port = secret.port;
+                                const database = secret.database;
+                                const username = secret.username;
+                                const password = secret.password;
+                                if (
+                                  host &&
+                                  port &&
+                                  database &&
+                                  username &&
+                                  typeof password !== "undefined"
+                                ) {
+                                  const userEnc = encodeURIComponent(username);
+                                  const passEnc = encodeURIComponent(password);
+                                  const builtConn = `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
+                                  setFieldValue("connection_string", builtConn);
+                                }
+                              }
+
+                              // Optional convenience fills
+                              if (secret.collection_name) {
+                                setFieldValue(
+                                  "collection_name",
+                                  secret.collection_name
+                                );
+                              }
+                              if (secret.table_prefix) {
+                                setFieldValue("table_prefix", secret.table_prefix);
                               }
                             } catch (error) {
                               console.error(
@@ -139,11 +171,37 @@ export default function VectorStoreOrchestratorConfigForm({
                           }
                         }}
                         onCredentialLoad={(secret) => {
-                          if (secret?.connection_string) {
+                          if (!secret) return;
+                          if (secret.connection_string) {
                             setFieldValue(
                               "connection_string",
                               secret.connection_string
                             );
+                          } else {
+                            const host = secret.host;
+                            const port = secret.port;
+                            const database = secret.database;
+                            const username = secret.username;
+                            const password = secret.password;
+                            if (
+                              host &&
+                              port &&
+                              database &&
+                              username &&
+                              typeof password !== "undefined"
+                            ) {
+                              const userEnc = encodeURIComponent(username);
+                              const passEnc = encodeURIComponent(password);
+                              const builtConn = `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
+                              setFieldValue("connection_string", builtConn);
+                            }
+                          }
+
+                          if (secret.collection_name) {
+                            setFieldValue("collection_name", secret.collection_name);
+                          }
+                          if (secret.table_prefix) {
+                            setFieldValue("table_prefix", secret.table_prefix);
                           }
                         }}
                         serviceType="postgresql_vectorstore"
