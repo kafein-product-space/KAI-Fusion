@@ -26,6 +26,9 @@ function CustomAnimatedEdge({
 }: CustomAnimatedEdgeProps) {
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
+  // read status that ReactFlowCanvas injected into edge.data
+  // @ts-expect-error edge data provided at runtime
+  const status: 'success' | 'failed' | 'pending' | undefined = (style as any)?.__status;
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
     sourceX,
@@ -49,12 +52,27 @@ function CustomAnimatedEdge({
         markerEnd={markerEnd}
         style={{
           ...style,
-          stroke: isActive ? "url(#electric-gradient-" + id + ")" : "#6b7280",
+          stroke:
+            status === 'success'
+              ? '#22c55e'
+              : status === 'failed'
+              ? '#ef4444'
+              : isActive
+              ? "url(#electric-gradient-" + id + ")"
+              : "#6b7280",
           strokeWidth: isActive ? 3 : 2,
           strokeDasharray: isActive ? "12 8" : "none",
           strokeDashoffset: isActive ? 0 : undefined,
           animation: isActive ? "electric-flow 1.2s linear infinite" : "none",
-          filter: isActive ? "url(#glow-" + id + ")" : "none",
+          filter:
+            status === 'success' || status === 'failed'
+              ? 'none'
+              : isActive
+              ? "url(#glow-" + id + ")"
+              : "none",
+          // carry status for BaseEdge consumption
+          // @ts-ignore - internal flag
+          __status: status,
         }}
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}

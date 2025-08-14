@@ -26,6 +26,8 @@ interface ReactFlowCanvasProps {
   reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
   onDrop: (event: React.DragEvent) => void;
   onDragOver: (event: React.DragEvent) => void;
+  nodeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
+  edgeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
 }
 
 export default function ReactFlowCanvas({
@@ -40,6 +42,8 @@ export default function ReactFlowCanvas({
   reactFlowWrapper,
   onDrop,
   onDragOver,
+  nodeStatus = {},
+  edgeStatus = {},
 }: ReactFlowCanvasProps) {
   return (
     <div
@@ -49,13 +53,25 @@ export default function ReactFlowCanvas({
       onDragOver={onDragOver}
     >
       <ReactFlow
-        nodes={nodes.map((node) => ({
-          ...node,
-          data: {
-            ...node.data,
-          },
+        nodes={nodes.map((node) => {
+          const status = nodeStatus[node.id];
+          const statusStyle =
+            status === 'success'
+              ? { outline: '2px solid #22c55e', outlineOffset: 2, borderRadius: 12 }
+              : status === 'failed'
+              ? { outline: '2px solid #ef4444', outlineOffset: 2, borderRadius: 12 }
+              : {};
+          return {
+            ...node,
+            style: { ...(node.style || {}), ...statusStyle },
+            data: { ...node.data },
+          };
+        })}
+        edges={edges.map((edge) => ({
+          ...edge,
+          data: { ...(edge.data || {}), status: edgeStatus[edge.id] },
+          style: { ...(edge.style || {}), __status: edgeStatus[edge.id] },
         }))}
-        edges={edges}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}

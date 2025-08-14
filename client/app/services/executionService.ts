@@ -27,3 +27,36 @@ export const executeWorkflow = async (workflow_id: string, executionData: {
     ...executionData
   });
 }; 
+
+// Streaming execution (SSE via fetch). Returns ReadableStream of events.
+export const executeWorkflowStream = async (executionData: {
+  flow_data: any;
+  input_text: string;
+  chatflow_id?: string;
+  session_id?: string;
+  node_id?: string;
+  execution_type?: string;
+  trigger_source?: string;
+  workflow_id?: string;
+}): Promise<ReadableStream> => {
+  const base = apiClient.getBaseURL();
+  const url = `${base}${API_ENDPOINTS.WORKFLOWS.EXECUTE}`;
+  const token = apiClient.getAccessToken();
+
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Accept': 'text/event-stream',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+    },
+    body: JSON.stringify(executionData),
+  });
+
+  if (!res.ok || !res.body) {
+    const text = await res.text().catch(() => '');
+    throw new Error(`Failed to start streaming execution: ${res.status} ${text}`);
+  }
+
+  return res.body as ReadableStream;
+};
