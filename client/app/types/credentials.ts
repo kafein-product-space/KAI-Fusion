@@ -131,14 +131,6 @@ export interface ServiceField {
           required: true,
           placeholder: '••••••••',
           description: 'Database password'
-        },
-        {
-          name: 'collection_name',
-          label: 'Collection Name',
-          type: 'text',
-          required: true,
-          placeholder: 'documents',
-          description: 'Name of the vector collection'
         }
       ]
     },
