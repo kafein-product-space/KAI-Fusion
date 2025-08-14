@@ -7,6 +7,7 @@ import {
   Controls,
   Background,
   useReactFlow,
+  ConnectionMode,
   type Node,
   type Edge,
   type Connection,
@@ -60,6 +61,7 @@ export default function ReactFlowCanvas({
         onConnect={onConnect}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
+        connectionMode={ConnectionMode.Loose}
         fitView
       >
         <Controls position="top-right" className="bg-background text-black" />

@@ -122,6 +122,49 @@ export default function WebScraperConfigForm({
                       <span>Basic Settings</span>
                     </div>
 
+                    {/* Credential selection (moved here, above API key) */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Credential (Optional)
+                      </label>
+                      <CredentialSelector
+                        value={(values as any).credential_id}
+                        onChange={async (credentialId) => {
+                          setFieldValue("credential_id", credentialId);
+                          if (credentialId) {
+                            try {
+                              const result = await getUserCredentialSecret(
+                                credentialId
+                              );
+                              if ((result as any)?.secret?.api_key) {
+                                setFieldValue(
+                                  "tavily_api_key",
+                                  (result as any).secret.api_key
+                                );
+                              }
+                            } catch (e) {
+                              console.error(
+                                "Failed to fetch credential secret:",
+                                e
+                              );
+                            }
+                          }
+                        }}
+                        onCredentialLoad={(secret) => {
+                          if ((secret as any)?.api_key) {
+                            setFieldValue(
+                              "tavily_api_key",
+                              (secret as any).api_key
+                            );
+                          }
+                        }}
+                        serviceType="tavily_search"
+                        placeholder="Select Credential"
+                        showCreateNew={true}
+                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                      />
+                    </div>
+
                     <div>
                       <label className="text-white text-xs font-medium mb-1 block">
                         URLs to Scrape
@@ -248,50 +291,7 @@ export default function WebScraperConfigForm({
                   </div>
                 )}
 
-                {/* Credentials Selection */}
-                <div>
-                  <label className="text-white text-xs font-medium mb-1 block">
-                    Credentials
-                  </label>
-                  <CredentialSelector
-                    value={(values as any).credential_id}
-                    onChange={async (credentialId) => {
-                      setFieldValue("credential_id", credentialId);
-                      if (credentialId) {
-                        try {
-                          const result = await getUserCredentialSecret(
-                            credentialId
-                          );
-                          if ((result as any)?.secret?.api_key) {
-                            setFieldValue(
-                              "tavily_api_key",
-                              (result as any).secret.api_key
-                            );
-                          }
-                        } catch (e) {
-                          console.error(
-                            "Failed to fetch credential secret:",
-                            e
-                          );
-                        }
-                      } else {
-                        setFieldValue("tavily_api_key", "");
-                      }
-                    }}
-                    onCredentialLoad={(secret) => {
-                      if ((secret as any)?.api_key) {
-                        setFieldValue(
-                          "tavily_api_key",
-                          (secret as any).api_key
-                        );
-                      }
-                    }}
-                    serviceType="tavily_search"
-                    placeholder="Select Credential"
-                    showCreateNew={true}
-                    className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                  />
-                </div>
+                {/* Credentials Selection removed as requested */}
 
                 {/* Testing Configuration Tab */}
                 {activeTab === "testing" && (

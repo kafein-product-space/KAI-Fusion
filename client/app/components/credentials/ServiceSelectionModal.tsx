@@ -35,6 +35,29 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
     onSelectService(service);
   };
 
+  // Track which icons failed to load so we can fallback to emoji
+  const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
+
+  const renderServiceIcon = (service: ServiceDefinition) => {
+    const iconSrc = `/icons/${service.id}.svg`;
+    const failed = iconErrorMap[service.id];
+    return (
+      <div className="w-10 h-10 flex items-center justify-center">
+        {!failed && (
+          <img
+            src={iconSrc}
+            alt={`${service.name} logo`}
+            className="w-10 h-10 object-contain"
+            onError={() =>
+              setIconErrorMap((prev) => ({ ...prev, [service.id]: true }))
+            }
+          />
+        )}
+        {failed && <div className="text-3xl">{service.icon}</div>}
+      </div>
+    );
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
@@ -118,7 +141,7 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
                   className="group cursor-pointer bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-lg transition-all duration-200 hover:scale-105"
                 >
                   <div className="flex items-start justify-between mb-4">
-                    <div className="text-3xl">{service.icon}</div>
+                    {renderServiceIcon(service)}
                     <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
                   </div>
 

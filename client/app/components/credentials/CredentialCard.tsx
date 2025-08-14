@@ -24,6 +24,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const serviceDefinition = getServiceDefinition(credential.service_type);
+  const [iconFailed, setIconFailed] = useState(false);
 
   const handleViewSecret = async () => {
     if (!isSecretVisible && !secretValue) {
@@ -122,7 +123,19 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
-          <div className="text-xl">{serviceDefinition?.icon || "🔑"}</div>
+          <div className="w-6 h-6 flex items-center justify-center">
+            {!iconFailed && (
+              <img
+                src={`/icons/${credential.service_type}.svg`}
+                alt={`${serviceDefinition?.name || credential.service_type} logo`}
+                className="w-6 h-6 object-contain"
+                onError={() => setIconFailed(true)}
+              />
+            )}
+            {iconFailed && (
+              <div className="text-xl">{serviceDefinition?.icon || "🔑"}</div>
+            )}
+          </div>
           <div>
             <h3 className="text-base font-semibold text-gray-900 leading-tight">
               {credential.name}

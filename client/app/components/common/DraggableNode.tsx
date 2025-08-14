@@ -10,7 +10,6 @@ import {
   Globe,
   MessageCircle,
   Play,
-  Sparkles,
   Square,
   Database,
   Zap,

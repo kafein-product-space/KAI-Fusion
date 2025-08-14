@@ -64,28 +64,6 @@ export interface ServiceField {
       ]
     },
     {
-      id: 'anthropic',
-      name: 'Anthropic',
-      description: 'Anthropic Claude API credentials',
-      icon: '🧠',
-      category: 'ai',
-      color: 'from-purple-500 to-indigo-600',
-      fields: [
-        {
-          name: 'api_key',
-          label: 'API Key',
-          type: 'password',
-          required: true,
-          placeholder: 'sk-ant-...',
-          description: 'Your Anthropic API key from https://console.anthropic.com/',
-          validation: {
-            minLength: 20,
-            pattern: '^sk-ant-[a-zA-Z0-9]{32,}$'
-          }
-        }
-      ]
-    },
-    {
       id: 'cohere',
       name: 'Cohere',
       description: 'Cohere AI API credentials for embeddings and reranking',
@@ -165,48 +143,6 @@ export interface ServiceField {
       ]
     },
     {
-      id: 'redis_cache',
-      name: 'Redis Cache',
-      description: 'Redis cache for storing session data and temporary results',
-      icon: '🔴',
-      category: 'cache',
-      color: 'from-red-500 to-pink-600',
-      fields: [
-        {
-          name: 'host',
-          label: 'Host',
-          type: 'text',
-          required: true,
-          placeholder: 'localhost',
-          description: 'Redis server hostname or IP address'
-        },
-        {
-          name: 'port',
-          label: 'Port',
-          type: 'text',
-          required: true,
-          placeholder: '6379',
-          description: 'Redis server port'
-        },
-        {
-          name: 'password',
-          label: 'Password (Optional)',
-          type: 'password',
-          required: false,
-          placeholder: '••••••••',
-          description: 'Redis server password if authentication is enabled'
-        },
-        {
-          name: 'database',
-          label: 'Database Number',
-          type: 'text',
-          required: false,
-          placeholder: '0',
-          description: 'Redis database number (0-15)'
-        }
-      ]
-    },
-    {
       id: 'tavily_search',
       name: 'Tavily Search',
       description: 'Tavily AI search API for web search capabilities',
@@ -227,66 +163,6 @@ export interface ServiceField {
         }
       ]
     },
-    {
-      id: 'http_client',
-      name: 'HTTP Client',
-      description: 'Generic HTTP client for external API integrations',
-      icon: '🔗',
-      category: 'api',
-      color: 'from-gray-500 to-slate-600',
-      fields: [
-        {
-          name: 'base_url',
-          label: 'Base URL',
-          type: 'text',
-          required: true,
-          placeholder: 'https://api.example.com',
-          description: 'Base URL for the API'
-        },
-        {
-          name: 'api_key',
-          label: 'API Key (Optional)',
-          type: 'password',
-          required: false,
-          placeholder: '••••••••',
-          description: 'API key if required by the service'
-        },
-        {
-          name: 'headers',
-          label: 'Custom Headers (Optional)',
-          type: 'textarea',
-          required: false,
-          placeholder: '{"Authorization": "Bearer ..."}',
-          description: 'JSON format custom headers'
-        }
-      ]
-    },
-    {
-      id: 'webhook_trigger',
-      name: 'Webhook Trigger',
-      description: 'Webhook endpoint for triggering workflows',
-      icon: '📡',
-      category: 'triggers',
-      color: 'from-teal-500 to-green-600',
-      fields: [
-        {
-          name: 'webhook_url',
-          label: 'Webhook URL',
-          type: 'text',
-          required: true,
-          placeholder: 'https://your-domain.com/webhook',
-          description: 'Public URL where webhooks will be received'
-        },
-        {
-          name: 'secret_key',
-          label: 'Secret Key (Optional)',
-          type: 'password',
-          required: false,
-          placeholder: '••••••••',
-          description: 'Secret key for webhook verification'
-        }
-      ]
-    }
   ];
   
   export const getServiceDefinition = (serviceId: string): ServiceDefinition | undefined => {

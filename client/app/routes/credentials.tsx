@@ -18,6 +18,7 @@ import type { CredentialCreateRequest, UserCredential } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 import { apiClient } from "../lib/api-client";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
@@ -48,6 +49,7 @@ function CredentialsLayout() {
     useState<ServiceDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
 
   const servicesByCategory = getServicesByCategory();
   const categories = Object.keys(servicesByCategory);
@@ -114,6 +116,17 @@ function CredentialsLayout() {
     );
     if (serviceDef) {
       setSelectedService(serviceDef);
+    }
+    try {
+      const detail = await getUserCredentialSecret(credential.id);
+      if ((detail as any)?.secret && typeof (detail as any).secret === "object") {
+        setEditingInitialValues((detail as any).secret);
+      } else {
+        setEditingInitialValues({});
+      }
+    } catch (e) {
+      console.error("Failed to fetch credential secret for editing:", e);
+      setEditingInitialValues({});
     }
   };
 
@@ -353,6 +366,7 @@ function CredentialsLayout() {
                   onClick={() => {
                     setSelectedService(null);
                     setEditingCredential(null);
+                    setEditingInitialValues({});
                   }}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
@@ -382,10 +396,9 @@ function CredentialsLayout() {
                 onCancel={() => {
                   setSelectedService(null);
                   setEditingCredential(null);
+                  setEditingInitialValues({});
                 }}
-                initialValues={
-                  editingCredential ? { name: editingCredential.name } : {}
-                }
+                initialValues={editingCredential ? editingInitialValues : {}}
                 isSubmitting={isSubmitting}
               />
             </div>

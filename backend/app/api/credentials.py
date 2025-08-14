@@ -130,8 +130,8 @@ async def create_credential(
     user_id = current_user.id
     
     try:
-        # Detect service type from data structure
-        service_type = _detect_service_type(credential_data.data)
+        # Detect service type from data structure unless explicitly provided by client
+        service_type = credential_data.service_type or _detect_service_type(credential_data.data)
         
         # Create UserCredentialCreate schema
         create_schema = UserCredentialCreate(
@@ -198,8 +198,8 @@ async def update_credential(
         # If data is provided, we need to re-encrypt the credential
         if update_data.data is not None:
             # Instead of delete/create, update the existing credential with new encrypted data
-            # Determine service type
-            service_type = _detect_service_type(update_data.data)
+            # Determine service type (client overrides detection if provided)
+            service_type = update_data.service_type or _detect_service_type(update_data.data)
             name = update_data.name if update_data.name is not None else existing_credential.name
             
             # Encrypt the new data
@@ -341,6 +341,9 @@ def _detect_service_type(data: dict) -> str:
         return "postgresql_vectorstore"
 
     if "api_key" in data:
+        # Cohere API
+        if data.get("provider") == "cohere" or data.get("cohere") is True:
+            return "cohere"
         if "organization" in data or "project_id" in data:
             return "openai"
         elif "engine" in data or "model" in data:
