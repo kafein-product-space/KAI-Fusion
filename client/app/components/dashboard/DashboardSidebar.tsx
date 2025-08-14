@@ -363,7 +363,6 @@ const Sidebar = () => {
               label="Workflows"
               path="/workflows"
               active={location.pathname === "/workflows"}
-              badge="New"
             />
             <SidebarLink
               icon={<BarChart2 className="w-5 h-5" />}
@@ -382,7 +381,6 @@ const Sidebar = () => {
               label="Marketplace"
               path="/marketplace"
               active={location.pathname === "/marketplace"}
-              badge="Hot"
             />
 
             {/* Divider */}

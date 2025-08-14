@@ -127,7 +127,9 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
             {!iconFailed && (
               <img
                 src={`/icons/${credential.service_type}.svg`}
-                alt={`${serviceDefinition?.name || credential.service_type} logo`}
+                alt={`${
+                  serviceDefinition?.name || credential.service_type
+                } logo`}
                 className="w-6 h-6 object-contain"
                 onError={() => setIconFailed(true)}
               />
@@ -154,7 +156,9 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
                 : "bg-gray-100 text-gray-800"
             }`}
           >
-            {serviceDefinition?.category || credential.service_type}
+            {serviceDefinition?.category === "ai"
+              ? `${serviceDefinition?.name || credential.service_type} AI`
+              : serviceDefinition?.category || credential.service_type}
           </span>
         </div>
       </div>

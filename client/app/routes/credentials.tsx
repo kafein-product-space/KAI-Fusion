@@ -398,7 +398,11 @@ function CredentialsLayout() {
                   setEditingCredential(null);
                   setEditingInitialValues({});
                 }}
-                initialValues={editingCredential ? editingInitialValues : {}}
+                initialValues={
+                  editingCredential
+                    ? { name: editingCredential.name, ...editingInitialValues }
+                    : { name: `${selectedService.name} Credential` }
+                }
                 isSubmitting={isSubmitting}
               />
             </div>

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 
@@ -17,6 +17,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   initialValues = {},
   isSubmitting = false,
 }) => {
+  const [iconFailed, setIconFailed] = useState(false);
   const validateField = (
     field: ServiceField,
     value: any
@@ -52,6 +53,13 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     values: Record<string, any>
   ): Record<string, string> => {
     const errors: Record<string, string> = {};
+
+    // Validate credential name
+    if (!values.name || String(values.name).trim() === "") {
+      errors.name = "Name is required";
+    } else if (String(values.name).length > 100) {
+      errors.name = "Name must be no more than 100 characters";
+    }
 
     service.fields.forEach((field) => {
       const error = validateField(field, values[field.name]);
@@ -112,7 +120,23 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     <div className="space-y-6">
       {/* Service Header */}
       <div className="text-center pb-6 border-b border-gray-200">
-        <div className="text-4xl mb-3">{service.icon}</div>
+        {/* Service Icon (SVG with fallback) */}
+        {(() => {
+          const [failed, setFailed] = [iconFailed, setIconFailed];
+          return (
+            <div className="mb-3 flex items-center justify-center">
+              {!failed && (
+                <img
+                  src={`/icons/${service.id}.svg`}
+                  alt={`${service.name} logo`}
+                  className="w-12 h-12 object-contain"
+                  onError={() => setFailed(true)}
+                />
+              )}
+              {failed && <div className="text-4xl">{service.icon}</div>}
+            </div>
+          );
+        })()}
         <h3 className="text-xl font-semibold text-gray-900 mb-2">
           Connect to {service.name}
         </h3>
@@ -129,6 +153,24 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       >
         {({ values, errors, touched, handleChange, handleBlur }) => (
           <Form className="space-y-6">
+            {/* Credential Name */}
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700">
+                Name <span className="text-red-500">*</span>
+              </label>
+              <Field
+                name="name"
+                type="text"
+                placeholder={`${service.name} Credential`}
+                className="input w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              />
+              <ErrorMessage
+                name="name"
+                component="p"
+                className="text-red-500 text-sm mt-1"
+              />
+            </div>
+
             {service.fields.map((field) => (
               <div key={field.name} className="space-y-2">
                 <label className="block text-sm font-medium text-gray-700">
