@@ -863,10 +863,13 @@ async def get_dashboard_stats(
     stats = {}
     for label, days in periods.items():
         since = now - timedelta(days=days)
-        # Get all executions for this user and period
+        # Get all executions for this user and period (include completed_at for runtime)
         executions_q = await db.execute(
-            select(WorkflowExecution.started_at, WorkflowExecution.status)
-            .where(
+            select(
+                WorkflowExecution.started_at,
+                WorkflowExecution.completed_at,
+                WorkflowExecution.status,
+            ).where(
                 and_(
                     WorkflowExecution.user_id == user_id,
                     WorkflowExecution.started_at >= since,
@@ -874,20 +877,41 @@ async def get_dashboard_stats(
             )
         )
         executions = executions_q.all()
-        # Build a dict of date -> {prodexec, failedprod}
+        # Build a dict of date -> aggregates
         day_stats = {}
         for i in range(days):
             day = (since + timedelta(days=i)).date()
-            day_stats[day] = {"prodexec": 0, "failedprod": 0}
-        for started_at, status in executions:
+            day_stats[day] = {"prodexec": 0, "failedprod": 0, "completed": 0, "runtime_sum": 0.0}
+        for started_at, completed_at, status in executions:
             day = started_at.date()
             if day in day_stats:
                 day_stats[day]["prodexec"] += 1
                 if status and status.lower() == "failed":
                     day_stats[day]["failedprod"] += 1
+                elif status and status.lower() == "completed":
+                    day_stats[day]["completed"] += 1
+                    try:
+                        if started_at and completed_at:
+                            delta = (completed_at - started_at).total_seconds()
+                            if delta and delta > 0:
+                                day_stats[day]["runtime_sum"] += float(delta)
+                    except Exception:
+                        # ignore bad timestamps
+                        pass
         # Convert to list for frontend
         stats[label] = [
-            {"date": day.isoformat(), **day_stats[day]} for day in sorted(day_stats.keys())
+            {
+                "date": day.isoformat(),
+                "prodexec": day_stats[day]["prodexec"],
+                "failedprod": day_stats[day]["failedprod"],
+                "completed": day_stats[day]["completed"],
+                # average runtime in seconds for completed executions that day
+                "avg_runtime_sec": round(
+                    (day_stats[day]["runtime_sum"] / day_stats[day]["completed"]) if day_stats[day]["completed"] > 0 else 0.0,
+                    2,
+                ),
+            }
+            for day in sorted(day_stats.keys())
         ]
     return stats
 

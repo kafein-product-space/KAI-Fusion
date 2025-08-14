@@ -24,6 +24,7 @@ function DashboardLayout() {
         name: d.date,
         prodexec: d.prodexec,
         failedprod: d.failedprod,
+        avg_runtime_sec: d.avg_runtime_sec,
       }))
     : [];
 
@@ -35,6 +36,10 @@ function DashboardLayout() {
     failedprod: {
       label: "Failed Prod. executions",
       color: "#ef4444",
+    },
+    avg_runtime_sec: {
+      label: "Avg runtime (sec)",
+      color: "#10b981",
     },
   };
 
@@ -156,14 +161,17 @@ function DashboardLayout() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-gray-600">
-                        Period
+                        Avg Runtime
                       </p>
                       <p className="text-2xl font-bold text-gray-900">
-                        {selectedPeriod === "7days"
-                          ? "7 Days"
-                          : selectedPeriod === "30days"
-                          ? "30 Days"
-                          : "90 Days"}
+                        {(() => {
+                          const completedDays = chartData.filter((d) => (d as any).avg_runtime_sec > 0);
+                          if (completedDays.length === 0) return "0s";
+                          const avg =
+                            completedDays.reduce((sum, d: any) => sum + (d.avg_runtime_sec || 0), 0) /
+                            completedDays.length;
+                          return `${Math.round(avg)}s`;
+                        })()}
                       </p>
                     </div>
                     <div className="p-3 bg-purple-100 rounded-xl">
@@ -176,7 +184,7 @@ function DashboardLayout() {
               {/* Chart */}
               <div className="bg-white border border-gray-200 rounded-2xl ">
                 <DashboardChart
-                  title="Production Executions"
+                  title="Production Executions & Avg Runtime"
                   description={
                     selectedPeriod === "7days"
                       ? "Last 7 days"
@@ -185,7 +193,7 @@ function DashboardLayout() {
                       : "Last 90 days"
                   }
                   data={chartData}
-                  dataKeys={["prodexec", "failedprod"]}
+                  dataKeys={["prodexec", "failedprod", "avg_runtime_sec"]}
                   config={chartConfig}
                 />
               </div>
