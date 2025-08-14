@@ -78,6 +78,9 @@ export default function ReactFlowCanvas({
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         connectionMode={ConnectionMode.Loose}
+        connectionRadius={30}
+        snapToGrid={true}
+        snapGrid={[10, 10]}
         fitView
       >
         <Controls position="top-right" className="bg-background text-black" />
