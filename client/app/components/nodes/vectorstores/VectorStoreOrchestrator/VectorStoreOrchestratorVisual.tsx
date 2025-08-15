@@ -83,7 +83,11 @@ export default function VectorStoreOrchestratorVisual({
       {/* Main icon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <Layers className="w-12 h-12 text-white drop-shadow-lg" />
+          <img
+            src="icons/postgresql_vectorstore.svg"
+            alt="vectorsotreicons"
+            className="w-12 h-12 text-white drop-shadow-lg"
+          />
           {/* Activity indicator */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
             <Database className="w-2 h-2 text-white" />

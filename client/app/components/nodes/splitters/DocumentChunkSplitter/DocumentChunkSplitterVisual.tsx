@@ -111,35 +111,6 @@ export default function DocumentChunkSplitterVisual({
         size={10}
         color1="#facc15"
         glow={isHandleConnected("chunks", true)}
-        style={{
-          top: "30%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="stats"
-        isConnectable={true}
-        size={10}
-        color1="#f59e0b"
-        glow={isHandleConnected("stats", true)}
-        style={{
-          top: "50%",
-        }}
-      />
-
-      <NeonHandle
-        type="source"
-        position={Position.Right}
-        id="preview"
-        isConnectable={true}
-        size={10}
-        color1="#d97706"
-        glow={isHandleConnected("preview", true)}
-        style={{
-          top: "70%",
-        }}
       />
 
       {/* Handle labels */}
@@ -148,47 +119,14 @@ export default function DocumentChunkSplitterVisual({
       </div>
 
       {/* Right side labels for outputs */}
-      <div
-        className="absolute -right-16 text-xs text-gray-500 font-medium"
-        style={{ top: "30%" }}
-      >
+      <div className="absolute -right-16 text-xs text-gray-500 font-medium">
         Chunks
       </div>
-      <div
-        className="absolute -right-12 text-xs text-gray-500 font-medium"
-        style={{ top: "50%" }}
-      >
-        Stats
-      </div>
-      <div
-        className="absolute -right-16 text-xs text-gray-500 font-medium"
-        style={{ top: "70%" }}
-      >
-        Preview
-      </div>
-
-      {/* Chunk Size Badge */}
-      {data?.chunkSize && (
-        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-orange-600 text-white text-xs font-bold shadow-lg">
-            {data.chunkSize} chars
-          </div>
-        </div>
-      )}
 
       {/* Processing Status Indicator */}
       {data?.processing && (
         <div className="absolute -top-2 left-1/2 transform -translate-x-1/2 z-10">
           <div className="w-3 h-3 bg-yellow-400 rounded-full shadow-lg animate-pulse"></div>
-        </div>
-      )}
-
-      {/* Overlap Indicator */}
-      {data?.overlap && data.overlap > 0 && (
-        <div className="absolute -top-2 -left-2 z-10">
-          <div className="w-6 h-6 bg-blue-500 text-white rounded-full text-xs font-bold flex items-center justify-center shadow-lg">
-            {data.overlap}
-          </div>
         </div>
       )}
 
