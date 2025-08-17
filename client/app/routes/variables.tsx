@@ -137,126 +137,128 @@ function VariablesLayout() {
   }, [totalPages, page]);
 
   return (
-    <div className="flex h-screen w-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground">
       <DashboardSidebar />
-      <main className="flex-1 p-10 m-10 bg-background">
-        <div className="max-w-7xl mx-auto">
-          {/* Header */}
-          <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-            <div>
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                Variables
-              </h1>
-              <p className="text-gray-600 text-lg">
-                Manage your application variables and configuration values
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                <input
-                  type="search"
-                  className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                  placeholder="Search variables..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
-              <button
-                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                onClick={() =>
-                  (
-                    document.getElementById(
-                      "modalCreateVariable"
-                    ) as HTMLDialogElement
-                  )?.showModal()
-                }
-              >
-                <Plus className="w-5 h-5" />
-                Create Variable
-              </button>
-            </div>
-          </div>
-
-          {/* Content */}
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12">
-              <Loading size="sm" />
-            </div>
-          ) : pagedVariables.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-6 py-12">
-              <div className="text-center">
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                  No variables found
-                </h3>
-                <p className="text-gray-600">
-                  Create your first variable to get started.
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div>
+                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                  Variables
+                </h1>
+                <p className="text-gray-600 text-lg">
+                  Manage your application variables and configuration values
                 </p>
               </div>
-            </div>
-          ) : (
-            <div className="space-y-4">
-              {pagedVariables.map((variable) => (
-                <div
-                  key={variable.id}
-                  className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200"
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="search"
+                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    placeholder="Search variables..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                  />
+                </div>
+                <button
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  onClick={() =>
+                    (
+                      document.getElementById(
+                        "modalCreateVariable"
+                      ) as HTMLDialogElement
+                    )?.showModal()
+                  }
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex-1">
-                        <h3 className="text-lg font-semibold text-gray-900 font-mono">
-                          {variable.name}
-                        </h3>
-                        <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
-                          <span>Created: {timeAgo(variable.created_at)}</span>
-                          <span>Updated: {timeAgo(variable.updated_at)}</span>
-                          <span className="text-xs text-gray-400 font-mono">
-                            ID: {variable.id.slice(0, 8)}...
-                          </span>
+                  <Plus className="w-5 h-5" />
+                  Create Variable
+                </button>
+              </div>
+            </div>
+
+            {/* Content */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loading size="sm" />
+              </div>
+            ) : pagedVariables.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-6 py-12">
+                <div className="text-center">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
+                    No variables found
+                  </h3>
+                  <p className="text-gray-600">
+                    Create your first variable to get started.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {pagedVariables.map((variable) => (
+                  <div
+                    key={variable.id}
+                    className="bg-white border border-gray-200 rounded-xl p-6 hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <div className="flex-1">
+                          <h3 className="text-lg font-semibold text-gray-900 font-mono">
+                            {variable.name}
+                          </h3>
+                          <div className="flex items-center gap-4 mt-2 text-sm text-gray-500">
+                            <span>Created: {timeAgo(variable.created_at)}</span>
+                            <span>Updated: {timeAgo(variable.updated_at)}</span>
+                            <span className="text-xs text-gray-400 font-mono">
+                              ID: {variable.id.slice(0, 8)}...
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
+                            variable.type === "static"
+                              ? "bg-blue-100 text-blue-800 border-blue-200"
+                              : "bg-green-100 text-green-800 border-green-200"
+                          }`}
+                        >
+                          {variable.type}
+                        </span>
+
+                        <div className="flex items-center gap-1">
+                          <button
+                            title="Edit variable"
+                            className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                            onClick={() => handleEditClick(variable)}
+                          >
+                            <Edit className="w-4 h-4" />
+                          </button>
+                          <button
+                            title="Delete variable"
+                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            onClick={() => handleDelete(variable.id)}
+                          >
+                            <Trash className="w-4 h-4" />
+                          </button>
                         </div>
                       </div>
                     </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full border ${
-                          variable.type === "static"
-                            ? "bg-blue-100 text-blue-800 border-blue-200"
-                            : "bg-green-100 text-green-800 border-green-200"
-                        }`}
-                      >
-                        {variable.type}
-                      </span>
-                      
-                      <div className="flex items-center gap-1">
-                        <button
-                          title="Edit variable"
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          onClick={() => handleEditClick(variable)}
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                        <button
-                          title="Delete variable"
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          onClick={() => handleDelete(variable.id)}
-                        >
-                          <Trash className="w-4 h-4" />
-                        </button>
-                      </div>
+
+                    {/* Value Display */}
+                    <div className="mt-4 pt-4 border-t border-gray-100">
+                      <p className="text-gray-600 text-sm font-mono break-all">
+                        {variable.value}
+                      </p>
                     </div>
                   </div>
-                  
-                  {/* Value Display */}
-                  <div className="mt-4 pt-4 border-t border-gray-100">
-                    <p className="text-gray-600 text-sm font-mono break-all">
-                      {variable.value}
-                    </p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pagination */}

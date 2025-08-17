@@ -210,165 +210,167 @@ function WorkflowsLayout() {
   };
 
   return (
-    <div className="flex h-screen w-screen bg-background text-foreground">
+    <div className="flex h-screen bg-background text-foreground">
       <DashboardSidebar />
 
-      <main className="flex-1 p-10 m-10 bg-background">
-        <div className="max-w-7xl mx-auto">
-          {/* Header Section */}
-          <div className="mb-8">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-              <div className="flex flex-col gap-2">
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Workflows
-                </h1>
-                <p className="text-gray-600 text-lg">
-                  Create, edit, and manage your automated workflows visually and
-                  intuitively.
-                </p>
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex items-center gap-4">
-                {/* Search Bar */}
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                  <input
-                    type="search"
-                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
-                    placeholder="Search workflows..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header Section */}
+            <div className="mb-8">
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div className="flex flex-col gap-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Workflows
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Create, edit, and manage your automated workflows visually
+                    and intuitively.
+                  </p>
                 </div>
 
-                {/* Refresh Button */}
+                {/* Action Buttons */}
+                <div className="flex items-center gap-4">
+                  {/* Search Bar */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="search"
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                      placeholder="Search workflows..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
 
-                {/* Create Workflow Button */}
-                <Link
-                  to="/canvas"
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
-                >
-                  <Plus className="w-5 h-5" />
-                  Create Workflow
-                </Link>
+                  {/* Refresh Button */}
+
+                  {/* Create Workflow Button */}
+                  <Link
+                    to="/canvas"
+                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  >
+                    <Plus className="w-5 h-5" />
+                    Create Workflow
+                  </Link>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Pinned Workflows Section */}
-          <PinnedItemsSection type="workflow" />
+            {/* Pinned Workflows Section */}
+            <PinnedItemsSection type="workflow" />
 
-          {/* Workflows Grid */}
-          {error ? (
-            <ErrorMessageBlock error={error} onRetry={handleRetry} />
-          ) : isLoading && workflows.length === 0 ? (
-            <div className="flex items-center justify-center py-12">
-              <Loading size="sm" />
-            </div>
-          ) : workflows.length === 0 ? (
-            <EmptyState />
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {pagedWorkflows.map((workflow) => (
-                <div
-                  key={workflow.id}
-                  className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group"
-                >
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex-1">
+            {/* Workflows Grid */}
+            {error ? (
+              <ErrorMessageBlock error={error} onRetry={handleRetry} />
+            ) : isLoading && workflows.length === 0 ? (
+              <div className="flex items-center justify-center py-12">
+                <Loading size="sm" />
+              </div>
+            ) : workflows.length === 0 ? (
+              <EmptyState />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {pagedWorkflows.map((workflow) => (
+                  <div
+                    key={workflow.id}
+                    className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group"
+                  >
+                    {/* Header */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <Link
+                          to={`/canvas?workflow=${workflow.id}`}
+                          className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
+                        >
+                          {workflow.name}
+                        </Link>
+                        <p className="text-sm text-gray-600 mt-1 line-clamp-2">
+                          {workflow.description || "No description"}
+                        </p>
+                      </div>
+
+                      {/* Status Badge and Pin Button */}
+                      <div className="flex items-center gap-2">
+                        <PinButton
+                          id={workflow.id}
+                          type="workflow"
+                          title={workflow.name}
+                          description={workflow.description}
+                          metadata={{
+                            status: workflow.is_public ? "Public" : "Private",
+                            lastActivity: workflow.updated_at,
+                          }}
+                          size="sm"
+                          variant="minimal"
+                        />
+                        <span
+                          className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
+                            workflow.is_public
+                              ? "bg-blue-100 text-blue-800 border border-blue-200"
+                              : "bg-gray-100 text-gray-800 border border-gray-200"
+                          }`}
+                        >
+                          {workflow.is_public ? "Public" : "Private"}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Metadata */}
+                    <div className="space-y-2 mb-4">
+                      <div className="flex items-center text-xs text-gray-500">
+                        <span className="font-medium">Created:</span>
+                        <span className="ml-2">
+                          {timeAgo(workflow.created_at)}
+                        </span>
+                      </div>
+                      <div className="flex items-center text-xs text-gray-500">
+                        <span className="font-medium">Updated:</span>
+                        <span className="ml-2">
+                          {timeAgo(workflow.updated_at)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                       <Link
                         to={`/canvas?workflow=${workflow.id}`}
-                        className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
+                        className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
                       >
-                        {workflow.name}
+                        Open Workflow
+                        <ChevronRight className="w-4 h-4" />
                       </Link>
-                      <p className="text-sm text-gray-600 mt-1 line-clamp-2">
-                        {workflow.description || "No description"}
-                      </p>
-                    </div>
 
-                    {/* Status Badge and Pin Button */}
-                    <div className="flex items-center gap-2">
-                      <PinButton
-                        id={workflow.id}
-                        type="workflow"
-                        title={workflow.name}
-                        description={workflow.description}
-                        metadata={{
-                          status: workflow.is_public ? "Public" : "Private",
-                          lastActivity: workflow.updated_at,
-                        }}
-                        size="sm"
-                        variant="minimal"
-                      />
-                      <span
-                        className={`inline-flex px-3 py-1 text-xs font-semibold rounded-full ${
-                          workflow.is_public
-                            ? "bg-blue-100 text-blue-800 border border-blue-200"
-                            : "bg-gray-100 text-gray-800 border border-gray-200"
-                        }`}
-                      >
-                        {workflow.is_public ? "Public" : "Private"}
-                      </span>
+                      <div className="flex items-center gap-1">
+                        <button
+                          onClick={() => {
+                            setEditWorkflow(workflow);
+                            (
+                              document.getElementById(
+                                "modalEditWorkflow"
+                              ) as HTMLDialogElement
+                            )?.showModal();
+                          }}
+                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                          title="Edit workflow"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(workflow)}
+                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                          title="Delete workflow"
+                        >
+                          <Trash className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
                   </div>
-
-                  {/* Metadata */}
-                  <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-xs text-gray-500">
-                      <span className="font-medium">Created:</span>
-                      <span className="ml-2">
-                        {timeAgo(workflow.created_at)}
-                      </span>
-                    </div>
-                    <div className="flex items-center text-xs text-gray-500">
-                      <span className="font-medium">Updated:</span>
-                      <span className="ml-2">
-                        {timeAgo(workflow.updated_at)}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Actions */}
-                  <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                    <Link
-                      to={`/canvas?workflow=${workflow.id}`}
-                      className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
-                    >
-                      Open Workflow
-                      <ChevronRight className="w-4 h-4" />
-                    </Link>
-
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={() => {
-                          setEditWorkflow(workflow);
-                          (
-                            document.getElementById(
-                              "modalEditWorkflow"
-                            ) as HTMLDialogElement
-                          )?.showModal();
-                        }}
-                        className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                        title="Edit workflow"
-                      >
-                        <Pencil className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleDelete(workflow)}
-                        className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                        title="Delete workflow"
-                      >
-                        <Trash className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Pagination - Sayfanın altında */}
