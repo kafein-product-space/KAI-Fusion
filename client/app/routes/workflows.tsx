@@ -257,7 +257,8 @@ function WorkflowsLayout() {
           <div className="max-w-7xl mx-auto">
             {/* Header Section */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+              <div className="flex flex-col gap-6">
+                {/* Title and Description */}
                 <div className="flex flex-col gap-2">
                   <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
                     Workflows
@@ -268,54 +269,54 @@ function WorkflowsLayout() {
                   </p>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="flex items-center gap-4">
-                  {/* Status Filter */}
-                  <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
-                    <button
-                      onClick={() => setStatusFilter("all")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "all"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      All
-                    </button>
-                    <button
-                      onClick={() => setStatusFilter("active")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "active"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-green-500 rounded-full"></div>
-                        Active
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setStatusFilter("inactive")}
-                      className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "inactive"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                        Inactive
-                      </div>
-                    </button>
-                  </div>
+                {/* Status Filter Row */}
+                <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
+                  <button
+                    onClick={() => setStatusFilter("all")}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                      statusFilter === "all"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    All
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter("active")}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                      statusFilter === "active"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                      Active
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setStatusFilter("inactive")}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                      statusFilter === "inactive"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                      Inactive
+                    </div>
+                  </button>
+                </div>
 
+                {/* Search and Create Row */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
                   {/* Search Bar */}
-                  <div className="relative">
+                  <div className="relative flex-1 sm:flex-none">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                      className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
                       placeholder="Search workflows..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
@@ -325,7 +326,7 @@ function WorkflowsLayout() {
                   {/* Create Workflow Button */}
                   <Link
                     to="/canvas"
-                    className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
                   >
                     <Plus className="w-5 h-5" />
                     Create Workflow

@@ -171,15 +171,15 @@ function CredentialsLayout() {
 
   const getCategoryIcon = (category: string) => {
     const icons: Record<string, React.ReactNode> = {
-      ai: <Zap className="w-5 h-5" />,
-      database: <Database className="w-5 h-5" />,
-      api: <Globe className="w-5 h-5" />,
-      storage: <Cloud className="w-5 h-5" />,
-      cache: <Database className="w-5 h-5" />,
-      triggers: <Settings className="w-5 h-5" />,
-      other: <Shield className="w-5 h-5" />,
+      ai: <Zap className="w-4 h-4" />,
+      database: <Database className="w-4 h-4" />,
+      api: <Globe className="w-4 h-4" />,
+      storage: <Cloud className="w-4 h-4" />,
+      cache: <Database className="w-4 h-4" />,
+      triggers: <Settings className="w-4 h-4" />,
+      other: <Shield className="w-4 h-4" />,
     };
-    return icons[category] || <Shield className="w-5 h-5" />;
+    return icons[category] || <Shield className="w-4 h-4" />;
   };
 
   return (
@@ -188,64 +188,76 @@ function CredentialsLayout() {
 
       <main className="flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto p-6">
-          <div className="max-w-5xl mx-auto">
+          <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-6 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-              <div>
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                  Credentials
-                </h1>
-                <p className="text-gray-600 text-sm">
-                  Connect and manage your service integrations securely
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="relative">
-                  <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-3.5 w-3.5 text-gray-400" />
-                  <input
-                    type="search"
-                    className="pl-8 pr-3 py-1.5 w-56 border border-gray-300 rounded-lg text-sm"
-                    placeholder="Search credentials..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                  />
+            <div className="mb-8">
+              <div className="flex flex-col gap-6">
+                {/* Title and Description */}
+                <div className="flex flex-col gap-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Credentials
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Connect and manage your service integrations securely
+                  </p>
                 </div>
-                <button
-                  className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 text-sm"
-                  onClick={() => setShowServiceSelection(true)}
-                >
-                  <Plus className="w-4 h-4" />
-                  Connect Service
-                </button>
+
+                {/* Search and Connect Row */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Search Bar */}
+                  <div className="relative flex-1 sm:flex-none">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="search"
+                      className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                      placeholder="Search credentials..."
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                  </div>
+
+                  {/* Connect Service Button */}
+                  <button
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
+                    onClick={() => setShowServiceSelection(true)}
+                  >
+                    <Plus className="w-5 h-5" />
+                    Connect Service
+                  </button>
+                </div>
               </div>
             </div>
 
-            {/* Category Filter */}
-            <div className="mb-4">
-              <div className="flex items-center gap-2 overflow-x-auto pb-1">
+            {/* Category Filter Row */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
                 <button
                   onClick={() => setSelectedCategory("all")}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-md whitespace-nowrap transition-all duration-200 text-sm ${
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                     selectedCategory === "all"
-                      ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                      : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
                   }`}
                 >
-                  <Shield className="w-3.5 h-3.5" />
-                  All Services
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    All Services
+                  </div>
                 </button>
                 {categories.map((category) => (
                   <button
                     key={category}
                     onClick={() => setSelectedCategory(category)}
-                    className={`flex items-center gap-2 px-3 py-1.5 rounded-md whitespace-nowrap transition-all duration-200 text-sm ${
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                       selectedCategory === category
-                        ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white shadow-lg"
-                        : "bg-white text-gray-700 border border-gray-300 hover:bg-gray-50"
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
                     }`}
                   >
-                    {getCategoryIcon(category)}
-                    {getCategoryLabel(category)}
+                    <div className="flex items-center gap-2">
+                      {getCategoryIcon(category)}
+                      {getCategoryLabel(category)}
+                    </div>
                   </button>
                 ))}
               </div>
