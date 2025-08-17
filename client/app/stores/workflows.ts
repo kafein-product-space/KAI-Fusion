@@ -31,6 +31,7 @@ interface WorkflowState {
   deleteWorkflow: (id: string) => Promise<void>;
   duplicateWorkflow: (id: string, new_name?: string) => Promise<Workflow>;
   updateWorkflowVisibility: (id: string, is_public: boolean) => Promise<void>;
+  updateWorkflowStatus: (id: string, is_active: boolean) => Promise<void>;
   fetchTemplates: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   createTemplate: (data: WorkflowTemplateCreate) => Promise<WorkflowTemplateResponse>;
@@ -55,7 +56,12 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const workflows = await WorkflowService.getWorkflows();
-      set({ workflows, isLoading: false });
+      // Add default is_active status for workflows
+      const workflowsWithStatus = workflows.map(workflow => ({
+        ...workflow,
+        is_active: workflow.is_active ?? Math.random() > 0.5 // Random active/inactive for demo
+      }));
+      set({ workflows: workflowsWithStatus, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
@@ -129,6 +135,27 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     try {
       await WorkflowService.updateWorkflowVisibility(id, is_public);
       set({ isLoading: false });
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
+  updateWorkflowStatus: async (id: string, is_active: boolean) => {
+    set({ isLoading: true });
+    try {
+      // Update local state immediately for better UX
+      set((state) => ({
+        workflows: state.workflows.map((w) => 
+          w.id === id ? { ...w, is_active } : w
+        ),
+        currentWorkflow: state.currentWorkflow?.id === id 
+          ? { ...state.currentWorkflow, is_active } 
+          : state.currentWorkflow,
+        isLoading: false,
+      }));
+      
+      // TODO: Implement backend API call when ready
+      // await WorkflowService.updateWorkflowStatus(id, is_active);
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
       throw error;

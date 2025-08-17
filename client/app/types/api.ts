@@ -61,6 +61,7 @@ export interface Workflow {
   created_at: string;
   updated_at: string;
   is_public: boolean;
+  is_active?: boolean;
   version?: number;
 }
 

@@ -107,9 +107,7 @@ function WorkflowsLayout() {
   } = useWorkflows();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<
-    "all" | "active" | "inactive"
-  >("all");
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(
@@ -124,7 +122,7 @@ function WorkflowsLayout() {
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startIdx = (page - 1) * itemsPerPage;
   const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
-  const pagedWorkflows = workflows.slice(startIdx, itemsPerPage); // Use workflows from the store for paged data
+  const pagedWorkflows = workflows.slice(startIdx, endIdx); // Use workflows from the store for paged data
 
   useEffect(() => {
     // Sayfa değişince, eğer mevcut sayfa yeni toplam sayfa sayısından büyükse, son sayfaya çek
@@ -135,18 +133,20 @@ function WorkflowsLayout() {
     fetchWorkflows();
   }, [fetchWorkflows]);
 
-  const filteredWorkflows = workflows.filter((workflow) => {
-    const matchesSearch =
-      workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      workflow.description?.toLowerCase().includes(searchQuery.toLowerCase());
-
-    const matchesStatus =
-      statusFilter === "all" ||
-      (statusFilter === "active" && workflow.is_active) ||
-      (statusFilter === "inactive" && !workflow.is_active);
-
-    return matchesSearch && matchesStatus;
-  });
+  const filteredWorkflows = workflows.filter(
+    (workflow) => {
+      const matchesSearch = 
+        workflow.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        workflow.description?.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = 
+        statusFilter === 'all' ||
+        (statusFilter === 'active' && workflow.is_active) ||
+        (statusFilter === 'inactive' && !workflow.is_active);
+      
+      return matchesSearch && matchesStatus;
+    }
+  );
 
   const handleDelete = async (workflow: Workflow) => {
     setWorkflowToDelete(workflow);
@@ -185,15 +185,12 @@ function WorkflowsLayout() {
     fetchWorkflows();
   };
 
-  const handleToggleWorkflowStatus = async (
-    workflowId: string,
-    isActive: boolean
-  ) => {
+  const handleToggleWorkflowStatus = async (workflowId: string, isActive: boolean) => {
     try {
       await updateWorkflowStatus(workflowId, isActive);
-
+      
       enqueueSnackbar(
-        `Workflow ${isActive ? "activated" : "deactivated"} successfully!`,
+        `Workflow ${isActive ? 'activated' : 'deactivated'} successfully!`,
         {
           variant: "success",
           autoHideDuration: 2000,
@@ -273,21 +270,21 @@ function WorkflowsLayout() {
                   {/* Status Filter */}
                   <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1">
                     <button
-                      onClick={() => setStatusFilter("all")}
+                      onClick={() => setStatusFilter('all')}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "all"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                        statusFilter === 'all'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
                       All
                     </button>
                     <button
-                      onClick={() => setStatusFilter("active")}
+                      onClick={() => setStatusFilter('active')}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "active"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                        statusFilter === 'active'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-900 shadow-sm'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -296,18 +293,18 @@ function WorkflowsLayout() {
                       </div>
                     </button>
                     <button
-                      onClick={() => setStatusFilter("inactive")}
+                      onClick={() => setStatusFilter('inactive')}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
-                        statusFilter === "inactive"
-                          ? "bg-white text-gray-900 shadow-sm"
-                          : "text-gray-600 hover:text-gray-900"
+                        statusFilter === 'inactive'
+                          ? 'bg-white text-gray-900 shadow-sm'
+                          : 'text-gray-600 hover:text-gray-900'
                       }`}
                     >
                       <div className="flex items-center gap-2">
                         <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
                         Inactive
-                      </div>
-                    </button>
+                      </button>
+                    </div>
                   </div>
 
                   {/* Search Bar */}
@@ -321,6 +318,8 @@ function WorkflowsLayout() {
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
                   </div>
+
+                  {/* Refresh Button */}
 
                   {/* Create Workflow Button */}
                   <Link
@@ -344,35 +343,27 @@ function WorkflowsLayout() {
               <div className="flex items-center justify-center py-12">
                 <Loading size="sm" />
               </div>
-            ) : filteredWorkflows.length === 0 ? (
+            ) : workflows.length === 0 ? (
               <EmptyState />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredWorkflows.slice(startIdx, endIdx).map((workflow) => (
+                {pagedWorkflows.map((workflow) => (
                   <div
                     key={workflow.id}
                     className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden"
                   >
                     {/* Status Indicator Bar */}
-                    <div
-                      className={`absolute top-0 left-0 right-0 h-1 ${
-                        workflow.is_active
-                          ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                          : "bg-gradient-to-r from-gray-400 to-gray-500"
-                      }`}
-                    />
+                    <div className={`absolute top-0 left-0 right-0 h-1 ${
+                      workflow.is_active ? 'bg-gradient-to-r from-green-500 to-emerald-500' : 'bg-gradient-to-r from-gray-400 to-gray-500'
+                    }`} />
 
                     {/* Header */}
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-2">
-                          <div
-                            className={`w-2 h-2 rounded-full ${
-                              workflow.is_active
-                                ? "bg-green-500 animate-pulse"
-                                : "bg-gray-400"
-                            }`}
-                          />
+                          <div className={`w-2 h-2 rounded-full ${
+                            workflow.is_active ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                          }`} />
                           <Link
                             to={`/canvas?workflow=${workflow.id}`}
                             className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
@@ -438,9 +429,7 @@ function WorkflowsLayout() {
                       {/* Active/Inactive Toggle */}
                       <CompactToggleSwitch
                         isActive={workflow.is_active || false}
-                        onToggle={(isActive) =>
-                          handleToggleWorkflowStatus(workflow.id, isActive)
-                        }
+                        onToggle={(isActive) => handleToggleWorkflowStatus(workflow.id, isActive)}
                       />
                     </div>
 
@@ -496,160 +485,162 @@ function WorkflowsLayout() {
                 ))}
               </div>
             )}
+          </div>
+        </div>
 
-            {/* Pagination */}
-            {!error && !isLoading && filteredWorkflows.length > 0 && (
-              <div className="mt-8">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white rounded-2xl">
-                  <div></div>
-                  <div className="flex items-center gap-2 justify-center">
+        {/* Pagination - Sayfanın altında */}
+        {!error && !isLoading && workflows.length > 0 && (
+          <div className="mt-8">
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white  rounded-2xl ">
+              {/* Sayfa numaraları */}
+              <div></div>
+              <div className="flex items-center gap-2 justify-center">
+                <button
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(page - 1)}
+                  disabled={page === 1}
+                >
+                  <ChevronLeft className="w-5 h-5" />
+                </button>
+
+                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                  (p) => (
                     <button
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
+                      key={p}
+                      onClick={() => setPage(p)}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                        p === page
+                          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                      }`}
                     >
-                      <ChevronLeft className="w-5 h-5" />
+                      {p}
                     </button>
+                  )
+                )}
 
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (p) => (
-                        <button
-                          key={p}
-                          onClick={() => setPage(p)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                            p === page
-                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
-                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      )
-                    )}
+                <button
+                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => setPage(page + 1)}
+                  disabled={page === totalPages}
+                >
+                  <ChevronRight className="w-5 h-5" />
+                </button>
+              </div>
 
-                    <button
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
+              {/* Items X to Y of Z */}
+              <div className="text-sm text-gray-600 text-right">
+                Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
+                {totalItems}
+              </div>
+            </div>
 
-                  <div className="text-sm text-gray-600 text-right">
-                    Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
-                    {totalItems}
-                  </div>
-                </div>
-
-                {/* Search Results Info */}
-                {searchQuery && (
-                  <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
-                    Showing {filteredWorkflows.length} of {workflows.length}{" "}
-                    workflows
-                    {filteredWorkflows.length === 0 && (
-                      <span className="ml-2 text-gray-500">
-                        - No workflows match "{searchQuery}"
-                      </span>
-                    )}
-                  </div>
+            {/* Search Results Info */}
+            {searchQuery && (
+              <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
+                Showing {filteredWorkflows.length} of {workflows.length}{" "}
+                workflows
+                {filteredWorkflows.length === 0 && (
+                  <span className="ml-2 text-gray-500">
+                    - No workflows match "{searchQuery}"
+                  </span>
                 )}
               </div>
             )}
-
-            {/* Edit Modal */}
-            <dialog id="modalEditWorkflow" className="modal">
-              <div className="modal-box">
-                <Formik
-                  enableReinitialize
-                  initialValues={{
-                    name: editWorkflow?.name || "",
-                    description: editWorkflow?.description || "",
-                    is_public: editWorkflow?.is_public || false,
-                  }}
-                  validate={validateWorkflow}
-                  onSubmit={handleWorkflowEditSubmit}
-                >
-                  {({ isSubmitting }) => (
-                    <Form className="flex flex-col gap-4 space-y-4">
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="name" className="font-light">
-                          Workflow Name
-                        </label>
-                        <Field
-                          name="name"
-                          type="text"
-                          placeholder="Enter workflow name"
-                          className="input w-full h-12 rounded-2xl border-gray-300 bg-white hover:border-gray-400"
-                        />
-                        <ErrorMessage
-                          name="name"
-                          component="p"
-                          className="text-red-500 text-sm"
-                        />
-                      </div>
-
-                      <div className="flex flex-col gap-2">
-                        <label htmlFor="description" className="font-light">
-                          Description
-                        </label>
-                        <Field
-                          name="description"
-                          type="text"
-                          placeholder="Enter description"
-                          className="input w-full h-12 rounded-2xl border-gray-300 bg-white hover:border-gray-400"
-                        />
-                        <ErrorMessage
-                          name="description"
-                          component="p"
-                          className="text-red-500 text-sm"
-                        />
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        <label htmlFor="is_public" className="font-light">
-                          Is Public
-                        </label>
-                        <Field
-                          name="is_public"
-                          type="checkbox"
-                          className="checkbox"
-                        />
-                      </div>
-
-                      <div className="modal-action">
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => {
-                            (
-                              document.getElementById(
-                                "modalEditWorkflow"
-                              ) as HTMLDialogElement
-                            )?.close();
-                            setEditWorkflow(null);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </Form>
-                  )}
-                </Formik>
-              </div>
-            </dialog>
           </div>
-        </div>
+        )}
+
+        {/* Edit Modal */}
+        <dialog id="modalEditWorkflow" className="modal">
+          <div className="modal-box">
+            <Formik
+              enableReinitialize
+              initialValues={{
+                name: editWorkflow?.name || "",
+                description: editWorkflow?.description || "",
+                is_public: editWorkflow?.is_public || false,
+              }}
+              validate={validateWorkflow}
+              onSubmit={handleWorkflowEditSubmit}
+            >
+              {({ isSubmitting }) => (
+                <Form className="flex flex-col gap-4 space-y-4">
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="name" className="font-light">
+                      Workflow Name
+                    </label>
+                    <Field
+                      name="name"
+                      type="text"
+                      placeholder="Enter workflow name"
+                      className="input w-full h-12 rounded-2xl border-gray-300 bg-white hover:border-gray-400"
+                    />
+                    <ErrorMessage
+                      name="name"
+                      component="p"
+                      className="text-red-500 text-sm"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-2">
+                    <label htmlFor="description" className="font-light">
+                      Description
+                    </label>
+                    <Field
+                      name="description"
+                      type="text"
+                      placeholder="Enter description"
+                      className="input w-full h-12 rounded-2xl border-gray-300 bg-white hover:border-gray-400"
+                    />
+                    <ErrorMessage
+                      name="description"
+                      component="p"
+                      className="text-red-500 text-sm"
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <label htmlFor="is_public" className="font-light">
+                      Is Public
+                    </label>
+                    <Field
+                      name="is_public"
+                      type="checkbox"
+                      className="checkbox"
+                    />
+                  </div>
+
+                  <div className="modal-action">
+                    <button
+                      type="button"
+                      className="btn"
+                      onClick={() => {
+                        (
+                          document.getElementById(
+                            "modalEditWorkflow"
+                          ) as HTMLDialogElement
+                        )?.close();
+                        setEditWorkflow(null);
+                      }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={isSubmitting}
+                    >
+                      {isSubmitting ? "Saving..." : "Save"}
+                    </button>
+                  </div>
+                </Form>
+              )}
+            </Formik>
+          </div>
+        </dialog>
       </main>
 
-      {/* Delete Confirm Modal */}
+      {/* İlk Delete Confirm Modal */}
       <dialog
         open={showDeleteConfirm}
         className="modal modal-bottom sm:modal-middle"
