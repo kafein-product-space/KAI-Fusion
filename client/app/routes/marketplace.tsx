@@ -5,12 +5,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Search,
-  Mail,
-  PenSquare,
-  BarChart3,
-  LifeBuoy,
-  MessageSquare,
 } from "lucide-react";
+import { prebuiltTemplates } from "~/data/prebuiltTemplates";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
@@ -74,132 +70,6 @@ function MarketplaceLayout() {
   };
 
   // Pre-built Templates
-  const prebuiltTemplates = [
-    {
-      id: "chat_with_ai",
-      name: "Chat with AI",
-      description: "Chat with AI using OpenAI Chat node",
-      colorFrom: "from-purple-500",
-      colorTo: "to-pink-600",
-      icon: <MessageSquare className="w-5 h-5 text-white" />,
-      buildFlow: () => {
-        const nodes = [
-          {
-            id: "StartNode-1",
-            type: "StartNode",
-            position: { x: 100, y: 100 },
-            data: { name: "Start" },
-          },
-          {
-            id: "HttpRequest-2",
-            type: "HttpRequest",
-            position: { x: 350, y: 100 },
-            data: {
-              name: "Send Email",
-              method: "POST",
-              url: "https://api.your-email-provider.com/send",
-              headers: '{\n  "Authorization": "Bearer <API_KEY>"\n}',
-              body: '{\n  "to": "user@example.com",\n  "subject": "Hello",\n  "text": "Hi from KAI-Fusion!"\n}',
-            },
-          },
-          {
-            id: "EndNode-3",
-            type: "EndNode",
-            position: { x: 600, y: 100 },
-            data: { name: "End" },
-          },
-        ];
-        const edges = [
-          {
-            id: "e1-2",
-            source: "StartNode-1",
-            target: "HttpRequest-2",
-            type: "custom",
-          },
-          {
-            id: "e2-3",
-            source: "HttpRequest-2",
-            target: "EndNode-3",
-            type: "custom",
-          },
-        ];
-        return { nodes, edges };
-      },
-    },
-    {
-      id: "content_generation",
-      name: "Content Generation Pipeline",
-      description:
-        "Generate content using OpenAI Chat node with a simple start/end flow.",
-      colorFrom: "from-purple-500",
-      colorTo: "to-pink-600",
-      icon: <PenSquare className="w-5 h-5 text-white" />,
-      buildFlow: () => {
-        const nodes = [
-          {
-            id: "StartNode-1",
-            type: "StartNode",
-            position: { x: 100, y: 200 },
-            data: { name: "Start" },
-          },
-          {
-            id: "OpenAIChat-2",
-            type: "OpenAIChat",
-            position: { x: 350, y: 200 },
-            data: {
-              name: "OpenAI Chat",
-              systemPrompt: "You are a helpful content generator.",
-            },
-          },
-          {
-            id: "EndNode-3",
-            type: "EndNode",
-            position: { x: 600, y: 200 },
-            data: { name: "End" },
-          },
-        ];
-        const edges = [
-          {
-            id: "e1-2",
-            source: "StartNode-1",
-            target: "OpenAIChat-2",
-            type: "custom",
-          },
-          {
-            id: "e2-3",
-            source: "OpenAIChat-2",
-            target: "EndNode-3",
-            type: "custom",
-          },
-        ];
-        return { nodes, edges };
-      },
-    },
-    {
-      id: "data_analysis",
-      name: "Data Analysis Flow",
-      description:
-        "Load, split, embed and retrieve data for Q&A style analysis.",
-      colorFrom: "from-emerald-500",
-      colorTo: "to-teal-600",
-      icon: <BarChart3 className="w-5 h-5 text-white" />,
-      buildFlow: () => {
-        /* ... senin mevcut kodun ... */
-      },
-    },
-    {
-      id: "customer_support",
-      name: "Customer Support Automation",
-      description:
-        "Webhook-triggered support assistant with retrieval-augmented answers.",
-      colorFrom: "from-amber-500",
-      colorTo: "to-orange-600",
-      icon: <LifeBuoy className="w-5 h-5 text-white" />,
-      buildFlow: () => {
-        /* ... senin mevcut kodun ... */
-      },
-    },
-  ] as const;
 
   const handleUseTemplate = async (tplId: string) => {
     const tpl = prebuiltTemplates.find((t) => t.id === tplId);
