@@ -205,6 +205,44 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
 
+  // Enhanced error handling state
+  const [detailedExecutionError, setDetailedExecutionError] = useState<{
+    message: string;
+    type: string;
+    nodeId?: string;
+    nodeType?: string;
+    timestamp: string;
+    stackTrace?: string;
+  } | null>(null);
+  const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
+
+  // Error handling functions
+  const handleErrorDismiss = useCallback(() => {
+    setDetailedExecutionError(null);
+    setErrorNodeId(null);
+
+    // Reset all failed statuses
+    setNodeStatus((s) => {
+      const newStatus = { ...s };
+      Object.keys(newStatus).forEach((key) => {
+        if (newStatus[key] === "failed") {
+          delete newStatus[key];
+        }
+      });
+      return newStatus;
+    });
+
+    setEdgeStatus((s) => {
+      const newStatus = { ...s };
+      Object.keys(newStatus).forEach((key) => {
+        if (newStatus[key] === "failed") {
+          delete newStatus[key];
+        }
+      });
+      return newStatus;
+    });
+  }, []);
+
   useEffect(() => {
     console.log("wokflowId", workflowId);
     if (workflowId) {
@@ -612,16 +650,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   }
                 } else if (t === "error") {
                   // Mark current active items as failed
+                  const failedNodeId = activeNodes[0];
+                  setErrorNodeId(failedNodeId);
+
                   setNodeStatus((s) =>
-                    activeNodes.length > 0
-                      ? { ...s, [activeNodes[0]]: "failed" }
-                      : s
+                    failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
                   );
                   setEdgeStatus((s) =>
                     activeEdges.length > 0
                       ? { ...s, [activeEdges[0]]: "failed" }
                       : s
                   );
+
+                  // Create detailed error for display
+                  const errorDetails = {
+                    message: evt.error || "Node execution failed",
+                    type: evt.error_type || "execution",
+                    nodeId: evt.node_id || failedNodeId,
+                    nodeType: evt.node_id
+                      ? nodes.find((n) => n.id === evt.node_id)?.type
+                      : failedNodeId
+                      ? nodes.find((n) => n.id === failedNodeId)?.type
+                      : undefined,
+                    timestamp: evt.timestamp || new Date().toLocaleTimeString(),
+                    stackTrace:
+                      evt.stack_trace || evt.details || evt.stack_trace,
+                  };
+
+                  setDetailedExecutionError(errorDetails);
                 } else if (t === "complete") {
                   setTimeout(() => {
                     setActiveEdges([]);
@@ -665,13 +721,31 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         clearExecutionError();
       } catch (error: any) {
         console.error("Error executing workflow:", error);
+
+        const failedNodeId = activeNodes[0];
+        setErrorNodeId(failedNodeId);
+
+        // Create detailed error for display
+        const errorDetails = {
+          message: error.message || "Workflow execution failed",
+          type: "execution",
+          nodeId: failedNodeId,
+          nodeType: failedNodeId
+            ? nodes.find((n) => n.id === failedNodeId)?.type
+            : undefined,
+          timestamp: new Date().toLocaleTimeString(),
+          stackTrace: error.stack,
+        };
+
+        setDetailedExecutionError(errorDetails);
+
         enqueueSnackbar(`Error executing workflow: ${error.message}`, {
           variant: "error",
         });
 
         // Mark last active node/edge as failed if possible
         setNodeStatus((s) =>
-          activeNodes.length > 0 ? { ...s, [activeNodes[0]]: "failed" } : s
+          failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
         );
         setEdgeStatus((s) =>
           activeEdges.length > 0 ? { ...s, [activeEdges[0]]: "failed" } : s
@@ -691,15 +765,53 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     ]
   );
 
+  // Error handling functions
+  const handleErrorRetry = useCallback(() => {
+    if (errorNodeId && currentWorkflow) {
+      // Clear error state
+      setDetailedExecutionError(null);
+      setErrorNodeId(null);
+
+      // Reset node status
+      setNodeStatus((s) => {
+        const newStatus = { ...s };
+        delete newStatus[errorNodeId];
+        return newStatus;
+      });
+
+      // Retry execution from the failed node
+      handleStartNodeExecution(errorNodeId);
+    }
+  }, [errorNodeId, currentWorkflow, handleStartNodeExecution]);
+
   // Monitor execution errors and show them
   useEffect(() => {
     if (executionError) {
+      // Create detailed error object
+      const errorDetails = {
+        message: executionError,
+        type: "execution",
+        timestamp: new Date().toLocaleTimeString(),
+        nodeId: errorNodeId || undefined,
+        nodeType: errorNodeId
+          ? nodes.find((n) => n.id === errorNodeId)?.type
+          : undefined,
+      };
+
+      setDetailedExecutionError(errorDetails);
+
       enqueueSnackbar(`Execution error: ${executionError}`, {
         variant: "error",
       });
       clearExecutionError();
     }
-  }, [executionError, enqueueSnackbar, clearExecutionError]);
+  }, [
+    executionError,
+    enqueueSnackbar,
+    clearExecutionError,
+    errorNodeId,
+    nodes,
+  ]);
 
   // Monitor execution loading state
   useEffect(() => {
@@ -906,7 +1018,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         {/* Canvas alanı */}
         <div className="flex-1">
           {/* Error Display */}
-          <ErrorDisplayComponent error={error} />
+          <ErrorDisplayComponent
+            error={detailedExecutionError || error}
+            onRetry={detailedExecutionError ? handleErrorRetry : undefined}
+            onDismiss={detailedExecutionError ? handleErrorDismiss : undefined}
+          />
 
           {/* ReactFlow Canvas */}
           <ReactFlowCanvas

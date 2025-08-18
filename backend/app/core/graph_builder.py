@@ -1,4 +1,6 @@
 from __future__ import annotations
+import datetime
+import traceback
 
 """
 KAI-Fusion Graph Builder - Enterprise Workflow Orchestration & Execution Engine
@@ -1081,15 +1083,36 @@ class GraphBuilder:
                     return result
                 
             except Exception as e:
+                # Enhanced error handling with detailed information
+                error_type = type(e).__name__
                 error_msg = f"Node {node_id} execution failed: {str(e)}"
+                
+                # Create detailed error information
+                error_details = {
+                    "node_id": node_id,
+                    "node_type": gnode.type,
+                    "error_type": error_type,
+                    "error_message": str(e),
+                    "timestamp": str(datetime.datetime.now()),
+                    "stack_trace": traceback.format_exc() if hasattr(traceback, 'format_exc') else str(e),
+                    "node_config": getattr(gnode, 'user_data', {}),
+                    "input_connections": getattr(gnode.node_instance, '_input_connections', {}),
+                    "output_connections": getattr(gnode.node_instance, '_output_connections', {})
+                }
+                
                 print(f"[ERROR] {error_msg}")
+                print(f"[ERROR] Error Type: {error_type}")
+                print(f"[ERROR] Node Config: {error_details['node_config']}")
+                print(f"[ERROR] Input Connections: {error_details['input_connections']}")
+                
                 logger.error(f"❌ Node {node_id} ({gnode.type}) execution failed: {str(e)}")
-                logger.debug(f"🔍 Error details: {type(e).__name__}: {str(e)}")
+                logger.debug(f"🔍 Error details: {error_type}: {str(e)}")
+                logger.debug(f"🔍 Node config: {error_details['node_config']}")
                 
                 # End node tracing with error
                 try:
                     tracer = get_workflow_tracer(session_id=state.session_id, user_id=state.user_id)
-                    tracer.end_node_execution(node_id, gnode.type, {"error": error_msg})
+                    tracer.end_node_execution(node_id, gnode.type, {"error": error_msg, "details": error_details})
                 except Exception as trace_error:
                     print(f"[WARNING] Tracing failed: {trace_error}")
                 
@@ -1101,6 +1124,11 @@ class GraphBuilder:
                         state.errors = []
                     state.errors.append(error_msg)
                 
+                # Store detailed error information in state for frontend access
+                if not hasattr(state, 'error_details'):
+                    state.error_details = {}
+                state.error_details[node_id] = error_details
+                
                 # Set error state to stop execution
                 state.last_output = f"ERROR in {node_id}: {str(e)}"
                 
@@ -1109,7 +1137,8 @@ class GraphBuilder:
                 
                 return {
                     "errors": getattr(state, 'errors', [error_msg]),
-                    "last_output": f"ERROR in {node_id}: {str(e)}"
+                    "last_output": f"ERROR in {node_id}: {str(e)}",
+                    "error_details": error_details
                 }
 
         wrapper.__name__ = f"node_{node_id}"
@@ -1890,9 +1919,25 @@ class GraphBuilder:
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
-                    error_msg = str(ev.get("data", {}).get("error", "Unknown error"))
+                    error_data = ev.get("data", {})
+                    error_msg = str(error_data.get("error", "Unknown error"))
+                    node_name = ev.get("name", "unknown")
+                    
+                    # Extract detailed error information
+                    error_details = {
+                        "error": error_msg,
+                        "node_id": node_name,
+                        "error_type": "chain_error",
+                        "timestamp": str(datetime.datetime.now()),
+                        "stack_trace": str(error_data.get("stack_trace", "")),
+                        "details": error_data.get("details", {})
+                    }
+                    
                     print(f"[ERROR] Chain error during streaming: {error_msg}")
-                    yield {"type": "error", "error": error_msg}
+                    print(f"[ERROR] Node: {node_name}")
+                    print(f"[ERROR] Details: {error_details}")
+                    
+                    yield {"type": "error", **error_details}
             
             logger.info(f"✅ Streaming completed: {event_count} events processed")
             
@@ -1979,4 +2024,15 @@ class GraphBuilder:
             print(f"[ERROR] Streaming execution failed: {e}")
             import traceback
             print(f"[ERROR] Traceback: {traceback.format_exc()}")
-            yield {"type": "error", "error": str(e), "error_type": type(e).__name__}
+            
+            # Create detailed error information
+            error_details = {
+                "error": str(e),
+                "error_type": type(e).__name__,
+                "timestamp": str(datetime.datetime.now()),
+                "stack_trace": traceback.format_exc(),
+                "session_id": init_state.session_id,
+                "workflow_id": getattr(init_state, 'workflow_id', 'unknown')
+            }
+            
+            yield {"type": "error", **error_details}

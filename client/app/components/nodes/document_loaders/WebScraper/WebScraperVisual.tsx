@@ -240,11 +240,6 @@ export default function WebScraperVisual({
         glow={isHandleConnected("documents", true)}
       />
 
-      {/* Right side labels for outputs */}
-      <div className="absolute -right-22 text-xs text-gray-500 font-medium">
-        Documents
-      </div>
-
       {/* URL count badge */}
       {data?.urls && (
         <div className="absolute top-1 left-1 z-10">
