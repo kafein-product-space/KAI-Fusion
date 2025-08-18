@@ -908,6 +908,16 @@ class HttpClientNode(ProcessorNode):
                     type="dict",
                     description="Request performance statistics",
                 ),
+                NodeOutput(
+                    name="documents",
+                    type="list",
+                    description="Response content as Document objects for ChunkSplitter",
+                ),
+                NodeOutput(
+                    name="document",
+                    type="any",
+                    description="Single Document object for backward compatibility",
+                ),
             ],
         }
         
@@ -1108,11 +1118,32 @@ class HttpClientNode(ProcessorNode):
         
         try:
             # Build configuration
+            # Handle headers and url_params - they might already be dicts
+            headers_input = inputs.get("headers", "{}")
+            url_params_input = inputs.get("url_params", "{}")
+            
+            # Convert to dict if they're strings, otherwise use as-is
+            if isinstance(headers_input, str):
+                try:
+                    headers = json.loads(headers_input) if headers_input.strip() else {}
+                except json.JSONDecodeError:
+                    headers = {}
+            else:
+                headers = headers_input if isinstance(headers_input, dict) else {}
+                
+            if isinstance(url_params_input, str):
+                try:
+                    url_params = json.loads(url_params_input) if url_params_input.strip() else {}
+                except json.JSONDecodeError:
+                    url_params = {}
+            else:
+                url_params = url_params_input if isinstance(url_params_input, dict) else {}
+            
             config = HttpRequestConfig(
                 method=inputs.get("method", "GET").upper(),
                 url=inputs.get("url", ""),
-                headers=json.loads(inputs.get("headers", "{}")),
-                params=json.loads(inputs.get("url_params", "{}")),
+                headers=headers,
+                params=url_params,
                 body=inputs.get("body"),
                 content_type=inputs.get("content_type", "json"),
                 auth_type=inputs.get("auth_type", "none"),
@@ -1171,6 +1202,26 @@ class HttpClientNode(ProcessorNode):
                     
                     logger.info(f"✅ HTTP request completed: {response.status_code} in {response.duration_ms:.1f}ms")
                     
+                    # Convert response to Document format for ChunkSplitter compatibility
+                    from langchain_core.documents import Document
+                    
+                    # Create a document from the HTTP response
+                    http_document = Document(
+                        page_content=str(response.content),
+                        metadata={
+                            "source": "http_client",
+                            "url": config.url,
+                            "method": config.method,
+                            "status_code": response.status_code,
+                            "headers": response.headers,
+                            "timestamp": response.timestamp,
+                            "request_id": response.request_id,
+                            "duration_ms": response.duration_ms,
+                            "content_type": response.headers.get("content-type", "text/plain"),
+                            "original_response": response.dict()
+                        }
+                    )
+                    
                     return {
                         "response": response.dict(),
                         "status_code": response.status_code,
@@ -1178,6 +1229,8 @@ class HttpClientNode(ProcessorNode):
                         "headers": response.headers,
                         "success": success,
                         "request_stats": request_stats,
+                        "documents": [http_document],  # Add documents output for ChunkSplitter
+                        "document": http_document,     # Single document for backward compatibility
                     }
                     
                 except Exception as e:
@@ -1207,6 +1260,8 @@ class HttpClientNode(ProcessorNode):
                     "error": error_msg,
                     "timestamp": datetime.now(timezone.utc).isoformat(),
                 },
+                "documents": [],  # Empty documents list for error case
+                "document": None,  # No document for error case
             }
     
     def as_runnable(self) -> Runnable:

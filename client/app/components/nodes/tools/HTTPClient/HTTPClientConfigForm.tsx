@@ -26,6 +26,18 @@ import {
 import type { HTTPClientConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
 
+// Utility functions for formatting
+const formatDuration = (ms: number): string => {
+  if (ms < 1000) return `${ms}ms`;
+  return `${(ms / 1000).toFixed(2)}s`;
+};
+
+const formatSize = (bytes: number): string => {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+};
+
 interface HTTPClientConfigFormProps {
   configData: HTTPClientConfig;
   onSave: (values: Partial<HTTPClientConfig>) => void;
@@ -132,17 +144,6 @@ export default function HTTPClientConfigForm({
     { value: "application/x-www-form-urlencoded", label: "Form Data" },
     { value: "multipart/form-data", label: "Multipart" },
   ];
-
-  const formatDuration = (ms: number) => {
-    if (ms < 1000) return `${ms}ms`;
-    return `${(ms / 1000).toFixed(2)}s`;
-  };
-
-  const formatSize = (bytes: number) => {
-    if (bytes < 1024) return `${bytes}B`;
-    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
-  };
 
   return (
     <div className="relative w-96 h-auto min-h-96 rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm z-50">
@@ -350,12 +351,77 @@ export default function HTTPClientConfigForm({
                             Success - {testResponse.status_code}
                           </span>
                         </div>
-                        {testStats && (
-                          <div className="text-green-300 text-xs">
-                            Duration: {formatDuration(testStats.duration_ms)} |
-                            Size: {formatSize(testStats.response_size)}
+
+                        {/* Response Details */}
+                        <div className="space-y-2 text-xs">
+                          {/* Status and Timing */}
+                          <div className="flex items-center justify-between text-green-300">
+                            <span>Status: {testResponse.status_code}</span>
+                            {testStats && (
+                              <span>
+                                Duration:{" "}
+                                {formatDuration(testStats.duration_ms)}
+                              </span>
+                            )}
                           </div>
-                        )}
+
+                          {/* Response Size */}
+                          {testStats && (
+                            <div className="text-green-300">
+                              Size: {formatSize(testStats.response_size)}
+                            </div>
+                          )}
+
+                          {/* Response Headers */}
+                          {testResponse.headers &&
+                            Object.keys(testResponse.headers).length > 0 && (
+                              <div>
+                                <details className="text-green-300">
+                                  <summary className="cursor-pointer hover:text-green-200">
+                                    Headers (
+                                    {Object.keys(testResponse.headers).length})
+                                  </summary>
+                                  <div className="mt-2 p-2 bg-green-900/30 rounded border border-green-500/20">
+                                    {Object.entries(testResponse.headers).map(
+                                      ([key, value]) => (
+                                        <div
+                                          key={key}
+                                          className="flex justify-between py-1"
+                                        >
+                                          <span className="font-mono text-green-200">
+                                            {key}:
+                                          </span>
+                                          <span className="text-green-300 font-mono">
+                                            {String(value)}
+                                          </span>
+                                        </div>
+                                      )
+                                    )}
+                                  </div>
+                                </details>
+                              </div>
+                            )}
+
+                          {/* Response Content */}
+                          <div>
+                            <details className="text-green-300">
+                              <summary className="cursor-pointer hover:text-green-200">
+                                Response Content
+                              </summary>
+                              <div className="mt-2 p-2 bg-green-900/30 rounded border border-green-500/20 max-h-40 overflow-y-auto">
+                                <pre className="text-xs text-green-200 whitespace-pre-wrap break-words">
+                                  {typeof testResponse.content === "object"
+                                    ? JSON.stringify(
+                                        testResponse.content,
+                                        null,
+                                        2
+                                      )
+                                    : String(testResponse.content)}
+                                </pre>
+                              </div>
+                            </details>
+                          </div>
+                        </div>
                       </div>
                     )}
 
