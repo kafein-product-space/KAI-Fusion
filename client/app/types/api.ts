@@ -77,6 +77,7 @@ export interface WorkflowUpdateRequest {
   description?: string;
   flow_data?: WorkflowData;
   is_public?: boolean;
+  is_active?: boolean;
 }
 
 export interface WorkflowStats {

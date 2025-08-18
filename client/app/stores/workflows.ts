@@ -59,7 +59,7 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
       // Add default is_active status for workflows
       const workflowsWithStatus = workflows.map(workflow => ({
         ...workflow,
-        is_active: workflow.is_active ?? Math.random() > 0.5 // Random active/inactive for demo
+        is_active: workflow.is_active ?? true
       }));
       set({ workflows: workflowsWithStatus, isLoading: false });
     } catch (error: any) {

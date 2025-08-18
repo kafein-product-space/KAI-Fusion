@@ -11,6 +11,7 @@ import {
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
+import ToggleSwitch from "./ToggleSwitch";
 
 interface NavbarProps {
   workflowName: string;
@@ -26,6 +27,7 @@ interface NavbarProps {
   autoSaveStatus?: "idle" | "saving" | "saved" | "error";
   lastAutoSave?: Date | null;
   onAutoSaveSettings?: () => void;
+  updateWorkflowStatus?: (id: string, is_active: boolean) => Promise<void>;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -42,6 +44,7 @@ const Navbar: React.FC<NavbarProps> = ({
   autoSaveStatus,
   lastAutoSave,
   onAutoSaveSettings,
+  updateWorkflowStatus,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -167,7 +170,7 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
 
-          <div className="flex flex-col items-center justify-center">
+          <div className="flex flex-col items-center justify-center gap-3">
             <input
               type="text"
               value={workflowName}
@@ -179,6 +182,32 @@ const Navbar: React.FC<NavbarProps> = ({
             />
           </div>
           <div className="flex items-center space-x-4 gap-2 relative">
+            {/* Workflow Active Status Toggle */}
+            {currentWorkflow && updateWorkflowStatus && (
+              <div className="flex items-center gap-2">
+                <ToggleSwitch
+                  isActive={currentWorkflow.is_active ?? false}
+                  onToggle={async (isActive) => {
+                    try {
+                      await updateWorkflowStatus(currentWorkflow.id, isActive);
+                      enqueueSnackbar(
+                        `Workflow ${
+                          isActive ? "aktif" : "pasif"
+                        } hale getirildi`,
+                        { variant: "success" }
+                      );
+                    } catch (error) {
+                      enqueueSnackbar("Workflow durumu güncellenemedi", {
+                        variant: "error",
+                      });
+                    }
+                  }}
+                  size="sm"
+                  label="Workflow Durumu"
+                  description={currentWorkflow.is_active ? "Aktif" : "Pasif"}
+                />
+              </div>
+            )}
             {/* Auto-save indicator */}
             {autoSaveStatus && (
               <div className="flex items-center gap-2">

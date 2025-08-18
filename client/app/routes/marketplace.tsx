@@ -9,6 +9,7 @@ import {
   PenSquare,
   BarChart3,
   LifeBuoy,
+  MessageSquare,
 } from "lucide-react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
@@ -75,13 +76,12 @@ function MarketplaceLayout() {
   // Pre-built Templates
   const prebuiltTemplates = [
     {
-      id: "email_automation",
-      name: "Email Automation Workflow",
-      description:
-        "Trigger-driven email sending via HTTP client (integrate your provider).",
-      colorFrom: "from-blue-500",
-      colorTo: "to-indigo-600",
-      icon: <Mail className="w-5 h-5 text-white" />,
+      id: "chat_with_ai",
+      name: "Chat with AI",
+      description: "Chat with AI using OpenAI Chat node",
+      colorFrom: "from-purple-500",
+      colorTo: "to-pink-600",
+      icon: <MessageSquare className="w-5 h-5 text-white" />,
       buildFlow: () => {
         const nodes = [
           {

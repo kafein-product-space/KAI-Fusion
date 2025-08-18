@@ -128,8 +128,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
-  const [nodeStatus, setNodeStatus] = useState<Record<string, 'success' | 'failed' | 'pending'>>({});
-  const [edgeStatus, setEdgeStatus] = useState<Record<string, 'success' | 'failed' | 'pending'>>({});
+  const [nodeStatus, setNodeStatus] = useState<
+    Record<string, "success" | "failed" | "pending">
+  >({});
+  const [edgeStatus, setEdgeStatus] = useState<
+    Record<string, "success" | "failed" | "pending">
+  >({});
 
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -160,6 +164,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     createWorkflow,
     fetchWorkflow,
     deleteWorkflow,
+    updateWorkflowStatus,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -566,7 +571,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             const parts = buffer.split("\n\n");
             buffer = parts.pop() || "";
             for (const part of parts) {
-              const dataLine = part.split("\n").find((l) => l.startsWith("data:"));
+              const dataLine = part
+                .split("\n")
+                .find((l) => l.startsWith("data:"));
               if (!dataLine) continue;
               const jsonStr = dataLine.replace(/^data:\s*/, "").trim();
               if (!jsonStr) continue;
@@ -578,31 +585,43 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   if (nid) {
                     setActiveNodes([nid]);
                     setNodeStatus((s) => ({ ...s, [nid]: "pending" }));
-                    const incoming = (edges as Edge[]).filter((e) => e.target === nid);
+                    const incoming = (edges as Edge[]).filter(
+                      (e) => e.target === nid
+                    );
                     setActiveEdges(incoming.map((e) => e.id));
                     setEdgeStatus((s) => ({
                       ...s,
-                      ...Object.fromEntries(incoming.map((e) => [e.id, "pending" as const])),
+                      ...Object.fromEntries(
+                        incoming.map((e) => [e.id, "pending" as const])
+                      ),
                     }));
                   }
                 } else if (t === "node_end") {
                   const nid = String(evt.node_id || "");
                   if (nid) {
                     setNodeStatus((s) => ({ ...s, [nid]: "success" }));
-                    const incoming = (edges as Edge[]).filter((e) => e.target === nid);
+                    const incoming = (edges as Edge[]).filter(
+                      (e) => e.target === nid
+                    );
                     setEdgeStatus((s) => ({
                       ...s,
-                      ...Object.fromEntries(incoming.map((e) => [e.id, "success" as const])),
+                      ...Object.fromEntries(
+                        incoming.map((e) => [e.id, "success" as const])
+                      ),
                     }));
                   }
                 } else if (t === "error") {
                   // Mark current active items as failed
-                  setNodeStatus((s) => (
-                    activeNodes.length > 0 ? { ...s, [activeNodes[0]]: "failed" } : s
-                  ));
-                  setEdgeStatus((s) => (
-                    activeEdges.length > 0 ? { ...s, [activeEdges[0]]: "failed" } : s
-                  ));
+                  setNodeStatus((s) =>
+                    activeNodes.length > 0
+                      ? { ...s, [activeNodes[0]]: "failed" }
+                      : s
+                  );
+                  setEdgeStatus((s) =>
+                    activeEdges.length > 0
+                      ? { ...s, [activeEdges[0]]: "failed" }
+                      : s
+                  );
                 } else if (t === "complete") {
                   setTimeout(() => {
                     setActiveEdges([]);
@@ -627,7 +646,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             } catch (_) {
               // ignore stream read errors
             } finally {
-              try { reader.releaseLock(); } catch {}
+              try {
+                reader.releaseLock();
+              } catch {}
             }
           })();
         } catch (_) {
@@ -650,10 +671,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
         // Mark last active node/edge as failed if possible
         setNodeStatus((s) =>
-          activeNodes.length > 0 ? { ...s, [activeNodes[0]]: 'failed' } : s
+          activeNodes.length > 0 ? { ...s, [activeNodes[0]]: "failed" } : s
         );
         setEdgeStatus((s) =>
-          activeEdges.length > 0 ? { ...s, [activeEdges[0]]: 'failed' } : s
+          activeEdges.length > 0 ? { ...s, [activeEdges[0]]: "failed" } : s
         );
       }
     },
@@ -769,50 +790,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setPendingNavigation(null);
   }, []);
 
-  // Function to animate execution path
-  const animateExecutionPath = useCallback(
-    async (startNodeId: string) => {
-      const visited = new Set<string>();
-      const path: string[] = [];
-
-      const traverse = async (nodeId: string) => {
-        if (visited.has(nodeId)) return;
-        visited.add(nodeId);
-
-        // Add node to active nodes
-        setActiveNodes([nodeId]);
-        setNodeStatus((s) => ({ ...s, [nodeId]: 'pending' }));
-        path.push(nodeId);
-
-        // Wait a bit to show the node is active
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Find connected edges
-        const connectedEdges = edges.filter((edge) => edge.source === nodeId);
-
-        for (const edge of connectedEdges) {
-          // Animate edge
-          setActiveEdges([edge.id]);
-          setEdgeStatus((s) => ({ ...s, [edge.id]: 'pending' }));
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Traverse to target node
-          await traverse(edge.target);
-
-          // Edge succeeded if traversal returned without error
-          setEdgeStatus((s) => ({ ...s, [edge.id]: 'success' }));
-        }
-
-        // Mark node as success when done
-        setNodeStatus((s) => ({ ...s, [nodeId]: 'success' }));
-      };
-
-      await traverse(startNodeId);
-      return path;
-    },
-    [edges]
-  );
-
   // Function to check unsaved changes before navigation
   const checkUnsavedChanges = useCallback(
     (url: string) => {
@@ -914,6 +891,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         autoSaveStatus={autoSaveStatus}
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
+        updateWorkflowStatus={updateWorkflowStatus}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
