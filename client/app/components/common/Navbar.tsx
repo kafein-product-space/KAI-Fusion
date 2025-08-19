@@ -7,11 +7,13 @@ import {
   Trash,
   Loader,
   Clock,
+  Container,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
+import WorkflowExportModal from "../modals/WorkflowExportModal";
 
 interface NavbarProps {
   workflowName: string;
@@ -49,6 +51,8 @@ const Navbar: React.FC<NavbarProps> = ({
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
@@ -158,6 +162,18 @@ const Navbar: React.FC<NavbarProps> = ({
     }
     deleteDialogRef.current?.close();
   };
+
+  // Docker export handler
+  const handleDockerExport = () => {
+    if (!currentWorkflow) {
+      enqueueSnackbar("Export edilecek workflow yok!", { variant: "warning" });
+      return;
+    }
+    setShowExportModal(true);
+    setIsDropdownOpen(false);
+  };
+
+
 
   return (
     <>
@@ -291,7 +307,15 @@ const Navbar: React.FC<NavbarProps> = ({
                     onClick={handleExport}
                   >
                     <Download className="w-5 h-5" />
-                    Export
+                    Export JSON
+                  </button>
+                  {/* Docker Export */}
+                  <button
+                    className="w-full text-left px-3 py-2 text-black hover:bg-blue-50 rounded flex gap-3 justify-start items-center transition-colors duration-200"
+                    onClick={handleDockerExport}
+                  >
+                    <Container className="w-5 h-5 text-blue-600" />
+                    Docker Export
                   </button>
                   {/* Delete */}
                   <button
@@ -353,6 +377,16 @@ const Navbar: React.FC<NavbarProps> = ({
           </div>
         </div>
       </dialog>
+
+      {/* Workflow Export Modal */}
+      {showExportModal && currentWorkflow && (
+        <WorkflowExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          workflowId={currentWorkflow.id}
+          workflowName={currentWorkflow.name}
+        />
+      )}
     </>
   );
 };

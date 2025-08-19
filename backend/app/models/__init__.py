@@ -16,6 +16,7 @@ from .scheduled_job import ScheduledJob, JobExecution
 from .vector_collection import VectorCollection
 from .vector_document import VectorDocument
 from .document import DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion
+from .external_workflow import ExternalWorkflow
 
 __all__ = [
     "Base",
@@ -46,6 +47,7 @@ __all__ = [
     "Document",
     "DocumentChunk",
     "DocumentAccessLog",
-    "DocumentVersion"
+    "DocumentVersion",
+    "ExternalWorkflow"
 ]
 

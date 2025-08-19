@@ -13,7 +13,7 @@ from app.core.encryption import decrypt_data
 
 try:
     # Attempt to import the old Supabase adapter (may no longer exist)
-    from app.database import get_database  # type: ignore
+    from app.core.database import get_db_session_context  # type: ignore
 except ImportError:  # pragma: no cover – executes once after removal
     class _StubDB:  # noqa: D101, D401
         async def get_credential(self, *_, **__):  # noqa: ANN002

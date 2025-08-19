@@ -92,6 +92,10 @@ export const API_ENDPOINTS = {
     UPDATE: (id: string) => `/variables/${id}`,
     DELETE: (id: string) => `/variables/${id}`,
   },
+  EXPORT: {
+    WORKFLOW_INIT: (id: string) => `/export/workflow/${id}`,
+    WORKFLOW_COMPLETE: (id: string) => `/export/workflow/${id}/complete`,
+  },
   HEALTH: '/health',
   INFO: '/info',
 } as const;

@@ -1,4 +1,5 @@
 
+# -*- coding: utf-8 -*-
 """
 KAI-Fusion Enterprise Application Gateway - Production FastAPI Orchestration System
 ===================================================================================
@@ -324,6 +325,7 @@ from app.api.vectors import router as vectors_router
 from app.api.test_endpoint import router as test_router
 
 from app.routes.export import router as export_router
+from app.api.external_workflows import router as external_workflows_router
 
 logger = logging.getLogger(__name__)
 
@@ -448,7 +450,8 @@ app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic we
 # Include HTTP Client router
 app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
-app.include_router(export_router, prefix="/api", tags=["Export"])
+app.include_router(export_router, prefix="/api/v1", tags=["Export"])
+app.include_router(external_workflows_router, prefix="/api/v1", tags=["External Workflows"])
 
 
 
