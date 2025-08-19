@@ -22,7 +22,7 @@ from app.schemas.user_credential import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=List[CredentialDetailResponse])
+@router.get("", response_model=List[CredentialDetailResponse])
 async def get_user_credentials(
     credential_name: Optional[str] = Query(None, alias="credentialName"),
     current_user: User = Depends(get_current_user),
@@ -113,7 +113,7 @@ async def get_credential_by_id(
             detail="Failed to retrieve credential"
         )
 
-@router.post("/", response_model=CredentialDetailResponse)
+@router.post("", response_model=CredentialDetailResponse)
 async def create_credential(
     credential_data: CredentialCreateRequest,
     current_user: User = Depends(get_current_user),

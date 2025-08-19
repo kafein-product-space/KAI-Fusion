@@ -323,7 +323,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/", response_model=List[WorkflowResponse])
+@router.get("", response_model=List[WorkflowResponse])
 async def get_workflows(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -353,7 +353,7 @@ async def get_workflows(
         raise HTTPException(status_code=500, detail="Failed to fetch workflows")
 
 
-@router.post("/", response_model=WorkflowResponse)
+@router.post("", response_model=WorkflowResponse)
 async def create_workflow(
     workflow_data: WorkflowCreate,
     db: AsyncSession = Depends(get_db_session),

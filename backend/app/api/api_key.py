@@ -11,7 +11,7 @@ from app.services.dependencies import get_db_session, get_api_key_service
 
 router = APIRouter()
 
-@router.post("/", response_model=APIKeyCreateResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=APIKeyCreateResponse, status_code=status.HTTP_201_CREATED)
 async def create_api_key(
     api_key_in: APIKeyCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -31,7 +31,7 @@ async def create_api_key(
         key=key
     )
 
-@router.get("/", response_model=List[APIKeyResponse])
+@router.get("", response_model=List[APIKeyResponse])
 async def get_api_keys(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),

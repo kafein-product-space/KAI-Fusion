@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/", response_model=List[VariableResponse])
+@router.get("", response_model=List[VariableResponse])
 async def get_variables(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -102,7 +102,7 @@ async def get_variables_by_type(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/", response_model=VariableResponse)
+@router.post("", response_model=VariableResponse)
 async def create_variable(
     variable_data: VariableCreate,
     db: AsyncSession = Depends(get_db_session),

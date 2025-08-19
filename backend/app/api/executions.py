@@ -18,7 +18,7 @@ router = APIRouter()
 
 
 @router.post(
-    "/",
+    "",
     response_model=WorkflowExecutionResponse,
     status_code=status.HTTP_201_CREATED,
 )
@@ -42,7 +42,7 @@ async def create_workflow_execution(
     return execution
 
 
-@router.get("/", response_model=List[WorkflowExecutionResponse])
+@router.get("", response_model=List[WorkflowExecutionResponse])
 async def list_workflow_executions(
     workflow_id: uuid.UUID,
     db: AsyncSession = Depends(get_db_session),

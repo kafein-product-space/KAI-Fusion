@@ -39,7 +39,7 @@ class HttpClientTestRequest(BaseModel):
     enable_templating: Optional[bool] = False
 
 
-@router.get("/")
+@router.get("")
 async def http_client_health():
     """HTTP Client router health check"""
     return {

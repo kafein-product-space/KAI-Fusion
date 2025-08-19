@@ -9,7 +9,7 @@ from app.core.node_registry import node_registry
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/")
+@router.get("")
 async def get_all_nodes():
     """
     Retrieve the metadata for all registered nodes.

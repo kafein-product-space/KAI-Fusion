@@ -116,7 +116,7 @@ trigger_router = APIRouter(tags=["webhook-triggers"])
 
 # --- Webhook Management APIs ---
 
-@router.get("/", response_model=WebhookEndpointList)
+@router.get("", response_model=WebhookEndpointList)
 async def get_webhooks(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -175,7 +175,7 @@ async def get_webhooks(
         )
 
 
-@router.post("/", response_model=WebhookEndpointResponse)
+@router.post("", response_model=WebhookEndpointResponse)
 async def create_webhook(
     webhook_data: WebhookEndpointCreate,
     db: AsyncSession = Depends(get_db_session),
