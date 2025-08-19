@@ -35,7 +35,11 @@ export default function EmbeddingsDisplay({
       {/* Icon, label, handle */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <Brain className="w-10 h-10 text-white drop-shadow-lg" />
+          <img
+            src="icons/openai.svg"
+            alt="openaiicons"
+            className="w-10 h-10 text-white"
+          />
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-purple-400 to-pink-500 rounded-full flex items-center justify-center">
             <Settings className="w-2 h-2 text-white" />
           </div>

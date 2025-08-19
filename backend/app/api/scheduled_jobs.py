@@ -19,7 +19,7 @@ from .schemas import (
 router = APIRouter()
 
 
-@router.get("/", response_model=List[ScheduledJobResponse])
+@router.get("", response_model=List[ScheduledJobResponse])
 async def get_scheduled_jobs(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -63,7 +63,7 @@ async def get_scheduled_jobs(
         raise HTTPException(status_code=500, detail=f"Failed to retrieve scheduled jobs: {str(e)}")
 
 
-@router.post("/", response_model=ScheduledJobResponse)
+@router.post("", response_model=ScheduledJobResponse)
 async def create_scheduled_job(
     job_data: ScheduledJobCreate,
     db: AsyncSession = Depends(get_db_session),

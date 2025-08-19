@@ -17,7 +17,7 @@ router = APIRouter()
 node_registry_service = NodeRegistryService()
 
 
-@router.get("/", response_model=NodeRegistryListResponse)
+@router.get("", response_model=NodeRegistryListResponse)
 async def get_node_registry_list(
     db: AsyncSession = Depends(get_db_session),
     skip: int = Query(0, ge=0, description="Number of records to skip"),
@@ -97,7 +97,7 @@ async def get_node_registry_by_type(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/", response_model=NodeRegistryResponse)
+@router.post("", response_model=NodeRegistryResponse)
 async def create_node_registry(
     node_data: NodeRegistryCreate,
     db: AsyncSession = Depends(get_db_session)

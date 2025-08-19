@@ -133,15 +133,6 @@ export default function HTTPClientVisual({
         </div>
       )}
 
-      {/* Success status */}
-      {testResponse?.success && !isTesting && (
-        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold shadow-lg">
-            ✅ {testResponse.status_code}
-          </div>
-        </div>
-      )}
-
       {/* Hover effects */}
       {isHovered && (
         <>
@@ -189,50 +180,22 @@ export default function HTTPClientVisual({
         glow={isHandleConnected("execute", true)}
       />
 
-      {/* Output Handles */}
+      {/* Documents Output Handle for ChunkSplitter */}
       <NeonHandle
         type="source"
         position={Position.Right}
-        id="response"
+        id="documents"
         isConnectable={true}
         size={10}
-        color1="#3b82f6"
-        glow={isHandleConnected("response", true)}
+        color1="#10b981"
+        glow={isHandleConnected("documents", true)}
       />
-
-      {/* Right side labels for outputs */}
-      <div
-        className="absolute -right-20 text-xs text-gray-500 font-medium"
-        style={{ top: "40%" }}
-      >
-        Response
-      </div>
-
-      {/* HTTP Method Badge */}
-      {data?.method && (
-        <div className="absolute -bottom-6 left-1/2 transform -translate-x-1/2 z-10">
-          <div className="px-2 py-1 rounded bg-blue-600 text-white text-xs font-bold shadow-lg">
-            {data.method}
-          </div>
-        </div>
-      )}
 
       {/* URL Badge */}
       {data?.url && (
         <div className="absolute top-1 left-1 z-10">
           <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
             <Globe className="w-2 h-2 text-white" />
-          </div>
-        </div>
-      )}
-
-      {/* Test result badge */}
-      {testResponse && !isTesting && (
-        <div className="absolute top-1 right-1 z-10">
-          <div className="w-5 h-5 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
-            <span className="text-white text-xs font-bold">
-              {testResponse.status_code}
-            </span>
           </div>
         </div>
       )}

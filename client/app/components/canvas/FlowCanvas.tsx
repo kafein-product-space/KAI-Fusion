@@ -73,6 +73,7 @@ import RetrieverNode from "../nodes/tools/RetrieverNode";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import { TutorialButton } from "../tutorial";
+import { executeWorkflowStream } from "~/services/executionService";
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -127,6 +128,12 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
+  const [nodeStatus, setNodeStatus] = useState<
+    Record<string, "success" | "failed" | "pending">
+  >({});
+  const [edgeStatus, setEdgeStatus] = useState<
+    Record<string, "success" | "failed" | "pending">
+  >({});
 
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -157,6 +164,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     createWorkflow,
     fetchWorkflow,
     deleteWorkflow,
+    updateWorkflowStatus,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -196,6 +204,44 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [chatInput, setChatInput] = useState("");
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [chatHistoryOpen, setChatHistoryOpen] = useState(false);
+
+  // Enhanced error handling state
+  const [detailedExecutionError, setDetailedExecutionError] = useState<{
+    message: string;
+    type: string;
+    nodeId?: string;
+    nodeType?: string;
+    timestamp: string;
+    stackTrace?: string;
+  } | null>(null);
+  const [errorNodeId, setErrorNodeId] = useState<string | null>(null);
+
+  // Error handling functions
+  const handleErrorDismiss = useCallback(() => {
+    setDetailedExecutionError(null);
+    setErrorNodeId(null);
+
+    // Reset all failed statuses
+    setNodeStatus((s) => {
+      const newStatus = { ...s };
+      Object.keys(newStatus).forEach((key) => {
+        if (newStatus[key] === "failed") {
+          delete newStatus[key];
+        }
+      });
+      return newStatus;
+    });
+
+    setEdgeStatus((s) => {
+      const newStatus = { ...s };
+      Object.keys(newStatus).forEach((key) => {
+        if (newStatus[key] === "failed") {
+          delete newStatus[key];
+        }
+      });
+      return newStatus;
+    });
+  }, []);
 
   useEffect(() => {
     console.log("wokflowId", workflowId);
@@ -522,6 +568,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       }
 
       try {
+        // Reset previous statuses
+        setNodeStatus({});
+        setEdgeStatus({});
         // Show loading message
         enqueueSnackbar("Executing workflow...", { variant: "info" });
 
@@ -540,17 +589,128 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           trigger_source: "start_node_double_click",
         };
 
-        // Animate execution path before executing
-        const executionPath = await animateExecutionPath(nodeId);
+        // Remove legacy pre-animation; rely solely on streaming events
+        setActiveEdges([]);
+        setActiveNodes([]);
 
-        // Clear animations after execution
-        setTimeout(() => {
-          setActiveEdges([]);
-          setActiveNodes([]);
-        }, 2000);
+        // Streaming execution to reflect real-time node/edge status
+        try {
+          const stream = await executeWorkflowStream({
+            ...executionData,
+            workflow_id: currentWorkflow.id,
+          });
 
-        // Use the execution service to execute workflow
-        await executeWorkflow(currentWorkflow.id, executionData);
+          const reader = stream.getReader();
+          const decoder = new TextDecoder("utf-8");
+          let buffer = "";
+
+          const processChunk = (text: string) => {
+            buffer += text;
+            const parts = buffer.split("\n\n");
+            buffer = parts.pop() || "";
+            for (const part of parts) {
+              const dataLine = part
+                .split("\n")
+                .find((l) => l.startsWith("data:"));
+              if (!dataLine) continue;
+              const jsonStr = dataLine.replace(/^data:\s*/, "").trim();
+              if (!jsonStr) continue;
+              try {
+                const evt = JSON.parse(jsonStr);
+                const t = evt.type as string | undefined;
+                if (t === "node_start") {
+                  const nid = String(evt.node_id || "");
+                  if (nid) {
+                    setActiveNodes([nid]);
+                    setNodeStatus((s) => ({ ...s, [nid]: "pending" }));
+                    const incoming = (edges as Edge[]).filter(
+                      (e) => e.target === nid
+                    );
+                    setActiveEdges(incoming.map((e) => e.id));
+                    setEdgeStatus((s) => ({
+                      ...s,
+                      ...Object.fromEntries(
+                        incoming.map((e) => [e.id, "pending" as const])
+                      ),
+                    }));
+                  }
+                } else if (t === "node_end") {
+                  const nid = String(evt.node_id || "");
+                  if (nid) {
+                    setNodeStatus((s) => ({ ...s, [nid]: "success" }));
+                    const incoming = (edges as Edge[]).filter(
+                      (e) => e.target === nid
+                    );
+                    setEdgeStatus((s) => ({
+                      ...s,
+                      ...Object.fromEntries(
+                        incoming.map((e) => [e.id, "success" as const])
+                      ),
+                    }));
+                  }
+                } else if (t === "error") {
+                  // Mark current active items as failed
+                  const failedNodeId = activeNodes[0];
+                  setErrorNodeId(failedNodeId);
+
+                  setNodeStatus((s) =>
+                    failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
+                  );
+                  setEdgeStatus((s) =>
+                    activeEdges.length > 0
+                      ? { ...s, [activeEdges[0]]: "failed" }
+                      : s
+                  );
+
+                  // Create detailed error for display
+                  const errorDetails = {
+                    message: evt.error || "Node execution failed",
+                    type: evt.error_type || "execution",
+                    nodeId: evt.node_id || failedNodeId,
+                    nodeType: evt.node_id
+                      ? nodes.find((n) => n.id === evt.node_id)?.type
+                      : failedNodeId
+                      ? nodes.find((n) => n.id === failedNodeId)?.type
+                      : undefined,
+                    timestamp: evt.timestamp || new Date().toLocaleTimeString(),
+                    stackTrace:
+                      evt.stack_trace || evt.details || evt.stack_trace,
+                  };
+
+                  setDetailedExecutionError(errorDetails);
+                } else if (t === "complete") {
+                  setTimeout(() => {
+                    setActiveEdges([]);
+                    setActiveNodes([]);
+                  }, 1500);
+                }
+              } catch {
+                // ignore malformed chunks
+              }
+            }
+          };
+
+          // Pump the stream
+          // We intentionally do not await the entire stream to keep UI responsive
+          (async () => {
+            try {
+              while (true) {
+                const { done, value } = await reader.read();
+                if (done) break;
+                processChunk(decoder.decode(value, { stream: true }));
+              }
+            } catch (_) {
+              // ignore stream read errors
+            } finally {
+              try {
+                reader.releaseLock();
+              } catch {}
+            }
+          })();
+        } catch (_) {
+          // fallback to non-streaming if needed
+          await executeWorkflow(currentWorkflow.id, executionData);
+        }
 
         // Show success message
         enqueueSnackbar("Workflow executed successfully", {
@@ -561,9 +721,35 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         clearExecutionError();
       } catch (error: any) {
         console.error("Error executing workflow:", error);
+
+        const failedNodeId = activeNodes[0];
+        setErrorNodeId(failedNodeId);
+
+        // Create detailed error for display
+        const errorDetails = {
+          message: error.message || "Workflow execution failed",
+          type: "execution",
+          nodeId: failedNodeId,
+          nodeType: failedNodeId
+            ? nodes.find((n) => n.id === failedNodeId)?.type
+            : undefined,
+          timestamp: new Date().toLocaleTimeString(),
+          stackTrace: error.stack,
+        };
+
+        setDetailedExecutionError(errorDetails);
+
         enqueueSnackbar(`Error executing workflow: ${error.message}`, {
           variant: "error",
         });
+
+        // Mark last active node/edge as failed if possible
+        setNodeStatus((s) =>
+          failedNodeId ? { ...s, [failedNodeId]: "failed" } : s
+        );
+        setEdgeStatus((s) =>
+          activeEdges.length > 0 ? { ...s, [activeEdges[0]]: "failed" } : s
+        );
       }
     },
     [
@@ -574,18 +760,58 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       clearExecutionError,
       enqueueSnackbar,
       setActiveEdges,
+      activeNodes,
+      activeEdges,
     ]
   );
+
+  // Error handling functions
+  const handleErrorRetry = useCallback(() => {
+    if (errorNodeId && currentWorkflow) {
+      // Clear error state
+      setDetailedExecutionError(null);
+      setErrorNodeId(null);
+
+      // Reset node status
+      setNodeStatus((s) => {
+        const newStatus = { ...s };
+        delete newStatus[errorNodeId];
+        return newStatus;
+      });
+
+      // Retry execution from the failed node
+      handleStartNodeExecution(errorNodeId);
+    }
+  }, [errorNodeId, currentWorkflow, handleStartNodeExecution]);
 
   // Monitor execution errors and show them
   useEffect(() => {
     if (executionError) {
+      // Create detailed error object
+      const errorDetails = {
+        message: executionError,
+        type: "execution",
+        timestamp: new Date().toLocaleTimeString(),
+        nodeId: errorNodeId || undefined,
+        nodeType: errorNodeId
+          ? nodes.find((n) => n.id === errorNodeId)?.type
+          : undefined,
+      };
+
+      setDetailedExecutionError(errorDetails);
+
       enqueueSnackbar(`Execution error: ${executionError}`, {
         variant: "error",
       });
       clearExecutionError();
     }
-  }, [executionError, enqueueSnackbar, clearExecutionError]);
+  }, [
+    executionError,
+    enqueueSnackbar,
+    clearExecutionError,
+    errorNodeId,
+    nodes,
+  ]);
 
   // Monitor execution loading state
   useEffect(() => {
@@ -636,6 +862,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
     setNodes([]);
     setEdges([]);
+    setNodeStatus({});
+    setEdgeStatus({});
     setCurrentWorkflow(null);
   }, [hasUnsavedChanges, setCurrentWorkflow]);
 
@@ -673,42 +901,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const handleUnsavedChangesCancel = useCallback(() => {
     setPendingNavigation(null);
   }, []);
-
-  // Function to animate execution path
-  const animateExecutionPath = useCallback(
-    async (startNodeId: string) => {
-      const visited = new Set<string>();
-      const path: string[] = [];
-
-      const traverse = async (nodeId: string) => {
-        if (visited.has(nodeId)) return;
-        visited.add(nodeId);
-
-        // Add node to active nodes
-        setActiveNodes([nodeId]);
-        path.push(nodeId);
-
-        // Wait a bit to show the node is active
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Find connected edges
-        const connectedEdges = edges.filter((edge) => edge.source === nodeId);
-
-        for (const edge of connectedEdges) {
-          // Animate edge
-          setActiveEdges([edge.id]);
-          await new Promise((resolve) => setTimeout(resolve, 500));
-
-          // Traverse to target node
-          await traverse(edge.target);
-        }
-      };
-
-      await traverse(startNodeId);
-      return path;
-    },
-    [edges]
-  );
 
   // Function to check unsaved changes before navigation
   const checkUnsavedChanges = useCallback(
@@ -811,6 +1003,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         autoSaveStatus={autoSaveStatus}
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
+        updateWorkflowStatus={updateWorkflowStatus}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
@@ -825,7 +1018,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         {/* Canvas alanı */}
         <div className="flex-1">
           {/* Error Display */}
-          <ErrorDisplayComponent error={error} />
+          <ErrorDisplayComponent
+            error={detailedExecutionError || error}
+            onRetry={detailedExecutionError ? handleErrorRetry : undefined}
+            onDismiss={detailedExecutionError ? handleErrorDismiss : undefined}
+          />
 
           {/* ReactFlow Canvas */}
           <ReactFlowCanvas
@@ -840,6 +1037,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             reactFlowWrapper={reactFlowWrapper}
             onDrop={onDrop}
             onDragOver={onDragOver}
+            nodeStatus={nodeStatus}
+            edgeStatus={edgeStatus}
           />
 
           {/* Chat Toggle Button */}

@@ -9,6 +9,7 @@ import {
   type HTTPStats,
   type HTTPClientConfig,
 } from "./types";
+import { apiClient } from "~/lib/api-client";
 
 export default function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
   const { setNodes, getEdges } = useReactFlow();
@@ -85,9 +86,7 @@ export default function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
       const startTime = Date.now();
 
       // Prepare headers
-      const headers: Record<string, string> = {
-        "Content-Type": configData.content_type || "application/json",
-      };
+      const headers: Record<string, string> = {};
 
       // Add custom headers
       if (configData.custom_headers) {
@@ -104,21 +103,26 @@ export default function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
         headers[configData.api_key_header] = configData.api_key_value;
       }
 
-      // Prepare request options
-      const requestOptions: RequestInit = {
+      // Prepare test request payload for backend
+      const testRequest = {
         method: configData.method || "GET",
-        headers,
+        url: configData.url,
+        headers: headers,
+        body: configData.body || undefined,
+        timeout: configData.timeout || 30,
+        auth_type: "none",
+        auth_token: undefined,
+        auth_username: configData.auth_username || undefined,
+        auth_password: configData.auth_password || undefined,
+        api_key_header: configData.api_key_header || undefined,
+        content_type: configData.content_type || "application/json",
+        verify_ssl: configData.verify_ssl ?? true,
+        follow_redirects: configData.follow_redirects ?? true,
+        max_retries: configData.retry_count || 3,
+        enable_templating: false,
       };
 
-      // Add body for methods that support it
-      if (
-        ["POST", "PUT", "PATCH"].includes(configData.method || "GET") &&
-        configData.body
-      ) {
-        requestOptions.body = configData.body;
-      }
-
-      // Add query parameters
+      // Add query parameters to URL if specified
       let url = configData.url;
       if (configData.query_params) {
         try {
@@ -128,36 +132,42 @@ export default function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
             searchParams.append(key, String(value));
           });
           url += `?${searchParams.toString()}`;
+          testRequest.url = url;
         } catch (e) {
           console.warn("Failed to parse query parameters:", e);
         }
       }
 
-      // Send request
-      const response = await fetch(url, requestOptions);
+      // Send test request through backend API
+      // Use the correct endpoint: /api/http-client/{id}/test
+      const response = await apiClient.post(
+        `/../http-client/${id}/test`,
+        testRequest
+      );
+
+      console.log("📥 Backend response received:", response);
+
       const endTime = Date.now();
       const duration = endTime - startTime;
 
-      // Parse response
-      let responseData;
-      const contentType = response.headers.get("content-type");
-      if (contentType?.includes("application/json")) {
-        responseData = await response.json();
-      } else {
-        responseData = await response.text();
-      }
-
-      const responseHeaders: Record<string, string> = {};
-      response.headers.forEach((value, key) => {
-        responseHeaders[key] = value;
-      });
+      // Safely extract response data with fallbacks
+      const responseData = response.data || response;
+      const statusCode = responseData.status_code || responseData.status || 200;
+      const content = responseData.content || responseData.data || responseData;
+      const responseHeaders = responseData.headers || {};
+      const success =
+        responseData.success !== undefined
+          ? responseData.success
+          : statusCode >= 200 && statusCode < 300;
 
       const result: HTTPResponse = {
-        status_code: response.status,
-        content: responseData,
+        status_code: statusCode,
+        content: content,
         headers: responseHeaders,
-        success: response.ok,
+        success: success,
       };
+
+      console.log("✅ Processed response:", result);
 
       setTestResponse(result);
       setTestStats({
@@ -166,16 +176,29 @@ export default function HTTPClientNode({ data, id }: HTTPClientNodeProps) {
         timestamp: new Date().toISOString(),
       });
 
-      if (!response.ok) {
-        setTestError(`HTTP ${response.status}: ${response.statusText}`);
+      if (!result.success) {
+        setTestError(`HTTP ${result.status_code}: Request failed`);
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Test request failed:", error);
-      setTestError(error instanceof Error ? error.message : "Request failed");
+
+      // Handle different types of errors
+      let errorMessage = "Request failed";
+      if (error.response?.data?.detail) {
+        errorMessage = error.response.data.detail;
+      } else if (error.response?.status) {
+        errorMessage = `HTTP ${error.response.status}: ${
+          error.response.statusText || "Request failed"
+        }`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
+      setTestError(errorMessage);
     } finally {
       setIsTesting(false);
     }
-  }, [configData]);
+  }, [configData, id]);
 
   const copyToClipboard = useCallback(
     async (text: string, type: string) => {

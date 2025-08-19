@@ -13,6 +13,7 @@ export interface WebScraperData {
   timeout_seconds?: number;
   retry_attempts?: number;
   tavily_api_key?: string;
+  credential_id?: string;
   validationStatus?: "success" | "error" | "warning" | "pending";
   displayName?: string;
   name?: string;
@@ -42,6 +43,7 @@ export interface ScrapingProgress {
 export interface WebScraperConfig {
   urls: string;
   tavily_api_key: string;
+  credential_id?: string;
   remove_selectors: string;
   min_content_length: number;
   user_agent: string;

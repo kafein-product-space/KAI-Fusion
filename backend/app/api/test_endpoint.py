@@ -17,7 +17,7 @@ class TestResponse(BaseModel):
     received_data: dict
     timestamp: str
 
-@router.get("/", response_model=TestResponse)
+@router.get("", response_model=TestResponse)
 async def test_get():
     """Basit GET endpoint - print döner"""
     import datetime

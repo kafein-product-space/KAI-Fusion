@@ -5,6 +5,7 @@ import { Settings, Filter, Key } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
 import type { CohereRerankerConfigFormProps } from "./types";
+import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 export default function CohereRerankerConfigForm({
   initialValues,
@@ -44,21 +45,16 @@ export default function CohereRerankerConfigForm({
               <label className="text-white text-xs font-medium mb-1 block">
                 Select Credential
               </label>
-              <Field
-                as="select"
-                name="credential_id"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-                onChange={async (e: any) => {
-                  const selectedCredentialId = e.target.value;
-                  setFieldValue("credential_id", selectedCredentialId);
+              <CredentialSelector
+                value={values.credential_id}
+                onChange={async (credentialId) => {
+                  setFieldValue("credential_id", credentialId);
 
                   // Auto-fill API key from selected credential
-                  if (selectedCredentialId) {
+                  if (credentialId) {
                     try {
                       const credentialSecret = await getUserCredentialSecret(
-                        selectedCredentialId
+                        credentialId
                       );
                       if (credentialSecret?.secret?.api_key) {
                         setFieldValue(
@@ -74,14 +70,16 @@ export default function CohereRerankerConfigForm({
                     }
                   }
                 }}
-              >
-                <option value="">Select Credential</option>
-                {userCredentials.map((credential) => (
-                  <option key={credential.id} value={credential.id}>
-                    {credential.name || credential.id}
-                  </option>
-                ))}
-              </Field>
+                onCredentialLoad={(secret) => {
+                  if (secret?.api_key) {
+                    setFieldValue("cohere_api_key", secret.api_key);
+                  }
+                }}
+                serviceType="cohere"
+                placeholder="Select Credential"
+                showCreateNew={true}
+                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+              />
               <ErrorMessage
                 name="credential_id"
                 component="div"

@@ -16,7 +16,7 @@ from ..models.user import User
 
 router = APIRouter()
 
-@router.post("/", response_model=NodeConfigurationResponse)
+@router.post("", response_model=NodeConfigurationResponse)
 async def create_node_configuration(
     node_config_data: NodeConfigurationCreate,
     db: AsyncSession = Depends(get_db_session),

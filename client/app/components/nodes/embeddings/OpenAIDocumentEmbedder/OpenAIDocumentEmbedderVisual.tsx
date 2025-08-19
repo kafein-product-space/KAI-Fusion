@@ -70,7 +70,11 @@ export default function OpenAIDocumentEmbedderVisual({
       {/* Main icon */}
       <div className="relative z-10 mb-2">
         <div className="relative">
-          <FileText className="w-10 h-10 text-white drop-shadow-lg" />
+          <img
+            src="icons/openai.svg"
+            alt="openaiicons"
+            className="w-10 h-10 text-white"
+          />
           {/* Activity indicator */}
           <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-blue-400 to-indigo-500 rounded-full flex items-center justify-center">
             <Sparkles className="w-2 h-2 text-white" />

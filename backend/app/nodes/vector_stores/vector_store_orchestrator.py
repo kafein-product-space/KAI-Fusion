@@ -282,11 +282,29 @@ class VectorStoreOrchestrator(ProcessorNode):
             ],
         }
 
+    def _normalize_psycopg2_dsn(self, connection_string: str) -> str:
+        """Normalize SQLAlchemy-style URLs to psycopg2-compatible DSN.
+
+        - Converts postgresql+asyncpg:// to postgresql://
+        - Converts postgresql+psycopg2:// to postgresql://
+        - Leaves postgresql:// and postgres:// as-is
+        """
+        try:
+            cs_lower = connection_string.lower()
+            if cs_lower.startswith("postgresql+asyncpg://"):
+                return "postgresql://" + connection_string.split("://", 1)[1]
+            if cs_lower.startswith("postgresql+psycopg2://"):
+                return "postgresql://" + connection_string.split("://", 1)[1]
+            return connection_string
+        except Exception:
+            # On any parsing issue, fall back to original string
+            return connection_string
+
     def _get_db_connection(self, connection_string: str):
         """Create database connection for optimization operations."""
         try:
-            # Parse connection string to extract components
-            return psycopg2.connect(connection_string)
+            dsn = self._normalize_psycopg2_dsn(connection_string)
+            return psycopg2.connect(dsn)
         except Exception as e:
             raise ValueError(f"Failed to connect to database: {str(e)}")
 

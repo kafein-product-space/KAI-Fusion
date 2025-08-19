@@ -18,6 +18,7 @@ import {
   BarChart3,
   Sparkles,
 } from "lucide-react";
+import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 interface RetrieverConfigModalProps {
   nodeData: any;
@@ -153,6 +154,40 @@ const RetrieverConfigModal = forwardRef<
               <h4 className="font-semibold text-lg">Database Configuration</h4>
             </div>
             <div className="space-y-4">
+              {/* Credential Selector */}
+              <div>
+                <label className="label">
+                  <span className="label-text font-medium">Select Credential</span>
+                </label>
+                <CredentialSelector
+                  value={undefined}
+                  serviceType="postgresql_vectorstore"
+                  placeholder="Choose a PostgreSQL Vector Store credential..."
+                  onChange={() => {}}
+                  onCredentialLoad={(secret: any) => {
+                    if (!secret) return;
+                    if (secret.connection_string) {
+                      setDatabaseConnection(secret.connection_string);
+                    } else {
+                      const host = secret.host;
+                      const port = secret.port;
+                      const database = secret.database;
+                      const username = secret.username;
+                      const password = secret.password;
+                      if (host && port && database && username && typeof password !== "undefined") {
+                        const userEnc = encodeURIComponent(username);
+                        const passEnc = encodeURIComponent(password);
+                        const builtConn = `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
+                        setDatabaseConnection(builtConn);
+                      }
+                    }
+                    if (secret.collection_name && !collectionName) {
+                      setCollectionName(secret.collection_name);
+                    }
+                  }}
+                  showCreateNew={true}
+                />
+              </div>
               <div>
                 <label className="label">
                   <span className="label-text font-medium">

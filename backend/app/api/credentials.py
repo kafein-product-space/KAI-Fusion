@@ -22,7 +22,7 @@ from app.schemas.user_credential import (
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-@router.get("/", response_model=List[CredentialDetailResponse])
+@router.get("", response_model=List[CredentialDetailResponse])
 async def get_user_credentials(
     credential_name: Optional[str] = Query(None, alias="credentialName"),
     current_user: User = Depends(get_current_user),
@@ -113,7 +113,7 @@ async def get_credential_by_id(
             detail="Failed to retrieve credential"
         )
 
-@router.post("/", response_model=CredentialDetailResponse)
+@router.post("", response_model=CredentialDetailResponse)
 async def create_credential(
     credential_data: CredentialCreateRequest,
     current_user: User = Depends(get_current_user),
@@ -130,8 +130,8 @@ async def create_credential(
     user_id = current_user.id
     
     try:
-        # Detect service type from data structure
-        service_type = _detect_service_type(credential_data.data)
+        # Detect service type from data structure unless explicitly provided by client
+        service_type = credential_data.service_type or _detect_service_type(credential_data.data)
         
         # Create UserCredentialCreate schema
         create_schema = UserCredentialCreate(
@@ -198,8 +198,8 @@ async def update_credential(
         # If data is provided, we need to re-encrypt the credential
         if update_data.data is not None:
             # Instead of delete/create, update the existing credential with new encrypted data
-            # Determine service type
-            service_type = _detect_service_type(update_data.data)
+            # Determine service type (client overrides detection if provided)
+            service_type = update_data.service_type or _detect_service_type(update_data.data)
             name = update_data.name if update_data.name is not None else existing_credential.name
             
             # Encrypt the new data
@@ -331,7 +331,19 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
+    # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
+    if (
+        # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)
+        ("connection_string" in data and isinstance(data.get("connection_string"), str) and data.get("connection_string", "").lower().startswith("postgresql"))
+        # Discrete fields form
+        or (all(k in data for k in ["host", "port", "database", "username", "password"]))
+    ):
+        return "postgresql_vectorstore"
+
     if "api_key" in data:
+        # Cohere API
+        if data.get("provider") == "cohere" or data.get("cohere") is True:
+            return "cohere"
         if "organization" in data or "project_id" in data:
             return "openai"
         elif "engine" in data or "model" in data:

@@ -17,6 +17,8 @@ import {
 } from "lucide-react";
 import type { WebScraperConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
+import CredentialSelector from "~/components/credentials/CredentialSelector";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 interface WebScraperConfigFormProps {
   initialValues: WebScraperConfig;
@@ -71,9 +73,7 @@ export default function WebScraperConfigForm({
       <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
         <div className="flex items-center gap-2">
           <Globe className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Web Scraper
-          </span>
+          <span className="text-white text-xs font-medium">Web Scraper</span>
         </div>
         <Settings className="w-4 h-4 text-white" />
       </div>
@@ -120,6 +120,49 @@ export default function WebScraperConfigForm({
                     <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
                       <Settings className="w-3 h-3" />
                       <span>Basic Settings</span>
+                    </div>
+
+                    {/* Credential selection (moved here, above API key) */}
+                    <div>
+                      <label className="text-white text-xs font-medium mb-1 block">
+                        Credential (Optional)
+                      </label>
+                      <CredentialSelector
+                        value={(values as any).credential_id}
+                        onChange={async (credentialId) => {
+                          setFieldValue("credential_id", credentialId);
+                          if (credentialId) {
+                            try {
+                              const result = await getUserCredentialSecret(
+                                credentialId
+                              );
+                              if ((result as any)?.secret?.api_key) {
+                                setFieldValue(
+                                  "tavily_api_key",
+                                  (result as any).secret.api_key
+                                );
+                              }
+                            } catch (e) {
+                              console.error(
+                                "Failed to fetch credential secret:",
+                                e
+                              );
+                            }
+                          }
+                        }}
+                        onCredentialLoad={(secret) => {
+                          if ((secret as any)?.api_key) {
+                            setFieldValue(
+                              "tavily_api_key",
+                              (secret as any).api_key
+                            );
+                          }
+                        }}
+                        serviceType="tavily_search"
+                        placeholder="Select Credential"
+                        showCreateNew={true}
+                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                      />
                     </div>
 
                     <div>
@@ -248,6 +291,8 @@ export default function WebScraperConfigForm({
                   </div>
                 )}
 
+                {/* Credentials Selection removed as requested */}
+
                 {/* Testing Configuration Tab */}
                 {activeTab === "testing" && (
                   <div className="space-y-3">
@@ -274,13 +319,19 @@ export default function WebScraperConfigForm({
                       <div className="bg-slate-800/50 p-2 rounded text-xs text-white">
                         <div className="flex items-center gap-1 mb-1">
                           <Activity className="w-2 h-2 text-blue-400" />
-                          <span>Progress: {progress.completedUrls}/{progress.totalUrls}</span>
+                          <span>
+                            Progress: {progress.completedUrls}/
+                            {progress.totalUrls}
+                          </span>
                         </div>
                         <div className="w-full bg-slate-700 rounded-full h-1">
                           <div
                             className="bg-blue-500 h-1 rounded-full transition-all duration-300"
                             style={{
-                              width: `${(progress.completedUrls / progress.totalUrls) * 100}%`,
+                              width: `${
+                                (progress.completedUrls / progress.totalUrls) *
+                                100
+                              }%`,
                             }}
                           ></div>
                         </div>
@@ -292,7 +343,9 @@ export default function WebScraperConfigForm({
                       <div className="bg-slate-800/50 p-2 rounded text-xs text-white">
                         <div className="flex items-center gap-1 mb-1">
                           <FileText className="w-2 h-2 text-green-400" />
-                          <span>Scraped Documents: {scrapedDocuments.length}</span>
+                          <span>
+                            Scraped Documents: {scrapedDocuments.length}
+                          </span>
                         </div>
                         <div className="max-h-32 overflow-y-auto space-y-1">
                           {scrapedDocuments.slice(0, 3).map((doc, index) => (
@@ -338,4 +391,4 @@ export default function WebScraperConfigForm({
       </Formik>
     </div>
   );
-} 
+}

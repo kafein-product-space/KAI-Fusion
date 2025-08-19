@@ -11,7 +11,7 @@ from app.models.user import User
 
 router = APIRouter()
 
-@router.get("/", response_model=Dict[UUID, List[ChatMessageResponse]])
+@router.get("", response_model=Dict[UUID, List[ChatMessageResponse]])
 async def get_all_chats(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user)
@@ -34,7 +34,7 @@ async def get_workflow_chats(
     service = ChatService(db)
     return await service.get_workflow_chats_grouped_by_user(workflow_id, current_user.id)
 
-@router.post("/", response_model=List[ChatMessageResponse], status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=List[ChatMessageResponse], status_code=status.HTTP_201_CREATED)
 async def start_new_chat(
     user_input: ChatMessageInput,
     workflow_id: UUID = None,
