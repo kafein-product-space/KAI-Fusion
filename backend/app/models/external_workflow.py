@@ -30,6 +30,7 @@ class ExternalWorkflow(Base):
     port = Column(Integer, nullable=False)
     is_secure = Column(Boolean, default=False)
     api_key = Column(String(500), nullable=True)  # Encrypted in real implementation
+    api_key_required = Column(Boolean, default=False)  # Whether the external workflow requires API key
     
     # External workflow metadata
     external_workflow_id = Column(String(255), nullable=True)  # Original workflow ID from export
@@ -76,6 +77,7 @@ class ExternalWorkflow(Base):
             "host": self.host,
             "port": self.port,
             "is_secure": self.is_secure,
+            "api_key_required": self.api_key_required,
             "external_workflow_id": self.external_workflow_id,
             "external_url": self.external_url,
             "workflow_structure": self.workflow_structure,

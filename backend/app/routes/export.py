@@ -621,10 +621,13 @@ except Exception as e:
     logger.error(f"Failed to load workflow definition: {{e}}")
     WORKFLOW_DEFINITION = {{"nodes": [], "edges": []}}
 
-# Security configuration - Allow all hosts for workflow exports
-ALLOWED_HOSTS = settings.ALLOWED_HOSTS.split(',') if settings.ALLOWED_HOSTS != '*' else ['*']
+# Security configuration
 API_KEYS = [key.strip() for key in (settings.API_KEYS or '').split(',') if key.strip()]
-REQUIRE_API_KEY = len(API_KEYS) > 0
+# Use REQUIRE_API_KEY setting from export configuration
+REQUIRE_API_KEY = settings.REQUIRE_API_KEY.lower() == 'true'
+
+# Minimal startup log (avoid template-time f-string evaluation)
+logger.info("Workflow runtime security configuration loaded")
 
 # Initialize FastAPI
 app = FastAPI(
@@ -659,17 +662,24 @@ class WorkflowExecuteResponse(BaseModel):
 # Security middleware
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    # Host validation - Skip if ALLOWED_HOSTS is "*" (allow all)
-    host = request.headers.get("host", "")
-    if ALLOWED_HOSTS and ALLOWED_HOSTS != ["*"] and host not in ALLOWED_HOSTS:
-        raise HTTPException(status_code=403, detail="Host not allowed")
-    
-    # API key validation
-    if REQUIRE_API_KEY and request.url.path.startswith("/api/workflow/"):
-        api_key = request.headers.get("X-API-Key")
-        if not api_key or api_key not in API_KEYS:
-            raise HTTPException(status_code=401, detail="Invalid or missing API key")
-    
+    # API key validation only (no host validation as requested)
+    if REQUIRE_API_KEY:
+        path = request.url.path
+        if path.startswith("/api/") and not path.startswith("/api/health"):
+            api_key = request.headers.get("X-API-Key")
+            auth_header = request.headers.get("Authorization")
+
+            if not api_key and auth_header and auth_header.startswith("Bearer "):
+                api_key = auth_header.split(" ")[1]
+
+            if not api_key:
+                logger.warning("API key is missing")
+                raise HTTPException(status_code=401, detail="API key required")
+            if api_key not in API_KEYS:
+                logger.warning("Invalid API key provided")
+                raise HTTPException(status_code=401, detail="Invalid API key")
+            logger.info("Request authenticated successfully")
+
     response = await call_next(request)
     return response
 
@@ -965,7 +975,6 @@ def create_pre_configured_env_file(
         "",
         "# Security & Authentication",
         f"SECRET_KEY={user_env_vars.get('SECRET_KEY', 'auto-generated-secret-key-' + str(uuid.uuid4()))}",
-        f"ALLOWED_HOSTS=*",
         f"REQUIRE_API_KEY={str(security.require_api_key).lower()}",
         "",
     ]
@@ -976,6 +985,9 @@ def create_pre_configured_env_file(
         api_keys.extend([key.strip() for key in security.api_keys.split(',') if key.strip()])
     if security.custom_api_keys:
         api_keys.extend([key.strip() for key in security.custom_api_keys.split(',') if key.strip()])
+    
+    # Use the exact setting from export configuration (no auto-enable)
+    # User explicitly chooses whether API key is required or not
     
     if api_keys:
         env_content.append(f"API_KEYS={','.join(api_keys)}")
@@ -1002,7 +1014,7 @@ def create_pre_configured_env_file(
     
     # Collect all environment variables to avoid duplicates
     used_env_vars = set(["DATABASE_URL", "SECRET_KEY", "WORKFLOW_ID", "WORKFLOW_MODE", 
-                        "ALLOWED_HOSTS", "REQUIRE_API_KEY", "API_KEYS",
+                        "REQUIRE_API_KEY", "API_KEYS",
                         "LANGCHAIN_TRACING_V2", "LANGCHAIN_API_KEY", "LANGCHAIN_PROJECT",
                         "API_HOST", "API_PORT", "DOCKER_PORT", "AUTO_MIGRATE", "MIGRATION_TIMEOUT"])
     
@@ -1096,7 +1108,6 @@ def create_ready_to_run_docker_context(
     environment:
       # Override critical settings to ensure they're set
       - WORKFLOW_MODE=runtime
-      - ALLOWED_HOSTS=*
     ports:
       - "{docker_config.docker_port}:{docker_config.api_port}"
     volumes:
@@ -1135,7 +1146,7 @@ def generate_ready_to_run_readme(workflow_name: str, env_config: WorkflowEnviron
     
     # Build API key section
     api_key_status = "WITH API KEY:" if env_config.security.require_api_key else "WITHOUT API KEY:"
-    api_key_header = '  -H "X-API-Key: YOUR_API_KEY" \\' if env_config.security.require_api_key else ''
+    api_key_header = '  -H "X-API-Key: YOUR_API_KEY" \\\n  # OR -H "Authorization: Bearer YOUR_API_KEY" \\' if env_config.security.require_api_key else ''
     
     # Build security status
     auth_status = "✅ API Key authentication is ENABLED" if env_config.security.require_api_key else "⚠️ API Key authentication is DISABLED"
@@ -1197,7 +1208,6 @@ curl -X POST http://localhost:{env_config.docker.docker_port}/api/workflow/execu
 The `.env` file contains all pre-configured settings. You can modify:
 
 - `DOCKER_PORT` - Change the external port
-- `ALLOWED_HOSTS` - Control allowed hosts (* for all hosts, recommended for public APIs)
 - `API_KEYS` - Update API keys for access control
 - `REQUIRE_API_KEY` - Enable/disable API key authentication
 
@@ -1928,8 +1938,8 @@ class Settings:
     WORKFLOW_MODE: str = os.getenv("WORKFLOW_MODE", "runtime")
     
     # Security Configuration
-    ALLOWED_HOSTS: str = os.getenv("ALLOWED_HOSTS", "*")
     API_KEYS: Optional[str] = os.getenv("API_KEYS", None)
+    REQUIRE_API_KEY: str = os.getenv("REQUIRE_API_KEY", "false")
     
     # Monitoring Configuration
     ENABLE_LANGSMITH: bool = os.getenv("ENABLE_LANGSMITH", "false").lower() == "true"
@@ -1959,12 +1969,14 @@ from app.core.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Create async engine
+# Create async engine with asyncpg configuration
 engine = create_async_engine(
     settings.DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://") 
     if settings.DATABASE_URL.startswith("postgresql://") 
     else settings.DATABASE_URL,
-    echo=False
+    echo=False,
+    # Disable prepared statement cache to avoid conflicts
+    connect_args={"statement_cache_size": 0} if "postgresql" in settings.DATABASE_URL else {}
 )
 
 # Create async session factory

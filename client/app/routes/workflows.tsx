@@ -138,6 +138,8 @@ function WorkflowsLayout() {
   const [selectedExternalWorkflow, setSelectedExternalWorkflow] = useState<ExternalWorkflowInfo | null>(null);
   const [showExternalChatModal, setShowExternalChatModal] = useState(false);
   const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
+  const [externalWorkflowToRemove, setExternalWorkflowToRemove] = useState<ExternalWorkflowInfo | null>(null);
+  const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] = useState(false);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -267,6 +269,35 @@ function WorkflowsLayout() {
   const handleViewExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
     setSelectedExternalWorkflow(workflow);
     setShowExternalViewerModal(true);
+  };
+
+  const handleRemoveExternalWorkflow = (workflow: ExternalWorkflowInfo) => {
+    setExternalWorkflowToRemove(workflow);
+    setShowRemoveExternalConfirm(true);
+  };
+
+  const handleFinalRemoveExternalConfirm = async () => {
+    if (!externalWorkflowToRemove) return;
+
+    try {
+      await externalWorkflowService.unregisterExternalWorkflow(externalWorkflowToRemove.workflow_id);
+      enqueueSnackbar("External workflow removed successfully", { variant: "success" });
+      
+      // Remove from local state
+      setExternalWorkflows(prev => prev.filter(w => w.workflow_id !== externalWorkflowToRemove.workflow_id));
+    } catch (error: any) {
+      console.error("Remove external workflow error:", error);
+      const errorMessage = error?.message || error?.detail || "Failed to remove external workflow";
+      enqueueSnackbar(errorMessage, { variant: "error" });
+    } finally {
+      setExternalWorkflowToRemove(null);
+      setShowRemoveExternalConfirm(false);
+    }
+  };
+
+  const handleCancelRemoveExternal = () => {
+    setShowRemoveExternalConfirm(false);
+    setExternalWorkflowToRemove(null);
   };
 
   const validateWorkflow = (values: WorkflowFormValues) => {
@@ -807,6 +838,14 @@ function WorkflowsLayout() {
                               <Eye className="w-3 h-3" />
                               View
                             </button>
+                            <button
+                              onClick={() => handleRemoveExternalWorkflow(workflow)}
+                              className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                              title="Remove external workflow"
+                            >
+                              <X className="w-3 h-3" />
+                              Remove
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -927,6 +966,30 @@ function WorkflowsLayout() {
               onClick={handleFinalDeleteConfirm}
             >
               Delete
+            </button>
+          </div>
+        </div>
+      </dialog>
+
+      {/* Remove External Workflow Confirm Modal */}
+      <dialog
+        open={showRemoveExternalConfirm}
+        className="modal modal-bottom sm:modal-middle"
+      >
+        <div className="modal-box">
+          <h3 className="font-bold text-lg">Remove External Workflow</h3>
+          <p className="py-4">
+            Are you sure you want to remove "{externalWorkflowToRemove?.name}"? This action cannot be undone.
+          </p>
+          <div className="modal-action">
+            <button className="btn btn-outline" onClick={handleCancelRemoveExternal}>
+              Cancel
+            </button>
+            <button
+              className="btn btn-error"
+              onClick={handleFinalRemoveExternalConfirm}
+            >
+              Remove
             </button>
           </div>
         </div>

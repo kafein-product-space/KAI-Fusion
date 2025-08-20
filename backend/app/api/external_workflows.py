@@ -88,11 +88,29 @@ async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig)
     
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
-            # Test connection to the info endpoint
+            # First, check the external workflow info to see if API key is required
             headers = {}
             if config.api_key:
                 headers["Authorization"] = f"Bearer {config.api_key}"
             
+            # Try to get external workflow info first (this endpoint should not require auth)
+            try:
+                external_info_response = await client.get(f"{base_url}/api/workflow/external/info")
+                if external_info_response.status_code == 200:
+                    external_info = external_info_response.json()
+                    api_key_required = external_info.get("api_key_required", False)
+                    
+                    # If API key is required by the workflow but not provided by user
+                    if api_key_required and not config.api_key:
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail="API key is required for this workflow but was not provided"
+                        )
+            except httpx.RequestError:
+                # If external info endpoint is not available, continue with normal flow
+                pass
+            
+            # Test connection to the info endpoint
             info_response = await client.get(f"{base_url}/api/workflow/info", headers=headers)
             
             if info_response.status_code == 401:
@@ -116,10 +134,22 @@ async def connect_and_validate_external_workflow(config: ExternalWorkflowConfig)
                 "modification": False  # External workflows are read-only
             }
             
+            # Get API key requirement from external info (if available)
+            api_key_required = False
+            try:
+                external_info_response = await client.get(f"{base_url}/api/workflow/external/info")
+                if external_info_response.status_code == 200:
+                    external_info = external_info_response.json()
+                    api_key_required = external_info.get("api_key_required", False)
+            except httpx.RequestError:
+                # If external info endpoint is not available, assume no API key required
+                pass
+            
             return {
                 "workflow_info": workflow_info,
                 "external_url": base_url,
                 "capabilities": capabilities,
+                "api_key_required": api_key_required,
                 "connection_info": {
                     "response_time": "< 30s",
                     "api_version": workflow_info.get("api_version", "unknown"),
@@ -149,6 +179,7 @@ def create_external_workflow_record(
     workflow_info = validation_result["workflow_info"]
     external_url = validation_result["external_url"]
     capabilities = validation_result["capabilities"]
+    api_key_required = validation_result.get("api_key_required", False)
     
     # Create external workflow record
     external_workflow = ExternalWorkflow(
@@ -159,6 +190,7 @@ def create_external_workflow_record(
         port=config.port,
         is_secure=config.is_secure,
         api_key=config.api_key if config.api_key else None,
+        api_key_required=api_key_required,
         external_workflow_id=workflow_info.get("workflow_id"),
         external_url=external_url,
         workflow_structure=workflow_info.get("workflow", {}),
@@ -409,6 +441,13 @@ async def chat_with_external_workflow(
                 "session_id": session_id
             }
         }
+        
+        # Check if the external workflow requires API key but we don't have one
+        if workflow.api_key_required and not workflow.api_key:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="This external workflow requires API key authentication, but no API key was provided during registration"
+            )
         
         try:
             headers = {"Content-Type": "application/json"}
