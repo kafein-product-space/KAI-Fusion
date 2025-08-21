@@ -7,7 +7,7 @@ Bu standalone chatbot widget sistemi, KAI-Fusion workflow'larından bağımsız 
 - **Standalone Operation**: Export sisteminden bağımsız çalışır
 - **Multi-API Support**: OpenAI, KAI-Fusion API'leri ve demo mode
 - **Easy Integration**: Tek script tag ile website entegrasyonu
-- **Modern UI**: Apache Superset AI tarzında profesyonel tasarım
+- **Modern UI**: Profesyonel tasarım
 - **Docker Ready**: Tek komutla deployment
 - **Cross-origin**: CORS desteği ile her domain'den erişim
 - **Responsive Design**: Mobil ve desktop uyumlu arayüz
