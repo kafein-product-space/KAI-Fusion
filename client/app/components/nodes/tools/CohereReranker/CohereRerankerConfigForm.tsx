@@ -4,15 +4,47 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Settings, Filter, Key } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
-import type { CohereRerankerConfigFormProps } from "./types";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Standard props interface matching other config forms
+interface CohereRerankerConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
 export default function CohereRerankerConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: CohereRerankerConfigFormProps) {
+  
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    cohere_api_key: configData?.cohere_api_key || "",
+    model: configData?.model || "rerank-english-v3.0",
+    top_n: configData?.top_n || 10,
+    max_chunks_per_doc: configData?.max_chunks_per_doc || 10,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.cohere_api_key) {
+      errors.cohere_api_key = "API key is required";
+    }
+    if (!values.model) {
+      errors.model = "Model is required";
+    }
+    if (values.top_n < 1 || values.top_n > 20) {
+      errors.top_n = "Top N must be between 1 and 20";
+    }
+    if (values.max_chunks_per_doc < 1 || values.max_chunks_per_doc > 50) {
+      errors.max_chunks_per_doc = "Max chunks per doc must be between 1 and 50";
+    }
+    return errors;
+  };
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
   // Fetch credentials on component mount
@@ -35,7 +67,7 @@ export default function CohereRerankerConfigForm({
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSubmit}
+        onSubmit={onSave}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (

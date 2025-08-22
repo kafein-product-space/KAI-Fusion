@@ -15,36 +15,63 @@ import {
   Filter,
   Key,
 } from "lucide-react";
-import type { WebScraperConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
 
+// Standard props interface matching other config forms
 interface WebScraperConfigFormProps {
-  initialValues: WebScraperConfig;
-  validate: (values: WebScraperConfig) => any;
-  onSubmit: (values: WebScraperConfig) => void;
+  configData: any;
+  onSave: (values: any) => void;
   onCancel: () => void;
-  onScrapeUrls?: () => void;
-  onPreviewUrl?: (url: string) => void;
-  onCopyToClipboard?: (text: string, type: string) => void;
-  isScraping?: boolean;
-  scrapedDocuments?: any[];
-  progress?: any;
 }
 
 export default function WebScraperConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
-  onScrapeUrls,
-  onPreviewUrl,
-  onCopyToClipboard,
-  isScraping,
-  scrapedDocuments,
-  progress,
 }: WebScraperConfigFormProps) {
+  
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    proxy_url: configData?.proxy_url || "",
+    proxy_username: configData?.proxy_username || "",
+    proxy_password: configData?.proxy_password || "",
+    urls: configData?.urls || [""],
+    css_selectors: configData?.css_selectors || [],
+    exclude_selectors: configData?.exclude_selectors || [],
+    headers: configData?.headers || {},
+    max_concurrent: configData?.max_concurrent || 5,
+    delay_between_requests: configData?.delay_between_requests || 1,
+    timeout: configData?.timeout || 30,
+    user_agent: configData?.user_agent || "",
+    follow_redirects: configData?.follow_redirects ?? true,
+    verify_ssl: configData?.verify_ssl ?? true,
+    extract_images: configData?.extract_images ?? false,
+    extract_links: configData?.extract_links ?? false,
+    clean_html: configData?.clean_html ?? true,
+    chunk_size: configData?.chunk_size || 1000,
+    chunk_overlap: configData?.chunk_overlap || 100,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.urls || values.urls.length === 0 || !values.urls[0]) {
+      errors.urls = "At least one URL is required";
+    }
+    if (values.max_concurrent < 1 || values.max_concurrent > 50) {
+      errors.max_concurrent = "Max concurrent requests must be between 1 and 50";
+    }
+    if (values.delay_between_requests < 0 || values.delay_between_requests > 60) {
+      errors.delay_between_requests = "Delay must be between 0 and 60 seconds";
+    }
+    if (values.timeout < 5 || values.timeout > 300) {
+      errors.timeout = "Timeout must be between 5 and 300 seconds";
+    }
+    return errors;
+  };
   const [activeTab, setActiveTab] = useState("basic");
 
   const tabs = [
@@ -83,7 +110,7 @@ export default function WebScraperConfigForm({
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSubmit(values);
+          onSave(values);
           setSubmitting(false);
         }}
         enableReinitialize

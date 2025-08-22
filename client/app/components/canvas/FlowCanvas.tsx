@@ -93,6 +93,7 @@ import VectorStoreOrchestratorConfigForm from "../nodes/vectorstores/VectorStore
 import OpenAIEmbeddingsProviderConfigForm from "../nodes/embeddings/OpenAIEmbeddingsProvider/OpenAIEmbeddingsProviderConfigForm";
 import OpenAIDocumentEmbedderConfigForm from "../nodes/embeddings/OpenAIDocumentEmbedder/OpenAIDocumentEmbedderConfigForm";
 import EmbeddingsConfigForm from "../nodes/embeddings/OpenaiEmbeddingsNode/EmbeddingsConfigForm";
+import RetrieverConfigForm from "../nodes/tools/RetrieverConfigForm";
 
 // Node config component mapping
 const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
@@ -112,6 +113,7 @@ const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
   OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderConfigForm,
   OpenAIEmbedder: OpenAIDocumentEmbedderConfigForm,
   OpenAIEmbeddings: EmbeddingsConfigForm,
+  RetrieverProvider: RetrieverConfigForm,
 };
 
 // Define nodeTypes outside component to prevent recreations

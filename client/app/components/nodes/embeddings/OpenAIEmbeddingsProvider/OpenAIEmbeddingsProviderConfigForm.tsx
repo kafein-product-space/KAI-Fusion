@@ -14,15 +14,49 @@ import {
 } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
-import type { OpenAIEmbeddingsProviderConfigFormProps } from "./types";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Standard props interface matching other config forms
+interface OpenAIEmbeddingsProviderConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
 export default function OpenAIEmbeddingsProviderConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: OpenAIEmbeddingsProviderConfigFormProps) {
+  
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    api_key: configData?.api_key || "",
+    model_name: configData?.model_name || "text-embedding-3-small",
+    dimensions: configData?.dimensions || 1536,
+    chunk_size: configData?.chunk_size || 1000,
+    max_retries: configData?.max_retries || 3,
+    request_timeout: configData?.request_timeout || 30,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.api_key) {
+      errors.api_key = "API key is required";
+    }
+    if (!values.model_name) {
+      errors.model_name = "Model name is required";
+    }
+    if (values.dimensions < 1 || values.dimensions > 3072) {
+      errors.dimensions = "Dimensions must be between 1 and 3072";
+    }
+    if (values.chunk_size < 1 || values.chunk_size > 8192) {
+      errors.chunk_size = "Chunk size must be between 1 and 8192";
+    }
+    return errors;
+  };
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
   const [loadingCredential, setLoadingCredential] = useState(false);
 
@@ -46,7 +80,7 @@ export default function OpenAIEmbeddingsProviderConfigForm({
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSubmit}
+        onSubmit={onSave}
         enableReinitialize
         validateOnMount={false}
         validateOnChange={false}

@@ -11,19 +11,61 @@ import {
   Zap,
   Info,
 } from "lucide-react";
-import type { VectorStoreOrchestratorConfigFormProps } from "./types";
 import JSONEditor from "~/components/common/JSONEditor";
 import TabNavigation from "~/components/common/TabNavigation";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Standard props interface matching other config forms
+interface VectorStoreOrchestratorConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
 export default function VectorStoreOrchestratorConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: VectorStoreOrchestratorConfigFormProps) {
+  
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    connection_string: configData?.connection_string || "",
+    collection_name: configData?.collection_name || "",
+    table_prefix: configData?.table_prefix || "",
+    custom_metadata: configData?.custom_metadata || "{}",
+    preserve_document_metadata: configData?.preserve_document_metadata ?? true,
+    metadata_strategy: configData?.metadata_strategy || "merge",
+    search_algorithm: configData?.search_algorithm || "cosine",
+    search_k: configData?.search_k || 10,
+    score_threshold: configData?.score_threshold || 0.0,
+    batch_size: configData?.batch_size || 100,
+    pre_delete_collection: configData?.pre_delete_collection ?? false,
+    enable_hnsw_index: configData?.enable_hnsw_index ?? true,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.collection_name) {
+      errors.collection_name = "Collection name is required";
+    }
+    if (!values.connection_string) {
+      errors.connection_string = "Connection string is required";
+    }
+    // Validate JSON metadata
+    if (values.custom_metadata) {
+      try {
+        JSON.parse(values.custom_metadata);
+      } catch (e) {
+        errors.custom_metadata = "Invalid JSON format";
+      }
+    }
+    return errors;
+  };
   const [activeTab, setActiveTab] = useState("data");
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
@@ -70,7 +112,7 @@ export default function VectorStoreOrchestratorConfigForm({
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSubmit(values);
+          onSave(values);
           setSubmitting(false);
         }}
         enableReinitialize

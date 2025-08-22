@@ -20,40 +20,73 @@ import {
   ExternalLink,
   FileText,
 } from "lucide-react";
-import type { WebhookTriggerConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
 
+// Standard props interface matching other config forms
 interface WebhookTriggerConfigFormProps {
-  initialValues: WebhookTriggerConfig;
-  validate: (values: WebhookTriggerConfig) => any;
-  onSubmit: (values: WebhookTriggerConfig) => void;
+  configData: any;
+  onSave: (values: any) => void;
   onCancel: () => void;
-  webhookEndpoint?: string;
-  webhookToken?: string;
-  events?: any[];
-  stats?: any;
-  isListening?: boolean;
-  onTestEvent?: () => void;
-  onStopListening?: () => void;
-  onCopyToClipboard?: (text: string, type: string) => void;
 }
 
 export default function WebhookTriggerConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
-  webhookEndpoint,
-  webhookToken,
-  events,
-  stats,
-  isListening,
-  onTestEvent,
-  onStopListening,
-  onCopyToClipboard,
 }: WebhookTriggerConfigFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  
+  // Default values for missing fields
+  const initialValues = {
+    http_method: configData?.http_method || "POST",
+    authentication_required: configData?.authentication_required ?? false,
+    webhook_token: configData?.webhook_token || "",
+    allowed_event_types: configData?.allowed_event_types || "",
+    max_payload_size: configData?.max_payload_size || 1024,
+    rate_limit_per_minute: configData?.rate_limit_per_minute || 60,
+    enable_cors: configData?.enable_cors ?? true,
+    webhook_timeout: configData?.webhook_timeout || 30,
+    allowed_ips: configData?.allowed_ips || "",
+    max_concurrent_connections: configData?.max_concurrent_connections || 100,
+    connection_timeout: configData?.connection_timeout || 30,
+    enable_response_cache: configData?.enable_response_cache ?? false,
+    cache_duration: configData?.cache_duration || 300,
+    enable_websocket_broadcast: configData?.enable_websocket_broadcast ?? false,
+    realtime_channels: configData?.realtime_channels || "",
+    tenant_isolation: configData?.tenant_isolation ?? false,
+    tenant_header: configData?.tenant_header || "X-Tenant-ID",
+    circuit_breaker: configData?.circuit_breaker ?? false,
+  };
+
   const [currentValues, setCurrentValues] = useState(initialValues);
+  
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.max_payload_size || values.max_payload_size < 1) {
+      errors.max_payload_size = "Max payload size must be at least 1 KB";
+    }
+    if (!values.rate_limit_per_minute || values.rate_limit_per_minute < 0) {
+      errors.rate_limit_per_minute = "Rate limit must be at least 0";
+    }
+    if (!values.webhook_timeout || values.webhook_timeout < 5 || values.webhook_timeout > 300) {
+      errors.webhook_timeout = "Webhook timeout must be between 5 and 300 seconds";
+    }
+    return errors;
+  };
+  
+  // Mock data for testing features since these would come from backend
+  const webhookEndpoint = "http://localhost:8000/api/webhooks/trigger/123";
+  const events: any[] = [];
+  const stats: any = { total_events: 0 };
+  const isListening = false;
+  
+  // Mock functions for testing features
+  const onTestEvent = () => {};
+  const onStopListening = () => {};
+  const onCopyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+  };
 
   const tabs = [
     {
@@ -151,33 +184,11 @@ export default function WebhookTriggerConfigForm({
         initialValues={initialValues}
         validate={(values) => {
           setCurrentValues(values);
-          const errors: any = {};
-
-          if (!values.max_payload_size || values.max_payload_size < 1) {
-            errors.max_payload_size = "Max payload size must be at least 1 KB";
-          }
-
-          if (
-            !values.rate_limit_per_minute ||
-            values.rate_limit_per_minute < 0
-          ) {
-            errors.rate_limit_per_minute = "Rate limit must be at least 0";
-          }
-
-          if (
-            !values.webhook_timeout ||
-            values.webhook_timeout < 5 ||
-            values.webhook_timeout > 300
-          ) {
-            errors.webhook_timeout =
-              "Webhook timeout must be between 5 and 300 seconds";
-          }
-
-          return errors;
+          return validate(values);
         }}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSubmit(values);
+          onSave(values);
           setSubmitting(false);
         }}
         enableReinitialize
