@@ -5,6 +5,35 @@ import { getUserCredentialSecret } from "~/services/userCredentialService";
 import { useEffect } from "react";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Custom CSS for range slider
+const sliderStyle = `
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3B82F6;
+    cursor: pointer;
+    border: 2px solid #1E40AF;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3B82F6;
+    cursor: pointer;
+    border: 2px solid #1E40AF;
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = sliderStyle;
+  document.head.appendChild(styleSheet);
+}
+
 interface ChatConfigFormProps {
   configData: any;
   onSave: (values: any) => void;
@@ -24,13 +53,13 @@ export default function ChatConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">OpenAI Chat</span>
+    <div className="relative w-full h-auto rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+      <div className="flex items-center justify-between w-full px-6 py-4 border-b border-white/20">
+        <div className="flex items-center gap-3">
+          <Brain className="w-6 h-6 text-white" />
+          <span className="text-white text-lg font-medium">OpenAI Chat Configuration</span>
         </div>
-        <Settings className="w-4 h-4 text-white" />
+        <Settings className="w-6 h-6 text-white" />
       </div>
 
       <Formik
@@ -58,10 +87,10 @@ export default function ChatConfigForm({
         onSubmit={(values) => onSave(values)}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-6 w-full p-6">
             {/* Credential ID */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Credential
               </label>
               <CredentialSelector
@@ -97,7 +126,7 @@ export default function ChatConfigForm({
                 serviceType="openai"
                 placeholder="Select Credential"
                 showCreateNew={true}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
               <ErrorMessage
                 name="credential_id"
@@ -108,13 +137,13 @@ export default function ChatConfigForm({
 
             {/* API Key */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 API Key
               </label>
               <Field
                 name="api_key"
                 type="password"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
@@ -127,13 +156,13 @@ export default function ChatConfigForm({
 
             {/* Model */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Model
               </label>
               <Field
                 as="select"
                 name="model_name"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -152,8 +181,8 @@ export default function ChatConfigForm({
 
             {/* Temperature */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Temperature
+              <label className="text-white text-sm font-medium mb-2 block">
+                Temperature: <span className="text-blue-400 font-mono">{values.temperature}</span>
               </label>
               <Field
                 name="temperature"
@@ -161,16 +190,13 @@ export default function ChatConfigForm({
                 min={0}
                 max={2}
                 step={0.1}
-                className="w-full text-white"
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>0</span>
-                <span className="font-bold text-blue-400">
-                  {values.temperature}
-                </span>
-                <span>2</span>
+              <div className="flex justify-between text-sm text-gray-400 mt-2">
+                <span>Precise (0)</span>
+                <span>Creative (2)</span>
               </div>
               <ErrorMessage
                 name="temperature"
@@ -181,13 +207,15 @@ export default function ChatConfigForm({
 
             {/* Max Tokens */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Max Tokens
               </label>
               <Field
                 name="max_tokens"
                 type="number"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                min="1"
+                max="4096"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
@@ -199,24 +227,31 @@ export default function ChatConfigForm({
             </div>
 
             {/* Buttons */}
-            <div className="flex space-x-2">
+            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-600">
               <button
                 type="button"
                 onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
+                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                ✕
+                Cancel
               </button>
               <button
                 type="submit"
                 disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
+                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors flex items-center gap-2"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                ✓
+                {isSubmitting ? (
+                  <>
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                    Saving...
+                  </>
+                ) : (
+                  'Save Configuration'
+                )}
               </button>
             </div>
           </Form>

@@ -72,8 +72,47 @@ import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorS
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
+import FullscreenNodeModal from "../common/FullscreenNodeModal";
 import { TutorialButton } from "../tutorial";
 import { executeWorkflowStream } from "~/services/executionService";
+
+// Import config components
+import ChatConfigForm from "../nodes/llms/OpenAI/ChatConfigForm";
+import ToolAgentConfigForm from "../nodes/agents/ToolAgent/ToolAgentConfigForm";
+import BufferMemoryConfigForm from "../nodes/memory/BufferMemory/BufferMemoryConfigForm";
+import WebScraperConfigForm from "../nodes/document_loaders/WebScraper/WebScraperConfigForm";
+import DocumentLoaderConfigForm from "../nodes/document_loaders/DocumentLoader/DocumentLoaderConfigForm";
+import DocumentChunkSplitterConfigForm from "../nodes/splitters/DocumentChunkSplitter/DocumentChunkSplitterConfigForm";
+import HTTPClientConfigForm from "../nodes/tools/HTTPClient/HTTPClientConfigForm";
+import DocumentRerankerConfigForm from "../nodes/tools/DocumentReranker/DocumentRerankerConfigForm";
+import CohereRerankerConfigForm from "../nodes/tools/CohereReranker/CohereRerankerConfigForm";
+import TavilyWebSearchConfigForm from "../nodes/tools/TavilyWebSearch/TavilyWebSearchConfigForm";
+import TimerStartConfigForm from "../nodes/triggers/TimerStartNode/TimerStartConfigForm";
+import WebhookTriggerConfigForm from "../nodes/triggers/WebhookTrigger/WebhookTriggerConfigForm";
+import VectorStoreOrchestratorConfigForm from "../nodes/vectorstores/VectorStoreOrchestrator/VectorStoreOrchestratorConfigForm";
+import OpenAIEmbeddingsProviderConfigForm from "../nodes/embeddings/OpenAIEmbeddingsProvider/OpenAIEmbeddingsProviderConfigForm";
+import OpenAIDocumentEmbedderConfigForm from "../nodes/embeddings/OpenAIDocumentEmbedder/OpenAIDocumentEmbedderConfigForm";
+import EmbeddingsConfigForm from "../nodes/embeddings/OpenaiEmbeddingsNode/EmbeddingsConfigForm";
+
+// Node config component mapping
+const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
+  OpenAIChat: ChatConfigForm,
+  Agent: ToolAgentConfigForm,
+  BufferMemory: BufferMemoryConfigForm,
+  WebScraper: WebScraperConfigForm,
+  DocumentLoader: DocumentLoaderConfigForm,
+  ChunkSplitter: DocumentChunkSplitterConfigForm,
+  HttpRequest: HTTPClientConfigForm,
+  Reranker: DocumentRerankerConfigForm,
+  CohereRerankerProvider: CohereRerankerConfigForm,
+  TavilySearch: TavilyWebSearchConfigForm,
+  TimerStartNode: TimerStartConfigForm,
+  WebhookTrigger: WebhookTriggerConfigForm,
+  VectorStoreOrchestrator: VectorStoreOrchestratorConfigForm,
+  OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderConfigForm,
+  OpenAIEmbedder: OpenAIDocumentEmbedderConfigForm,
+  OpenAIEmbeddings: EmbeddingsConfigForm,
+};
 
 // Define nodeTypes outside component to prevent recreations
 const baseNodeTypes = {
@@ -151,6 +190,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Auto-save settings modal ref
   const autoSaveSettingsModalRef = useRef<HTMLDialogElement>(null);
+
+  // Fullscreen node modal state
+  const [fullscreenModal, setFullscreenModal] = useState<{
+    isOpen: boolean;
+    nodeData?: any;
+    nodeMetadata?: any;
+    configComponent?: React.ComponentType<any>;
+  }>({
+    isOpen: false,
+  });
 
   const {
     currentWorkflow,
@@ -974,6 +1023,51 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   };
 
+  // Handle node click for fullscreen modal
+  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    // Don't open modal if it's already in config mode or a double click
+    if (node.data?.isConfigMode || event.detail === 2) {
+      return;
+    }
+
+    const nodeMetadata = node.data?.metadata || availableNodes.find(
+      (n: NodeMetadata) => n.name === node.type
+    );
+
+    const configComponent = nodeConfigComponents[node.type!];
+
+    if (nodeMetadata && configComponent) {
+      setFullscreenModal({
+        isOpen: true,
+        nodeData: node,
+        nodeMetadata,
+        configComponent,
+      });
+    }
+  }, [availableNodes]);
+
+  // Handle fullscreen modal save
+  const handleFullscreenModalSave = useCallback((values: any) => {
+    if (fullscreenModal.nodeData) {
+      setNodes((nodes) =>
+        nodes.map((node) =>
+          node.id === fullscreenModal.nodeData.id
+            ? {
+                ...node,
+                data: { ...node.data, ...values },
+              }
+            : node
+        )
+      );
+    }
+    setFullscreenModal({ isOpen: false });
+  }, [fullscreenModal.nodeData, setNodes]);
+
+  // Handle fullscreen modal close
+  const handleFullscreenModalClose = useCallback(() => {
+    setFullscreenModal({ isOpen: false });
+  }, []);
+
   // Edge'leri render ederken CustomEdge'a isActive prop'u ilet
   const edgeTypes = useMemo(
     () => ({
@@ -1039,6 +1133,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             onDragOver={onDragOver}
             nodeStatus={nodeStatus}
             edgeStatus={edgeStatus}
+            onNodeClick={handleNodeClick}
           />
 
           {/* Chat Toggle Button */}
@@ -1154,6 +1249,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         setAutoSaveInterval={setAutoSaveInterval}
         lastAutoSave={lastAutoSave}
       />
+
+      {/* Fullscreen Node Configuration Modal */}
+      {fullscreenModal.isOpen && fullscreenModal.nodeMetadata && fullscreenModal.configComponent && (
+        <FullscreenNodeModal
+          isOpen={fullscreenModal.isOpen}
+          onClose={handleFullscreenModalClose}
+          nodeMetadata={fullscreenModal.nodeMetadata}
+          configData={fullscreenModal.nodeData?.data || {}}
+          onSave={handleFullscreenModalSave}
+          ConfigComponent={fullscreenModal.configComponent}
+        />
+      )}
     </>
   );
 }

@@ -28,6 +28,7 @@ interface ReactFlowCanvasProps {
   onDragOver: (event: React.DragEvent) => void;
   nodeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
   edgeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
+  onNodeClick?: (event: React.MouseEvent, node: Node) => void;
 }
 
 export default function ReactFlowCanvas({
@@ -44,6 +45,7 @@ export default function ReactFlowCanvas({
   onDragOver,
   nodeStatus = {},
   edgeStatus = {},
+  onNodeClick,
 }: ReactFlowCanvasProps) {
   return (
     <div
@@ -82,6 +84,7 @@ export default function ReactFlowCanvas({
         snapToGrid={true}
         snapGrid={[10, 10]}
         fitView
+        onNodeClick={onNodeClick}
       >
         <Controls position="top-right" className="bg-background text-black" />
         <Background gap={20} size={1} />
