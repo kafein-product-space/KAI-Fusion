@@ -16,7 +16,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
-
+CLAUDE.md
 # Node
 node_modules/
 npm-debug.log*
