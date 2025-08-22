@@ -18,7 +18,6 @@ export default function CohereRerankerConfigForm({
   onSave,
   onCancel,
 }: CohereRerankerConfigFormProps) {
-  
   // Default values for missing fields
   const initialValues = {
     credential_id: configData?.credential_id || "",
@@ -53,17 +52,7 @@ export default function CohereRerankerConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Cohere Reranker
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full flex flex-col items-center justify-center">
       <Formik
         initialValues={initialValues}
         validate={validate}

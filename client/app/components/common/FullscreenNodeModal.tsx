@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { X, Settings, Info, Save, ArrowLeft, ArrowRight } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
+import React, { useState, useEffect } from "react";
+import { X, Settings, Info, Save, ArrowLeft, ArrowRight } from "lucide-react";
+import { motion, AnimatePresence } from "motion/react";
 
 interface NodeInput {
   name: string;
@@ -56,11 +56,13 @@ export default function FullscreenNodeModal({
   nodeMetadata,
   configData,
   onSave,
-  ConfigComponent
+  ConfigComponent,
 }: FullscreenNodeModalProps) {
-  const [activeTab, setActiveTab] = useState<'config' | 'inputs' | 'outputs' | 'info'>('config');
+  const [activeTab, setActiveTab] = useState<
+    "config" | "inputs" | "outputs" | "info"
+  >("config");
   const [configValues, setConfigValues] = useState(configData);
-  
+
   useEffect(() => {
     setConfigValues(configData);
   }, [configData]);
@@ -72,7 +74,7 @@ export default function FullscreenNodeModal({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
+    if (e.key === "Escape") {
       onClose();
     }
   };
@@ -114,11 +116,13 @@ export default function FullscreenNodeModal({
                   <h1 className="text-xl font-bold text-white">
                     {nodeMetadata.display_name || nodeMetadata.name}
                   </h1>
-                  <p className="text-sm text-gray-400">{nodeMetadata.category}</p>
+                  <p className="text-sm text-gray-400">
+                    {nodeMetadata.category}
+                  </p>
                 </div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-3">
               <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
                 {nodeMetadata.node_type}
@@ -140,18 +144,18 @@ export default function FullscreenNodeModal({
             className="flex items-center gap-1 p-4 bg-gray-800 border-b border-gray-700"
           >
             {[
-              { id: 'config', label: 'Configuration', icon: Settings },
-              { id: 'inputs', label: 'Inputs', icon: ArrowRight },
-              { id: 'outputs', label: 'Outputs', icon: ArrowLeft },
-              { id: 'info', label: 'Information', icon: Info }
+              { id: "config", label: "Configuration", icon: Settings },
+              { id: "inputs", label: "Inputs", icon: ArrowRight },
+              { id: "outputs", label: "Outputs", icon: ArrowLeft },
+              { id: "info", label: "Information", icon: Info },
             ].map(({ id, label, icon: Icon }) => (
               <button
                 key={id}
                 onClick={() => setActiveTab(id as any)}
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
                   activeTab === id
-                    ? 'bg-blue-600 text-white shadow-lg'
-                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white'
+                    ? "bg-blue-600 text-white shadow-lg"
+                    : "bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -198,13 +202,21 @@ export default function FullscreenNodeModal({
                           )}
                         </div>
                       </div>
-                      <p className="text-sm text-gray-400 mb-2">{input.description}</p>
+                      <p className="text-sm text-gray-400 mb-2">
+                        {input.description}
+                      </p>
                       <div className="text-xs text-gray-500">
-                        Type: <span className="text-blue-400 font-mono">{input.type}</span>
+                        Type:{" "}
+                        <span className="text-blue-400 font-mono">
+                          {input.type}
+                        </span>
                       </div>
                       {input.default !== undefined && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Default: <span className="text-green-400 font-mono">{String(input.default)}</span>
+                          Default:{" "}
+                          <span className="text-green-400 font-mono">
+                            {String(input.default)}
+                          </span>
                         </div>
                       )}
                     </motion.div>
@@ -220,8 +232,8 @@ export default function FullscreenNodeModal({
               transition={{ delay: 0.4 }}
               className="flex-1 overflow-y-auto lg:w-auto w-full"
             >
-              <div className={`${activeTab === 'config' ? 'p-0' : 'p-6'}`}>
-                {activeTab === 'config' && (
+              <div className={`${activeTab === "config" ? "p-0" : "p-6"}`}>
+                {activeTab === "config" && (
                   <div className="h-full flex flex-col">
                     <div className="p-6 border-b border-gray-700">
                       <h2 className="text-lg font-semibold text-white flex items-center gap-2">
@@ -229,7 +241,7 @@ export default function FullscreenNodeModal({
                         Configuration
                       </h2>
                     </div>
-                    <div className="flex-1 p-6 overflow-y-auto">
+                    <div className="flex-1 p-2 overflow-y-auto">
                       <div className="max-w-2xl mx-auto">
                         <ConfigComponent
                           configData={configValues}
@@ -241,35 +253,60 @@ export default function FullscreenNodeModal({
                   </div>
                 )}
 
-                {activeTab === 'inputs' && (
+                {activeTab === "inputs" && (
                   <div>
-                    <h2 className="text-lg font-semibold text-white mb-6">Input Details</h2>
+                    <h2 className="text-lg font-semibold text-white mb-6">
+                      Input Details
+                    </h2>
                     <div className="space-y-4">
                       {nodeMetadata.inputs.map((input) => (
-                        <div key={input.name} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                          <h3 className="text-lg font-medium text-white mb-3">{input.name}</h3>
-                          <p className="text-gray-300 mb-4">{input.description}</p>
+                        <div
+                          key={input.name}
+                          className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+                        >
+                          <h3 className="text-lg font-medium text-white mb-3">
+                            {input.name}
+                          </h3>
+                          <p className="text-gray-300 mb-4">
+                            {input.description}
+                          </p>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-400">Type:</span>
-                              <span className="ml-2 text-blue-400 font-mono">{input.type}</span>
+                              <span className="ml-2 text-blue-400 font-mono">
+                                {input.type}
+                              </span>
                             </div>
                             <div>
                               <span className="text-gray-400">Required:</span>
-                              <span className={`ml-2 ${input.required ? 'text-red-400' : 'text-green-400'}`}>
-                                {input.required ? 'Yes' : 'No'}
+                              <span
+                                className={`ml-2 ${
+                                  input.required
+                                    ? "text-red-400"
+                                    : "text-green-400"
+                                }`}
+                              >
+                                {input.required ? "Yes" : "No"}
                               </span>
                             </div>
                             <div>
                               <span className="text-gray-400">Connection:</span>
-                              <span className={`ml-2 ${input.is_connection ? 'text-blue-400' : 'text-gray-400'}`}>
-                                {input.is_connection ? 'Yes' : 'No'}
+                              <span
+                                className={`ml-2 ${
+                                  input.is_connection
+                                    ? "text-blue-400"
+                                    : "text-gray-400"
+                                }`}
+                              >
+                                {input.is_connection ? "Yes" : "No"}
                               </span>
                             </div>
                             {input.default !== undefined && (
                               <div>
                                 <span className="text-gray-400">Default:</span>
-                                <span className="ml-2 text-green-400 font-mono">{String(input.default)}</span>
+                                <span className="ml-2 text-green-400 font-mono">
+                                  {String(input.default)}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -279,23 +316,36 @@ export default function FullscreenNodeModal({
                   </div>
                 )}
 
-                {activeTab === 'outputs' && (
+                {activeTab === "outputs" && (
                   <div>
-                    <h2 className="text-lg font-semibold text-white mb-6">Output Details</h2>
+                    <h2 className="text-lg font-semibold text-white mb-6">
+                      Output Details
+                    </h2>
                     <div className="space-y-4">
                       {nodeMetadata.outputs.map((output) => (
-                        <div key={output.name} className="bg-gray-800 rounded-lg p-6 border border-gray-700">
-                          <h3 className="text-lg font-medium text-white mb-3">{output.name}</h3>
-                          <p className="text-gray-300 mb-4">{output.description}</p>
+                        <div
+                          key={output.name}
+                          className="bg-gray-800 rounded-lg p-6 border border-gray-700"
+                        >
+                          <h3 className="text-lg font-medium text-white mb-3">
+                            {output.name}
+                          </h3>
+                          <p className="text-gray-300 mb-4">
+                            {output.description}
+                          </p>
                           <div className="grid grid-cols-2 gap-4 text-sm">
                             <div>
                               <span className="text-gray-400">Type:</span>
-                              <span className="ml-2 text-purple-400 font-mono">{output.type}</span>
+                              <span className="ml-2 text-purple-400 font-mono">
+                                {output.type}
+                              </span>
                             </div>
                             {output.format && (
                               <div>
                                 <span className="text-gray-400">Format:</span>
-                                <span className="ml-2 text-yellow-400">{output.format}</span>
+                                <span className="ml-2 text-yellow-400">
+                                  {output.format}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -305,67 +355,95 @@ export default function FullscreenNodeModal({
                   </div>
                 )}
 
-                {activeTab === 'info' && (
+                {activeTab === "info" && (
                   <div>
-                    <h2 className="text-lg font-semibold text-white mb-6">Node Information</h2>
+                    <h2 className="text-lg font-semibold text-white mb-6">
+                      Node Information
+                    </h2>
                     <div className="bg-gray-800 rounded-lg p-6 border border-gray-700">
                       <div className="space-y-4">
                         <div>
-                          <h3 className="text-lg font-medium text-white mb-2">Description</h3>
-                          <p className="text-gray-300">{nodeMetadata.description}</p>
+                          <h3 className="text-lg font-medium text-white mb-2">
+                            Description
+                          </h3>
+                          <p className="text-gray-300">
+                            {nodeMetadata.description}
+                          </p>
                         </div>
-                        
+
                         <div className="grid grid-cols-2 gap-6">
                           <div>
-                            <h4 className="font-medium text-white mb-2">Details</h4>
+                            <h4 className="font-medium text-white mb-2">
+                              Details
+                            </h4>
                             <div className="space-y-2 text-sm">
                               <div>
                                 <span className="text-gray-400">Category:</span>
-                                <span className="ml-2 text-blue-400">{nodeMetadata.category}</span>
+                                <span className="ml-2 text-blue-400">
+                                  {nodeMetadata.category}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-400">Type:</span>
-                                <span className="ml-2 text-purple-400">{nodeMetadata.node_type}</span>
+                                <span className="ml-2 text-purple-400">
+                                  {nodeMetadata.node_type}
+                                </span>
                               </div>
                               {nodeMetadata.version && (
                                 <div>
-                                  <span className="text-gray-400">Version:</span>
-                                  <span className="ml-2 text-green-400">{nodeMetadata.version}</span>
+                                  <span className="text-gray-400">
+                                    Version:
+                                  </span>
+                                  <span className="ml-2 text-green-400">
+                                    {nodeMetadata.version}
+                                  </span>
                                 </div>
                               )}
                             </div>
                           </div>
-                          
+
                           <div>
-                            <h4 className="font-medium text-white mb-2">Statistics</h4>
+                            <h4 className="font-medium text-white mb-2">
+                              Statistics
+                            </h4>
                             <div className="space-y-2 text-sm">
                               <div>
                                 <span className="text-gray-400">Inputs:</span>
-                                <span className="ml-2 text-blue-400">{nodeMetadata.inputs.length}</span>
+                                <span className="ml-2 text-blue-400">
+                                  {nodeMetadata.inputs.length}
+                                </span>
                               </div>
                               <div>
                                 <span className="text-gray-400">Outputs:</span>
-                                <span className="ml-2 text-purple-400">{nodeMetadata.outputs.length}</span>
+                                <span className="ml-2 text-purple-400">
+                                  {nodeMetadata.outputs.length}
+                                </span>
                               </div>
-                              {nodeMetadata.tags && nodeMetadata.tags.length > 0 && (
-                                <div>
-                                  <span className="text-gray-400">Tags:</span>
-                                  <div className="mt-1 flex flex-wrap gap-1">
-                                    {nodeMetadata.tags.map((tag, i) => (
-                                      <span key={i} className="px-2 py-0.5 text-xs bg-gray-700 text-gray-300 rounded">
-                                        {tag}
-                                      </span>
-                                    ))}
+                              {nodeMetadata.tags &&
+                                nodeMetadata.tags.length > 0 && (
+                                  <div>
+                                    <span className="text-gray-400">Tags:</span>
+                                    <div className="mt-1 flex flex-wrap gap-1">
+                                      {nodeMetadata.tags.map((tag, i) => (
+                                        <span
+                                          key={i}
+                                          className="px-2 py-0.5 text-xs bg-gray-700 text-gray-300 rounded"
+                                        >
+                                          {tag}
+                                        </span>
+                                      ))}
+                                    </div>
                                   </div>
-                                </div>
-                              )}
+                                )}
                             </div>
                           </div>
                         </div>
 
                         {nodeMetadata.documentation_url && (
                           <div>
-                            <h4 className="font-medium text-white mb-2">Documentation</h4>
+                            <h4 className="font-medium text-white mb-2">
+                              Documentation
+                            </h4>
                             <a
                               href={nodeMetadata.documentation_url}
                               target="_blank"
@@ -404,14 +482,24 @@ export default function FullscreenNodeModal({
                       transition={{ delay: 0.4 + index * 0.1 }}
                       className="p-4 rounded-lg bg-gray-800 border border-gray-700"
                     >
-                      <h3 className="font-medium text-white mb-2">{output.name}</h3>
-                      <p className="text-sm text-gray-400 mb-2">{output.description}</p>
+                      <h3 className="font-medium text-white mb-2">
+                        {output.name}
+                      </h3>
+                      <p className="text-sm text-gray-400 mb-2">
+                        {output.description}
+                      </p>
                       <div className="text-xs text-gray-500">
-                        Type: <span className="text-purple-400 font-mono">{output.type}</span>
+                        Type:{" "}
+                        <span className="text-purple-400 font-mono">
+                          {output.type}
+                        </span>
                       </div>
                       {output.format && (
                         <div className="text-xs text-gray-500 mt-1">
-                          Format: <span className="text-yellow-400 font-mono">{output.format}</span>
+                          Format:{" "}
+                          <span className="text-yellow-400 font-mono">
+                            {output.format}
+                          </span>
                         </div>
                       )}
                     </motion.div>
@@ -439,7 +527,7 @@ export default function FullscreenNodeModal({
                 </>
               )}
             </div>
-            
+
             <div className="flex items-center gap-3">
               <button
                 onClick={onClose}
@@ -447,11 +535,11 @@ export default function FullscreenNodeModal({
               >
                 Cancel
               </button>
-              {activeTab === 'config' && (
+              {activeTab === "config" && (
                 <button
                   onClick={() => {
                     // Trigger save from config component
-                    const configForm = document.querySelector('form');
+                    const configForm = document.querySelector("form");
                     if (configForm) {
                       configForm.requestSubmit();
                     }

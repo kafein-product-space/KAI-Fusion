@@ -96,17 +96,7 @@ export default function VectorStoreOrchestratorConfigForm({
   ];
 
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Vector Store Orchestrator
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
