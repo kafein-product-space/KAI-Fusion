@@ -64,15 +64,7 @@ export default function RetrieverConfigForm({
   };
 
   return (
-    <div className="relative w-full h-auto rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-6 py-4 border-b border-white/20">
-        <div className="flex items-center gap-3">
-          <Search className="w-6 h-6 text-white" />
-          <span className="text-white text-lg font-medium">Retriever Configuration</span>
-        </div>
-        <Settings className="w-6 h-6 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
@@ -80,7 +72,7 @@ export default function RetrieverConfigForm({
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-6 w-full p-6">
+          <Form className="space-y-8 w-full p-6">
             {/* Search Configuration Section */}
             <div className="space-y-6">
               <div className="flex items-center gap-2 text-sm font-semibold text-blue-400 uppercase tracking-wider">
@@ -103,7 +95,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="database_connection"
                   component="div"
-                  className="text-red-400 text-xs mt-1"
+                  className="text-red-400 text-sm mt-1"
                 />
               </div>
 
@@ -123,7 +115,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="collection_name"
                   component="div"
-                  className="text-red-400 text-xs mt-1"
+                  className="text-red-400 text-sm mt-1"
                 />
               </div>
 
@@ -148,7 +140,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="search_type"
                   component="div"
-                  className="text-red-400 text-xs mt-1"
+                  className="text-red-400 text-sm mt-1"
                 />
               </div>
 
@@ -162,7 +154,7 @@ export default function RetrieverConfigForm({
                   type="range"
                   min={1}
                   max={50}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                   onMouseDown={(e: any) => e.stopPropagation()}
                   onTouchStart={(e: any) => e.stopPropagation()}
                 />
@@ -173,7 +165,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="search_k"
                   component="div"
-                  className="text-red-400 text-xs mt-1"
+                  className="text-red-400 text-sm mt-1"
                 />
               </div>
 
@@ -188,7 +180,7 @@ export default function RetrieverConfigForm({
                   min={0}
                   max={1}
                   step={0.05}
-                  className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                  className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                   onMouseDown={(e: any) => e.stopPropagation()}
                   onTouchStart={(e: any) => e.stopPropagation()}
                 />
@@ -199,7 +191,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="score_threshold"
                   component="div"
-                  className="text-red-400 text-xs mt-1"
+                  className="text-red-400 text-sm mt-1"
                 />
               </div>
             </div>
@@ -229,7 +221,7 @@ export default function RetrieverConfigForm({
                 <ErrorMessage
                   name="enable_metadata_filtering"
                   component="div"
-                  className="text-red-400 text-xs mt-1 ml-8"
+                  className="text-red-400 text-sm mt-1 ml-8"
                 />
               </div>
 
@@ -273,40 +265,12 @@ export default function RetrieverConfigForm({
                   <ErrorMessage
                     name="filter_strategy"
                     component="div"
-                    className="text-red-400 text-xs mt-1"
+                    className="text-red-400 text-sm mt-1"
                   />
                 </div>
               )}
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-600">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors flex items-center gap-2"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

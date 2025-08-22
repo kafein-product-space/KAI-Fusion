@@ -51,15 +51,7 @@ export default function ToolAgentConfigForm({
     return errors;
   };
   return (
-    <div className="relative w-full h-auto rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-6 py-4 border-b border-white/20">
-        <div className="flex items-center gap-3">
-          <Bot className="w-6 h-6 text-white" />
-          <span className="text-white text-lg font-medium">Tool Agent Configuration</span>
-        </div>
-        <Settings className="w-6 h-6 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
@@ -67,7 +59,7 @@ export default function ToolAgentConfigForm({
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting }) => (
-          <Form className="space-y-6 w-full p-6">
+          <Form className="space-y-8 w-full p-6">
             {/* Agent Type */}
             <div>
               <label className="text-white text-sm font-medium mb-2 block">
@@ -87,7 +79,7 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="agent_type"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -112,7 +104,7 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="system_prompt"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -126,7 +118,7 @@ export default function ToolAgentConfigForm({
                 type="range"
                 min={1}
                 max={20}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
@@ -137,7 +129,7 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="max_iterations"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -152,7 +144,7 @@ export default function ToolAgentConfigForm({
                 min={0}
                 max={2}
                 step={0.1}
-                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+                className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
@@ -163,7 +155,7 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="temperature"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -185,7 +177,7 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="enable_memory"
                 component="div"
-                className="text-red-400 text-xs mt-1 ml-8"
+                className="text-red-400 text-sm mt-1 ml-8"
               />
             </div>
 
@@ -207,38 +199,10 @@ export default function ToolAgentConfigForm({
               <ErrorMessage
                 name="enable_tools"
                 component="div"
-                className="text-red-400 text-xs mt-1 ml-8"
+                className="text-red-400 text-sm mt-1 ml-8"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-600">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors flex items-center gap-2"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

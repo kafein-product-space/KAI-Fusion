@@ -77,8 +77,10 @@ export default function TimerStartConfigForm({
   initialValues,
   validate,
   onSubmit,
+  onSave,
   onCancel,
-}: TimerStartConfigFormProps) {
+  configData,
+}: TimerStartConfigFormProps & { configData?: any; onSave?: any }) {
   const [activeTab, setActiveTab] = useState("basic");
 
   const defaultValues = {
@@ -89,58 +91,40 @@ export default function TimerStartConfigForm({
     timezone: "UTC",
     enabled: true,
     trigger_data: "{}",
-    ...initialValues,
+    ...(initialValues || configData),
   };
 
-  return (
-    <div
-      className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 
-      border border-slate-700/50 shadow-2xl shadow-orange-500/10 backdrop-blur-xl
-      rounded-xl p-4 w-80 max-h-[70vh] overflow-y-auto"
-    >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4 pb-3 border-b border-slate-700/50">
-        <div className="flex items-center space-x-2">
-          <div
-            className="w-8 h-8 bg-gradient-to-br from-orange-500 to-red-600 rounded-lg 
-            flex items-center justify-center shadow-lg"
-          >
-            <Timer className="w-4 h-4 text-white" />
-          </div>
-          <div>
-            <h3 className="font-bold text-sm text-white">
-              Timer Configuration
-            </h3>
-            <p className="text-slate-400 text-xs">
-              Configure workflow triggers
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={onCancel}
-          className="text-slate-400 hover:text-white p-1 rounded hover:bg-slate-700/50"
-        >
-          <X className="w-4 h-4" />
-        </button>
-      </div>
+  const actualOnSubmit = onSubmit || onSave;
 
+  return (
+    <div className="w-full h-full">
       <Formik
         initialValues={defaultValues}
         enableReinitialize
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
-          const parsedValues = {
-            ...values,
-            trigger_data: values.trigger_data
-              ? JSON.parse(values.trigger_data)
-              : {},
-          };
-          onSubmit(parsedValues);
+          console.log("TimerStart form submitting with values:", values);
+          try {
+            const parsedValues = {
+              ...values,
+              trigger_data: values.trigger_data
+                ? JSON.parse(values.trigger_data)
+                : {},
+            };
+            console.log("TimerStart parsed values:", parsedValues);
+            if (typeof actualOnSubmit === 'function') {
+              actualOnSubmit(parsedValues);
+            } else {
+              console.error("actualOnSubmit is not a function:", actualOnSubmit);
+            }
+          } catch (error) {
+            console.error("Error in TimerStart onSubmit:", error);
+          }
           setSubmitting(false);
         }}
       >
         {({ isSubmitting, values, setFieldValue }) => (
-          <Form className="space-y-4">
+          <Form className="space-y-8 w-full p-6">
             {/* Tab Navigation */}
             <div className="flex space-x-1 bg-slate-800/50 rounded-lg p-1">
               {[
@@ -167,7 +151,7 @@ export default function TimerStartConfigForm({
 
             {/* Basic Configuration Tab */}
             {activeTab === "basic" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Schedule Type Selection */}
                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-2">
@@ -334,7 +318,7 @@ export default function TimerStartConfigForm({
 
             {/* Advanced Tab */}
             {activeTab === "advanced" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Timer Status */}
                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-2">
@@ -376,7 +360,7 @@ export default function TimerStartConfigForm({
 
             {/* Data Tab */}
             {activeTab === "data" && (
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {/* Trigger Data Configuration */}
                 <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700/50">
                   <div className="flex items-center space-x-2 mb-2">
@@ -417,39 +401,6 @@ export default function TimerStartConfigForm({
               </div>
             )}
 
-            {/* Action Buttons */}
-            <div className="flex justify-end space-x-2 pt-3 border-t border-slate-700/50">
-              <button
-                type="button"
-                className="px-3 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg 
-                  border border-slate-600 transition-all duration-200 hover:scale-105
-                  text-xs"
-                onClick={onCancel}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 bg-gradient-to-r from-orange-500 to-red-600 
-                  hover:from-orange-400 hover:to-red-500 text-white rounded-lg 
-                  shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105
-                  text-xs disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <div className="flex items-center space-x-1">
-                    <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Saving...</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center space-x-1">
-                    <CheckCircle className="w-3 h-3" />
-                    <span>Save</span>
-                  </div>
-                )}
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

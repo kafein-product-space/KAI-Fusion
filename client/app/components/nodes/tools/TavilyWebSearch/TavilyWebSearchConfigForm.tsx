@@ -64,17 +64,7 @@ export default function TavilyWebSearchConfigForm({
   // }, [fetchCredentials]);
 
   return (
-    <div className="relative w-full h-auto rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-6 py-4 border-b border-white/20">
-        <div className="flex items-center gap-3">
-          <Search className="w-6 h-6 text-white" />
-          <span className="text-white text-lg font-medium">
-            Tavily Web Search Configuration
-          </span>
-        </div>
-        <Settings className="w-6 h-6 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
@@ -82,7 +72,7 @@ export default function TavilyWebSearchConfigForm({
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-6 w-full p-6">
+          <Form className="space-y-8 w-full p-6">
             {/* Search Type */}
             <div>
               <label className="text-white text-sm font-medium mb-2 block">
@@ -101,7 +91,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="search_type"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -153,7 +143,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="credential_id"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -172,7 +162,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="tavily_api_key"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -193,7 +183,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="max_results"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -216,7 +206,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="search_depth"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -238,7 +228,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="include_answer"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -260,7 +250,7 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="include_raw_content"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
@@ -282,38 +272,10 @@ export default function TavilyWebSearchConfigForm({
               <ErrorMessage
                 name="include_images"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex justify-end space-x-4 pt-6 border-t border-gray-600">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-6 py-3 bg-slate-700 hover:bg-slate-600 rounded-lg text-white font-medium transition-colors"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="px-6 py-3 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 disabled:cursor-not-allowed rounded-lg text-white font-medium transition-colors flex items-center gap-2"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                    Saving...
-                  </>
-                ) : (
-                  'Save Configuration'
-                )}
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

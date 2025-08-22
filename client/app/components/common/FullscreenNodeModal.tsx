@@ -537,11 +537,15 @@ export default function FullscreenNodeModal({
               </button>
               {activeTab === "config" && (
                 <button
+                  type="button"
                   onClick={() => {
-                    // Trigger save from config component
-                    const configForm = document.querySelector("form");
+                    // Find the form within the config component container
+                    const configContainer = document.querySelector(".max-w-2xl");
+                    const configForm = configContainer?.querySelector("form");
                     if (configForm) {
                       configForm.requestSubmit();
+                    } else {
+                      console.error("No form found in config container");
                     }
                   }}
                   className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"

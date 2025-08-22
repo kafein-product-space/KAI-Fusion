@@ -27,36 +27,47 @@ export default function OpenAIEmbeddingsProviderConfigForm({
   configData,
   onSave,
   onCancel,
-}: OpenAIEmbeddingsProviderConfigFormProps) {
+  initialValues,
+  validate,
+  onSubmit,
+}: OpenAIEmbeddingsProviderConfigFormProps & { 
+  initialValues?: any; 
+  validate?: any; 
+  onSubmit?: any; 
+}) {
   
   // Default values for missing fields
-  const initialValues = {
+  const defaultInitialValues = {
     credential_id: configData?.credential_id || "",
-    api_key: configData?.api_key || "",
-    model_name: configData?.model_name || "text-embedding-3-small",
-    dimensions: configData?.dimensions || 1536,
-    chunk_size: configData?.chunk_size || 1000,
+    openai_api_key: configData?.openai_api_key || "",
+    model: configData?.model || "text-embedding-3-small",
+    organization: configData?.organization || "",
+    batch_size: configData?.batch_size || 100,
     max_retries: configData?.max_retries || 3,
     request_timeout: configData?.request_timeout || 30,
+    dimensions: configData?.dimensions || 1536,
+    ...(initialValues || {}),
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const defaultValidate = validate || ((values: any) => {
     const errors: any = {};
-    if (!values.api_key) {
-      errors.api_key = "API key is required";
+    if (!values.openai_api_key) {
+      errors.openai_api_key = "API key is required";
     }
-    if (!values.model_name) {
-      errors.model_name = "Model name is required";
+    if (!values.model) {
+      errors.model = "Model is required";
     }
     if (values.dimensions < 1 || values.dimensions > 3072) {
       errors.dimensions = "Dimensions must be between 1 and 3072";
     }
-    if (values.chunk_size < 1 || values.chunk_size > 8192) {
-      errors.chunk_size = "Chunk size must be between 1 and 8192";
+    if (values.batch_size < 1 || values.batch_size > 1000) {
+      errors.batch_size = "Batch size must be between 1 and 1000";
     }
     return errors;
-  };
+  });
+
+  const actualOnSubmit = onSubmit || onSave;
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
   const [loadingCredential, setLoadingCredential] = useState(false);
 
@@ -66,37 +77,38 @@ export default function OpenAIEmbeddingsProviderConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            OpenAI Embeddings Provider
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
-        initialValues={initialValues}
-        validate={validate}
-        onSubmit={onSave}
+        initialValues={defaultInitialValues}
+        validate={defaultValidate}
+        onSubmit={(values, actions) => {
+          console.log("OpenAIEmbeddings form submitting with values:", values);
+          try {
+            if (typeof actualOnSubmit === 'function') {
+              actualOnSubmit(values, actions);
+            } else {
+              console.error("actualOnSubmit is not a function:", actualOnSubmit);
+            }
+          } catch (error) {
+            console.error("Error in OpenAIEmbeddings actualOnSubmit:", error);
+          }
+        }}
         enableReinitialize
         validateOnMount={false}
         validateOnChange={false}
         validateOnBlur={true}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-8 w-full p-6">
             {/* Model Selection */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Embedding Model
               </label>
               <Field
                 as="select"
                 name="model"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -113,13 +125,13 @@ export default function OpenAIEmbeddingsProviderConfigForm({
               <ErrorMessage
                 name="model"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Credential ID */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Select Credential
               </label>
               <CredentialSelector
@@ -158,12 +170,12 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                 serviceType="openai"
                 placeholder="Select Credential"
                 showCreateNew={true}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
               {loadingCredential && (
                 <div className="flex items-center space-x-2 mt-1">
                   <div className="w-3 h-3 border-2 border-cyan-400 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-cyan-400 text-xs">
+                  <span className="text-cyan-400 text-sm">
                     Loading credential...
                   </span>
                 </div>
@@ -171,38 +183,38 @@ export default function OpenAIEmbeddingsProviderConfigForm({
               <ErrorMessage
                 name="credential_id"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* API Key */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 API Key
               </label>
               <Field
                 name="openai_api_key"
                 type="password"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="openai_api_key"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Organization */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Organization (Optional)
               </label>
               <Field
                 name="organization"
                 type="text"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 placeholder="org-..."
@@ -210,13 +222,13 @@ export default function OpenAIEmbeddingsProviderConfigForm({
               <ErrorMessage
                 name="organization"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Batch Size */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Batch Size
               </label>
               <Field
@@ -224,20 +236,20 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                 type="number"
                 min={1}
                 max={100}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="batch_size"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Max Retries */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Max Retries
               </label>
               <Field
@@ -245,20 +257,20 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                 type="number"
                 min={0}
                 max={10}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="max_retries"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Request Timeout */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Request Timeout (seconds)
               </label>
               <Field
@@ -266,61 +278,40 @@ export default function OpenAIEmbeddingsProviderConfigForm({
                 type="number"
                 min={10}
                 max={300}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="request_timeout"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Dimensions (Auto-calculated based on model) */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Dimensions
               </label>
               <Field
                 name="dimensions"
                 type="number"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 readOnly
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Auto-calculated based on model selection
               </div>
               <ErrorMessage
                 name="dimensions"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✕
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✓
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

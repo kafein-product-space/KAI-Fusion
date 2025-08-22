@@ -146,18 +146,7 @@ export default function HTTPClientConfigForm({
   ];
 
   return (
-    <div className="relative w-96 h-auto min-h-96 rounded-2xl flex flex-col bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm z-50">
-      {/* Header */}
-      <div className="flex items-center justify-between w-full px-4 py-3 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Globe className="w-5 h-5 text-white" />
-          <span className="text-white text-sm font-medium">HTTP Client</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <Settings className="w-4 h-4 text-white" />
-        </div>
-      </div>
-
+    <div className="w-full h-full">
       {/* Tab Navigation */}
       <TabNavigation
         tabs={tabs}
@@ -189,36 +178,36 @@ export default function HTTPClientConfigForm({
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <Form className="flex-1 flex flex-col">
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto">
+            <div className="flex-1 p-6 space-y-8 overflow-y-auto">
               {/* Basic Tab */}
               {activeTab === "basic" && (
                 <div className="space-y-4">
                   {/* URL */}
                   <div>
-                    <label className="text-white text-xs font-medium mb-2 block">
+                    <label className="text-white text-sm font-medium mb-2 block">
                       URL
                     </label>
                     <Field
                       name="url"
                       placeholder="https://api.example.com/endpoint"
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     />
                     <ErrorMessage
                       name="url"
                       component="div"
-                      className="text-red-400 text-xs mt-1"
+                      className="text-red-400 text-sm mt-1"
                     />
                   </div>
 
                   {/* HTTP Method */}
                   <div>
-                    <label className="text-white text-xs font-medium mb-2 block">
+                    <label className="text-white text-sm font-medium mb-2 block">
                       HTTP Method
                     </label>
                     <Field
                       as="select"
                       name="method"
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     >
                       {HTTP_METHODS.map((method) => (
                         <option key={method.value} value={method.value}>
@@ -230,13 +219,13 @@ export default function HTTPClientConfigForm({
 
                   {/* Content Type */}
                   <div>
-                    <label className="text-white text-xs font-medium mb-2 block">
+                    <label className="text-white text-sm font-medium mb-2 block">
                       Content Type
                     </label>
                     <Field
                       as="select"
                       name="content_type"
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     >
                       {CONTENT_TYPES.map((type) => (
                         <option key={type.value} value={type.value}>
@@ -249,7 +238,7 @@ export default function HTTPClientConfigForm({
                   {/* Request Body */}
                   {["POST", "PUT", "PATCH"].includes(values.method) && (
                     <div>
-                      <label className="text-white text-xs font-medium mb-2 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Request Body
                       </label>
                       <Field
@@ -257,14 +246,14 @@ export default function HTTPClientConfigForm({
                         name="body"
                         placeholder='{"key": "value"}'
                         rows={4}
-                        className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none font-mono"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
                       />
                     </div>
                   )}
 
                   {/* Timeout */}
                   <div>
-                    <label className="text-white text-xs font-medium mb-2 block">
+                    <label className="text-white text-sm font-medium mb-2 block">
                       Timeout (seconds)
                     </label>
                     <Field
@@ -272,19 +261,19 @@ export default function HTTPClientConfigForm({
                       name="timeout"
                       min="1"
                       max="300"
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                     />
                     <ErrorMessage
                       name="timeout"
                       component="div"
-                      className="text-red-400 text-xs mt-1"
+                      className="text-red-400 text-sm mt-1"
                     />
                   </div>
 
                   {/* Retry Settings */}
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="text-white text-xs font-medium mb-2 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Retry Count
                       </label>
                       <Field
@@ -292,11 +281,11 @@ export default function HTTPClientConfigForm({
                         name="retry_count"
                         min="0"
                         max="10"
-                        className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
                     <div>
-                      <label className="text-white text-xs font-medium mb-2 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Retry Delay (ms)
                       </label>
                       <Field
@@ -304,13 +293,13 @@ export default function HTTPClientConfigForm({
                         name="retry_delay"
                         min="100"
                         max="10000"
-                        className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
                   </div>
 
                   {/* Testing Section */}
-                  <div className="pt-4 border-t border-white/20">
+                  <div className="pt-4 border-t border-gray-600">
                     <div className="flex items-center justify-between mb-3">
                       <h3 className="text-white text-sm font-medium">
                         Testing
@@ -321,7 +310,7 @@ export default function HTTPClientConfigForm({
                             type="button"
                             onClick={onSendTestRequest}
                             disabled={isTesting || !values.url}
-                            className="px-3 py-1 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-xs rounded-lg flex items-center gap-1 transition-colors"
+                            className="px-4 py-2 bg-green-600 hover:bg-green-700 disabled:bg-gray-600 text-white text-sm rounded-lg flex items-center gap-2 transition-colors"
                           >
                             <Send className="w-3 h-3" />
                             {isTesting ? "Testing..." : "Test"}
@@ -333,7 +322,7 @@ export default function HTTPClientConfigForm({
                             onClick={() =>
                               onCopyToClipboard(generateCurlCommand(), "cURL")
                             }
-                            className="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-lg flex items-center gap-1 transition-colors"
+                            className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg flex items-center gap-2 transition-colors"
                           >
                             <Copy className="w-3 h-3" />
                             cURL
@@ -347,13 +336,13 @@ export default function HTTPClientConfigForm({
                       <div className="bg-green-900/20 border border-green-500/30 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <CheckCircle className="w-4 h-4 text-green-400" />
-                          <span className="text-green-400 text-xs font-medium">
+                          <span className="text-green-400 text-sm font-medium">
                             Success - {testResponse.status_code}
                           </span>
                         </div>
 
                         {/* Response Details */}
-                        <div className="space-y-2 text-xs">
+                        <div className="space-y-2 text-sm">
                           {/* Status and Timing */}
                           <div className="flex items-center justify-between text-green-300">
                             <span>Status: {testResponse.status_code}</span>
@@ -409,7 +398,7 @@ export default function HTTPClientConfigForm({
                                 Response Content
                               </summary>
                               <div className="mt-2 p-2 bg-green-900/30 rounded border border-green-500/20 max-h-40 overflow-y-auto">
-                                <pre className="text-xs text-green-200 whitespace-pre-wrap break-words">
+                                <pre className="text-sm text-green-200 whitespace-pre-wrap break-words">
                                   {typeof testResponse.content === "object"
                                     ? JSON.stringify(
                                         testResponse.content,
@@ -429,11 +418,11 @@ export default function HTTPClientConfigForm({
                       <div className="bg-red-900/20 border border-red-500/30 rounded-lg p-3">
                         <div className="flex items-center gap-2 mb-2">
                           <AlertTriangle className="w-4 h-4 text-red-400" />
-                          <span className="text-red-400 text-xs font-medium">
+                          <span className="text-red-400 text-sm font-medium">
                             Error
                           </span>
                         </div>
-                        <div className="text-red-300 text-xs">{testError}</div>
+                        <div className="text-red-300 text-sm">{testError}</div>
                       </div>
                     )}
                   </div>
@@ -451,47 +440,47 @@ export default function HTTPClientConfigForm({
 
                     {/* API Key */}
                     <div className="mb-3">
-                      <label className="text-white text-xs font-medium mb-2 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         API Key Header
                       </label>
                       <Field
                         name="api_key_header"
                         placeholder="Authorization"
-                        className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-2 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         API Key Value
                       </label>
                       <Field
                         name="api_key_value"
                         type="password"
                         placeholder="Bearer token or API key"
-                        className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                       />
                     </div>
 
                     {/* Basic Auth */}
                     <div className="grid grid-cols-2 gap-3 mt-3">
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Username
                         </label>
                         <Field
                           name="auth_username"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Password
                         </label>
                         <Field
                           name="auth_password"
                           type="password"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -509,28 +498,28 @@ export default function HTTPClientConfigForm({
                         name="verify_ssl"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Verify SSL Certificate
                       </label>
                     </div>
 
                     <div className="grid grid-cols-1 gap-3">
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           SSL Certificate Path
                         </label>
                         <Field
                           name="ssl_cert_path"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           SSL Key Path
                         </label>
                         <Field
                           name="ssl_key_path"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -546,7 +535,7 @@ export default function HTTPClientConfigForm({
                       name="custom_headers"
                       placeholder='{"X-Custom-Header": "value"}'
                       rows={3}
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none font-mono"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
@@ -567,7 +556,7 @@ export default function HTTPClientConfigForm({
                         name="rate_limit_enabled"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Enable Rate Limiting
                       </label>
                     </div>
@@ -575,25 +564,25 @@ export default function HTTPClientConfigForm({
                     {values.rate_limit_enabled && (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-white text-xs font-medium mb-2 block">
+                          <label className="text-white text-sm font-medium mb-2 block">
                             Requests per Window
                           </label>
                           <Field
                             type="number"
                             name="rate_limit_requests"
                             min="1"
-                            className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                            className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="text-white text-xs font-medium mb-2 block">
+                          <label className="text-white text-sm font-medium mb-2 block">
                             Window (seconds)
                           </label>
                           <Field
                             type="number"
                             name="rate_limit_window"
                             min="1"
-                            className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                            className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -608,25 +597,25 @@ export default function HTTPClientConfigForm({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Connection Timeout (s)
                         </label>
                         <Field
                           type="number"
                           name="connection_timeout"
                           min="1"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Read Timeout (s)
                         </label>
                         <Field
                           type="number"
                           name="read_timeout"
                           min="1"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -637,7 +626,7 @@ export default function HTTPClientConfigForm({
                         name="keep_alive"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Keep-Alive Connection
                       </label>
                     </div>
@@ -648,7 +637,7 @@ export default function HTTPClientConfigForm({
                         name="connection_pooling"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Connection Pooling
                       </label>
                     </div>
@@ -666,7 +655,7 @@ export default function HTTPClientConfigForm({
                         name="circuit_breaker_enabled"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Enable Circuit Breaker
                       </label>
                     </div>
@@ -674,25 +663,25 @@ export default function HTTPClientConfigForm({
                     {values.circuit_breaker_enabled && (
                       <div className="grid grid-cols-2 gap-3">
                         <div>
-                          <label className="text-white text-xs font-medium mb-2 block">
+                          <label className="text-white text-sm font-medium mb-2 block">
                             Failure Threshold
                           </label>
                           <Field
                             type="number"
                             name="circuit_breaker_threshold"
                             min="1"
-                            className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                            className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                         <div>
-                          <label className="text-white text-xs font-medium mb-2 block">
+                          <label className="text-white text-sm font-medium mb-2 block">
                             Timeout (s)
                           </label>
                           <Field
                             type="number"
                             name="circuit_breaker_timeout"
                             min="1"
-                            className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                            className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                           />
                         </div>
                       </div>
@@ -712,23 +701,23 @@ export default function HTTPClientConfigForm({
 
                     <div className="grid grid-cols-2 gap-3">
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Success Status Codes
                         </label>
                         <Field
                           name="success_status_codes"
                           placeholder="200,201,202"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                       <div>
-                        <label className="text-white text-xs font-medium mb-2 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Retry Status Codes
                         </label>
                         <Field
                           name="retry_on_status_codes"
                           placeholder="500,502,503,504"
-                          className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none"
+                          className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
                         />
                       </div>
                     </div>
@@ -739,7 +728,7 @@ export default function HTTPClientConfigForm({
                         name="retry_exponential_backoff"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Exponential Backoff
                       </label>
                     </div>
@@ -757,7 +746,7 @@ export default function HTTPClientConfigForm({
                         name="logging_enabled"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">
+                      <label className="text-white text-sm">
                         Enable Logging
                       </label>
                     </div>
@@ -768,7 +757,7 @@ export default function HTTPClientConfigForm({
                         name="debug_mode"
                         className="w-4 h-4 text-blue-600 bg-slate-900 border-white/20 rounded focus:ring-blue-500"
                       />
-                      <label className="text-white text-xs">Debug Mode</label>
+                      <label className="text-white text-sm">Debug Mode</label>
                     </div>
                   </div>
 
@@ -782,30 +771,13 @@ export default function HTTPClientConfigForm({
                       name="response_validation"
                       placeholder="JSON schema or validation rules"
                       rows={3}
-                      className="text-xs text-white px-3 py-2 rounded-lg w-full bg-slate-900/80 border border-white/20 focus:border-blue-500 focus:outline-none font-mono"
+                      className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none font-mono"
                     />
                   </div>
                 </div>
               )}
             </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-between p-4 border-t border-white/20">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white text-xs rounded-lg transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-600 text-white text-xs rounded-lg transition-colors"
-              >
-                {isSubmitting ? "Saving..." : "Save Configuration"}
-              </button>
-            </div>
           </Form>
         )}
       </Formik>
