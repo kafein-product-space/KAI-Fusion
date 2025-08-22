@@ -90,14 +90,59 @@ class ExportPackage(BaseModel):
 # ================================================================================
 
 NODE_ENV_MAPPING = {
+    # OpenAI related nodes
     "OpenAIChat": {
         "required_env": ["OPENAI_API_KEY"],
         "optional_env": ["OPENAI_MODEL", "OPENAI_TEMPERATURE", "OPENAI_MAX_TOKENS"]
     },
+    "OpenAIEmbeddingsProvider": {
+        "required_env": ["OPENAI_API_KEY"],
+        "optional_env": ["OPENAI_MODEL", "OPENAI_EMBEDDING_DIMENSIONS"]
+    },
+
+    # Search and retrieval nodes
     "TavilyWebSearch": {
         "required_env": ["TAVILY_API_KEY"],
         "optional_env": ["TAVILY_MAX_RESULTS", "TAVILY_SEARCH_DEPTH"]
     },
+    "CohereRerankerProvider": {
+        "required_env": ["COHERE_API_KEY"],
+        "optional_env": ["COHERE_MODEL", "COHERE_TOP_K"]
+    },
+    "RetrieverProvider": {
+        "required_env": [],
+        "optional_env": ["RETRIEVER_SEARCH_K", "RETRIEVER_SEARCH_TYPE", "RETRIEVER_SCORE_THRESHOLD"]
+    },
+    "VectorStoreOrchestrator": {
+        "required_env": ["DATABASE_URL"],
+        "optional_env": ["VECTOR_STORE_COLLECTION", "EMBEDDING_DIMENSIONS"]
+    },
+
+    # Memory nodes
+    "BufferMemory": {
+        "required_env": [],
+        "optional_env": ["BUFFERMEMORY_INPUT_KEY", "BUFFERMEMORY_MEMORY_KEY", "BUFFERMEMORY_OUTPUT_KEY", "BUFFERMEMORY_RETURN_MESSAGES"]
+    },
+    "ConversationMemory": {
+        "required_env": [],
+        "optional_env": ["CONVERSATION_MEMORY_K", "MEMORY_KEY"]
+    },
+
+    # Agent and workflow nodes
+    "Agent": {
+        "required_env": [],
+        "optional_env": ["AGENT_SYSTEM_PROMPT", "AGENT_MAX_ITERATIONS"]
+    },
+    "StartNode": {
+        "required_env": [],
+        "optional_env": []
+    },
+    "EndNode": {
+        "required_env": [],
+        "optional_env": []
+    },
+
+    # Utility nodes
     "HttpClient": {
         "required_env": [],
         "optional_env": ["HTTP_TIMEOUT", "HTTP_MAX_RETRIES", "HTTP_USER_AGENT"]
@@ -105,22 +150,6 @@ NODE_ENV_MAPPING = {
     "WebhookTrigger": {
         "required_env": [],
         "optional_env": ["WEBHOOK_SECRET", "WEBHOOK_TIMEOUT"]
-    },
-    "BufferMemory": {
-        "required_env": [],
-        "optional_env": ["MEMORY_BUFFER_SIZE", "MEMORY_RETURN_MESSAGES"]
-    },
-    "ConversationMemory": {
-        "required_env": [],
-        "optional_env": ["CONVERSATION_MEMORY_K", "MEMORY_KEY"]
-    },
-    "CohereReranker": {
-        "required_env": ["COHERE_API_KEY"],
-        "optional_env": ["COHERE_MODEL", "COHERE_TOP_K"]
-    },
-    "VectorStoreOrchestrator": {
-        "required_env": ["DATABASE_URL"],
-        "optional_env": ["VECTOR_STORE_COLLECTION", "EMBEDDING_DIMENSIONS"]
     },
     "DocumentLoader": {
         "required_env": [],
@@ -133,28 +162,53 @@ NODE_ENV_MAPPING = {
 }
 
 ENV_DESCRIPTIONS = {
+    # OpenAI related
     "OPENAI_API_KEY": "OpenAI API key for LLM operations",
     "OPENAI_MODEL": "OpenAI model name (default: gpt-3.5-turbo)",
     "OPENAI_TEMPERATURE": "Temperature for AI responses (0.0-2.0)",
     "OPENAI_MAX_TOKENS": "Maximum tokens for AI responses",
+    "OPENAI_EMBEDDING_DIMENSIONS": "Dimensions for OpenAI embeddings",
+
+    # Search services
     "TAVILY_API_KEY": "Tavily API key for web search",
     "TAVILY_MAX_RESULTS": "Maximum search results to return",
     "TAVILY_SEARCH_DEPTH": "Search depth (basic/advanced)",
+
+    # Cohere
+    "COHERE_API_KEY": "Cohere API key for reranking",
+    "COHERE_MODEL": "Cohere model for reranking",
+    "COHERE_TOP_K": "Top K results to rerank",
+
+    # Retriever
+    "RETRIEVER_SEARCH_K": "Number of similar documents to retrieve",
+    "RETRIEVER_SEARCH_TYPE": "Search type (similarity, mmr, similarity_score_threshold)",
+    "RETRIEVER_SCORE_THRESHOLD": "Minimum score threshold for retrieval",
+
+    # Memory
+    "BUFFERMEMORY_INPUT_KEY": "Input key for buffer memory",
+    "BUFFERMEMORY_MEMORY_KEY": "Memory key for buffer memory",
+    "BUFFERMEMORY_OUTPUT_KEY": "Output key for buffer memory",
+    "BUFFERMEMORY_RETURN_MESSAGES": "Return messages format (true/false)",
+    "CONVERSATION_MEMORY_K": "Number of messages to keep in memory",
+    "MEMORY_KEY": "Memory key for conversation storage",
+
+    # Agent
+    "AGENT_SYSTEM_PROMPT": "System prompt for the agent",
+    "AGENT_MAX_ITERATIONS": "Maximum iterations for agent execution",
+
+    # HTTP and network
     "HTTP_TIMEOUT": "HTTP request timeout in seconds",
     "HTTP_MAX_RETRIES": "Maximum HTTP retry attempts",
     "HTTP_USER_AGENT": "Custom User-Agent for HTTP requests",
     "WEBHOOK_SECRET": "Secret for webhook signature validation",
     "WEBHOOK_TIMEOUT": "Webhook timeout in seconds",
-    "MEMORY_BUFFER_SIZE": "Buffer memory size limit",
-    "MEMORY_RETURN_MESSAGES": "Return messages format (true/false)",
-    "CONVERSATION_MEMORY_K": "Number of messages to keep in memory",
-    "MEMORY_KEY": "Memory key for conversation storage",
-    "COHERE_API_KEY": "Cohere API key for reranking",
-    "COHERE_MODEL": "Cohere model for reranking",
-    "COHERE_TOP_K": "Top K results to rerank",
+
+    # Database and storage
     "DATABASE_URL": "PostgreSQL database connection URL",
     "VECTOR_STORE_COLLECTION": "Vector store collection name",
     "EMBEDDING_DIMENSIONS": "Embedding vector dimensions",
+
+    # Document processing
     "DOC_LOADER_CHUNK_SIZE": "Document chunk size for processing",
     "DOC_LOADER_OVERLAP": "Chunk overlap size",
     "SCRAPER_TIMEOUT": "Web scraper timeout in seconds",
@@ -162,28 +216,53 @@ ENV_DESCRIPTIONS = {
 }
 
 ENV_EXAMPLES = {
+    # OpenAI related
     "OPENAI_API_KEY": "sk-1234567890abcdef...",
     "OPENAI_MODEL": "gpt-4",
     "OPENAI_TEMPERATURE": "0.7",
     "OPENAI_MAX_TOKENS": "2048",
+    "OPENAI_EMBEDDING_DIMENSIONS": "1536",
+
+    # Search services
     "TAVILY_API_KEY": "tvly-1234567890abcdef...",
     "TAVILY_MAX_RESULTS": "5",
     "TAVILY_SEARCH_DEPTH": "advanced",
+
+    # Cohere
+    "COHERE_API_KEY": "cohere-key-1234...",
+    "COHERE_MODEL": "rerank-english-v3.0",
+    "COHERE_TOP_K": "5",
+
+    # Retriever
+    "RETRIEVER_SEARCH_K": "6",
+    "RETRIEVER_SEARCH_TYPE": "similarity",
+    "RETRIEVER_SCORE_THRESHOLD": "0.1",
+
+    # Memory
+    "BUFFERMEMORY_INPUT_KEY": "input",
+    "BUFFERMEMORY_MEMORY_KEY": "memory",
+    "BUFFERMEMORY_OUTPUT_KEY": "output",
+    "BUFFERMEMORY_RETURN_MESSAGES": "true",
+    "CONVERSATION_MEMORY_K": "5",
+    "MEMORY_KEY": "chat_history",
+
+    # Agent
+    "AGENT_SYSTEM_PROMPT": "You are a helpful AI assistant",
+    "AGENT_MAX_ITERATIONS": "5",
+
+    # HTTP and network
     "HTTP_TIMEOUT": "30",
     "HTTP_MAX_RETRIES": "3",
     "HTTP_USER_AGENT": "KAI-Fusion-Workflow/1.0",
     "WEBHOOK_SECRET": "your-webhook-secret",
     "WEBHOOK_TIMEOUT": "30",
-    "MEMORY_BUFFER_SIZE": "1000",
-    "MEMORY_RETURN_MESSAGES": "true",
-    "CONVERSATION_MEMORY_K": "5",
-    "MEMORY_KEY": "chat_history",
-    "COHERE_API_KEY": "cohere-key-1234...",
-    "COHERE_MODEL": "rerank-english-v2.0",
-    "COHERE_TOP_K": "10",
+
+    # Database and storage
     "DATABASE_URL": "postgresql://user:pass@localhost:5432/dbname",
     "VECTOR_STORE_COLLECTION": "documents",
     "EMBEDDING_DIMENSIONS": "1536",
+
+    # Document processing
     "DOC_LOADER_CHUNK_SIZE": "1000",
     "DOC_LOADER_OVERLAP": "200",
     "SCRAPER_TIMEOUT": "30",
@@ -191,23 +270,48 @@ ENV_EXAMPLES = {
 }
 
 ENV_DEFAULTS = {
+    # OpenAI related
     "OPENAI_MODEL": "gpt-3.5-turbo",
     "OPENAI_TEMPERATURE": "0.7",
     "OPENAI_MAX_TOKENS": "2048",
+    "OPENAI_EMBEDDING_DIMENSIONS": "1536",
+
+    # Search services
     "TAVILY_MAX_RESULTS": "5",
     "TAVILY_SEARCH_DEPTH": "basic",
+
+    # Cohere
+    "COHERE_MODEL": "rerank-english-v3.0",
+    "COHERE_TOP_K": "5",
+
+    # Retriever
+    "RETRIEVER_SEARCH_K": "6",
+    "RETRIEVER_SEARCH_TYPE": "similarity",
+    "RETRIEVER_SCORE_THRESHOLD": "0.1",
+
+    # Memory
+    "BUFFERMEMORY_INPUT_KEY": "input",
+    "BUFFERMEMORY_MEMORY_KEY": "memory",
+    "BUFFERMEMORY_OUTPUT_KEY": "output",
+    "BUFFERMEMORY_RETURN_MESSAGES": "true",
+    "CONVERSATION_MEMORY_K": "5",
+    "MEMORY_KEY": "chat_history",
+
+    # Agent
+    "AGENT_SYSTEM_PROMPT": "You are a helpful AI assistant",
+    "AGENT_MAX_ITERATIONS": "5",
+
+    # HTTP and network
     "HTTP_TIMEOUT": "30",
     "HTTP_MAX_RETRIES": "3",
     "HTTP_USER_AGENT": "KAI-Fusion-Workflow/1.0",
     "WEBHOOK_TIMEOUT": "30",
-    "MEMORY_BUFFER_SIZE": "1000",
-    "MEMORY_RETURN_MESSAGES": "true",
-    "CONVERSATION_MEMORY_K": "5",
-    "MEMORY_KEY": "chat_history",
-    "COHERE_MODEL": "rerank-english-v2.0",
-    "COHERE_TOP_K": "10",
+
+    # Database and storage
     "VECTOR_STORE_COLLECTION": "documents",
     "EMBEDDING_DIMENSIONS": "1536",
+
+    # Document processing
     "DOC_LOADER_CHUNK_SIZE": "1000",
     "DOC_LOADER_OVERLAP": "200",
     "SCRAPER_TIMEOUT": "30",
@@ -235,15 +339,24 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         # Extract credentials from node data
         node_id = node.get("id", "")
         node_data = node.get("data", {})
-        
+
         if node_data:
-            # Look for credential fields in node data
+            # Look for credential fields in node data (more specific matching)
             credentials = {}
             for key, value in node_data.items():
-                if any(cred_key in key.lower() for cred_key in ['api_key', 'token', 'secret', 'password', 'key']):
-                    if value:  # Only include if credential is set
+                # Only match actual API keys, tokens, secrets, not config parameters
+                key_lower = key.lower()
+                if (key_lower.endswith('_api_key') or
+                    key_lower.endswith('_token') or
+                    key_lower.endswith('_secret') or
+                    key_lower.endswith('_password') or
+                    key_lower == 'api_key' or
+                    key_lower == 'token' or
+                    key_lower == 'secret' or
+                    key_lower == 'password'):
+                    if value and isinstance(value, str) and len(value.strip()) > 0:  # Only include if credential is set and non-empty
                         credentials[key] = value
-            
+
             if credentials:
                 node_credentials[node_id] = {
                     "type": node_type,
@@ -266,6 +379,39 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         required=True,
         node_type="System"
     ))
+
+    # Add node-specific configuration as optional environment variables
+    for node in nodes:
+        node_id = node.get("id", "")
+        node_type = node.get("type", "")
+        node_data = node.get("data", {})
+
+        if node_data:
+            for key, value in node_data.items():
+                # Skip credential fields (already handled above)
+                key_lower = key.lower()
+                if not (key_lower.endswith('_api_key') or
+                        key_lower.endswith('_token') or
+                        key_lower.endswith('_secret') or
+                        key_lower.endswith('_password') or
+                        key_lower == 'api_key' or
+                        key_lower == 'token' or
+                        key_lower == 'secret' or
+                        key_lower == 'password'):
+
+                    # Create environment variable name from node config
+                    env_var_name = f"{node_type.upper()}_{key.upper()}"
+
+                    # Only add if not already exists
+                    if env_var_name not in [v.name for v in required_env_vars + optional_env_vars]:
+                        optional_env_vars.append(EnvironmentVariable(
+                            name=env_var_name,
+                            description=f"{key} for {node_type} node ({node_id}) - auto-populated from node",
+                            example=str(value),
+                            default=str(value),
+                            required=False,
+                            node_type=f"{node_type} ({node_id})"
+                        ))
     
     # Add environment variables for node credentials found in workflow
     for node_id, node_info in node_credentials.items():
@@ -290,30 +436,35 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
     credential_mapping = {
         "OpenAI": ["OPENAI_API_KEY"],
         "ChatOpenAI": ["OPENAI_API_KEY"],
+        "OpenAIChat": ["OPENAI_API_KEY"],
         "TavilyWebSearch": ["TAVILY_API_KEY"],
         "Tavily": ["TAVILY_API_KEY"],
         "CohereReranker": ["COHERE_API_KEY"],
-        "Cohere": ["COHERE_API_KEY"]
+        "Cohere": ["COHERE_API_KEY"],
+        "VectorStoreOrchestrator": ["DATABASE_URL"]
     }
-    
+
     # Add standard credential requirements for nodes without specific credentials
     for node_type in node_types:
-        if node_type in credential_mapping:
-            for credential_var in credential_mapping[node_type]:
-                if credential_var not in [v.name for v in required_env_vars]:
-                    # Check if this node type already has credentials from workflow
-                    has_node_credentials = any(
-                        info["type"] == node_type for info in node_credentials.values()
-                    )
-                    
-                    if not has_node_credentials:
-                        required_env_vars.append(EnvironmentVariable(
-                            name=credential_var,
-                            description=ENV_DESCRIPTIONS.get(credential_var, f"API key for {node_type}"),
-                            example=ENV_EXAMPLES.get(credential_var, ""),
-                            required=True,
-                            node_type=node_type
-                        ))
+        # Check if node type matches any credential mapping (partial match)
+        for mapped_type, credentials in credential_mapping.items():
+            if mapped_type in node_type:
+                for credential_var in credentials:
+                    if credential_var not in [v.name for v in required_env_vars]:
+                        # Check if this node type already has credentials from workflow
+                        has_node_credentials = any(
+                            mapped_type in info["type"] for info in node_credentials.values()
+                        )
+
+                        if not has_node_credentials:
+                            required_env_vars.append(EnvironmentVariable(
+                                name=credential_var,
+                                description=ENV_DESCRIPTIONS.get(credential_var, f"API key for {node_type}"),
+                                example=ENV_EXAMPLES.get(credential_var, ""),
+                                required=True,
+                                node_type=node_type
+                            ))
+                break  # Only process first match
     
     # Optional: LangSmith monitoring API key
     optional_env_vars.append(EnvironmentVariable(
@@ -327,15 +478,15 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
     
     # Add node-specific packages based on found node types
     for node_type in node_types:
-        if node_type in ["OpenAI", "ChatOpenAI"]:
+        if "OpenAI" in node_type or "Chat" in node_type:
             python_packages.extend(["langchain-openai", "openai"])
-        elif node_type == "TavilyWebSearch":
+        elif "Tavily" in node_type:
             python_packages.extend(["langchain-tavily"])
-        elif node_type == "HttpClient":
+        elif "Http" in node_type:
             python_packages.extend(["httpx", "requests"])
-        elif node_type == "CohereReranker":
+        elif "Cohere" in node_type:
             python_packages.extend(["cohere", "langchain-cohere"])
-        elif node_type == "VectorStoreOrchestrator":
+        elif "VectorStore" in node_type or "Retriever" in node_type:
             python_packages.extend(["pgvector", "langchain-postgres"])
         elif "Memory" in node_type:
             python_packages.extend(["langchain"])
