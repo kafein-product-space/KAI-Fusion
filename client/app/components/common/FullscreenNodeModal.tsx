@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { X, Settings, Info, Save, ArrowLeft, ArrowRight } from "lucide-react";
+import { X, Settings, Info, Save, ArrowLeft, ArrowRight, FileText, Hash, Calendar, User, Globe, Mail, Key, Database } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
+import { enqueueSnackbar } from "notistack";
 
 interface NodeInput {
   name: string;
@@ -67,14 +68,199 @@ export default function FullscreenNodeModal({
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
 
+  // Helper function to get user-friendly labels for data keys
+  const getDataLabel = (key: string): string => {
+    const labelMap: Record<string, string> = {
+      // Common input/output keys
+      'text': 'Text Content',
+      'query': 'Search Query',
+      'content': 'Content',
+      'message': 'Message',
+      'prompt': 'Prompt',
+      'response': 'Response',
+      'result': 'Result',
+      'output': 'Output',
+      'input': 'Input',
+      'data': 'Data',
+      'documents': 'Documents',
+      'context': 'Context',
+      'summary': 'Summary',
+      'answer': 'Answer',
+      'question': 'Question',
+      'url': 'Web Address',
+      'urls': 'Web Addresses',
+      'links': 'Links',
+      'title': 'Title',
+      'description': 'Description',
+      'keywords': 'Keywords',
+      'tags': 'Tags',
+      'metadata': 'Metadata',
+      'timestamp': 'Timestamp',
+      'date': 'Date',
+      'time': 'Time',
+      'id': 'ID',
+      'user_id': 'User ID',
+      'session_id': 'Session ID',
+      'api_key': 'API Key',
+      'token': 'Token',
+      'status': 'Status',
+      'count': 'Count',
+      'length': 'Length',
+      'size': 'Size',
+      'score': 'Score',
+      'confidence': 'Confidence',
+      'similarity': 'Similarity',
+      'embedding': 'Vector Embedding',
+      'embeddings': 'Vector Embeddings',
+      'chunks': 'Text Chunks',
+      'chunk': 'Text Chunk',
+      'search_results': 'Search Results',
+      'filtered_results': 'Filtered Results',
+      'ranked_results': 'Ranked Results',
+      'top_results': 'Top Results',
+      'relevant_docs': 'Relevant Documents',
+      'source': 'Source',
+      'sources': 'Sources',
+      'reference': 'Reference',
+      'references': 'References'
+    };
+    
+    return labelMap[key.toLowerCase()] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+  };
+
+  // Helper function to get appropriate icon for data type
+  const getDataIcon = (key: string, value: any) => {
+    const keyLower = key.toLowerCase();
+    
+    if (keyLower.includes('text') || keyLower.includes('content') || keyLower.includes('message')) {
+      return <FileText className="w-4 h-4" />;
+    }
+    if (keyLower.includes('url') || keyLower.includes('link')) {
+      return <Globe className="w-4 h-4" />;
+    }
+    if (keyLower.includes('email') || keyLower.includes('mail')) {
+      return <Mail className="w-4 h-4" />;
+    }
+    if (keyLower.includes('user') || keyLower.includes('person')) {
+      return <User className="w-4 h-4" />;
+    }
+    if (keyLower.includes('date') || keyLower.includes('time')) {
+      return <Calendar className="w-4 h-4" />;
+    }
+    if (keyLower.includes('key') || keyLower.includes('token') || keyLower.includes('auth')) {
+      return <Key className="w-4 h-4" />;
+    }
+    if (keyLower.includes('data') || keyLower.includes('result') || keyLower.includes('document')) {
+      return <Database className="w-4 h-4" />;
+    }
+    if (typeof value === 'number') {
+      return <Hash className="w-4 h-4" />;
+    }
+    
+    return <FileText className="w-4 h-4" />;
+  };
+
+  // Helper function to format values in a user-friendly way
+  const formatValue = (value: any): string => {
+    if (value === null || value === undefined) {
+      return 'Empty';
+    }
+    
+    if (typeof value === 'boolean') {
+      return value ? 'Yes' : 'No';
+    }
+    
+    if (typeof value === 'number') {
+      return value.toLocaleString('en-US');
+    }
+    
+    if (typeof value === 'string') {
+      // If it's a URL
+      if (value.startsWith('http://') || value.startsWith('https://')) {
+        return value.length > 50 ? value.substring(0, 50) + '...' : value;
+      }
+      
+      // If it's too long, truncate
+      if (value.length > 200) {
+        return value.substring(0, 200) + '...';
+      }
+      
+      return value;
+    }
+    
+    if (Array.isArray(value)) {
+      return `${value.length} items`;
+    }
+    
+    if (typeof value === 'object') {
+      const keys = Object.keys(value);
+      return `${keys.length} fields`;
+    }
+    
+    return String(value);
+  };
+
+  // Helper function to get a description for the data
+  const getDataDescription = (key: string, value: any): string => {
+    const keyLower = key.toLowerCase();
+    
+    if (Array.isArray(value)) {
+      return `Contains ${value.length} items`;
+    }
+    
+    if (typeof value === 'object' && value !== null) {
+      const keys = Object.keys(value);
+      return `Contains ${keys.length} fields`;
+    }
+    
+    if (typeof value === 'string') {
+      if (keyLower.includes('url') || keyLower.includes('link')) {
+        return 'Web address';
+      }
+      if (keyLower.includes('email')) {
+        return 'Email address';
+      }
+      if (value.length > 100) {
+        return 'Long text content';
+      }
+      return 'Text data';
+    }
+    
+    if (typeof value === 'number') {
+      return 'Numeric data';
+    }
+    
+    return 'Data value';
+  };
+
   useEffect(() => {
     setConfigValues(configData);
   }, [configData]);
 
   const handleSave = (values: any) => {
-    setConfigValues(values);
-    onSave(values);
-    onClose();
+    try {
+      setConfigValues(values);
+      onSave(values);
+      enqueueSnackbar('Node configuration saved successfully!', { 
+        variant: 'success',
+        autoHideDuration: 3000,
+        anchorOrigin: {
+          vertical: 'top',
+          horizontal: 'right',
+        }
+      });
+      onClose();
+    } catch (error) {
+      console.error('Error saving configuration:', error);
+      enqueueSnackbar('Failed to save node configuration', { 
+        variant: 'error',
+        autoHideDuration: 4000,
+        anchorOrigin: {
+          vertical: 'top',
+          horizontal: 'right',
+        }
+      });
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -153,62 +339,103 @@ export default function FullscreenNodeModal({
                 <div className="flex items-center gap-3 mb-6">
                   <ArrowRight className="w-5 h-5 text-blue-400" />
                   <h2 className="text-lg font-semibold text-white">Input Data</h2>
+                  <div className="text-xs text-gray-500 bg-blue-500/10 px-2 py-1 rounded">
+                    Data received by this node
+                  </div>
                 </div>
                 
                 {/* Execution Data Section */}
                 {executionData?.inputs && Object.keys(executionData.inputs).length > 0 ? (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                       <span className="text-green-400 font-medium">Live Data</span>
+                      <div className="text-xs text-gray-500">
+                        • Real-time workflow data
+                      </div>
                     </div>
                     
-                    <div className="space-y-3">
+                    <div className="space-y-4">
                       {Object.entries(executionData.inputs).map(([key, value]) => (
-                        <div key={key} className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-3 border border-gray-700/50">
-                          <div className="flex items-center gap-2 mb-2">
-                            <div className="px-2 py-1 bg-blue-600/20 text-blue-300 rounded text-xs font-mono">
-                              {key}
+                        <div key={key} className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                          {/* Header with icon and user-friendly label */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg">
+                              {getDataIcon(key, value)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-blue-300">
+                                {getDataLabel(key)}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {getDataDescription(key, value)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
+                              input
                             </div>
                           </div>
-                          <div className="bg-gray-900/80 rounded p-2 border border-gray-700/30">
-                            <pre className="text-xs text-gray-100 whitespace-pre-wrap overflow-x-auto max-h-24 overflow-y-auto">
-                              {typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value)}
-                            </pre>
+                          
+                          {/* Value display */}
+                          <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                            <div className="text-sm text-gray-100 break-words">
+                              {formatValue(value)}
+                            </div>
+                            
+                            {/* Raw data toggle for complex objects */}
+                            {(typeof value === 'object' && value !== null) && (
+                              <details className="mt-2">
+                                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                                  Show raw data
+                                </summary>
+                                <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                  {JSON.stringify(value, null, 2)}
+                                </pre>
+                              </details>
+                            )}
                           </div>
                         </div>
                       ))}
                     </div>
                     
                     {/* Context Variables */}
-                    <div className="bg-gray-800/30 rounded-lg p-3 border border-gray-600/30">
-                      <div className="text-xs font-medium text-gray-400 mb-2 uppercase tracking-wide">
-                        Context
-                      </div>
-                      <div className="space-y-1 text-xs">
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Time:</span>
-                          <span className="text-blue-400 font-mono">{new Date().toISOString().split('T')[1].split('.')[0]}</span>
+                    <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-600/30">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Info className="w-4 h-4 text-blue-400" />
+                        <div className="text-sm font-medium text-gray-300">
+                          Execution Info
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-gray-500">Mode:</span>
-                          <span className="text-green-400 font-mono">test</span>
+                      </div>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Execution Time:</span>
+                          <span className="text-blue-400 font-mono text-xs">
+                            {new Date().toLocaleString('en-US')}
+                          </span>
+                        </div>
+                        <div className="flex justify-between items-center">
+                          <span className="text-gray-400">Mode:</span>
+                          <span className="text-blue-400 bg-blue-400/10 px-2 py-1 rounded text-xs">
+                            Development
+                          </span>
                         </div>
                       </div>
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="w-12 h-12 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
-                      <ArrowRight className="w-6 h-6 text-gray-600" />
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
+                      <ArrowRight className="w-8 h-8 text-blue-400" />
                     </div>
-                    <div className="text-sm text-gray-400 mb-1">
+                    <div className="text-lg font-medium text-white mb-2">
                       {executionData?.status === 'running' 
-                        ? 'Executing...' 
-                        : 'No Input Data'}
+                        ? 'Processing...' 
+                        : 'No Input Data Yet'}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Execute workflow to see data
+                    <div className="text-sm text-gray-400 max-w-48 mx-auto">
+                      {executionData?.status === 'running' 
+                        ? 'Workflow is running, input data is being prepared' 
+                        : 'When you execute the workflow, data flowing into this node will appear here'}
                     </div>
                   </div>
                 )}
@@ -226,7 +453,10 @@ export default function FullscreenNodeModal({
                 <div className="p-4 border-b border-gray-700">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Settings className="w-5 h-5 text-green-400" />
-                    Configuration
+                    Node Configuration
+                    <div className="text-xs text-gray-500 bg-green-500/10 px-2 py-1 rounded ml-2">
+                      Settings for this node
+                    </div>
                   </h2>
                 </div>
                 <div className="flex-1 p-3 overflow-y-auto">
@@ -252,62 +482,145 @@ export default function FullscreenNodeModal({
                 <div className="flex items-center gap-3 mb-6">
                   <ArrowLeft className="w-5 h-5 text-purple-400" />
                   <h2 className="text-lg font-semibold text-white">Output Data</h2>
+                  <div className="text-xs text-gray-500 bg-purple-500/10 px-2 py-1 rounded">
+                    Results produced by this node
+                  </div>
                 </div>
                 
                 {/* Execution Output Section */}
                 {executionData?.outputs ? (
                   <div className="space-y-4">
-                    <div className="flex items-center gap-2 text-sm">
+                    <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
                       <span className="text-purple-400 font-medium">Generated</span>
+                      <div className="text-xs text-gray-500">
+                        • Processing completed, result ready
+                      </div>
                     </div>
                     
-                    <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-3 border border-purple-500/30">
-                      <div className="flex items-center gap-2 mb-3">
-                        <div className="px-2 py-1 bg-purple-600/20 text-purple-300 rounded text-xs font-mono">
-                          result
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {typeof executionData.outputs === 'string' && `${String(executionData.outputs).length} chars`}
-                        </div>
-                      </div>
-                      
-                      <div className="bg-gray-900/80 rounded border border-gray-700/30 overflow-hidden">
-                        <div className="px-3 py-2 bg-gray-800/50 border-b border-gray-700/30 flex items-center justify-between">
-                          <span className="text-xs text-gray-400 font-medium">OUTPUT</span>
-                          <button 
-                            onClick={() => navigator.clipboard.writeText(
-                              typeof executionData.outputs === 'object' 
-                                ? JSON.stringify(executionData.outputs, null, 2)
-                                : String(executionData.outputs)
+                    <div className="space-y-4">
+                      {typeof executionData.outputs === 'object' && executionData.outputs !== null ? (
+                        Object.entries(executionData.outputs).map(([key, value]) => (
+                          <div key={key} className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30">
+                            {/* Header with icon and user-friendly label */}
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
+                                {getDataIcon(key, value)}
+                              </div>
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-purple-300">
+                                  {getDataLabel(key)}
+                                </div>
+                                <div className="text-xs text-gray-400">
+                                  {getDataDescription(key, value)}
+                                </div>
+                              </div>
+                              <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
+                                çıkış
+                              </div>
+                            </div>
+                            
+                            {/* Value display */}
+                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                              <div className="text-sm text-gray-100 break-words">
+                                {formatValue(value)}
+                              </div>
+                              
+                              {/* Raw data toggle for complex objects */}
+                              {(typeof value === 'object' && value !== null) && (
+                                <details className="mt-2">
+                                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                                    Show raw data
+                                  </summary>
+                                  <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                    {JSON.stringify(value, null, 2)}
+                                  </pre>
+                                </details>
+                              )}
+                              
+                              {/* Copy button */}
+                              <button 
+                                onClick={() => navigator.clipboard.writeText(
+                                  typeof value === 'object' 
+                                    ? JSON.stringify(value, null, 2)
+                                    : String(value)
+                                )}
+                                className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
+                              >
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        // Single output value
+                        <div className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30">
+                          {/* Header with icon and user-friendly label */}
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
+                              {getDataIcon('result', executionData.outputs)}
+                            </div>
+                            <div className="flex-1">
+                              <div className="text-sm font-medium text-purple-300">
+                                {getDataLabel('result')}
+                              </div>
+                              <div className="text-xs text-gray-400">
+                                {getDataDescription('result', executionData.outputs)}
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
+                              output
+                            </div>
+                          </div>
+                          
+                          {/* Value display */}
+                          <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                            <div className="text-sm text-gray-100 break-words">
+                              {formatValue(executionData.outputs)}
+                            </div>
+                            
+                            {/* Raw data toggle for complex objects */}
+                            {(typeof executionData.outputs === 'object' && executionData.outputs !== null) && (
+                              <details className="mt-2">
+                                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
+                                  Show raw data
+                                </summary>
+                                <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
+                                  {JSON.stringify(executionData.outputs, null, 2)}
+                                </pre>
+                              </details>
                             )}
-                            className="text-xs text-gray-500 hover:text-gray-300 transition-colors"
-                          >
-                            Copy
-                          </button>
+                            
+                            {/* Copy button */}
+                            <button 
+                              onClick={() => navigator.clipboard.writeText(
+                                typeof executionData.outputs === 'object' 
+                                  ? JSON.stringify(executionData.outputs, null, 2)
+                                  : String(executionData.outputs)
+                              )}
+                              className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
+                            >
+                              Copy
+                            </button>
+                          </div>
                         </div>
-                        <div className="p-3 max-h-64 overflow-y-auto">
-                          <pre className="text-xs text-gray-100 whitespace-pre-wrap">
-                            {typeof executionData.outputs === 'object' 
-                              ? JSON.stringify(executionData.outputs, null, 2) 
-                              : String(executionData.outputs)}
-                          </pre>
-                        </div>
-                      </div>
+                      )}
                     </div>
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="w-12 h-12 mx-auto mb-4 bg-gray-800 rounded-full flex items-center justify-center">
-                      <ArrowLeft className="w-6 h-6 text-gray-600" />
+                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-purple-500/20 to-purple-600/20 rounded-full flex items-center justify-center border border-purple-500/30">
+                      <ArrowLeft className="w-8 h-8 text-purple-400" />
                     </div>
-                    <div className="text-sm text-gray-400 mb-1">
+                    <div className="text-lg font-medium text-white mb-2">
                       {executionData?.status === 'running' 
                         ? 'Processing...' 
-                        : 'No Output Data'}
+                        : 'No Output Data Yet'}
                     </div>
-                    <div className="text-xs text-gray-500">
-                      Execute workflow to see output
+                    <div className="text-sm text-gray-400 max-w-48 mx-auto">
+                      {executionData?.status === 'running' 
+                        ? 'Node is processing, result being prepared' 
+                        : 'When you execute the workflow, results generated by this node will appear here'}
                     </div>
                   </div>
                 )}
@@ -344,12 +657,47 @@ export default function FullscreenNodeModal({
               <button
                 type="button"
                 onClick={() => {
-                  // Find the form within the config component container
-                  const configForm = document.querySelector("form");
+                  // Find the form within the config component container more specifically
+                  const configContainer = document.querySelector(".flex-1.p-3.overflow-y-auto");
+                  const configForm = configContainer?.querySelector("form") || document.querySelector("form");
+                  
                   if (configForm) {
+                    console.log("Form found, submitting...");
+                    enqueueSnackbar('Saving configuration...', { 
+                      variant: 'info',
+                      autoHideDuration: 1500,
+                      anchorOrigin: {
+                        vertical: 'top',
+                        horizontal: 'right',
+                      }
+                    });
                     configForm.requestSubmit();
                   } else {
-                    console.error("No form found");
+                    console.error("No form found - checking for submit button");
+                    // Fallback: look for submit button
+                    const submitButton = document.querySelector("button[type='submit']");
+                    if (submitButton) {
+                      console.log("Submit button found, clicking...");
+                      enqueueSnackbar('Saving configuration...', { 
+                        variant: 'info',
+                        autoHideDuration: 1500,
+                        anchorOrigin: {
+                          vertical: 'top',
+                          horizontal: 'right',
+                        }
+                      });
+                      (submitButton as HTMLButtonElement).click();
+                    } else {
+                      console.error("Neither form nor submit button found");
+                      enqueueSnackbar('Unable to save - no form found', { 
+                        variant: 'error',
+                        autoHideDuration: 4000,
+                        anchorOrigin: {
+                          vertical: 'top',
+                          horizontal: 'right',
+                        }
+                      });
+                    }
                   }
                 }}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
