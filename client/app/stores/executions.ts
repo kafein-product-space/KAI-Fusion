@@ -17,6 +17,7 @@ interface ExecutionsStore {
     execution_type?: string;
     trigger_source?: string;
   }) => Promise<void>;
+  setCurrentExecution: (execution: WorkflowExecution) => void;
   clearError: () => void;
 }
 
@@ -65,5 +66,6 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
       set({ error: e.message || 'Failed to execute workflow', loading: false });
     }
   },
+  setCurrentExecution: (execution) => set({ currentExecution: execution }),
   clearError: () => set({ error: null }),
 })); 

@@ -227,6 +227,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const {
     executeWorkflow,
     currentExecution,
+    setCurrentExecution,
     loading: executionLoading,
     error: executionError,
     clearError: clearExecutionError,
@@ -730,6 +731,25 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                   setDetailedExecutionError(errorDetails);
                 } else if (t === "complete") {
+                  // Store the execution result in the store
+                  const executionResult = {
+                    id: evt.execution_id || Date.now().toString(),
+                    workflow_id: currentWorkflow.id,
+                    input_text: executionData.input_text,
+                    result: {
+                      result: evt.result,
+                      executed_nodes: evt.executed_nodes,
+                      node_outputs: evt.node_outputs,
+                      session_id: evt.session_id,
+                      status: 'completed' as const,
+                    },
+                    started_at: new Date().toISOString(),
+                    completed_at: new Date().toISOString(),
+                    status: 'completed' as const,
+                  };
+                  
+                  setCurrentExecution(executionResult);
+                  
                   setTimeout(() => {
                     setActiveEdges([]);
                     setActiveNodes([]);
@@ -1261,6 +1281,31 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           configData={fullscreenModal.nodeData?.data || {}}
           onSave={handleFullscreenModalSave}
           ConfigComponent={fullscreenModal.configComponent}
+          executionData={{
+            nodeId: fullscreenModal.nodeData?.id || '',
+            inputs: (() => {
+              const nodeId = fullscreenModal.nodeData?.id;
+              if (!nodeId || !currentExecution?.result?.node_outputs) return {};
+              
+              // Find edges that connect to this node as target
+              const inputEdges = edges.filter(edge => edge.target === nodeId);
+              const inputs: Record<string, any> = {};
+              
+              inputEdges.forEach(edge => {
+                const sourceNodeOutput = currentExecution.result.node_outputs?.[edge.source];
+                if (sourceNodeOutput !== undefined) {
+                  const inputKey = edge.targetHandle || 'input';
+                  inputs[inputKey] = sourceNodeOutput;
+                }
+              });
+              
+              return inputs;
+            })(),
+            outputs: currentExecution?.result?.node_outputs?.[fullscreenModal.nodeData?.id || ''],
+            status: currentExecution?.status === 'completed' ? 'completed' : 
+                    currentExecution?.status === 'running' ? 'running' : 
+                    currentExecution?.status === 'failed' ? 'failed' : 'pending'
+          }}
         />
       )}
     </>

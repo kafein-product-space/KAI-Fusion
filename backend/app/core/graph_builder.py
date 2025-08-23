@@ -1977,9 +1977,6 @@ class GraphBuilder:
                     node_outputs = getattr(state_values, "node_outputs", {})
                     session_id = getattr(state_values, "session_id", init_state.session_id)
                 
-                print(f"[DEBUG] Extracted last_output: '{last_output}'")
-                print(f"[DEBUG] Extracted executed_nodes: {executed_nodes}")
-                print(f"[DEBUG] Extracted node_outputs: {node_outputs}")
                 
                 # Serialize the result carefully
                 try:

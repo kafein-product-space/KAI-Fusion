@@ -143,6 +143,7 @@ export interface WorkflowExecutionResult {
   execution_id?: string;
   executed_nodes?: string[];
   session_id?: string;
+  node_outputs?: Record<string, any>;
 }
 
 export interface WorkflowExecution {

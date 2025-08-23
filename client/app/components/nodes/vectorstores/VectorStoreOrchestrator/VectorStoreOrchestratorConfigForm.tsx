@@ -29,7 +29,6 @@ export default function VectorStoreOrchestratorConfigForm({
   onSave,
   onCancel,
 }: VectorStoreOrchestratorConfigFormProps) {
-  
   // Default values for missing fields
   const initialValues = {
     credential_id: configData?.credential_id || "",
@@ -50,7 +49,7 @@ export default function VectorStoreOrchestratorConfigForm({
   // Validation function
   const validate = (values: any) => {
     const errors: any = {};
-    
+
     if (!values.collection_name) {
       errors.collection_name = "Collection name is required";
     }
@@ -65,7 +64,7 @@ export default function VectorStoreOrchestratorConfigForm({
         errors.custom_metadata = "Invalid JSON format";
       }
     }
-    
+
     return errors;
   };
   const [activeTab, setActiveTab] = useState("data");
@@ -125,7 +124,11 @@ export default function VectorStoreOrchestratorConfigForm({
           };
 
           return (
-            <Form className="space-y-6 w-full h-full" onSubmit={handleSubmit} id="vectorstore-config-form">
+            <Form
+              className="space-y-6 w-full h-full"
+              onSubmit={handleSubmit}
+              id="vectorstore-config-form"
+            >
               {/* Tab Navigation */}
               <TabNavigation
                 tabs={tabs}
@@ -193,7 +196,10 @@ export default function VectorStoreOrchestratorConfigForm({
                                 );
                               }
                               if (secret.table_prefix) {
-                                setFieldValue("table_prefix", secret.table_prefix);
+                                setFieldValue(
+                                  "table_prefix",
+                                  secret.table_prefix
+                                );
                               }
                             } catch (error) {
                               console.error(
@@ -231,7 +237,10 @@ export default function VectorStoreOrchestratorConfigForm({
                           }
 
                           if (secret.collection_name) {
-                            setFieldValue("collection_name", secret.collection_name);
+                            setFieldValue(
+                              "collection_name",
+                              secret.collection_name
+                            );
                           }
                           if (secret.table_prefix) {
                             setFieldValue("table_prefix", secret.table_prefix);
@@ -393,7 +402,7 @@ export default function VectorStoreOrchestratorConfigForm({
                         placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
                         description="Custom metadata to add to all documents (JSON format)"
                         height={120}
-                        error={errors.custom_metadata}
+                        error={errors.custom_metadata as string}
                       />
                     </div>
 
