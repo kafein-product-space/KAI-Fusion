@@ -177,7 +177,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   >({});
 
   // Listen for chat execution events to update node status
-  useChatExecutionListener(nodes, setNodeStatus, edges, setEdgeStatus);
+  useChatExecutionListener(nodes, setNodeStatus, edges, setEdgeStatus, setActiveEdges, setActiveNodes);
 
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -1320,13 +1320,23 @@ function useChatExecutionListener(
   nodes: Node[], 
   setNodeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
   edges: Edge[],
-  setEdgeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>
+  setEdgeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
+  setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>
 ) {
   useEffect(() => {
     const handleChatExecutionStart = () => {
-      console.log('🔄 Resetting node/edge status for chat execution');
+      console.log('🔄 Resetting node/edge/active status for chat execution');
       setNodeStatus({});
       setEdgeStatus({});
+      setActiveEdges([]);
+      setActiveNodes([]);
+    };
+    
+    const handleChatExecutionComplete = () => {
+      console.log('✅ Chat execution complete - clearing active edges/nodes');
+      setActiveEdges([]);
+      setActiveNodes([]);
     };
     
     const handleChatExecutionEvent = (event: CustomEvent) => {
@@ -1346,15 +1356,19 @@ function useChatExecutionListener(
         
         if (actualNode) {
           console.log('🟡 Setting node as running:', actualNode.id);
+          
+          // Set active node (for flow animation)
+          setActiveNodes([actualNode.id]);
           setNodeStatus(prev => ({
             ...prev,
-            [actualNode.id]: 'running'
+            [actualNode.id]: 'pending'  // Start with pending like in start node execution
           }));
           
-          // Set incoming edges to pending (like in start node execution)
+          // Set incoming edges to pending and active (like in start node execution)
           const incomingEdges = edges.filter(e => e.target === actualNode.id);
           if (incomingEdges.length > 0) {
-            console.log('🔄 Setting edges as pending:', incomingEdges.map(e => e.id));
+            console.log('🔄 Setting edges as active/pending:', incomingEdges.map(e => e.id));
+            setActiveEdges(incomingEdges.map(e => e.id)); // This creates the flow animation!
             setEdgeStatus(prev => ({
               ...prev,
               ...Object.fromEntries(
@@ -1403,12 +1417,14 @@ function useChatExecutionListener(
 
     window.addEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
     window.addEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
+    window.addEventListener('chat-execution-complete', handleChatExecutionComplete as EventListener);
     
     return () => {
       window.removeEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
       window.removeEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
+      window.removeEventListener('chat-execution-complete', handleChatExecutionComplete as EventListener);
     };
-  }, [nodes, setNodeStatus, edges, setEdgeStatus]);
+  }, [nodes, setNodeStatus, edges, setEdgeStatus, setActiveEdges, setActiveNodes]);
 }
 
 interface FlowCanvasWrapperProps {

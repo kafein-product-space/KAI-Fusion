@@ -110,6 +110,11 @@ const executeWorkflowWithStreaming = async (
               const { setCurrentExecution } = await import('./executions').then(m => m.useExecutionsStore.getState());
               setCurrentExecution(executionResult);
               console.log('💾 Execution result saved to store');
+              
+              // Emit completion event to clear active edges after delay
+              setTimeout(() => {
+                window.dispatchEvent(new CustomEvent('chat-execution-complete', { detail: {} }));
+              }, 1500);
             }
           } catch (e) {
             console.error('❌ Error parsing stream data:', e, 'Raw data:', data);
