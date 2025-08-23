@@ -176,6 +176,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     Record<string, "success" | "failed" | "pending">
   >({});
 
+  // Listen for chat execution events to update node status
+  useChatExecutionListener(nodes, setNodeStatus, edges, setEdgeStatus);
+
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
   const [autoSaveInterval, setAutoSaveInterval] = useState(30000); // 30 seconds
@@ -1310,6 +1313,102 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       )}
     </>
   );
+}
+
+// Add chat execution event listener for node and edge status updates
+function useChatExecutionListener(
+  nodes: Node[], 
+  setNodeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  edges: Edge[],
+  setEdgeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>
+) {
+  useEffect(() => {
+    const handleChatExecutionStart = () => {
+      console.log('🔄 Resetting node/edge status for chat execution');
+      setNodeStatus({});
+      setEdgeStatus({});
+    };
+    
+    const handleChatExecutionEvent = (event: CustomEvent) => {
+      const { event: eventType, node_id, ...data } = event.detail;
+      
+      if (eventType === 'node_start' && node_id) {
+        console.log('🔍 Looking for node_id:', node_id, 'in workflow nodes:', nodes.map(n => ({id: n.id, type: n.type, name: n.data.name})));
+        
+        // Find the actual node ID from our workflow nodes
+        const actualNode = nodes.find(n => 
+          n.id === node_id || 
+          n.data.name === node_id ||
+          n.type === node_id ||
+          n.type.includes(node_id.replace(/\-\d+$/, '')) || // Remove trailing numbers like Agent-2 -> Agent
+          node_id.includes(n.type)
+        );
+        
+        if (actualNode) {
+          console.log('🟡 Setting node as running:', actualNode.id);
+          setNodeStatus(prev => ({
+            ...prev,
+            [actualNode.id]: 'running'
+          }));
+          
+          // Set incoming edges to pending (like in start node execution)
+          const incomingEdges = edges.filter(e => e.target === actualNode.id);
+          if (incomingEdges.length > 0) {
+            console.log('🔄 Setting edges as pending:', incomingEdges.map(e => e.id));
+            setEdgeStatus(prev => ({
+              ...prev,
+              ...Object.fromEntries(
+                incomingEdges.map(e => [e.id, 'pending' as const])
+              )
+            }));
+          }
+        } else {
+          console.log('❌ No matching node found for:', node_id);
+        }
+      }
+      
+      if (eventType === 'node_end' && node_id) {
+        // Find the actual node ID from our workflow nodes
+        const actualNode = nodes.find(n => 
+          n.id === node_id || 
+          n.data.name === node_id ||
+          n.type === node_id ||
+          n.type.includes(node_id.replace(/\-\d+$/, '')) || // Remove trailing numbers like Agent-2 -> Agent
+          node_id.includes(n.type)
+        );
+        
+        if (actualNode) {
+          console.log('🟢 Setting node as success:', actualNode.id);
+          setNodeStatus(prev => ({
+            ...prev,
+            [actualNode.id]: 'success'
+          }));
+          
+          // Set incoming edges to success (like in start node execution)
+          const incomingEdges = edges.filter(e => e.target === actualNode.id);
+          if (incomingEdges.length > 0) {
+            console.log('✅ Setting edges as success:', incomingEdges.map(e => e.id));
+            setEdgeStatus(prev => ({
+              ...prev,
+              ...Object.fromEntries(
+                incomingEdges.map(e => [e.id, 'success' as const])
+              )
+            }));
+          }
+        } else {
+          console.log('❌ No matching node found for node_end:', node_id);
+        }
+      }
+    };
+
+    window.addEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
+    window.addEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
+    
+    return () => {
+      window.removeEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
+      window.removeEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
+    };
+  }, [nodes, setNodeStatus, edges, setEdgeStatus]);
 }
 
 interface FlowCanvasWrapperProps {

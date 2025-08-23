@@ -1,8 +1,9 @@
 import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
-import type { ChatMessage } from '../types/api';
+import type { ChatMessage, WorkflowExecution } from '../types/api';
 import * as chatService from '../services/chatService';
 import { executeWorkflow } from '../services/workflowService';
+import { executeWorkflowStream } from '../services/executionService';
 
 interface ChatStore {
   chats: Record<string, ChatMessage[]>;
@@ -30,6 +31,100 @@ interface ChatStore {
   sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
   sendEditedMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
 }
+
+// Helper function to execute workflow with streaming and capture execution data
+const executeWorkflowWithStreaming = async (
+  flow_data: any,
+  input_text: string,
+  session_id: string,
+  chatflow_id: string,
+  workflow_id: string
+) => {
+  console.log('🔄 Starting chat execution with streaming...');
+  
+  const executionData = {
+    flow_data,
+    input_text,
+    session_id,
+    chatflow_id,
+    workflow_id,
+    execution_type: 'chat',
+    trigger_source: 'chat_message'
+  };
+
+  try {
+    console.log('📡 Starting streaming execution for chat...');
+    
+    // Emit start event to reset node/edge status
+    window.dispatchEvent(new CustomEvent('chat-execution-start', { detail: {} }));
+    
+    const stream = await executeWorkflowStream(executionData);
+    const reader = stream.getReader();
+    const decoder = new TextDecoder();
+    
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) {
+        console.log('🏁 Stream ended');
+        break;
+      }
+
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          const data = line.slice(6).trim();
+          if (data === '[DONE]' || !data) continue;
+          
+          try {
+            const parsed = JSON.parse(data);
+            console.log('📦 Stream event:', parsed.event || parsed.type, parsed);
+            
+            // Emit custom event for FlowCanvas to listen
+            const event = parsed.event || parsed.type;
+            if (event) {
+              window.dispatchEvent(new CustomEvent('chat-execution-event', {
+                detail: { ...parsed, event }
+              }));
+            }
+            
+            // Handle complete event to capture execution data
+            if (event === 'complete' && parsed.result) {
+              const executionResult: WorkflowExecution = {
+                id: parsed.execution_id || Date.now().toString(),
+                workflow_id: workflow_id,
+                input_text: input_text,
+                result: {
+                  result: parsed.result,
+                  executed_nodes: parsed.executed_nodes || [],
+                  node_outputs: parsed.node_outputs || {},
+                  status: 'completed' as const,
+                },
+                started_at: new Date().toISOString(),
+                completed_at: new Date().toISOString(),
+                status: 'completed' as const,
+              };
+              
+              // Import and use executions store
+              const { setCurrentExecution } = await import('./executions').then(m => m.useExecutionsStore.getState());
+              setCurrentExecution(executionResult);
+              console.log('💾 Execution result saved to store');
+            }
+          } catch (e) {
+            console.error('❌ Error parsing stream data:', e, 'Raw data:', data);
+          }
+        }
+      }
+    }
+    
+    console.log('✅ Chat streaming execution completed successfully');
+    reader.releaseLock();
+  } catch (error) {
+    console.error('❌ Chat streaming execution failed:', error);
+    throw error;
+  }
+};
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   chats: {},
@@ -223,8 +318,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     get().addMessage(chatflow_id, userMessage);
     
     try {
-      // Use chatflow_id as session_id for memory consistency
-      await executeWorkflow(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
+      // Use chatflow_id as session_id for memory consistency - now with streaming
+      await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
@@ -256,8 +351,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
     
     try {
-      // Use chatflow_id as session_id for memory consistency
-      await executeWorkflow(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
+      // Use chatflow_id as session_id for memory consistency - now with streaming
+      await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {

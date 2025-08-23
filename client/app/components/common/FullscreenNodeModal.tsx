@@ -290,12 +290,6 @@ export default function FullscreenNodeModal({
             className="flex items-center justify-between p-6 border-b border-gray-700 bg-gray-800"
           >
             <div className="flex items-center gap-4">
-              <button
-                onClick={onClose}
-                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
-              >
-                <ArrowLeft className="w-5 h-5 text-white" />
-              </button>
               <div className="flex items-center gap-3">
                 {nodeMetadata.icon && (
                   <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center">
@@ -648,12 +642,6 @@ export default function FullscreenNodeModal({
             </div>
 
             <div className="flex items-center gap-3">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 rounded-lg bg-gray-700 text-gray-300 hover:bg-gray-600 hover:text-white transition-colors"
-              >
-                Cancel
-              </button>
               <button
                 type="button"
                 onClick={() => {
