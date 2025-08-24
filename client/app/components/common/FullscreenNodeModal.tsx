@@ -334,11 +334,11 @@ export default function FullscreenNodeModal({
               <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
                 {nodeMetadata.node_type}
               </div>
-              {onExecute && (
+              {onExecute && nodeMetadata.node_type === 'processor' && (
                 <button
                   onClick={onExecute}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
-                  title="Execute this node"
+                  title="Execute this processor node"
                 >
                   <Play className="w-4 h-4" />
                   Execute

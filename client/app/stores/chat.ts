@@ -42,8 +42,8 @@ const executeWorkflowWithStreaming = async (
 ) => {
   console.log('🔄 Starting chat execution with streaming...');
   
-  // Track provider node data during execution
-  const providerNodeData: Record<string, any> = {};
+  // Track all node data during execution
+  const nodeExecutionData: Record<string, any> = {};
   
   const executionData = {
     flow_data,
@@ -90,15 +90,41 @@ const executeWorkflowWithStreaming = async (
               console.log(`🎯 ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
             }
             
-            // Track provider node data
-            if (eventType === 'node_start' && parsed.metadata?.node_type === 'provider') {
-              providerNodeData[parsed.node_id] = {
-                inputs: parsed.metadata.inputs,
-                provider_type: parsed.metadata.provider_type
+            // Track all node execution data
+            if (eventType === 'node_start' && parsed.node_id) {
+              nodeExecutionData[parsed.node_id] = {
+                inputs: {},
+                metadata: parsed.metadata || {},
+                status: 'running'
               };
+              
+              // For provider nodes, use metadata inputs
+              if (parsed.metadata?.node_type === 'provider' && parsed.metadata.inputs) {
+                nodeExecutionData[parsed.node_id].inputs = parsed.metadata.inputs;
+              }
+              
+              // For processor nodes like Agent, capture input from the execution context
+              if (parsed.metadata?.node_type === 'processor' || parsed.node_id.includes('Agent')) {
+                // Agent node input includes the user's chat input
+                nodeExecutionData[parsed.node_id].inputs = {
+                  input: input_text,
+                  ...(parsed.metadata?.inputs || {})
+                };
+              }
             }
-            if (eventType === 'node_end' && parsed.output && providerNodeData[parsed.node_id]) {
-              providerNodeData[parsed.node_id].output = parsed.output;
+            
+            if (eventType === 'node_end' && parsed.node_id) {
+              if (nodeExecutionData[parsed.node_id]) {
+                nodeExecutionData[parsed.node_id].output = parsed.output || {};
+                nodeExecutionData[parsed.node_id].status = 'completed';
+              } else {
+                // If we missed the start event, create entry for output
+                nodeExecutionData[parsed.node_id] = {
+                  inputs: {},
+                  output: parsed.output || {},
+                  status: 'completed'
+                };
+              }
             }
 
             // Emit custom event for FlowCanvas to listen
@@ -120,7 +146,7 @@ const executeWorkflowWithStreaming = async (
                   executed_nodes: parsed.executed_nodes || [],
                   node_outputs: { 
                     ...parsed.node_outputs || {},
-                    ...providerNodeData // Add provider node data
+                    ...nodeExecutionData // Add all node execution data
                   },
                   status: 'completed' as const,
                 },
