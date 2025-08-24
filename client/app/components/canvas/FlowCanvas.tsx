@@ -1291,7 +1291,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               const nodeId = fullscreenModal.nodeData?.id;
               if (!nodeId || !currentExecution?.result?.node_outputs) return {};
               
-              // Find edges that connect to this node as target
+              // First try to get tracked inputs from execution data
+              const nodeExecutionData = currentExecution.result.node_outputs?.[nodeId];
+              if (nodeExecutionData?.inputs && Object.keys(nodeExecutionData.inputs).length > 0) {
+                return nodeExecutionData.inputs;
+              }
+              
+              // Fallback to edge-based input construction for nodes without tracked inputs
               const inputEdges = edges.filter(edge => edge.target === nodeId);
               const inputs: Record<string, any> = {};
               

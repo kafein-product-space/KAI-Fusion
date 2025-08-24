@@ -92,6 +92,8 @@ const executeWorkflowWithStreaming = async (
             
             // Track all node execution data
             if (eventType === 'node_start' && parsed.node_id) {
+              console.log('📝 Node start tracking:', parsed.node_id, 'input_text:', input_text);
+              
               nodeExecutionData[parsed.node_id] = {
                 inputs: {},
                 metadata: parsed.metadata || {},
@@ -101,6 +103,7 @@ const executeWorkflowWithStreaming = async (
               // For provider nodes, use metadata inputs
               if (parsed.metadata?.node_type === 'provider' && parsed.metadata.inputs) {
                 nodeExecutionData[parsed.node_id].inputs = parsed.metadata.inputs;
+                console.log('🔧 Provider inputs captured:', parsed.node_id, parsed.metadata.inputs);
               }
               
               // For processor nodes like Agent, capture input from the execution context
@@ -108,9 +111,13 @@ const executeWorkflowWithStreaming = async (
                 // Agent node input includes the user's chat input
                 nodeExecutionData[parsed.node_id].inputs = {
                   input: input_text,
+                  user_message: input_text,
                   ...(parsed.metadata?.inputs || {})
                 };
+                console.log('🤖 Agent inputs captured:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs);
               }
+              
+              console.log('💾 Node data stored:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
             
             if (eventType === 'node_end' && parsed.node_id) {
@@ -159,6 +166,7 @@ const executeWorkflowWithStreaming = async (
               const { setCurrentExecution } = await import('./executions').then(m => m.useExecutionsStore.getState());
               setCurrentExecution(executionResult);
               console.log('💾 Execution result saved to store');
+              console.log('📊 Final node_outputs:', executionResult.result.node_outputs);
               
               // Emit completion event to clear active edges after delay
               setTimeout(() => {
