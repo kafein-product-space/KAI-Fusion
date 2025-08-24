@@ -1344,6 +1344,17 @@ function useChatExecutionListener(
       
       console.log('🚀 Chat execution event:', eventType, 'node_id:', node_id, 'data:', data);
       
+      // Log provider events specifically
+      if (data.metadata?.node_type === 'provider' || data.metadata?.provider_type) {
+        console.log('🔧 Provider event details:', {
+          eventType,
+          node_id,
+          provider_type: data.metadata?.provider_type,
+          inputs: data.metadata?.inputs,
+          output: data.output
+        });
+      }
+      
       if (eventType === 'node_start' && node_id) {
         
         // Enhanced node matching for different node types

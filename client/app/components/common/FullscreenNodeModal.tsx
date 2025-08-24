@@ -68,6 +68,27 @@ export default function FullscreenNodeModal({
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
 
+  // Helper function to filter out metadata fields from node data
+  const filterNodeData = (data: any): any => {
+    if (!data || typeof data !== 'object') return data;
+    
+    // Fields to exclude from all node displays
+    const excludeFields = [
+      'icon', 'name', 'color', 'inputs', 'outputs', 'metadata', 
+      'description', 'displayName', 'version', 'category', 'examples',
+      'node_type', 'documentation_url', 'tags'
+    ];
+    
+    const filtered: any = {};
+    Object.entries(data).forEach(([key, value]) => {
+      if (!excludeFields.includes(key)) {
+        filtered[key] = value;
+      }
+    });
+    
+    return filtered;
+  };
+
   // Helper function to get user-friendly labels for data keys
   const getDataLabel = (key: string): string => {
     const labelMap: Record<string, string> = {
@@ -350,7 +371,7 @@ export default function FullscreenNodeModal({
                     </div>
                     
                     <div className="space-y-4">
-                      {Object.entries(executionData.inputs).map(([key, value]) => (
+                      {Object.entries(filterNodeData(executionData.inputs)).map(([key, value]) => (
                         <div key={key} className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50">
                           {/* Header with icon and user-friendly label */}
                           <div className="flex items-center gap-3 mb-3">
@@ -494,7 +515,7 @@ export default function FullscreenNodeModal({
                     
                     <div className="space-y-4">
                       {typeof executionData.outputs === 'object' && executionData.outputs !== null ? (
-                        Object.entries(executionData.outputs).map(([key, value]) => (
+                        Object.entries(filterNodeData(executionData.outputs)).map(([key, value]) => (
                           <div key={key} className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30">
                             {/* Header with icon and user-friendly label */}
                             <div className="flex items-center gap-3 mb-3">

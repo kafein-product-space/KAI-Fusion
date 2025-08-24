@@ -42,6 +42,9 @@ const executeWorkflowWithStreaming = async (
 ) => {
   console.log('🔄 Starting chat execution with streaming...');
   
+  // Track provider node data during execution
+  const providerNodeData: Record<string, any> = {};
+  
   const executionData = {
     flow_data,
     input_text,
@@ -87,6 +90,17 @@ const executeWorkflowWithStreaming = async (
               console.log(`🎯 ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
             }
             
+            // Track provider node data
+            if (eventType === 'node_start' && parsed.metadata?.node_type === 'provider') {
+              providerNodeData[parsed.node_id] = {
+                inputs: parsed.metadata.inputs,
+                provider_type: parsed.metadata.provider_type
+              };
+            }
+            if (eventType === 'node_end' && parsed.output && providerNodeData[parsed.node_id]) {
+              providerNodeData[parsed.node_id].output = parsed.output;
+            }
+
             // Emit custom event for FlowCanvas to listen
             const event = parsed.event || parsed.type;
             if (event) {
@@ -104,7 +118,10 @@ const executeWorkflowWithStreaming = async (
                 result: {
                   result: parsed.result,
                   executed_nodes: parsed.executed_nodes || [],
-                  node_outputs: parsed.node_outputs || {},
+                  node_outputs: { 
+                    ...parsed.node_outputs || {},
+                    ...providerNodeData // Add provider node data
+                  },
                   status: 'completed' as const,
                 },
                 started_at: new Date().toISOString(),
