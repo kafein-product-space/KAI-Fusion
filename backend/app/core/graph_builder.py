@@ -1612,6 +1612,16 @@ class GraphBuilder:
                                     print(f"[DEBUG] Attempting to get instance from {source_node_id}")
                                     # For ProviderNodes, execute them to get the instance
                                     if source_gnode.node_instance.metadata.node_type.value == "provider":
+                                        # Queue provider node start event for streaming
+                                        if hasattr(self, '_current_generator') and self._current_generator:
+                                            try:
+                                                if not hasattr(self, '_provider_events'):
+                                                    self._provider_events = []
+                                                self._provider_events.append({"type": "node_start", "node_id": source_node_id, "metadata": {"node_type": "provider"}})
+                                                print(f"[DEBUG] Queued provider node start event for {source_node_id}")
+                                            except Exception as e:
+                                                print(f"[WARNING] Failed to queue provider node start event: {e}")
+                                        
                                         # For provider nodes that need connected inputs, we need to resolve their connections first
                                         provider_kwargs = source_gnode.user_data.copy()
 
@@ -1656,6 +1666,16 @@ class GraphBuilder:
                                         connected_nodes[input_spec.name] = instance
                                         connection_found = True
                                         print(f"[DEBUG] Successfully got provider instance: {type(instance)}")
+                                        
+                                        # Queue provider node end event for streaming
+                                        if hasattr(self, '_current_generator') and self._current_generator:
+                                            try:
+                                                if not hasattr(self, '_provider_events'):
+                                                    self._provider_events = []
+                                                self._provider_events.append({"type": "node_end", "node_id": source_node_id, "output": {"instance_type": str(type(instance))}})
+                                                print(f"[DEBUG] Queued provider node end event for {source_node_id}")
+                                            except Exception as e:
+                                                print(f"[WARNING] Failed to queue provider node end event: {e}")
                                     else:
                                         print(f"[DEBUG] Source node {source_node_id} is not a provider, cannot get instance")
                                 except Exception as e:
@@ -1889,6 +1909,9 @@ class GraphBuilder:
     async def _execute_stream(self, init_state: FlowState, config: RunnableConfig):
         try:
             print(f"[DEBUG] Starting streaming execution for session: {init_state.session_id}")
+            # Track current generator for provider events
+            self._current_generator = True
+            self._provider_events = []  # Initialize provider events queue
             yield {"type": "start", "session_id": init_state.session_id, "message": "Starting workflow execution"}
             
             # Stream workflow execution events
@@ -1908,6 +1931,13 @@ class GraphBuilder:
                 except Exception as serialize_error:
                     print(f"[WARNING] Event serialization failed: {serialize_error}")
                     continue
+                
+                # First, yield any queued provider events
+                if hasattr(self, '_provider_events') and self._provider_events:
+                    for provider_event in self._provider_events:
+                        print(f"[DEBUG] Yielding queued provider event: {provider_event}")
+                        yield provider_event
+                    self._provider_events = []  # Clear after yielding
                 
                 ev_type = ev.get("event", "")
                 if ev_type == "on_chain_start":
@@ -2013,6 +2043,13 @@ class GraphBuilder:
                 "node_outputs": serializable_result.get("node_outputs", {}),
                 "session_id": serializable_result.get("session_id", init_state.session_id),
             }
+            # Yield any remaining queued provider events before completion
+            if hasattr(self, '_provider_events') and self._provider_events:
+                for provider_event in self._provider_events:
+                    print(f"[DEBUG] Yielding final queued provider event: {provider_event}")
+                    yield provider_event
+                self._provider_events = []
+            
             print(f"   📤 Response ready")
             logger.debug(f"Yielding completion event: {complete_event['type']}")
             yield complete_event
@@ -2033,3 +2070,6 @@ class GraphBuilder:
             }
             
             yield {"type": "error", **error_details}
+        finally:
+            # Clean up generator tracking
+            self._current_generator = False

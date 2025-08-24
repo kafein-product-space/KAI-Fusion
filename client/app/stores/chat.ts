@@ -81,6 +81,12 @@ const executeWorkflowWithStreaming = async (
             const parsed = JSON.parse(data);
             console.log('📦 Stream event:', parsed.event || parsed.type, parsed);
             
+            // Log specific node events for debugging
+            const eventType = parsed.event || parsed.type;
+            if (eventType === 'node_start' || eventType === 'node_end') {
+              console.log(`🎯 ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
+            }
+            
             // Emit custom event for FlowCanvas to listen
             const event = parsed.event || parsed.type;
             if (event) {

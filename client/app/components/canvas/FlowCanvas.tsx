@@ -1343,19 +1343,50 @@ function useChatExecutionListener(
       const { event: eventType, node_id, ...data } = event.detail;
       
       if (eventType === 'node_start' && node_id) {
-        console.log('🔍 Looking for node_id:', node_id, 'in workflow nodes:', nodes.map(n => ({id: n.id, type: n.type, name: n.data.name})));
         
-        // Find the actual node ID from our workflow nodes
-        const actualNode = nodes.find(n => 
-          n.id === node_id || 
-          n.data.name === node_id ||
-          n.type === node_id ||
-          n.type.includes(node_id.replace(/\-\d+$/, '')) || // Remove trailing numbers like Agent-2 -> Agent
-          node_id.includes(n.type)
-        );
+        // Enhanced node matching for different node types
+        const actualNode = nodes.find(n => {
+          // Direct matches
+          if (n.id === node_id || n.data.name === node_id || n.type === node_id) {
+            return true;
+          }
+          
+          // Remove trailing numbers like Agent-2 -> Agent
+          const cleanNodeId = node_id.replace(/\-\d+$/, '');
+          if (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type)) {
+            return true;
+          }
+          
+          // Special matching for embedding providers
+          if (node_id.includes('Embedding') || node_id.includes('embedding')) {
+            if (n.type.includes('Embedding') || n.type.includes('OpenAI')) {
+              return true;
+            }
+          }
+          
+          // Special matching for rerankers
+          if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
+            if (n.type.includes('Reranker') || n.type.includes('Cohere')) {
+              return true;
+            }
+          }
+          
+          // Special matching for retrievers
+          if (node_id.includes('Retriever') || node_id.includes('retriever')) {
+            if (n.type.includes('Retriever') || n.type.includes('VectorStore')) {
+              return true;
+            }
+          }
+          
+          // Match by data properties if available
+          if (n.data?.node_name && n.data.node_name === node_id) {
+            return true;
+          }
+          
+          return false;
+        });
         
         if (actualNode) {
-          console.log('🟡 Setting node as running:', actualNode.id);
           
           // Set active node (for flow animation)
           setActiveNodes([actualNode.id]);
@@ -1376,20 +1407,52 @@ function useChatExecutionListener(
               )
             }));
           }
-        } else {
-          console.log('❌ No matching node found for:', node_id);
+          
         }
       }
       
       if (eventType === 'node_end' && node_id) {
-        // Find the actual node ID from our workflow nodes
-        const actualNode = nodes.find(n => 
-          n.id === node_id || 
-          n.data.name === node_id ||
-          n.type === node_id ||
-          n.type.includes(node_id.replace(/\-\d+$/, '')) || // Remove trailing numbers like Agent-2 -> Agent
-          node_id.includes(n.type)
-        );
+        // Enhanced node matching for different node types
+        const actualNode = nodes.find(n => {
+          // Direct matches
+          if (n.id === node_id || n.data.name === node_id || n.type === node_id) {
+            return true;
+          }
+          
+          // Remove trailing numbers like Agent-2 -> Agent
+          const cleanNodeId = node_id.replace(/\-\d+$/, '');
+          if (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type)) {
+            return true;
+          }
+          
+          // Special matching for embedding providers
+          if (node_id.includes('Embedding') || node_id.includes('embedding')) {
+            if (n.type.includes('Embedding') || n.type.includes('OpenAI')) {
+              return true;
+            }
+          }
+          
+          // Special matching for rerankers
+          if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
+            if (n.type.includes('Reranker') || n.type.includes('Cohere')) {
+              return true;
+            }
+          }
+          
+          // Special matching for retrievers
+          if (node_id.includes('Retriever') || node_id.includes('retriever')) {
+            if (n.type.includes('Retriever') || n.type.includes('VectorStore')) {
+              return true;
+            }
+          }
+          
+          // Match by data properties if available
+          if (n.data?.node_name && n.data.node_name === node_id) {
+            return true;
+          }
+          
+          return false;
+        });
         
         if (actualNode) {
           console.log('🟢 Setting node as success:', actualNode.id);
@@ -1409,8 +1472,6 @@ function useChatExecutionListener(
               )
             }));
           }
-        } else {
-          console.log('❌ No matching node found for node_end:', node_id);
         }
       }
     };
