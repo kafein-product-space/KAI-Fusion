@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { X, Settings, Info, Save, ArrowLeft, ArrowRight, FileText, Hash, Calendar, User, Globe, Mail, Key, Database } from "lucide-react";
+import { X, Settings, Info, Save, ArrowLeft, ArrowRight, FileText, Hash, Calendar, User, Globe, Mail, Key, Database, Play } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { enqueueSnackbar } from "notistack";
 
@@ -44,6 +44,7 @@ interface FullscreenNodeModalProps {
   nodeMetadata: NodeMetadata;
   configData: any;
   onSave: (values: any) => void;
+  onExecute?: () => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
     onSave: (values: any) => void;
@@ -63,6 +64,7 @@ export default function FullscreenNodeModal({
   nodeMetadata,
   configData,
   onSave,
+  onExecute,
   ConfigComponent,
   executionData,
 }: FullscreenNodeModalProps) {
@@ -332,6 +334,16 @@ export default function FullscreenNodeModal({
               <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
                 {nodeMetadata.node_type}
               </div>
+              {onExecute && (
+                <button
+                  onClick={onExecute}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
+                  title="Execute this node"
+                >
+                  <Play className="w-4 h-4" />
+                  Execute
+                </button>
+              )}
               <button
                 onClick={onClose}
                 className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"

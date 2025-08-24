@@ -1283,6 +1283,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           nodeMetadata={fullscreenModal.nodeMetadata}
           configData={fullscreenModal.nodeData?.data || {}}
           onSave={handleFullscreenModalSave}
+          onExecute={() => handleStartNodeExecution(fullscreenModal.nodeData?.id || '')}
           ConfigComponent={fullscreenModal.configComponent}
           executionData={{
             nodeId: fullscreenModal.nodeData?.id || '',
