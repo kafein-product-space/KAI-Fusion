@@ -1617,7 +1617,19 @@ class GraphBuilder:
                                             try:
                                                 if not hasattr(self, '_provider_events'):
                                                     self._provider_events = []
-                                                self._provider_events.append({"type": "node_start", "node_id": source_node_id, "metadata": {"node_type": "provider"}})
+                                                
+                                                # Create detailed metadata for provider start
+                                                provider_metadata = {
+                                                    "node_type": "provider",
+                                                    "provider_type": getattr(source_gnode.node_instance.metadata, "name", "Unknown Provider"),
+                                                    "inputs": {k: str(v) for k, v in source_gnode.user_data.items() if not callable(v)}
+                                                }
+                                                
+                                                self._provider_events.append({
+                                                    "type": "node_start", 
+                                                    "node_id": source_node_id, 
+                                                    "metadata": provider_metadata
+                                                })
                                                 print(f"[DEBUG] Queued provider node start event for {source_node_id}")
                                             except Exception as e:
                                                 print(f"[WARNING] Failed to queue provider node start event: {e}")
@@ -1667,12 +1679,25 @@ class GraphBuilder:
                                         connection_found = True
                                         print(f"[DEBUG] Successfully got provider instance: {type(instance)}")
                                         
-                                        # Queue provider node end event for streaming
+                                        # Queue provider node end event for streaming with detailed data
                                         if hasattr(self, '_current_generator') and self._current_generator:
                                             try:
                                                 if not hasattr(self, '_provider_events'):
                                                     self._provider_events = []
-                                                self._provider_events.append({"type": "node_end", "node_id": source_node_id, "output": {"instance_type": str(type(instance))}})
+                                                
+                                                # Create detailed output data for provider
+                                                provider_output = {
+                                                    "instance_type": str(type(instance)),
+                                                    "provider_type": getattr(source_gnode.node_instance.metadata, "name", "Unknown Provider"),
+                                                    "inputs": {k: str(v) for k, v in provider_kwargs.items() if not callable(v)},
+                                                    "status": "success"
+                                                }
+                                                
+                                                self._provider_events.append({
+                                                    "type": "node_end", 
+                                                    "node_id": source_node_id, 
+                                                    "output": provider_output
+                                                })
                                                 print(f"[DEBUG] Queued provider node end event for {source_node_id}")
                                             except Exception as e:
                                                 print(f"[WARNING] Failed to queue provider node end event: {e}")
@@ -1935,7 +1960,7 @@ class GraphBuilder:
                 # First, yield any queued provider events
                 if hasattr(self, '_provider_events') and self._provider_events:
                     for provider_event in self._provider_events:
-                        print(f"[DEBUG] Yielding queued provider event: {provider_event}")
+                        print(f"🔄 [STREAM] Yielding provider event: {provider_event['type']} for {provider_event['node_id']}")
                         yield provider_event
                     self._provider_events = []  # Clear after yielding
                 

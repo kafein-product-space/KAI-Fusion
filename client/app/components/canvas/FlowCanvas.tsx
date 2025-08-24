@@ -1342,6 +1342,8 @@ function useChatExecutionListener(
     const handleChatExecutionEvent = (event: CustomEvent) => {
       const { event: eventType, node_id, ...data } = event.detail;
       
+      console.log('🚀 Chat execution event:', eventType, 'node_id:', node_id, 'data:', data);
+      
       if (eventType === 'node_start' && node_id) {
         
         // Enhanced node matching for different node types
