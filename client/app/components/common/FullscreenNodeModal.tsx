@@ -1,7 +1,24 @@
 import React, { useState, useEffect } from "react";
-import { X, Settings, Info, Save, ArrowLeft, ArrowRight, FileText, Hash, Calendar, User, Globe, Mail, Key, Database, Play } from "lucide-react";
+import {
+  X,
+  Settings,
+  Info,
+  Save,
+  ArrowLeft,
+  ArrowRight,
+  FileText,
+  Hash,
+  Calendar,
+  User,
+  Globe,
+  Mail,
+  Key,
+  Database,
+  Play,
+} from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { enqueueSnackbar } from "notistack";
+import DataDisplayModes from "./DataDisplayModes";
 
 interface NodeInput {
   name: string;
@@ -54,7 +71,7 @@ interface FullscreenNodeModalProps {
     nodeId: string;
     inputs?: Record<string, any>;
     outputs?: Record<string, any>;
-    status?: 'completed' | 'failed' | 'running' | 'pending';
+    status?: "completed" | "failed" | "running" | "pending";
   };
 }
 
@@ -70,24 +87,159 @@ export default function FullscreenNodeModal({
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
 
-  // Helper function to filter out metadata fields from node data
-  const filterNodeData = (data: any): any => {
-    if (!data || typeof data !== 'object') return data;
-    
-    // Fields to exclude from all node displays
+  // Helper function to filter out metadata and system fields from node data
+  const filterNodeData = (data: any, isOutput: boolean = false): any => {
+    if (!data || typeof data !== "object") return data;
+
+    // For OpenAI nodes, show only important fields
+    const isOpenAINode =
+      data.model ||
+      data.openai_api_key ||
+      data.estimatedTokens !== undefined ||
+      data.tokenUsage ||
+      data.generations ||
+      data.model_name;
+
+    if (isOpenAINode) {
+      if (isOutput) {
+        // For OpenAI output, show response metadata
+        const keepFields = [
+          "response",
+          "text",
+          "content",
+          "tokenUsage",
+          "completionTokens",
+          "promptTokens",
+          "totalTokens",
+          "model_name",
+          "finish_reason",
+          "generations",
+        ];
+        const filtered: any = {};
+
+        Object.entries(data).forEach(([key, value]) => {
+          if (keepFields.includes(key)) {
+            filtered[key] = value;
+          } else if (key === "generationInfo" && typeof value === "object") {
+            // Extract important fields from generationInfo
+            const genInfo: any = {};
+            if (value.prompt !== undefined) genInfo.promptTokens = value.prompt;
+            if (value.completion !== undefined)
+              genInfo.completionTokens = value.completion;
+            if (value.finish_reason)
+              genInfo.finish_reason = value.finish_reason;
+            if (value.model_name) genInfo.model_name = value.model_name;
+            if (Object.keys(genInfo).length > 0) {
+              filtered.generationInfo = genInfo;
+            }
+          } else if (
+            key === "generations" &&
+            Array.isArray(value) &&
+            value.length > 0
+          ) {
+            // Extract text and generation info from generations array
+            const generation = value[0];
+            if (generation.text) {
+              filtered.text = generation.text;
+            }
+            if (generation.generationInfo) {
+              const genInfo = generation.generationInfo;
+              filtered.tokenUsage = {
+                promptTokens: genInfo.prompt || 0,
+                completionTokens: genInfo.completion || 0,
+                totalTokens: (genInfo.prompt || 0) + (genInfo.completion || 0),
+              };
+              filtered.model_name = genInfo.model_name;
+              filtered.finish_reason = genInfo.finish_reason;
+            }
+          }
+        });
+
+        return filtered;
+      } else {
+        // For OpenAI input, keep only these important fields
+        const keepFields = [
+          "messages",
+          "model",
+          "max_tokens",
+          "timeout",
+          "max_retries",
+          "estimatedTokens",
+        ];
+        const filtered: any = {};
+
+        Object.entries(data).forEach(([key, value]) => {
+          if (keepFields.includes(key)) {
+            filtered[key] = value;
+          }
+        });
+
+        return filtered;
+      }
+    }
+
+    // For other nodes, use general filtering
     const excludeFields = [
-      'icon', 'name', 'color', 'inputs', 'outputs', 'metadata', 
-      'description', 'displayName', 'version', 'category', 'examples',
-      'node_type', 'documentation_url', 'tags'
+      // Metadata fields
+      "icon",
+      "name",
+      "color",
+      "inputs",
+      "outputs",
+      "metadata",
+      "description",
+      "displayName",
+      "version",
+      "category",
+      "examples",
+      "node_type",
+      "documentation_url",
+      "tags",
+
+      // System/Internal fields
+      "lc",
+      "type",
+      "id",
+      "configuration",
+      "baseURL",
+      "fetchOptions",
+      "model_kwargs",
+      "stream",
+      "streaming",
+      "callbacks",
+      "options",
+      "isConfigMode",
+      "credential_id",
+
+      // LangChain internal fields
+      "_type",
+      "_name",
+      "_id",
+      "_kwargs",
+      "_input_keys",
+      "_output_keys",
+      "_memory_keys",
+      "_chain_type",
+      "client",
+      "async_client",
+      "openai_api_key",
+      "openai_api_base",
+      "openai_organization",
+      "openai_proxy",
+      "request_timeout",
+      "n",
+      "logit_bias",
+      "user",
+      "stop",
     ];
-    
+
     const filtered: any = {};
     Object.entries(data).forEach(([key, value]) => {
       if (!excludeFields.includes(key)) {
         filtered[key] = value;
       }
     });
-    
+
     return filtered;
   };
 
@@ -95,165 +247,249 @@ export default function FullscreenNodeModal({
   const getDataLabel = (key: string): string => {
     const labelMap: Record<string, string> = {
       // Common input/output keys
-      'text': 'Text Content',
-      'query': 'Search Query',
-      'content': 'Content',
-      'message': 'Message',
-      'prompt': 'Prompt',
-      'response': 'Response',
-      'result': 'Result',
-      'output': 'Output',
-      'input': 'Input',
-      'data': 'Data',
-      'documents': 'Documents',
-      'context': 'Context',
-      'summary': 'Summary',
-      'answer': 'Answer',
-      'question': 'Question',
-      'url': 'Web Address',
-      'urls': 'Web Addresses',
-      'links': 'Links',
-      'title': 'Title',
-      'description': 'Description',
-      'keywords': 'Keywords',
-      'tags': 'Tags',
-      'metadata': 'Metadata',
-      'timestamp': 'Timestamp',
-      'date': 'Date',
-      'time': 'Time',
-      'id': 'ID',
-      'user_id': 'User ID',
-      'session_id': 'Session ID',
-      'api_key': 'API Key',
-      'token': 'Token',
-      'status': 'Status',
-      'count': 'Count',
-      'length': 'Length',
-      'size': 'Size',
-      'score': 'Score',
-      'confidence': 'Confidence',
-      'similarity': 'Similarity',
-      'embedding': 'Vector Embedding',
-      'embeddings': 'Vector Embeddings',
-      'chunks': 'Text Chunks',
-      'chunk': 'Text Chunk',
-      'search_results': 'Search Results',
-      'filtered_results': 'Filtered Results',
-      'ranked_results': 'Ranked Results',
-      'top_results': 'Top Results',
-      'relevant_docs': 'Relevant Documents',
-      'source': 'Source',
-      'sources': 'Sources',
-      'reference': 'Reference',
-      'references': 'References'
+      text: "Text Content",
+      query: "Search Query",
+      content: "Content",
+      message: "Message",
+      prompt: "Prompt",
+      response: "Response",
+      result: "Result",
+      output: "Output",
+      input: "Input",
+      data: "Data",
+      documents: "Documents",
+      context: "Context",
+      summary: "Summary",
+      answer: "Answer",
+      question: "Question",
+      url: "Web Address",
+      urls: "Web Addresses",
+      links: "Links",
+      title: "Title",
+      description: "Description",
+      keywords: "Keywords",
+      tags: "Tags",
+      metadata: "Metadata",
+      timestamp: "Timestamp",
+      date: "Date",
+      time: "Time",
+      id: "ID",
+      user_id: "User ID",
+      session_id: "Session ID",
+      api_key: "API Key",
+      token: "Token",
+      tokenUsage: "Token Usage",
+      promptTokens: "Prompt Tokens",
+      completionTokens: "Completion Tokens",
+      totalTokens: "Total Tokens",
+      finish_reason: "Finish Reason",
+      model_name: "Model Name",
+      status: "Status",
+      count: "Count",
+      length: "Length",
+      size: "Size",
+      score: "Score",
+      confidence: "Confidence",
+      similarity: "Similarity",
+      embedding: "Vector Embedding",
+      embeddings: "Vector Embeddings",
+      chunks: "Text Chunks",
+      chunk: "Text Chunk",
+      search_results: "Search Results",
+      filtered_results: "Filtered Results",
+      ranked_results: "Ranked Results",
+      top_results: "Top Results",
+      relevant_docs: "Relevant Documents",
+      source: "Source",
+      sources: "Sources",
+      reference: "Reference",
+      references: "References",
     };
-    
-    return labelMap[key.toLowerCase()] || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+
+    return (
+      labelMap[key.toLowerCase()] ||
+      key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase())
+    );
   };
 
   // Helper function to get appropriate icon for data type
   const getDataIcon = (key: string, value: any) => {
     const keyLower = key.toLowerCase();
-    
-    if (keyLower.includes('text') || keyLower.includes('content') || keyLower.includes('message')) {
+
+    if (
+      keyLower.includes("text") ||
+      keyLower.includes("content") ||
+      keyLower.includes("message")
+    ) {
       return <FileText className="w-4 h-4" />;
     }
-    if (keyLower.includes('url') || keyLower.includes('link')) {
+    if (keyLower.includes("url") || keyLower.includes("link")) {
       return <Globe className="w-4 h-4" />;
     }
-    if (keyLower.includes('email') || keyLower.includes('mail')) {
+    if (keyLower.includes("email") || keyLower.includes("mail")) {
       return <Mail className="w-4 h-4" />;
     }
-    if (keyLower.includes('user') || keyLower.includes('person')) {
+    if (keyLower.includes("user") || keyLower.includes("person")) {
       return <User className="w-4 h-4" />;
     }
-    if (keyLower.includes('date') || keyLower.includes('time')) {
+    if (keyLower.includes("date") || keyLower.includes("time")) {
       return <Calendar className="w-4 h-4" />;
     }
-    if (keyLower.includes('key') || keyLower.includes('token') || keyLower.includes('auth')) {
+    if (
+      keyLower.includes("key") ||
+      keyLower.includes("token") ||
+      keyLower.includes("auth")
+    ) {
       return <Key className="w-4 h-4" />;
     }
-    if (keyLower.includes('data') || keyLower.includes('result') || keyLower.includes('document')) {
+    if (
+      keyLower.includes("data") ||
+      keyLower.includes("result") ||
+      keyLower.includes("document")
+    ) {
       return <Database className="w-4 h-4" />;
     }
-    if (typeof value === 'number') {
+    if (typeof value === "number") {
       return <Hash className="w-4 h-4" />;
     }
-    
+
     return <FileText className="w-4 h-4" />;
   };
 
+  // Helper function to mask sensitive values
+  const maskSensitiveValue = (key: string, value: any): any => {
+    const keyLower = key.toLowerCase();
+    const sensitivePatterns = [
+      "api_key",
+      "apikey",
+      "api-key",
+      "password",
+      "passwd",
+      "pwd",
+      "secret",
+      "token",
+      "auth",
+      "credential",
+      "private_key",
+      "connection_string",
+      "database_url",
+      "openai_api_key",
+      "tavily_api_key",
+      "cohere_api_key",
+      "anthropic_api_key",
+    ];
+
+    // Check if key matches sensitive patterns
+    if (sensitivePatterns.some((pattern) => keyLower.includes(pattern))) {
+      if (typeof value === "string" && value) {
+        // Show first 4 and last 4 characters with asterisks in between
+        if (value.length <= 8) {
+          return (
+            value.substring(0, 2) + "****" + value.substring(value.length - 2)
+          );
+        } else {
+          return (
+            value.substring(0, 4) + "****" + value.substring(value.length - 4)
+          );
+        }
+      }
+      return "[PROTECTED]";
+    }
+
+    return value;
+  };
+
   // Helper function to format values in a user-friendly way
-  const formatValue = (value: any): string => {
-    if (value === null || value === undefined) {
-      return 'Empty';
+  const formatValue = (value: any, key: string = ""): string => {
+    // First mask sensitive data
+    const maskedValue = maskSensitiveValue(key, value);
+
+    if (maskedValue === null || maskedValue === undefined) {
+      return "Empty";
     }
-    
-    if (typeof value === 'boolean') {
-      return value ? 'Yes' : 'No';
+
+    if (typeof maskedValue === "boolean") {
+      return maskedValue ? "Yes" : "No";
     }
-    
-    if (typeof value === 'number') {
-      return value.toLocaleString('en-US');
+
+    if (typeof maskedValue === "number") {
+      return maskedValue.toLocaleString("en-US");
     }
-    
-    if (typeof value === 'string') {
+
+    if (typeof maskedValue === "string") {
       // If it's a URL
-      if (value.startsWith('http://') || value.startsWith('https://')) {
-        return value.length > 50 ? value.substring(0, 50) + '...' : value;
+      if (
+        maskedValue.startsWith("http://") ||
+        maskedValue.startsWith("https://")
+      ) {
+        return maskedValue.length > 50
+          ? maskedValue.substring(0, 50) + "..."
+          : maskedValue;
       }
-      
+
       // If it's too long, truncate
-      if (value.length > 200) {
-        return value.substring(0, 200) + '...';
+      if (maskedValue.length > 200) {
+        return maskedValue.substring(0, 200) + "...";
       }
-      
-      return value;
+
+      return maskedValue;
     }
-    
-    if (Array.isArray(value)) {
-      return `${value.length} items`;
+
+    if (Array.isArray(maskedValue)) {
+      return `${maskedValue.length} items`;
     }
-    
-    if (typeof value === 'object') {
-      const keys = Object.keys(value);
+
+    if (typeof maskedValue === "object") {
+      // Special handling for tokenUsage object
+      if (
+        key.toLowerCase().includes("tokenusage") ||
+        key.toLowerCase().includes("token_usage")
+      ) {
+        if (maskedValue.totalTokens !== undefined) {
+          return `${maskedValue.totalTokens} total (${
+            maskedValue.promptTokens || 0
+          } prompt + ${maskedValue.completionTokens || 0} completion)`;
+        }
+      }
+
+      const keys = Object.keys(maskedValue);
       return `${keys.length} fields`;
     }
-    
-    return String(value);
+
+    return String(maskedValue);
   };
 
   // Helper function to get a description for the data
   const getDataDescription = (key: string, value: any): string => {
     const keyLower = key.toLowerCase();
-    
+
     if (Array.isArray(value)) {
       return `Contains ${value.length} items`;
     }
-    
-    if (typeof value === 'object' && value !== null) {
+
+    if (typeof value === "object" && value !== null) {
       const keys = Object.keys(value);
       return `Contains ${keys.length} fields`;
     }
-    
-    if (typeof value === 'string') {
-      if (keyLower.includes('url') || keyLower.includes('link')) {
-        return 'Web address';
+
+    if (typeof value === "string") {
+      if (keyLower.includes("url") || keyLower.includes("link")) {
+        return "Web address";
       }
-      if (keyLower.includes('email')) {
-        return 'Email address';
+      if (keyLower.includes("email")) {
+        return "Email address";
       }
       if (value.length > 100) {
-        return 'Long text content';
+        return "Long text content";
       }
-      return 'Text data';
+      return "Text data";
     }
-    
-    if (typeof value === 'number') {
-      return 'Numeric data';
+
+    if (typeof value === "number") {
+      return "Numeric data";
     }
-    
-    return 'Data value';
+
+    return "Data value";
   };
 
   useEffect(() => {
@@ -264,24 +500,24 @@ export default function FullscreenNodeModal({
     try {
       setConfigValues(values);
       onSave(values);
-      enqueueSnackbar('Node configuration saved successfully!', { 
-        variant: 'success',
+      enqueueSnackbar("Node configuration saved successfully!", {
+        variant: "success",
         autoHideDuration: 3000,
         anchorOrigin: {
-          vertical: 'top',
-          horizontal: 'right',
-        }
+          vertical: "top",
+          horizontal: "right",
+        },
       });
       onClose();
     } catch (error) {
-      console.error('Error saving configuration:', error);
-      enqueueSnackbar('Failed to save node configuration', { 
-        variant: 'error',
+      console.error("Error saving configuration:", error);
+      enqueueSnackbar("Failed to save node configuration", {
+        variant: "error",
         autoHideDuration: 4000,
         anchorOrigin: {
-          vertical: 'top',
-          horizontal: 'right',
-        }
+          vertical: "top",
+          horizontal: "right",
+        },
       });
     }
   };
@@ -334,7 +570,7 @@ export default function FullscreenNodeModal({
               <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
                 {nodeMetadata.node_type}
               </div>
-              {onExecute && nodeMetadata.node_type === 'processor' && (
+              {onExecute && nodeMetadata.node_type === "processor" && (
                 <button
                   onClick={onExecute}
                   className="flex items-center gap-2 px-4 py-2 rounded-lg bg-green-600 hover:bg-green-500 text-white text-sm font-medium transition-colors"
@@ -365,26 +601,33 @@ export default function FullscreenNodeModal({
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
                   <ArrowRight className="w-5 h-5 text-blue-400" />
-                  <h2 className="text-lg font-semibold text-white">Input Data</h2>
-                  <div className="text-xs text-gray-500 bg-blue-500/10 px-2 py-1 rounded">
-                    Data received by this node
-                  </div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Input Data
+                  </h2>
                 </div>
-                
+
                 {/* Execution Data Section */}
-                {executionData?.inputs && Object.keys(executionData.inputs).length > 0 ? (
+                {executionData?.inputs &&
+                Object.keys(executionData.inputs).length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                      <span className="text-green-400 font-medium">Live Data</span>
+                      <span className="text-green-400 font-medium">
+                        Live Data
+                      </span>
                       <div className="text-xs text-gray-500">
                         • Real-time workflow data
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
-                      {Object.entries(filterNodeData(executionData.inputs)).map(([key, value]) => (
-                        <div key={key} className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50">
+                      {Object.entries(
+                        filterNodeData(executionData.inputs, false)
+                      ).map(([key, value]) => (
+                        <div
+                          key={key}
+                          className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50"
+                        >
                           {/* Header with icon and user-friendly label */}
                           <div className="flex items-center gap-3 mb-3">
                             <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg">
@@ -402,29 +645,25 @@ export default function FullscreenNodeModal({
                               input
                             </div>
                           </div>
-                          
+
                           {/* Value display */}
-                          <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                            <div className="text-sm text-gray-100 break-words">
-                              {formatValue(value)}
+                          {typeof value === "object" && value !== null ? (
+                            <DataDisplayModes 
+                              data={maskSensitiveValue(key, value)}
+                              className="mt-2"
+                              defaultMode="schema"
+                            />
+                          ) : (
+                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                              <div className="text-sm text-gray-100 break-words">
+                                {formatValue(value, key)}
+                              </div>
                             </div>
-                            
-                            {/* Raw data toggle for complex objects */}
-                            {(typeof value === 'object' && value !== null) && (
-                              <details className="mt-2">
-                                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                                  Show raw data
-                                </summary>
-                                <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                                  {JSON.stringify(value, null, 2)}
-                                </pre>
-                              </details>
-                            )}
-                          </div>
+                          )}
                         </div>
                       ))}
                     </div>
-                    
+
                     {/* Context Variables */}
                     <div className="bg-gray-800/30 rounded-lg p-4 border border-gray-600/30">
                       <div className="flex items-center gap-2 mb-3">
@@ -437,7 +676,7 @@ export default function FullscreenNodeModal({
                         <div className="flex justify-between items-center">
                           <span className="text-gray-400">Execution Time:</span>
                           <span className="text-blue-400 font-mono text-xs">
-                            {new Date().toLocaleString('en-US')}
+                            {new Date().toLocaleString("en-US")}
                           </span>
                         </div>
                         <div className="flex justify-between items-center">
@@ -455,14 +694,14 @@ export default function FullscreenNodeModal({
                       <ArrowRight className="w-8 h-8 text-blue-400" />
                     </div>
                     <div className="text-lg font-medium text-white mb-2">
-                      {executionData?.status === 'running' 
-                        ? 'Processing...' 
-                        : 'No Input Data Yet'}
+                      {executionData?.status === "running"
+                        ? "Processing..."
+                        : "No Input Data Yet"}
                     </div>
                     <div className="text-sm text-gray-400 max-w-48 mx-auto">
-                      {executionData?.status === 'running' 
-                        ? 'Workflow is running, input data is being prepared' 
-                        : 'When you execute the workflow, data flowing into this node will appear here'}
+                      {executionData?.status === "running"
+                        ? "Workflow is running, input data is being prepared"
+                        : "When you execute the workflow, data flowing into this node will appear here"}
                     </div>
                   </div>
                 )}
@@ -481,9 +720,6 @@ export default function FullscreenNodeModal({
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                     <Settings className="w-5 h-5 text-green-400" />
                     Node Configuration
-                    <div className="text-xs text-gray-500 bg-green-500/10 px-2 py-1 rounded ml-2">
-                      Settings for this node
-                    </div>
                   </h2>
                 </div>
                 <div className="flex-1 p-3 overflow-y-auto">
@@ -508,27 +744,34 @@ export default function FullscreenNodeModal({
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
                   <ArrowLeft className="w-5 h-5 text-purple-400" />
-                  <h2 className="text-lg font-semibold text-white">Output Data</h2>
-                  <div className="text-xs text-gray-500 bg-purple-500/10 px-2 py-1 rounded">
-                    Results produced by this node
-                  </div>
+                  <h2 className="text-lg font-semibold text-white">
+                    Output Data
+                  </h2>
                 </div>
-                
+
                 {/* Execution Output Section */}
                 {executionData?.outputs ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-purple-400 rounded-full animate-pulse"></div>
-                      <span className="text-purple-400 font-medium">Generated</span>
+                      <span className="text-purple-400 font-medium">
+                        Generated
+                      </span>
                       <div className="text-xs text-gray-500">
                         • Processing completed, result ready
                       </div>
                     </div>
-                    
+
                     <div className="space-y-4">
-                      {typeof executionData.outputs === 'object' && executionData.outputs !== null ? (
-                        Object.entries(filterNodeData(executionData.outputs)).map(([key, value]) => (
-                          <div key={key} className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30">
+                      {typeof executionData.outputs === "object" &&
+                      executionData.outputs !== null ? (
+                        Object.entries(
+                          filterNodeData(executionData.outputs, true)
+                        ).map(([key, value]) => (
+                          <div
+                            key={key}
+                            className="bg-gradient-to-r from-purple-900/20 to-blue-900/20 rounded-xl p-4 border border-purple-500/30"
+                          >
                             {/* Header with icon and user-friendly label */}
                             <div className="flex items-center gap-3 mb-3">
                               <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
@@ -546,37 +789,31 @@ export default function FullscreenNodeModal({
                                 çıkış
                               </div>
                             </div>
-                            
+
                             {/* Value display */}
-                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                              <div className="text-sm text-gray-100 break-words">
-                                {formatValue(value)}
+                            {typeof value === "object" && value !== null ? (
+                              <DataDisplayModes 
+                                data={maskSensitiveValue(key, value)}
+                                className="mt-2"
+                                defaultMode="schema"
+                              />
+                            ) : (
+                              <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                                <div className="text-sm text-gray-100 break-words">
+                                  {formatValue(value, key)}
+                                </div>
+                                <button
+                                  onClick={() =>
+                                    navigator.clipboard.writeText(
+                                      String(maskSensitiveValue(key, value))
+                                    )
+                                  }
+                                  className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
+                                >
+                                  Copy
+                                </button>
                               </div>
-                              
-                              {/* Raw data toggle for complex objects */}
-                              {(typeof value === 'object' && value !== null) && (
-                                <details className="mt-2">
-                                  <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                                    Show raw data
-                                  </summary>
-                                  <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                                    {JSON.stringify(value, null, 2)}
-                                  </pre>
-                                </details>
-                              )}
-                              
-                              {/* Copy button */}
-                              <button 
-                                onClick={() => navigator.clipboard.writeText(
-                                  typeof value === 'object' 
-                                    ? JSON.stringify(value, null, 2)
-                                    : String(value)
-                                )}
-                                className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
-                              >
-                                Copy
-                              </button>
-                            </div>
+                            )}
                           </div>
                         ))
                       ) : (
@@ -585,51 +822,53 @@ export default function FullscreenNodeModal({
                           {/* Header with icon and user-friendly label */}
                           <div className="flex items-center gap-3 mb-3">
                             <div className="p-2 bg-purple-600/20 text-purple-400 rounded-lg">
-                              {getDataIcon('result', executionData.outputs)}
+                              {getDataIcon("result", executionData.outputs)}
                             </div>
                             <div className="flex-1">
                               <div className="text-sm font-medium text-purple-300">
-                                {getDataLabel('result')}
+                                {getDataLabel("result")}
                               </div>
                               <div className="text-xs text-gray-400">
-                                {getDataDescription('result', executionData.outputs)}
+                                {getDataDescription(
+                                  "result",
+                                  executionData.outputs
+                                )}
                               </div>
                             </div>
                             <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
                               output
                             </div>
                           </div>
-                          
+
                           {/* Value display */}
-                          <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                            <div className="text-sm text-gray-100 break-words">
-                              {formatValue(executionData.outputs)}
+                          {typeof executionData.outputs === "object" && executionData.outputs !== null ? (
+                            <DataDisplayModes 
+                              data={maskSensitiveValue("result", executionData.outputs)}
+                              className="mt-2"
+                              defaultMode="schema"
+                            />
+                          ) : (
+                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                              <div className="text-sm text-gray-100 break-words">
+                                {formatValue(executionData.outputs, "result")}
+                              </div>
+                              <button
+                                onClick={() =>
+                                  navigator.clipboard.writeText(
+                                    String(
+                                      maskSensitiveValue(
+                                        "result",
+                                        executionData.outputs
+                                      )
+                                    )
+                                  )
+                                }
+                                className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
+                              >
+                                Copy
+                              </button>
                             </div>
-                            
-                            {/* Raw data toggle for complex objects */}
-                            {(typeof executionData.outputs === 'object' && executionData.outputs !== null) && (
-                              <details className="mt-2">
-                                <summary className="text-xs text-gray-400 cursor-pointer hover:text-gray-300">
-                                  Show raw data
-                                </summary>
-                                <pre className="text-xs text-gray-300 mt-2 p-2 bg-gray-800/50 rounded overflow-x-auto max-h-32 overflow-y-auto">
-                                  {JSON.stringify(executionData.outputs, null, 2)}
-                                </pre>
-                              </details>
-                            )}
-                            
-                            {/* Copy button */}
-                            <button 
-                              onClick={() => navigator.clipboard.writeText(
-                                typeof executionData.outputs === 'object' 
-                                  ? JSON.stringify(executionData.outputs, null, 2)
-                                  : String(executionData.outputs)
-                              )}
-                              className="mt-2 text-xs text-purple-400 hover:text-purple-300 transition-colors bg-purple-600/10 px-2 py-1 rounded"
-                            >
-                              Copy
-                            </button>
-                          </div>
+                          )}
                         </div>
                       )}
                     </div>
@@ -640,14 +879,14 @@ export default function FullscreenNodeModal({
                       <ArrowLeft className="w-8 h-8 text-purple-400" />
                     </div>
                     <div className="text-lg font-medium text-white mb-2">
-                      {executionData?.status === 'running' 
-                        ? 'Processing...' 
-                        : 'No Output Data Yet'}
+                      {executionData?.status === "running"
+                        ? "Processing..."
+                        : "No Output Data Yet"}
                     </div>
                     <div className="text-sm text-gray-400 max-w-48 mx-auto">
-                      {executionData?.status === 'running' 
-                        ? 'Node is processing, result being prepared' 
-                        : 'When you execute the workflow, results generated by this node will appear here'}
+                      {executionData?.status === "running"
+                        ? "Node is processing, result being prepared"
+                        : "When you execute the workflow, results generated by this node will appear here"}
                     </div>
                   </div>
                 )}
@@ -679,44 +918,50 @@ export default function FullscreenNodeModal({
                 type="button"
                 onClick={() => {
                   // Find the form within the config component container more specifically
-                  const configContainer = document.querySelector(".flex-1.p-3.overflow-y-auto");
-                  const configForm = configContainer?.querySelector("form") || document.querySelector("form");
-                  
+                  const configContainer = document.querySelector(
+                    ".flex-1.p-3.overflow-y-auto"
+                  );
+                  const configForm =
+                    configContainer?.querySelector("form") ||
+                    document.querySelector("form");
+
                   if (configForm) {
                     console.log("Form found, submitting...");
-                    enqueueSnackbar('Saving configuration...', { 
-                      variant: 'info',
+                    enqueueSnackbar("Saving configuration...", {
+                      variant: "info",
                       autoHideDuration: 1500,
                       anchorOrigin: {
-                        vertical: 'top',
-                        horizontal: 'right',
-                      }
+                        vertical: "top",
+                        horizontal: "right",
+                      },
                     });
                     configForm.requestSubmit();
                   } else {
                     console.error("No form found - checking for submit button");
                     // Fallback: look for submit button
-                    const submitButton = document.querySelector("button[type='submit']");
+                    const submitButton = document.querySelector(
+                      "button[type='submit']"
+                    );
                     if (submitButton) {
                       console.log("Submit button found, clicking...");
-                      enqueueSnackbar('Saving configuration...', { 
-                        variant: 'info',
+                      enqueueSnackbar("Saving configuration...", {
+                        variant: "info",
                         autoHideDuration: 1500,
                         anchorOrigin: {
-                          vertical: 'top',
-                          horizontal: 'right',
-                        }
+                          vertical: "top",
+                          horizontal: "right",
+                        },
                       });
                       (submitButton as HTMLButtonElement).click();
                     } else {
                       console.error("Neither form nor submit button found");
-                      enqueueSnackbar('Unable to save - no form found', { 
-                        variant: 'error',
+                      enqueueSnackbar("Unable to save - no form found", {
+                        variant: "error",
                         autoHideDuration: 4000,
                         anchorOrigin: {
-                          vertical: 'top',
-                          horizontal: 'right',
-                        }
+                          vertical: "top",
+                          horizontal: "right",
+                        },
                       });
                     }
                   }

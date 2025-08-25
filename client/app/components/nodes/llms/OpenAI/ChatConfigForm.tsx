@@ -68,8 +68,9 @@ export default function ChatConfigForm({
         validateOnBlur={true}
         validate={(values) => {
           const errors: any = {};
-          if (!values.api_key || values.api_key.trim() === "") {
-            errors.api_key = "API key is required";
+          // API key is only required if no credential is selected
+          if (!values.credential_id && (!values.api_key || values.api_key.trim() === "")) {
+            errors.api_key = "API key is required when no credential is selected";
           }
           if (values.temperature < 0 || values.temperature > 2)
             errors.temperature = "Temperature must be between 0 and 2";
@@ -131,7 +132,7 @@ export default function ChatConfigForm({
             {/* API Key */}
             <div>
               <label className="text-white text-sm font-medium mb-2 block">
-                API Key
+                API Key {values.credential_id && <span className="text-gray-400">(optional if using credential)</span>}
               </label>
               <Field
                 name="api_key"

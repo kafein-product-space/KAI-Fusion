@@ -618,6 +618,11 @@ class OpenAINode(BaseNode):
                     name="model_info",
                     type="dict",
                     description="Model configuration information"
+                ),
+                NodeOutput(
+                    name="usage_stats",
+                    type="dict",
+                    description="Token usage and cost information"
                 )
             ]
         }
