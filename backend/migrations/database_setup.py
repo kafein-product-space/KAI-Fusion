@@ -61,7 +61,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.sqltypes import TypeEngine
 from dotenv import load_dotenv
 
-load_dotenv()
+
 
 # Backend dizinini Python path'ine ekle
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
