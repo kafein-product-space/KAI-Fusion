@@ -19,6 +19,8 @@ from app.services.workflow_service import WorkflowService
 from app.auth.dependencies import get_current_user
 from app.models.user import User
 from app.core.database import get_db_session
+from app.core.dynamic_node_analyzer import DynamicNodeAnalyzer
+from app.core.node_registry import node_registry
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -86,132 +88,41 @@ class ExportPackage(BaseModel):
     instructions: str
 
 # ================================================================================
-# NODE ENVIRONMENT MAPPING
+# DYNAMIC NODE ANALYSIS SYSTEM
 # ================================================================================
 
-NODE_ENV_MAPPING = {
-    "OpenAIChat": {
-        "required_env": ["OPENAI_API_KEY"],
-        "optional_env": ["OPENAI_MODEL", "OPENAI_TEMPERATURE", "OPENAI_MAX_TOKENS"]
-    },
-    "TavilyWebSearch": {
-        "required_env": ["TAVILY_API_KEY"],
-        "optional_env": ["TAVILY_MAX_RESULTS", "TAVILY_SEARCH_DEPTH"]
-    },
-    "HttpClient": {
-        "required_env": [],
-        "optional_env": ["HTTP_TIMEOUT", "HTTP_MAX_RETRIES", "HTTP_USER_AGENT"]
-    },
-    "WebhookTrigger": {
-        "required_env": [],
-        "optional_env": ["WEBHOOK_SECRET", "WEBHOOK_TIMEOUT"]
-    },
-    "BufferMemory": {
-        "required_env": [],
-        "optional_env": ["MEMORY_BUFFER_SIZE", "MEMORY_RETURN_MESSAGES"]
-    },
-    "ConversationMemory": {
-        "required_env": [],
-        "optional_env": ["CONVERSATION_MEMORY_K", "MEMORY_KEY"]
-    },
-    "CohereReranker": {
-        "required_env": ["COHERE_API_KEY"],
-        "optional_env": ["COHERE_MODEL", "COHERE_TOP_K"]
-    },
-    "VectorStoreOrchestrator": {
-        "required_env": ["DATABASE_URL"],
-        "optional_env": ["VECTOR_STORE_COLLECTION", "EMBEDDING_DIMENSIONS"]
-    },
-    "DocumentLoader": {
-        "required_env": [],
-        "optional_env": ["DOC_LOADER_CHUNK_SIZE", "DOC_LOADER_OVERLAP"]
-    },
-    "WebScraper": {
-        "required_env": [],
-        "optional_env": ["SCRAPER_TIMEOUT", "SCRAPER_USER_AGENT"]
-    }
+# Initialize dynamic analyzer (replaces static NODE_ENV_MAPPING)
+dynamic_analyzer = DynamicNodeAnalyzer(node_registry)
+
+# Legacy compatibility layer - for gradual migration
+LEGACY_ENV_DESCRIPTIONS = {
+    # Core system
+    "DATABASE_URL": "PostgreSQL database connection URL for workflow data",
+    "SECRET_KEY": "Secret key for JWT authentication and encryption",
+    "WORKFLOW_ID": "Unique identifier for the exported workflow",
+    
+    # Monitoring
+    "LANGCHAIN_API_KEY": "LangSmith API key for optional monitoring",
+    "LANGCHAIN_PROJECT": "LangSmith project name for tracing",
+    "LANGCHAIN_TRACING_V2": "Enable LangSmith tracing (true/false)",
+    
+    # Security
+    "API_KEYS": "Comma-separated API keys for authentication",
+    "REQUIRE_API_KEY": "Whether API key authentication is required",
+    
+    # Runtime
+    "API_HOST": "Host address for the API server",
+    "API_PORT": "Internal port for the API server",
+    "DOCKER_PORT": "External Docker port mapping"
 }
 
-ENV_DESCRIPTIONS = {
-    "OPENAI_API_KEY": "OpenAI API key for LLM operations",
-    "OPENAI_MODEL": "OpenAI model name (default: gpt-3.5-turbo)",
-    "OPENAI_TEMPERATURE": "Temperature for AI responses (0.0-2.0)",
-    "OPENAI_MAX_TOKENS": "Maximum tokens for AI responses",
-    "TAVILY_API_KEY": "Tavily API key for web search",
-    "TAVILY_MAX_RESULTS": "Maximum search results to return",
-    "TAVILY_SEARCH_DEPTH": "Search depth (basic/advanced)",
-    "HTTP_TIMEOUT": "HTTP request timeout in seconds",
-    "HTTP_MAX_RETRIES": "Maximum HTTP retry attempts",
-    "HTTP_USER_AGENT": "Custom User-Agent for HTTP requests",
-    "WEBHOOK_SECRET": "Secret for webhook signature validation",
-    "WEBHOOK_TIMEOUT": "Webhook timeout in seconds",
-    "MEMORY_BUFFER_SIZE": "Buffer memory size limit",
-    "MEMORY_RETURN_MESSAGES": "Return messages format (true/false)",
-    "CONVERSATION_MEMORY_K": "Number of messages to keep in memory",
-    "MEMORY_KEY": "Memory key for conversation storage",
-    "COHERE_API_KEY": "Cohere API key for reranking",
-    "COHERE_MODEL": "Cohere model for reranking",
-    "COHERE_TOP_K": "Top K results to rerank",
-    "DATABASE_URL": "PostgreSQL database connection URL",
-    "VECTOR_STORE_COLLECTION": "Vector store collection name",
-    "EMBEDDING_DIMENSIONS": "Embedding vector dimensions",
-    "DOC_LOADER_CHUNK_SIZE": "Document chunk size for processing",
-    "DOC_LOADER_OVERLAP": "Chunk overlap size",
-    "SCRAPER_TIMEOUT": "Web scraper timeout in seconds",
-    "SCRAPER_USER_AGENT": "User agent for web scraping"
-}
-
-ENV_EXAMPLES = {
-    "OPENAI_API_KEY": "sk-1234567890abcdef...",
-    "OPENAI_MODEL": "gpt-4",
-    "OPENAI_TEMPERATURE": "0.7",
-    "OPENAI_MAX_TOKENS": "2048",
-    "TAVILY_API_KEY": "tvly-1234567890abcdef...",
-    "TAVILY_MAX_RESULTS": "5",
-    "TAVILY_SEARCH_DEPTH": "advanced",
-    "HTTP_TIMEOUT": "30",
-    "HTTP_MAX_RETRIES": "3",
-    "HTTP_USER_AGENT": "KAI-Fusion-Workflow/1.0",
-    "WEBHOOK_SECRET": "your-webhook-secret",
-    "WEBHOOK_TIMEOUT": "30",
-    "MEMORY_BUFFER_SIZE": "1000",
-    "MEMORY_RETURN_MESSAGES": "true",
-    "CONVERSATION_MEMORY_K": "5",
-    "MEMORY_KEY": "chat_history",
-    "COHERE_API_KEY": "cohere-key-1234...",
-    "COHERE_MODEL": "rerank-english-v2.0",
-    "COHERE_TOP_K": "10",
-    "DATABASE_URL": "postgresql://user:pass@localhost:5432/dbname",
-    "VECTOR_STORE_COLLECTION": "documents",
-    "EMBEDDING_DIMENSIONS": "1536",
-    "DOC_LOADER_CHUNK_SIZE": "1000",
-    "DOC_LOADER_OVERLAP": "200",
-    "SCRAPER_TIMEOUT": "30",
-    "SCRAPER_USER_AGENT": "Mozilla/5.0..."
-}
-
-ENV_DEFAULTS = {
-    "OPENAI_MODEL": "gpt-3.5-turbo",
-    "OPENAI_TEMPERATURE": "0.7",
-    "OPENAI_MAX_TOKENS": "2048",
-    "TAVILY_MAX_RESULTS": "5",
-    "TAVILY_SEARCH_DEPTH": "basic",
-    "HTTP_TIMEOUT": "30",
-    "HTTP_MAX_RETRIES": "3",
-    "HTTP_USER_AGENT": "KAI-Fusion-Workflow/1.0",
-    "WEBHOOK_TIMEOUT": "30",
-    "MEMORY_BUFFER_SIZE": "1000",
-    "MEMORY_RETURN_MESSAGES": "true",
-    "CONVERSATION_MEMORY_K": "5",
-    "MEMORY_KEY": "chat_history",
-    "COHERE_MODEL": "rerank-english-v2.0",
-    "COHERE_TOP_K": "10",
-    "VECTOR_STORE_COLLECTION": "documents",
-    "EMBEDDING_DIMENSIONS": "1536",
-    "DOC_LOADER_CHUNK_SIZE": "1000",
-    "DOC_LOADER_OVERLAP": "200",
-    "SCRAPER_TIMEOUT": "30",
-    "SCRAPER_USER_AGENT": "Mozilla/5.0 (compatible; KAI-Fusion-WebScraper/1.0)"
+LEGACY_ENV_EXAMPLES = {
+    "DATABASE_URL": "postgresql://user:password@localhost:5432/workflow_db",
+    "SECRET_KEY": "your-secret-key-here",
+    "LANGCHAIN_API_KEY": "lsv2_sk_abc123...",
+    "API_KEYS": "key1,key2,key3",
+    "REQUIRE_API_KEY": "true",
+    "LANGCHAIN_TRACING_V2": "true"
 }
 
 # ================================================================================
@@ -219,140 +130,157 @@ ENV_DEFAULTS = {
 # ================================================================================
 
 def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependencies:
-    """Analyze workflow and extract dependencies, including node credentials."""
-    logger.info("Analyzing workflow dependencies")
+    """
+    Dynamic workflow dependency analysis using DynamicNodeAnalyzer.
     
-    # Extract nodes from flow_data
+    This function replaces the static NODE_ENV_MAPPING approach with intelligent
+    node metadata analysis for automatic environment variable detection,
+    package dependency resolution, and Docker configuration optimization.
+    """
+    logger.info("🔍 Starting dynamic workflow dependency analysis")
+    
+    try:
+        # Initialize dynamic analyzer with node registry
+        analyzer = dynamic_analyzer
+        
+        # Perform comprehensive workflow analysis
+        analysis_result = analyzer.analyze_workflow(flow_data)
+        
+        logger.info(f"✅ Dynamic analysis complete - Found {len(analysis_result.node_types)} node types")
+        logger.info(f"📋 Environment variables: {len(analysis_result.required_env_vars)} required, {len(analysis_result.optional_env_vars)} optional")
+        logger.info(f"📦 Package dependencies: {len(analysis_result.package_dependencies)} packages")
+        
+        # Convert DynamicAnalysisResult to WorkflowDependencies format
+        required_env_vars = []
+        optional_env_vars = []
+        
+        # Process required environment variables
+        for env_var in analysis_result.required_env_vars:
+            required_env_vars.append(EnvironmentVariable(
+                name=env_var.name,
+                description=env_var.description,
+                example=env_var.example or "",
+                required=True,
+                node_type=env_var.source_node or "Dynamic"
+            ))
+        
+        # Process optional environment variables
+        for env_var in analysis_result.optional_env_vars:
+            optional_env_vars.append(EnvironmentVariable(
+                name=env_var.name,
+                description=env_var.description,
+                example=env_var.example or "",
+                default=env_var.default_value or "",
+                required=False,
+                node_type=env_var.source_node or "Dynamic"
+            ))
+        
+        # Add system-level required variables
+        if not any(var.name == "DATABASE_URL" for var in required_env_vars):
+            required_env_vars.append(EnvironmentVariable(
+                name="DATABASE_URL",
+                description="PostgreSQL database connection URL for workflow execution data",
+                example="postgresql://user:password@localhost:5432/workflow_db",
+                required=True,
+                node_type="System"
+            ))
+        
+        # Add monitoring variables as optional
+        if not any(var.name == "LANGCHAIN_API_KEY" for var in optional_env_vars):
+            optional_env_vars.append(EnvironmentVariable(
+                name="LANGCHAIN_API_KEY",
+                description="LangSmith API key for monitoring (optional)",
+                example="lsv2_sk_abc123...",
+                default="",
+                required=False,
+                node_type="Monitoring"
+            ))
+        
+        # Define standard API endpoints
+        api_endpoints = [
+            "POST /api/workflow/execute",
+            "GET /api/workflow/status/{execution_id}",
+            "GET /api/workflow/result/{execution_id}",
+            "GET /api/health",
+            "GET /api/workflow/info",
+            "GET /api/workflow/external/info",
+            "POST /api/workflow/external/ping",
+            "GET /api/workflow/external/metrics"
+        ]
+        
+        logger.info(f"🎯 Dynamic analysis summary:")
+        logger.info(f"   • Node types: {', '.join(analysis_result.node_types)}")
+        logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.required_env_vars if v.security_level in ['critical', 'high']])}")
+        logger.info(f"   • Package dependencies: {len(analysis_result.package_dependencies)}")
+        
+        return WorkflowDependencies(
+            workflow_id="temp_id",
+            nodes=analysis_result.node_types,
+            required_env_vars=required_env_vars,
+            optional_env_vars=optional_env_vars,
+            python_packages=analysis_result.package_dependencies,
+            api_endpoints=api_endpoints
+        )
+        
+    except Exception as e:
+        logger.error(f"❌ Dynamic workflow analysis failed: {e}", exc_info=True)
+        logger.warning("🔄 Falling back to legacy static analysis")
+        
+        # Fallback to simplified static analysis for safety
+        return _fallback_static_analysis(flow_data)
+
+def _fallback_static_analysis(flow_data: Dict[str, Any]) -> WorkflowDependencies:
+    """
+    Fallback static analysis for error conditions.
+    
+    Provides basic dependency analysis when dynamic analysis fails,
+    ensuring export functionality remains available.
+    """
+    logger.info("🔄 Executing fallback static analysis")
+    
     nodes = flow_data.get("nodes", [])
-    node_types = []
-    node_credentials = {}  # Store found credentials
+    node_types = list(set(node.get("type", "") for node in nodes if node.get("type")))
     
-    for node in nodes:
-        node_type = node.get("type", "")
-        if node_type and node_type not in node_types:
-            node_types.append(node_type)
-            
-        # Extract credentials from node data
-        node_id = node.get("id", "")
-        node_data = node.get("data", {})
-        
-        if node_data:
-            # Look for credential fields in node data
-            credentials = {}
-            for key, value in node_data.items():
-                if any(cred_key in key.lower() for cred_key in ['api_key', 'token', 'secret', 'password', 'key']):
-                    if value:  # Only include if credential is set
-                        credentials[key] = value
-            
-            if credentials:
-                node_credentials[node_id] = {
-                    "type": node_type,
-                    "credentials": credentials
-                }
+    # Basic required environment variables
+    required_env_vars = [
+        EnvironmentVariable(
+            name="DATABASE_URL",
+            description="Database connection URL for workflow execution",
+            example="postgresql://user:password@localhost:5432/workflow_db",
+            required=True,
+            node_type="System"
+        )
+    ]
     
-    logger.info(f"Found node types: {node_types}")
-    logger.info(f"Found credentials in {len(node_credentials)} nodes")
+    # Basic optional environment variables
+    optional_env_vars = [
+        EnvironmentVariable(
+            name="LANGCHAIN_API_KEY",
+            description="LangSmith API key for monitoring (optional)",
+            example="lsv2_sk_abc123...",
+            default="",
+            required=False,
+            node_type="Monitoring"
+        )
+    ]
     
-    # Only collect credential environment variables (API keys and secrets)
-    required_env_vars = []
-    optional_env_vars = []
-    python_packages = ["fastapi", "uvicorn", "sqlalchemy", "asyncpg", "pydantic"]
+    # Basic package dependencies
+    python_packages = [
+        "fastapi>=0.104.0",
+        "uvicorn[standard]>=0.24.0",
+        "sqlalchemy>=2.0.0",
+        "asyncpg>=0.28.0",
+        "pydantic>=2.5.0",
+        "langchain>=0.1.0",
+        "langchain-core>=0.1.0"
+    ]
     
-    # Always require DATABASE_URL for workflow execution data
-    required_env_vars.append(EnvironmentVariable(
-        name="DATABASE_URL",
-        description="Database connection URL for storing workflow execution data",
-        example="postgresql://user:password@localhost:5432/workflow_db",
-        required=True,
-        node_type="System"
-    ))
-    
-    # Add environment variables for node credentials found in workflow
-    for node_id, node_info in node_credentials.items():
-        node_type = node_info["type"]
-        credentials = node_info["credentials"]
-        
-        for cred_key, cred_value in credentials.items():
-            # Create environment variable names from credential keys
-            env_var_name = f"{node_type.upper()}_{cred_key.upper()}"
-            
-            # Only add if not already exists
-            if env_var_name not in [v.name for v in required_env_vars]:
-                required_env_vars.append(EnvironmentVariable(
-                    name=env_var_name,
-                    description=f"{cred_key} for {node_type} node ({node_id})",
-                    example=str(cred_value) if len(str(cred_value)) < 20 else f"{str(cred_value)[:15]}...",
-                    required=True,
-                    node_type=f"{node_type} ({node_id})"
-                ))
-    
-    # Define backup credential environment variables if no node credentials found
-    credential_mapping = {
-        "OpenAI": ["OPENAI_API_KEY"],
-        "ChatOpenAI": ["OPENAI_API_KEY"],
-        "TavilyWebSearch": ["TAVILY_API_KEY"],
-        "Tavily": ["TAVILY_API_KEY"],
-        "CohereReranker": ["COHERE_API_KEY"],
-        "Cohere": ["COHERE_API_KEY"]
-    }
-    
-    # Add standard credential requirements for nodes without specific credentials
-    for node_type in node_types:
-        if node_type in credential_mapping:
-            for credential_var in credential_mapping[node_type]:
-                if credential_var not in [v.name for v in required_env_vars]:
-                    # Check if this node type already has credentials from workflow
-                    has_node_credentials = any(
-                        info["type"] == node_type for info in node_credentials.values()
-                    )
-                    
-                    if not has_node_credentials:
-                        required_env_vars.append(EnvironmentVariable(
-                            name=credential_var,
-                            description=ENV_DESCRIPTIONS.get(credential_var, f"API key for {node_type}"),
-                            example=ENV_EXAMPLES.get(credential_var, ""),
-                            required=True,
-                            node_type=node_type
-                        ))
-    
-    # Optional: LangSmith monitoring API key
-    optional_env_vars.append(EnvironmentVariable(
-        name="LANGCHAIN_API_KEY",
-        description="LangSmith API key for monitoring (optional)",
-        example="lsv2_sk_abc123...",
-        default="",
-        required=False,
-        node_type="Monitoring"
-    ))
-    
-    # Add node-specific packages based on found node types
-    for node_type in node_types:
-        if node_type in ["OpenAI", "ChatOpenAI"]:
-            python_packages.extend(["langchain-openai", "openai"])
-        elif node_type == "TavilyWebSearch":
-            python_packages.extend(["langchain-tavily"])
-        elif node_type == "HttpClient":
-            python_packages.extend(["httpx", "requests"])
-        elif node_type == "CohereReranker":
-            python_packages.extend(["cohere", "langchain-cohere"])
-        elif node_type == "VectorStoreOrchestrator":
-            python_packages.extend(["pgvector", "langchain-postgres"])
-        elif "Memory" in node_type:
-            python_packages.extend(["langchain"])
-    
-    # Remove duplicates
-    python_packages = list(set(python_packages))
-    
-    # Define API endpoints
+    # API endpoints
     api_endpoints = [
         "POST /api/workflow/execute",
         "GET /api/workflow/status/{execution_id}",
-        "GET /api/workflow/result/{execution_id}",
         "GET /api/health",
-        "GET /api/workflow/info",
-        "GET /api/workflow/external/info",
-        "POST /api/workflow/external/ping",
-        "GET /api/workflow/external/metrics"
+        "GET /api/workflow/info"
     ]
     
     return WorkflowDependencies(
@@ -877,77 +805,85 @@ CMD ["/start.sh"]
     }
 
 def filter_requirements_for_nodes(node_types: List[str]) -> str:
-    """Filter requirements.txt for only needed packages."""
-    logger.info(f"Filtering requirements for nodes: {node_types}")
+    """
+    Dynamic requirements filtering using DynamicNodeAnalyzer.
     
-    # Copy all packages from main requirements.txt
+    Generates optimized requirements.txt based on actual node dependencies
+    detected through dynamic analysis instead of static mappings.
+    """
+    logger.info(f"🔍 Filtering requirements dynamically for nodes: {node_types}")
+    
+    try:
+        # Use dynamic analyzer to get package dependencies
+        analyzer = dynamic_analyzer
+        
+        # Create a minimal flow_data structure for package analysis
+        # This leverages the existing analysis results from workflow analysis
+        flow_data = {
+            "nodes": [{"type": node_type, "id": f"node_{i}", "data": {}}
+                     for i, node_type in enumerate(node_types)]
+        }
+        
+        # Perform package analysis
+        analysis_result = analyzer.analyze_workflow(flow_data)
+        
+        # Get dynamically determined packages
+        dynamic_packages = analysis_result.package_dependencies
+        
+        logger.info(f"✅ Dynamic package analysis complete - Found {len(dynamic_packages)} packages")
+        logger.info(f"📦 Key packages: {', '.join(dynamic_packages[:5])}{'...' if len(dynamic_packages) > 5 else ''}")
+        
+        return "\n".join(sorted(dynamic_packages))
+        
+    except Exception as e:
+        logger.error(f"❌ Dynamic package filtering failed: {e}", exc_info=True)
+        logger.warning("🔄 Falling back to static package filtering")
+        
+        # Fallback to static requirements for safety
+        return _fallback_static_requirements(node_types)
+
+def _fallback_static_requirements(node_types: List[str]) -> str:
+    """
+    Fallback static requirements generation for error conditions.
+    
+    Provides basic package requirements when dynamic analysis fails,
+    ensuring export functionality remains available.
+    """
+    logger.info("🔄 Executing fallback static requirements generation")
+    
+    # Essential base packages for any workflow
     base_packages = [
         "fastapi>=0.104.0",
         "uvicorn[standard]>=0.24.0",
         "sqlalchemy>=2.0.0",
         "asyncpg>=0.28.0",
-        "alembic>=1.12.0",
-        "psycopg2-binary>=2.9.0",
-        "PyJWT>=2.8.0",
-        "pgvector>=0.2.0",
         "pydantic>=2.5.0",
-        "pydantic-settings>=2.1.0",
-        "email-validator>=2.1.0",
-        "python-jose[cryptography]>=3.3.0",
-        "passlib==1.7.4",
-        "bcrypt<4.1.0",
-        "cryptography>=41.0.0",
         "python-dotenv>=1.0.0",
         "httpx>=0.25.0",
-        "requests>=2.31.0",
-        "jinja2>=3.1.0",
-        "psutil>=5.9.0",
-        "python-multipart>=0.0.6",
-        "beautifulsoup4>=4.12.0",
-        "lxml>=4.9.0",
-        "numpy>=1.24.0",
-        "scikit-learn>=1.3.0"
+        "requests>=2.31.0"
     ]
     
-    node_packages = []
-    
-    # Add common langchain packages for any workflow
-    common_langchain_packages = [
+    # Essential LangChain packages
+    langchain_packages = [
         "langchain>=0.1.0",
         "langchain-core>=0.1.0",
-        "langchain-community>=0.0.10",
-        "langchain-text-splitters>=0.3.0",
-        "langgraph>=0.0.30",
-        "openai>=1.0.0"  # Most workflows use OpenAI
+        "langchain-community>=0.0.10"
     ]
-    node_packages.extend(common_langchain_packages)
     
+    # Node-specific packages (minimal set)
+    node_packages = []
     for node_type in node_types:
-        if node_type == "OpenAIChat":
-            node_packages.extend([
-                "langchain-openai>=0.0.5",
-                "openai>=1.0.0"
-            ])
-        elif node_type == "TavilyWebSearch":
-            node_packages.extend([
-                "langchain-tavily>=0.2.0"
-            ])
-        elif node_type == "CohereReranker":
-            node_packages.extend([
-                "cohere==5.12.0",
-                "langchain-cohere>=0.4.0",
-                "rank-bm25>=0.2.2"
-            ])
-        elif node_type == "VectorStoreOrchestrator":
-            node_packages.extend([
-                "langchain-postgres>=0.0.15"
-            ])
-        elif node_type in ["BufferMemory", "ConversationMemory"]:
-            # Already included in common langchain packages
-            pass
+        if "OpenAI" in node_type or "Chat" in node_type:
+            node_packages.extend(["langchain-openai>=0.0.5", "openai>=1.0.0"])
+        elif "Tavily" in node_type:
+            node_packages.append("langchain-tavily>=0.2.0")
+        elif "Cohere" in node_type:
+            node_packages.extend(["cohere>=5.0.0", "langchain-cohere>=0.4.0"])
+        elif "VectorStore" in node_type:
+            node_packages.append("langchain-postgres>=0.0.15")
     
-    # Remove duplicates and combine
-    all_packages = list(set(base_packages + node_packages))
+    # Combine and deduplicate
+    all_packages = list(set(base_packages + langchain_packages + node_packages))
     return "\n".join(sorted(all_packages))
 
 def create_pre_configured_env_file(
