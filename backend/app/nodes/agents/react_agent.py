@@ -109,6 +109,9 @@ from langchain.agents import AgentExecutor, create_react_agent
 # Manual retriever tool creation since langchain-community import is not working
 from langchain_core.tools import Tool
 import re
+import sys
+import os
+import locale
 
 # ================================================================================
 # LANGUAGE DETECTION AND LOCALIZATION SYSTEM
@@ -918,102 +921,6 @@ def create_retriever_tool(name: str, description: str, retriever: BaseRetriever)
     - **Memory Efficiency**: Optimized string formatting to minimize memory usage
     """
     
-    def retrieve_func(query: str) -> str:
-        """
-        Core retrieval function with advanced error handling and formatting.
-        
-        This function serves as the bridge between the agent's query and the retriever's
-        results, providing intelligent processing and formatting optimized for agent
-        consumption and reasoning.
-        
-        Processing Pipeline:
-        1. **Input Validation**: Ensure query is properly formatted
-        2. **Retrieval Execution**: Invoke the underlying retriever
-        3. **Result Filtering**: Remove empty or invalid documents
-        4. **Content Optimization**: Format and truncate for optimal agent processing
-        5. **Error Handling**: Provide informative feedback on failures
-        
-        Args:
-            query (str): User query or agent-generated search terms
-            
-        Returns:
-            str: Formatted search results or error message
-        """
-        try:
-            # Input validation and preprocessing
-            if not query or not query.strip():
-                return "Invalid query: Please provide a non-empty search query."
-            
-            # Clean and optimize query for retrieval
-            cleaned_query = query.strip()
-            
-            # Execute retrieval with the underlying retriever
-            docs = retriever.invoke(cleaned_query)
-            
-            # Handle empty results gracefully
-            if not docs:
-                return (
-                    f"No relevant documents found for query: '{cleaned_query}'. "
-                    "Try rephrasing your search terms or using different keywords."
-                )
-            
-            # Format and optimize results for agent consumption
-            results = []
-            for i, doc in enumerate(docs[:5]):  # Limit to top 5 results for performance
-                try:
-                    # Extract and clean content
-                    content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
-                    
-                    # Smart content truncation with context preservation
-                    if len(content) > 500:
-                        # Try to truncate at sentence boundary
-                        truncated = content[:500]
-                        last_period = truncated.rfind('.')
-                        last_space = truncated.rfind(' ')
-                        
-                        if last_period > 400:  # Good sentence boundary found
-                            content = truncated[:last_period + 1] + "..."
-                        elif last_space > 400:  # Good word boundary found
-                            content = truncated[:last_space] + "..."
-                        else:  # Hard truncation
-                            content = truncated + "..."
-                    
-                    # Extract metadata if available
-                    metadata_info = ""
-                    if hasattr(doc, 'metadata') and doc.metadata:
-                        source = doc.metadata.get('source', '')
-                        if source:
-                            metadata_info = f" (Source: {source})"
-                    
-                    # Format individual result
-                    result_text = f"Document {i+1}{metadata_info}:\n{content}"
-                    results.append(result_text)
-                    
-                except Exception as doc_error:
-                    # Handle individual document processing errors
-                    results.append(f"Document {i+1}: Error processing document - {str(doc_error)}")
-            
-            # Combine all results with clear separation
-            final_result = "\n\n".join(results)
-            
-            # Add result summary for agent context
-            result_summary = f"Found {len(docs)} documents, showing top {len(results)} results:\n\n{final_result}"
-            
-            return result_summary
-            
-        except Exception as e:
-            # Comprehensive error handling with actionable feedback
-            error_msg = (
-                f"Error retrieving documents for query '{query}': {str(e)}. "
-                "This might be due to retriever configuration issues or temporary service unavailability. "
-                "Try rephrasing your query or contact system administrator if the issue persists."
-            )
-            
-            # Log error for debugging (in production, use proper logging)
-            print(f"[RETRIEVER_TOOL_ERROR] {error_msg}")
-            
-            return error_msg
-    
     # Create and return the configured tool
     return Tool(
         name=name,
@@ -1245,8 +1152,8 @@ class ReactAgentNode(ProcessorNode):
                 NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
                 NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
                 NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
-                NodeInput(name="max_iterations", type="int", default=5, description="The maximum number of iterations the agent can perform."),
-                NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
+                NodeInput(name="max_iterations", type="int", default=10, description="The maximum number of iterations the agent can perform."),
+                NodeInput(name="system_prompt", type="str", default="You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.", description="The system prompt for the agent."),
                 NodeInput(name="prompt_instructions", type="str", required=False,
                          description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                          default=""),
@@ -1259,6 +1166,33 @@ class ReactAgentNode(ProcessorNode):
         Sets up and returns a RunnableLambda that executes the agent with dynamic language detection.
         """
         def agent_executor_lambda(runtime_inputs: dict) -> dict:
+            # 🔧 FIX: Set proper encoding for Turkish characters
+            try:
+                # Force UTF-8 encoding for all string operations
+                if hasattr(sys.stdout, 'reconfigure'):
+                    sys.stdout.reconfigure(encoding='utf-8')
+                if hasattr(sys.stderr, 'reconfigure'):
+                    sys.stderr.reconfigure(encoding='utf-8')
+
+                # Set environment variables for UTF-8
+                os.environ['PYTHONIOENCODING'] = 'utf-8'
+                os.environ['LANG'] = 'tr_TR.UTF-8'
+                os.environ['LC_ALL'] = 'tr_TR.UTF-8'
+
+                # Force locale to handle Turkish characters properly
+                try:
+                    locale.setlocale(locale.LC_ALL, 'Turkish_Türkiye.utf8')
+                except locale.Error:
+                    try:
+                        locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
+                    except locale.Error:
+                        pass  # If locale setting fails, continue anyway
+
+                print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
+
+            except Exception as encoding_error:
+                print(f"[WARNING] Encoding setup failed: {encoding_error}")
+
             # Debug connection information
             print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
             print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
@@ -1294,9 +1228,14 @@ class ReactAgentNode(ProcessorNode):
             else:
                 user_input = inputs.get("input", "")
 
-            # Detect user's language
-            detected_language = detect_language(user_input)
-            print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
+            # Detect user's language with Turkish character safety
+            try:
+                detected_language = detect_language(user_input)
+                print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
+            except UnicodeEncodeError as lang_error:
+                print(f"[WARNING] Language detection encoding error: {lang_error}")
+                detected_language = 'tr'  # Default to Turkish for Turkish characters
+                print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
 
             # Create language-specific prompt
             agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
@@ -1306,11 +1245,11 @@ class ReactAgentNode(ProcessorNode):
             # Get max_iterations from inputs (user configuration) with proper fallback
             max_iterations = inputs.get("max_iterations")
             if max_iterations is None:
-                max_iterations = self.user_data.get("max_iterations", 5)  # Use default from NodeInput definition
+                max_iterations = self.user_data.get("max_iterations", 10)  # Increased default for more detailed processing
             
             print(f"[DEBUG] Max iterations configured: {max_iterations}")
             
-            # Build executor config with conditional memory
+            # Build executor config with enhanced settings for detailed responses
             executor_config = {
                 "agent": agent,
                 "tools": tools_list,
@@ -1318,7 +1257,7 @@ class ReactAgentNode(ProcessorNode):
                 "handle_parsing_errors": True,  # Use boolean instead of string
                 "max_iterations": max_iterations,
                 "return_intermediate_steps": True,  # Capture tool usage for debugging
-                "max_execution_time": 60,  # Increase execution time slightly
+                "max_execution_time": 120,  # Increased execution time for detailed processing
                 "early_stopping_method": "force"  # Use supported method
             }
             
@@ -1402,15 +1341,33 @@ class ReactAgentNode(ProcessorNode):
             
             print(f"   ⚙️  Executing with input: '{final_input['input'][:50]}...'")
             
-            # Execute the agent
-            result = executor.invoke(final_input)
-            
-            # Debug: Check memory after execution (AgentExecutor handles saving automatically)
-            if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                new_message_count = len(memory.chat_memory.messages)
-                print(f"   📚 Memory now contains: {new_message_count} messages")
-            
-            return result
+            # Execute the agent with error handling for Turkish characters
+            try:
+                result = executor.invoke(final_input)
+
+                # Debug: Check memory after execution (AgentExecutor handles saving automatically)
+                if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    new_message_count = len(memory.chat_memory.messages)
+                    print(f"   📚 Memory now contains: {new_message_count} messages")
+
+                return result
+
+            except UnicodeEncodeError as unicode_error:
+                print(f"[ERROR] Unicode encoding error: {unicode_error}")
+                # Fallback: Try to encode the result with UTF-8
+                try:
+                    error_result = {
+                        "error": f"Türkçe karakter encoding hatası: {str(unicode_error)}",
+                        "suggestion": "Lütfen Türkçe karakterleri doğru şekilde kullanın veya sistem dil ayarlarını kontrol edin."
+                    }
+                    return error_result
+                except:
+                    return {"error": "Unicode encoding error occurred"}
+
+            except Exception as e:
+                error_msg = f"Agent execution failed: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                return {"error": error_msg}
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -1480,29 +1437,29 @@ class ReactAgentNode(ProcessorNode):
         else:
             identity_section = base_system_context
 
-        # Language-specific guidelines
+        # Language-specific guidelines - FORCE TOOL USAGE with DETAILED RESPONSES
         language_guidelines = {
-            'tr': "Kullanıcıya yardımcı ol ve gerektiğinde araçları kullan. Her zaman kullanıcının dilinde cevap ver!",
-            'en': "Help the user and use tools when needed. Always respond in the user's language!",
-            'de': "Helfen Sie dem Benutzer und verwenden Sie bei Bedarf Tools. Beantworten Sie immer in der Sprache des Benutzers!",
-            'fr': "Aidez l'utilisateur et utilisez les outils si nécessaire. Répondez toujours dans la langue de l'utilisateur!",
-            'es': "Ayuda al usuario y usa herramientas cuando sea necesario. ¡Responde siempre en el idioma del usuario!",
-            'it': "Aiuta l'utente e usa gli strumenti se necessario. Rispondi sempre nella lingua dell'utente!",
-            'pt': "Ajude o usuário e use ferramentas quando necessário. Responda sempre no idioma do usuário!",
-            'ru': "Помогайте пользователю и используйте инструменты при необходимости. Всегда отвечайте на языке пользователя!",
-            'ar': "ساعد المستخدم واستخدم الأدوات عند الحاجة. أجب دائماً بلغة المستخدم!",
-            'zh': "帮助用户并在需要时使用工具。始终以用户的语言回答！",
-            'ja': "ユーザーを助け、必要に応じてツールを使用してください。常にユーザーの言語で回答してください！",
-            'ko': "사용자를 돕고 필요할 때 도구를 사용하십시오. 항상 사용자의 언어로 답변하십시오!",
-            'hi': "उपयोगकर्ता की मदद करें और आवश्यकता पड़ने पर उपकरणों का उपयोग करें। हमेशा उपयोगकर्ता की भाषा में जवाब दें!",
-            'fa': "به کاربر کمک کنید و در صورت نیاز از ابزارها استفاده کنید. همیشه به زبان کاربر پاسخ دهید!"
+            'tr': "Kullanıcıya DETAYLI, ADIM ADIM ve AÇIKLAYICI cevaplar ver! HER ZAMAN araçları kullan ve bulunan bilgileri kapsamlı şekilde sun. Hiçbir zaman doğrudan genel cevap verme! Her zaman kullanıcının dilinde, anlaşılır ve yardımcı ol!",
+            'en': "Provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users! ALWAYS use tools and present found information thoroughly. Never give direct general answers! Always respond in user's language, clearly and helpfully!",
+            'de': "Geben Sie dem Benutzer DETALLIERTE, SCHRITTWEISE und KOMPREHENSIVE Antworten! Verwenden Sie IMMER Tools und präsentieren Sie gefundene Informationen gründlich. Antworten Sie niemals direkt allgemein! Beantworten Sie immer in der Sprache des Benutzers, klar und hilfreich!",
+            'fr': "Fournissez des réponses DÉTAILLÉES, ÉTAPE PAR ÉTAPE et COMPLÈTES aux utilisateurs! Utilisez TOUJOURS les outils et présentez les informations trouvées de manière approfondie. Ne répondez jamais directement de manière générale! Répondez toujours dans la langue de l'utilisateur, clairement et utilement!",
+            'es': "¡Proporciona respuestas DETALLADAS, PASO A PASO y COMPLETAS a los usuarios! ¡USA SIEMPRE herramientas y presenta la información encontrada de manera exhaustiva. ¡Nunca respondas directamente de manera general! ¡Responde siempre en el idioma del usuario, claramente y de manera útil!",
+            'it': "Fornisci risposte DETTAGLIATE, PASSO DOPO PASSO e COMPLETE agli utenti! USA SEMPRE gli strumenti e presenta le informazioni trovate in modo approfondito. Non rispondere mai direttamente in modo generale! Rispondi sempre nella lingua dell'utente, chiaramente e in modo utile!",
+            'pt': "Forneça respostas DETALHADAS, PASSO A PASSO e COMPLETAS aos usuários! USE SEMPRE ferramentas e apresente as informações encontradas de maneira exaustiva. Nunca responda diretamente de maneira geral! Responda sempre no idioma do usuário, claramente e de maneira útil!",
+            'ru': "Предоставляйте ПОДРОБНЫЕ, ПОШАГОВЫЕ и КОМПЛЕКСНЫЕ ответы пользователям! ВСЕГДА используйте инструменты и представляйте найденную информацию исчерпывающе. Никогда не отвечайте прямо общими ответами! Всегда отвечайте на языке пользователя, ясно и полезно!",
+            'ar': "قدم إجابات مفصلة وشاملة للمستخدمين! استخدم دائماً الأدوات وقدم المعلومات الموجودة بشكل شامل. لا تجب أبداً بشكل عام مباشرة! أجب دائماً بلغة المستخدم بوضوح ومساعدة!",
+            'zh': "为用户提供详细、逐步和全面的回答！始终使用工具并全面呈现找到的信息。永远不要直接给出一般性回答！始终以用户的语言、清晰和有帮助的方式回答！",
+            'ja': "ユーザーに詳細でステップバイステップの包括的な回答を提供してください！常にツールを使用し、見つかった情報を徹底的に提示します。決して直接的な一般的な回答をしないでください！常にユーザーの言語で明確かつ役立つ方法で回答してください！",
+            'ko': "사용자에게 상세하고 단계별이며 포괄적인 답변을 제공하십시오! 항상 도구를 사용하고 발견된 정보를 철저히 제시하십시오. 직접적인 일반적인 답변을 하지 마십시오! 항상 사용자의 언어로 명확하고 도움이 되는 방식으로 답변하십시오!",
+            'hi': "उपयोगकर्ताओं को विस्तृत, चरणबद्ध और व्यापक उत्तर प्रदान करें! हमेशा उपकरणों का उपयोग करें और पाई गई जानकारी को पूरी तरह से प्रस्तुत करें। कभी भी सीधा सामान्य उत्तर न दें! हमेशा उपयोगकर्ता की भाषा में, स्पष्ट और सहायक तरीके से उत्तर दें!",
+            'fa': "پاسخ‌های مفصل، گام به گام و جامع به کاربران ارائه دهید! همیشه از ابزارها استفاده کنید و اطلاعات یافت شده را به طور کامل ارائه دهید. هرگز به طور مستقیم پاسخ عمومی ندهید! همیشه به زبان کاربر، واضح و مفید پاسخ دهید!"
         }
 
         simplified_guidelines = language_guidelines.get(language_code, language_guidelines['en'])
 
         # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
         react_templates = {
-            'tr': """Sen konuşma geçmişi ve araçlara erişimi olan uzman bir asistansın.
+            'tr': """Sen konuşma geçmişi ve araçlara erişimi olan UZMAN bir asistansın. Kullanıcılara DETAYLI, ADIM ADIM ve KAPSAMLI cevaplar vermelisin.
 
 KONUŞMA GEÇMİŞİ:
 {chat_history}
@@ -1512,9 +1469,9 @@ MEVCUT ARAÇLAR:
 
 Araç İsimleri: {tool_names}
 
-🔴 KRİTİK: HER CEVABI "Final Answer: [cevabınız]" İLE BİTİRMELİSİNİZ 🔴
+🔴 KRİTİK: HER CEVABI "Final Answer: [DETAYLI cevabınız]" İLE BİTİRMELİSİNİZ 🔴
 🔴 ASLA "üzgünüm" deme veya hata mesajı verme 🔴
-🔴 HER ZAMAN mevcut bilgileri Final Answer'da sentezle 🔴
+🔴 HER ZAMAN araç sonuçlarını KAPSAMLI ŞEKİLDE SUN - kısa özetler verme! 🔴
 
 ÖNEMLİ BAĞLAM KURALLARI:
 - Kullanıcı konuşma geçmişinde bahsedilen bir şey hakkında sorarsa (mesela "benim adım ne?"), konuşma geçmişine bak
@@ -1522,47 +1479,43 @@ Araç İsimleri: {tool_names}
 - Kullanıcı zamirler kullanırsa (o, bu, şu), konuşma geçmişini kontrol et
 - Sorunun tam bağlamını anlamak için konuşma geçmişini kullan
 
-KURALLAR:
-1. Araç kullanmadan ÖNCE konuşma geçmişini kontrol et
-2. Gerektiğinde bilgi almak için araçları bir kez kullan
-3. Araç sonuçlarını aldıktan sonra hemen Final Answer ver
+KURALLAR - DETAYLI CEVAPLAR İÇİN:
+1. HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
+2. Konuşma geçmişini kontrol et VE araç kullan
+3. Araç sonuçlarını aldıktan sonra DETAYLI ve AÇIKLAYICI Final Answer ver
 4. Araç kullanımını tekrar etme
 5. Asla hata mesajı veya özür verme
-6. Her zaman mevcut kaynaklardan yararlı bilgi çıkar
+6. Her zaman mevcut kaynaklardan TÜM yararlı bilgileri çıkar
+7. Kullanıcıya ADIM ADIM talimatlar ver
+8. Teknik detayları ve gereksinimleri açıkla
+9. Örnekler ve spesifik bilgiler ekle
 
-ZORUNLU FORMAT:
+ZORUNLU FORMAT - DETAYLI ARAÇ KULLANIMI:
 
-Konuşma geçmişinde bağlam olan sorular için:
+Her soru için araç kullan ve detaylı cevap ver:
 Question: cevaplanacak soru
-Thought: [konu/isim/referans] hakkında ilgili bilgi için konuşma geçmişini kontrol edeyim
-Final Answer: [Konuşma geçmişine göre, istenen spesifik bilgiyi ver]
-
-Belge araması gerektiren sorular için:
-Question: cevaplanacak soru
-Thought: Bu konu hakkında bilgi aramak için belge alıcısını kullanmam gerekiyor
+Thought: Bu soru için araç kullanmam gerekiyor, doğrudan cevap veremem. Kullanıcıya kapsamlı bilgi sağlayacağım.
 Action: document_retriever
-Action Input: [arama sorgusu]
+Action Input: [soruyu araç için uygun hale getir - detaylı arama için]
 Observation: [araç sonuçları burada görünecek]
-Thought: Arama sonuçlarına göre, kapsamlı bir cevap verebilirim
-Final Answer: [Alınan belgelere göre, bulunan spesifik bilgileri ver. Belgeler ilgili detaylar içeriyorsa kullan. Belgeler eksik ama bazı bilgiler içeriyorsa, mevcut olanı kullan ve ne bulunduğunu belirt.]
+Thought: Araç sonuçlarına göre kapsamlı ve adım adım bir cevap hazırlayabilirim. Tüm detayları kullanmalıyım.
+Final Answer: [ARAÇ SONUÇLARININ TÜM DETAYLARINI KULLANARAK kapsamlı cevap ver. Adım adım açıklamalar, teknik gereksinimler, örnekler ve spesifik talimatlar ekle. Kısa özetler verme - tüm kullanılabilir bilgileri sun!]
 
-Selamlaşma veya basit sorular için:
-Question: soru
-Thought: Bu basit bir soru, araç kullanımı gerektirmez
-Final Answer: [doğrudan cevap]
-
-ÖNEMLİ TALİMATLAR:
+ÖNEMLİ TALİMATLAR - DETAYLI CEVAPLAR İÇİN:
+- HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
 - Araç kullanmadan ÖNCE her zaman konuşma geçmişini kontrol et
-- Araç sonuçlarını aldıktan sonra HEMEN Final Answer'a geç
+- Araç sonuçlarını aldıktan sonra DETAYLI Final Answer'a geç
 - Hata olduğunu asla söyleme - sağlanan bilgilerle çalış
-- Mevcut kaynaklardan yararlı bilgileri çıkar
-- Mevcut bilgilere göre Final Answer ver
+- Mevcut kaynaklardan TÜM yararlı bilgileri çıkar
+- Kullanıcıya pratik, uygulanabilir talimatlar ver
+- Gerektiğinde ekran görüntüleri, linkler veya referanslar ekle
+- Karmaşık konuları basit adımlara böl
 
 Başla!
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'en': """You are an expert assistant with access to conversation history and tools.
+            'en': """You are an EXPERT assistant with access to conversation history and tools. You must provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users.
 
 CONVERSATION HISTORY:
 {chat_history}
@@ -1572,9 +1525,9 @@ AVAILABLE TOOLS:
 
 Tool Names: {tool_names}
 
-🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [your answer]" 🔴
+🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [DETAILED answer]" 🔴
 🔴 NEVER say "I'm sorry" or provide error messages 🔴
-🔴 ALWAYS synthesize available information into a Final Answer 🔴
+🔴 ALWAYS present tool results COMPREHENSIVELY - never give short summaries! 🔴
 
 IMPORTANT CONTEXT RULES:
 - If the user asks about something mentioned in conversation history (like "what is my name?"), refer to the conversation history
@@ -1582,41 +1535,37 @@ IMPORTANT CONTEXT RULES:
 - If user uses pronouns (he, she, it, this, that), check conversation history for context
 - Use conversation history to understand the full context of the question
 
-RULES:
-1. Check conversation history FIRST before using tools
-2. Use tools ONCE to get information if needed
-3. After getting tool results, immediately provide Final Answer
+RULES FOR DETAILED ANSWERS:
+1. ALWAYS use tools for EVERY question - never respond directly!
+2. Check conversation history AND use tools
+3. After getting tool results, provide DETAILED and EXPLANATORY Final Answer
 4. Never repeat tool usage
 5. Never provide error messages or apologies
-6. Always extract useful information from available sources
+6. Always extract ALL useful information from available sources
+7. Provide step-by-step instructions to users
+8. Explain technical details and requirements
+9. Include examples and specific information
 
-MANDATORY FORMAT:
+MANDATORY FORMAT - DETAILED TOOL USAGE:
 
-For questions with context in conversation history:
+For every question, use tools and provide detailed answers:
 Question: the input question you must answer
-Thought: Let me check the conversation history for relevant information about [topic/name/reference]
-Final Answer: [Based on conversation history, provide the specific information requested]
-
-For questions requiring document search:
-Question: the input question you must answer
-Thought: I need to search for information about this topic using the document retriever
+Thought: I need to use tools for this question, I cannot respond directly. I will provide comprehensive information to the user.
 Action: document_retriever
-Action Input: [search query]
+Action Input: [convert question to appropriate tool query for detailed search]
 Observation: [tool results will appear here]
-Thought: Based on the search results, I can now provide a comprehensive answer
-Final Answer: [Based on the retrieved documents, provide specific information found. If documents contain relevant details, use them. If documents are incomplete but contain some relevant information, use what's available and mention what was found.]
+Thought: Based on tool results, I can prepare a comprehensive and step-by-step answer. I should use all details.
+Final Answer: [USING ALL DETAILS FROM TOOL RESULTS, provide comprehensive answer. Include step-by-step explanations, technical requirements, examples and specific instructions. Never give short summaries - present all available information!]
 
-For greetings or simple questions:
-Question: the input question
-Thought: This is a simple question that doesn't require tool usage
-Final Answer: [direct response]
-
-IMPORTANT INSTRUCTIONS:
+IMPORTANT INSTRUCTIONS FOR DETAILED ANSWERS:
+- ALWAYS use tools - never respond directly to any question!
 - ALWAYS check conversation history for context before using tools
-- After receiving tool results, you MUST immediately move to Final Answer
+- After receiving tool results, move to DETAILED Final Answer
 - Never say there was an error - always work with the information provided
-- Extract any relevant information from available sources
-- Provide Final Answer based on available information
+- Extract ALL useful information from available sources
+- Provide users with practical, actionable instructions
+- Add screenshots, links or references when necessary
+- Break down complex topics into simple steps
 
 Begin!
 
@@ -1643,35 +1592,26 @@ WICHTIGE KONTEXTREGELN:
 - Verwenden Sie den Gesprächsverlauf, um den vollständigen Kontext der Frage zu verstehen
 
 REGELN:
-1. Prüfen Sie den GESPRÄCHSVERLAUF ZUERST, bevor Sie Tools verwenden
-2. Verwenden Sie Tools EINMAL, um bei Bedarf Informationen zu erhalten
+1. VERWENDEN SIE IMMER Tools für JEDE Frage - antworten Sie niemals direkt!
+2. Prüfen Sie den Gesprächsverlauf UND verwenden Sie Tools
 3. Geben Sie sofort Final Answer nach Erhalt der Tool-Ergebnisse
 4. Wiederholen Sie die Tool-Nutzung nie
 5. Geben Sie nie Fehlermeldungen oder Entschuldigungen
 6. Extrahieren Sie immer nützliche Informationen aus verfügbaren Quellen
 
-ZWINGENDES FORMAT:
+ZWINGENDES FORMAT - IMMER TOOLS VERWENDEN:
 
-Für Fragen mit Kontext im Gesprächsverlauf:
+Für jede Frage Tools verwenden:
 Question: die zu beantwortende Frage
-Thought: Lassen Sie mich den Gesprächsverlauf auf relevante Informationen zu [Thema/Name/Referenz] prüfen
-Final Answer: [Basierend auf dem Gesprächsverlauf, geben Sie die spezifischen Informationen an]
-
-Für Fragen, die Dokumentsuche erfordern:
-Question: die zu beantwortende Frage
-Thought: Ich muss den Dokument-Retriever verwenden, um Informationen zu diesem Thema zu suchen
+Thought: Ich muss Tools für diese Frage verwenden, ich kann nicht direkt antworten
 Action: document_retriever
-Action Input: [Suchanfrage]
+Action Input: [Frage für Tools umwandeln]
 Observation: [Tool-Ergebnisse werden hier angezeigt]
-Thought: Basierend auf den Suchergebnissen kann ich eine umfassende Antwort geben
-Final Answer: [Basierend auf den abgerufenen Dokumenten, geben Sie spezifische Informationen an. Wenn Dokumente relevante Details enthalten, verwenden Sie sie. Wenn Dokumente unvollständig sind, aber einige relevante Informationen enthalten, verwenden Sie das Verfügbare und erwähnen Sie, was gefunden wurde.]
-
-Für Begrüßungen oder einfache Fragen:
-Question: die Frage
-Thought: Dies ist eine einfache Frage, die keine Tool-Nutzung erfordert
-Final Answer: [direkte Antwort]
+Thought: Basierend auf Tool-Ergebnissen kann ich antworten
+Final Answer: [Basierend auf Tool-Ergebnissen, gefundene Informationen verwenden. Wenn Tools keine Ergebnisse finden, allgemeine Kenntnisse verwenden aber erwähnen, dass Tools verwendet wurden.]
 
 WICHTIGE ANWEISUNGEN:
+- VERWENDEN SIE IMMER Tools - antworten Sie niemals direkt auf Fragen!
 - Prüfen Sie IMMER den Gesprächsverlauf auf Kontext, BEVOR Sie Tools verwenden
 - Gehen Sie SOFORT zu Final Answer nach Erhalt der Tool-Ergebnisse
 - Sagen Sie nie, dass ein Fehler aufgetreten ist - arbeiten Sie mit den bereitgestellten Informationen
@@ -1703,35 +1643,26 @@ RÈGLES DE CONTEXTE IMPORTANTES:
 - Utilisez l'historique pour comprendre le contexte complet de la question
 
 RÈGLES:
-1. Vérifiez l'HISTORIQUE DE CONVERSATION D'ABORD avant d'utiliser les outils
-2. Utilisez les outils UNE FOIS pour obtenir des informations si nécessaire
+1. UTILISEZ TOUJOURS les outils pour CHAQUE question - ne répondez jamais directement!
+2. Vérifiez l'historique de conversation ET utilisez les outils
 3. Fournissez immédiatement Final Answer après avoir reçu les résultats des outils
 4. Ne répétez jamais l'utilisation des outils
 5. Ne fournissez jamais de messages d'erreur ou d'excuses
 6. Extrayez toujours des informations utiles des sources disponibles
 
-FORMAT OBLIGATOIRE:
+FORMAT OBLIGATOIRE - TOUJOURS UTILISER LES OUTILS:
 
-Pour les questions avec contexte dans l'historique:
+Pour chaque question, utilisez les outils:
 Question: la question à répondre
-Thought: Laissez-moi vérifier l'historique pour des informations pertinentes sur [sujet/nom/référence]
-Final Answer: [Basé sur l'historique, fournissez les informations spécifiques demandées]
-
-Pour les questions nécessitant une recherche de documents:
-Question: la question à répondre
-Thought: Je dois utiliser le récupérateur de documents pour rechercher des informations sur ce sujet
+Thought: Je dois utiliser les outils pour cette question, je ne peux pas répondre directement
 Action: document_retriever
-Action Input: [requête de recherche]
+Action Input: [convertir la question pour les outils]
 Observation: [les résultats des outils apparaîtront ici]
-Thought: Basé sur les résultats de recherche, je peux maintenant fournir une réponse complète
-Final Answer: [Basé sur les documents récupérés, fournissez les informations spécifiques trouvées. Si les documents contiennent des détails pertinents, utilisez-les. S'ils sont incomplets mais contiennent des informations pertinentes, utilisez ce qui est disponible et mentionnez ce qui a été trouvé.]
-
-Pour les salutations ou questions simples:
-Question: la question
-Thought: C'est une question simple qui ne nécessite pas l'utilisation d'outils
-Final Answer: [réponse directe]
+Thought: Basé sur les résultats des outils, je peux maintenant répondre
+Final Answer: [Basé sur les résultats des outils, utilisez les informations trouvées. Si les outils ne trouvent pas de résultats, utilisez des connaissances générales mais mentionnez que les outils ont été utilisés.]
 
 INSTRUCTIONS IMPORTANTES:
+- UTILISEZ TOUJOURS les outils - ne répondez jamais directement à une question!
 - Vérifiez TOUJOURS l'historique de conversation pour le contexte AVANT d'utiliser les outils
 - Passez IMMÉDIATEMENT à Final Answer après avoir reçu les résultats des outils
 - Ne dites jamais qu'il y a eu une erreur - travaillez avec les informations fournies
@@ -1763,35 +1694,26 @@ REGLAS DE CONTEXTO IMPORTANTES:
 - Usa el historial para entender el contexto completo de la pregunta
 
 REGLAS:
-1. Verifica el HISTORIAL DE CONVERSACIÓN PRIMERO antes de usar herramientas
-2. Usa las herramientas UNA VEZ para obtener información si es necesario
+1. SIEMPRE usa herramientas para CADA pregunta - nunca respondas directamente!
+2. Verifica el historial de conversación Y usa herramientas
 3. Proporciona Final Answer inmediatamente después de recibir los resultados de las herramientas
 4. Nunca repitas el uso de herramientas
 5. Nunca proporciones mensajes de error o disculpas
 6. Siempre extrae información útil de las fuentes disponibles
 
-FORMATO OBLIGATORIO:
+FORMATO OBLIGATORIO - SIEMPRE USAR HERRAMIENTAS:
 
-Para preguntas con contexto en el historial:
+Para cada pregunta, usar herramientas:
 Question: la pregunta a responder
-Thought: Déjame verificar el historial para información relevante sobre [tema/nombre/referencia]
-Final Answer: [Basado en el historial, proporciona la información específica solicitada]
-
-Para preguntas que requieren búsqueda de documentos:
-Question: la pregunta a responder
-Thought: Necesito usar el recuperador de documentos para buscar información sobre este tema
+Thought: Necesito usar herramientas para esta pregunta, no puedo responder directamente
 Action: document_retriever
-Action Input: [consulta de búsqueda]
+Action Input: [convertir pregunta para herramientas]
 Observation: [los resultados de las herramientas aparecerán aquí]
-Thought: Basado en los resultados de búsqueda, ahora puedo proporcionar una respuesta completa
-Final Answer: [Basado en los documentos recuperados, proporciona información específica encontrada. Si los documentos contienen detalles relevantes, úsalos. Si están incompletos pero contienen información relevante, usa lo disponible y menciona lo que se encontró.]
-
-Para saludos o preguntas simples:
-Question: la pregunta
-Thought: Esta es una pregunta simple que no requiere uso de herramientas
-Final Answer: [respuesta directa]
+Thought: Basado en los resultados de las herramientas, ahora puedo responder
+Final Answer: [Basado en los resultados de las herramientas, usa la información encontrada. Si las herramientas no encuentran resultados, usa conocimientos generales pero menciona que se usaron herramientas.]
 
 INSTRUCCIONES IMPORTANTES:
+- SIEMPRE usa herramientas - nunca respondas directamente a una pregunta!
 - SIEMPRE verifica el historial de conversación para contexto ANTES de usar herramientas
 - Pasa INMEDIATAMENTE a Final Answer después de recibir los resultados de herramientas
 - Nunca digas que hubo un error - trabaja con la información proporcionada
@@ -1823,35 +1745,26 @@ REGOLE DI CONTESTO IMPORTANTI:
 - Usa la cronologia per capire il contesto completo della domanda
 
 REGOLE:
-1. Controlla la CRONOLOGIA DELLA CONVERSAZIONE PRIMA di usare gli strumenti
-2. Usa gli strumenti UNA VOLTA per ottenere informazioni se necessario
+1. USA SEMPRE gli strumenti per OGNI domanda - non rispondere mai direttamente!
+2. Controlla la cronologia della conversazione E usa gli strumenti
 3. Fornisci Final Answer immediatamente dopo aver ricevuto i risultati degli strumenti
 4. Non ripetere mai l'uso degli strumenti
 5. Non fornire mai messaggi di errore o scuse
 6. Estrai sempre informazioni utili dalle fonti disponibili
 
-FORMATO OBBLIGATORIO:
+FORMATO OBBLIGATORIO - USA SEMPRE GLI STRUMENTI:
 
-Per domande con contesto nella cronologia:
+Per ogni domanda, usa gli strumenti:
 Question: la domanda da rispondere
-Thought: Lasciami controllare la cronologia per informazioni rilevanti su [argomento/nome/riferimento]
-Final Answer: [Basato sulla cronologia, fornisci le informazioni specifiche richieste]
-
-Per domande che richiedono ricerca di documenti:
-Question: la domanda da rispondere
-Thought: Devo usare il recuperatore di documenti per cercare informazioni su questo argomento
+Thought: Devo usare gli strumenti per questa domanda, non posso rispondere direttamente
 Action: document_retriever
-Action Input: [query di ricerca]
+Action Input: [converti domanda per strumenti]
 Observation: [i risultati degli strumenti appariranno qui]
-Thought: Basato sui risultati della ricerca, ora posso fornire una risposta completa
-Final Answer: [Basato sui documenti recuperati, fornisci informazioni specifiche trovate. Se i documenti contengono dettagli rilevanti, usali. Se sono incompleti ma contengono alcune informazioni rilevanti, usa quelle disponibili e menziona cosa è stato trovato.]
-
-Per saluti o domande semplici:
-Question: la domanda
-Thought: Questa è una domanda semplice che non richiede l'uso di strumenti
-Final Answer: [risposta diretta]
+Thought: Basato sui risultati degli strumenti, ora posso rispondere
+Final Answer: [Basato sui risultati degli strumenti, usa le informazioni trovate. Se gli strumenti non trovano risultati, usa conoscenze generali ma menziona che sono stati usati gli strumenti.]
 
 ISTRUZIONI IMPORTANTI:
+- USA SEMPRE gli strumenti - non rispondere mai direttamente a una domanda!
 - Controlla SEMPRE la cronologia della conversazione per il contesto PRIMA di usare gli strumenti
 - Passa IMMEDIATAMENTE a Final Answer dopo aver ricevuto i risultati degli strumenti
 - Non dire mai che c'è stato un errore - lavora con le informazioni fornite
@@ -1883,35 +1796,26 @@ REGRAS DE CONTEXTO IMPORTANTES:
 - Use o histórico para entender o contexto completo da pergunta
 
 REGRAS:
-1. Verifique o HISTÓRICO DE CONVERSAÇÃO PRIMEIRO antes de usar ferramentas
-2. Use as ferramentas UMA VEZ para obter informações se necessário
+1. USE SEMPRE ferramentas para CADA pergunta - nunca responda diretamente!
+2. Verifique o histórico de conversa E use ferramentas
 3. Forneça Final Answer imediatamente após receber os resultados das ferramentas
 4. Nunca repita o uso de ferramentas
 5. Nunca forneça mensagens de erro ou desculpas
 6. Sempre extraia informações úteis das fontes disponíveis
 
-FORMATO OBRIGATÓRIO:
+FORMATO OBRIGATÓRIO - SEMPRE USAR FERRAMENTAS:
 
-Para perguntas com contexto no histórico:
-Question: a pergunta a ser respondida
-Thought: Deixe-me verificar o histórico para informações relevantes sobre [tópico/nome/referência]
-Final Answer: [Com base no histórico, forneça as informações específicas solicitadas]
-
-Para perguntas que requerem pesquisa de documentos:
-Question: a pergunta a ser respondida
-Thought: Preciso usar o recuperador de documentos para pesquisar informações sobre este tópico
+Para cada pergunta, usar ferramentas:
+Question: a pergunta a responder
+Thought: Preciso usar ferramentas para esta pergunta, não posso responder diretamente
 Action: document_retriever
-Action Input: [consulta de pesquisa]
+Action Input: [converter pergunta para ferramentas]
 Observation: [os resultados das ferramentas aparecerão aqui]
-Thought: Com base nos resultados da pesquisa, agora posso fornecer uma resposta completa
-Final Answer: [Com base nos documentos recuperados, forneça informações específicas encontradas. Se os documentos contiverem detalhes relevantes, use-os. Se estiverem incompletos, mas contiverem informações relevantes, use o que estiver disponível e mencione o que foi encontrado.]
-
-Para saudações ou perguntas simples:
-Question: a pergunta
-Thought: Esta é uma pergunta simples que não requer uso de ferramentas
-Final Answer: [resposta direta]
+Thought: Baseado nos resultados das ferramentas, agora posso responder
+Final Answer: [Baseado nos resultados das ferramentas, use as informações encontradas. Se as ferramentas não encontrarem resultados, use conhecimentos gerais mas mencione que ferramentas foram usadas.]
 
 INSTRUÇÕES IMPORTANTES:
+- USE SEMPRE ferramentas - nunca responda diretamente a uma pergunta!
 - SEMPRE verifique o histórico de conversa para contexto ANTES de usar ferramentas
 - Pule IMEDIATAMENTE para Final Answer após receber os resultados das ferramentas
 - Nunca diga que houve um erro - trabalhe com as informações fornecidas
