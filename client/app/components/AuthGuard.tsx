@@ -1,70 +1,72 @@
-import React, { useEffect, useRef } from "react";
-import { Navigate, useLocation } from "react-router";
-import { useAuthStore } from "~/stores/auth";
+// components/AuthGuard.tsx
+import { Loader2 } from "lucide-react";
+import { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router";
+import { apiClient } from "~/lib/api-client";
+import { useAuth } from "~/stores/auth";
 
-// 🔐 PRIVATE ROUTE GUARD
-interface AuthGuardProps {
-  children: React.ReactNode;
-  fallback?: string; // Default: /signin
-}
-
-export const AuthGuard = ({
-  children,
-  fallback = "/signin",
-}: AuthGuardProps) => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  const isLoading = useAuthStore((state) => state.isLoading);
-  const initialize = useAuthStore.getState().initialize; // 🧠 Direkt referans
-
-  const initialized = useRef(false); // 👈 sadece bir kez çalışsın
-
+export default function AuthGuard({ children }: { children: React.ReactNode }) {
+  const navigate = useNavigate();
   const location = useLocation();
+  const { user, isAuthenticated, setUser, setIsAuthenticated } = useAuth();
+  const [checking, setChecking] = useState(true);
+  const [shouldRedirect, setShouldRedirect] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && !initialized.current) {
-      initialize();
-      initialized.current = true;
-    }
+    const checkAuth = async () => {
+      // 1. Token yoksa signin'e yönlendir
+      if (!apiClient.isAuthenticated()) {
+        setShouldRedirect(true);
+        return;
+      }
+
+      // 2. Kullanıcı yoksa backend'den çek
+      if (!user) {
+        try {
+          const me = await apiClient.get("/auth/me");
+          setUser(me);
+          setIsAuthenticated(true);
+        } catch (err) {
+          // Token bozuksa interceptor zaten yönlendirir
+          setUser(null);
+          setIsAuthenticated(false);
+          setShouldRedirect(true);
+          return;
+        }
+      }
+
+      setChecking(false);
+    };
+
+    checkAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  if (!isAuthenticated) {
-    return (
-      <Navigate to={fallback} state={{ from: location.pathname }} replace />
-    );
-  }
-
-  return <>{children}</>;
-};
-
-// 🌐 PUBLIC ONLY GUARD
-interface PublicOnlyProps {
-  children: React.ReactNode;
-  redirectTo?: string; // Default: /
-}
-
-export const PublicOnly = ({ children, redirectTo = "/" }: PublicOnlyProps) => {
-  const { isAuthenticated, isLoading, initialize } = useAuthStore();
-
-  // ✅ Initialize sadece tarayıcıda
+  // Redirect effect
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      initialize();
+    if (shouldRedirect) {
+      navigate("/signin", { replace: true, state: { from: location } });
     }
-  }, [initialize]);
+  }, [shouldRedirect, navigate, location]);
 
-  if (isLoading) {
+  // 3. Auth kontrolü sırasında loading göster
+  if (checking) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+        <Loader2 className="w-4 h-4 animate-spin" />
       </div>
     );
   }
 
-  if (isAuthenticated) {
-    return <Navigate to={redirectTo} replace />;
+  // 4. Kullanıcı yoksa fallback olarak yönlendir (önlem amaçlı)
+  if (!isAuthenticated || !user) {
+    setShouldRedirect(true);
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="w-4 h-4 animate-spin" />
+      </div>
+    );
   }
 
   return <>{children}</>;
-};
-
-export default AuthGuard;
+}

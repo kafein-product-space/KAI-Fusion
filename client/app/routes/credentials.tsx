@@ -1,29 +1,34 @@
-import { Formik, Form, Field, ErrorMessage } from "formik";
-import { Pencil, Plus, Search, Trash } from "lucide-react";
+// imports
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Search,
+  Zap,
+  Shield,
+  Database,
+  Globe,
+  Cloud,
+  Settings,
+} from "lucide-react";
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router";
-
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
-import { AuthGuard } from "../components/AuthGuard";
 import { useUserCredentialStore } from "../stores/userCredential";
-import type { CredentialCreateRequest } from "../types/api";
-import { timeAgo } from "~/lib/dateFormatter";
-import LoadingSpinner from "~/components/common/LoadingSpinner";
+import type { CredentialCreateRequest, UserCredential } from "../types/api";
+import Loading from "~/components/Loading";
+import AuthGuard from "~/components/AuthGuard";
+import { apiClient } from "../lib/api-client";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
+import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
+import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
+import CredentialCard from "../components/credentials/CredentialCard";
+import {
+  type ServiceDefinition,
+  getServicesByCategory,
+  getCategoryLabel,
+} from "~/types/credentials";
 
 function CredentialsLayout() {
-  const [searchQuery, setSearchQuery] = useState("");
-  interface Api {
-    id: number;
-    name: string;
-    logo: string;
-  }
-  interface CredentialFormValues {
-    name: string;
-    apiKey: string;
-  }
-
-  const [selectedApi, setSelectedApi] = useState<Api | null>(null);
-
   const {
     userCredentials,
     fetchCredentials,
@@ -34,441 +39,388 @@ function CredentialsLayout() {
     error,
   } = useUserCredentialStore();
 
+  const [searchQuery, setSearchQuery] = useState("");
+  const [itemsPerPage, setItemsPerPage] = useState(7);
+  const [page, setPage] = useState(1);
+  const [editingCredential, setEditingCredential] =
+    useState<UserCredential | null>(null);
+  const [showServiceSelection, setShowServiceSelection] = useState(false);
+  const [selectedService, setSelectedService] =
+    useState<ServiceDefinition | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
+
+  const servicesByCategory = getServicesByCategory();
+  const categories = Object.keys(servicesByCategory);
+
+  const filteredCredentials = userCredentials.filter((credential) => {
+    const matchesSearch =
+      credential.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      credential.service_type.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" ||
+      getServicesByCategory()[selectedCategory]?.some(
+        (s) => s.id === credential.service_type
+      );
+    return matchesSearch && matchesCategory;
+  });
+
+  const totalItems = filteredCredentials.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
+  const startIdx = (page - 1) * itemsPerPage;
+  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
+  const pagedCredentials = filteredCredentials.slice(startIdx, endIdx);
+
+  useEffect(() => {
+    if (page > totalPages) setPage(totalPages);
+  }, [totalPages, page]);
+
   useEffect(() => {
     fetchCredentials();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const [apiKeys] = useState([
-    {
-      id: 1,
-      name: "OpenAI API",
-      logo: "https://www.svgrepo.com/show/306500/openai.svg",
-    },
-    {
-      id: 2,
-      name: "GitHub API",
-      logo: "https://cdn-icons-png.flaticon.com/512/25/25231.png",
-    },
-    {
-      id: 3,
-      name: "Google API",
-      logo: "https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1200px-Google_%22G%22_logo.svg.png",
-    },
-  ]);
+  const handleServiceSelect = (service: ServiceDefinition) => {
+    setSelectedService(service);
+    setShowServiceSelection(false);
+  };
 
-  const handleCredentialSubmit = async (values: CredentialFormValues) => {
-    if (selectedApi) {
+  const handleCredentialSubmit = async (values: Record<string, any>) => {
+    if (!selectedService) return;
+
+    setIsSubmitting(true);
+    try {
       const payload: CredentialCreateRequest = {
-        name: values.name,
-        data: { api_key: values.apiKey },
-        service_type:
-          selectedApi.name === "OpenAI API"
-            ? "openai"
-            : selectedApi.name?.toLowerCase().replace(/ api$/, ""),
+        name: values.name || `${selectedService.name} Credential`,
+        data: values,
+        service_type: selectedService.id,
       };
-      try {
-        await addCredential(payload);
-        // Modal'ı kapat
-        const modal = document.getElementById(
-          "modalCreateCredential"
-        ) as HTMLDialogElement;
-        modal?.close();
-        setSelectedApi(null);
-      } catch (e) {
-        // handle error
+
+      await addCredential(payload);
+      setSelectedService(null);
+      setShowServiceSelection(false);
+    } catch (e: any) {
+      console.error("Failed to create credential:", e);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleEditCredential = async (credential: UserCredential) => {
+    setEditingCredential(credential);
+    // Get the service definition for editing
+    const servicesByCategory = getServicesByCategory();
+    const allServices = Object.values(servicesByCategory).flat();
+    const serviceDef = allServices.find(
+      (s: ServiceDefinition) => s.id === credential.service_type
+    );
+    if (serviceDef) {
+      setSelectedService(serviceDef);
+    }
+    try {
+      const detail = await getUserCredentialSecret(credential.id);
+      if ((detail as any)?.secret && typeof (detail as any).secret === "object") {
+        setEditingInitialValues((detail as any).secret);
+      } else {
+        setEditingInitialValues({});
       }
+    } catch (e) {
+      console.error("Failed to fetch credential secret for editing:", e);
+      setEditingInitialValues({});
     }
   };
 
-  const validateCredential = (values: CredentialFormValues) => {
-    const errors: Partial<CredentialFormValues> = {};
+  const handleUpdateCredential = async (values: Record<string, any>) => {
+    if (!editingCredential || !selectedService) return;
 
-    if (!values.name) {
-      errors.name = "Credential name is required";
-    } else if (values.name.length < 3) {
-      errors.name = "Credential name must be at least 3 characters";
+    setIsSubmitting(true);
+    try {
+      const payload: Partial<CredentialCreateRequest> = {
+        name: values.name || editingCredential.name,
+        data: values,
+        service_type: selectedService.id,
+      };
+
+      await updateCredential(editingCredential.id, payload);
+      setEditingCredential(null);
+      setSelectedService(null);
+    } catch (e: any) {
+      console.error("Failed to update credential:", e);
+    } finally {
+      setIsSubmitting(false);
     }
-
-    if (!values.apiKey) {
-      errors.apiKey = "API Key is required";
-    } else if (values.apiKey.length < 10) {
-      errors.apiKey = "API Key seems too short";
-    }
-
-    return errors;
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDeleteCredential = async (id: string) => {
     try {
       await removeCredential(id);
-    } catch (e) {
-      // handle error
+    } catch (e: any) {
+      console.error("Failed to delete credential:", e);
     }
   };
 
-  const handleUpdate = async (id: string, data: CredentialFormValues) => {
+  const handleViewSecret = async (id: string): Promise<string> => {
     try {
-      await updateCredential(id, data);
-    } catch (e) {
-      // handle error
+      const response = await apiClient.get(`/credentials/${id}/secret`);
+      return JSON.stringify(response.secret || {});
+    } catch (error) {
+      console.error("Failed to fetch secret:", error);
+      return "";
     }
+  };
+
+  const getCategoryIcon = (category: string) => {
+    const icons: Record<string, React.ReactNode> = {
+      ai: <Zap className="w-4 h-4" />,
+      database: <Database className="w-4 h-4" />,
+      api: <Globe className="w-4 h-4" />,
+      storage: <Cloud className="w-4 h-4" />,
+      cache: <Database className="w-4 h-4" />,
+      triggers: <Settings className="w-4 h-4" />,
+      other: <Shield className="w-4 h-4" />,
+    };
+    return icons[category] || <Shield className="w-4 h-4" />;
   };
 
   return (
-    <div className="flex h-screen w-screen">
+    <div className="flex h-screen bg-background text-foreground">
       <DashboardSidebar />
 
-      {/* Main Content */}
-      <main className="flex-1 p-10 m-10 bg-white">
-        <div className="max-w-screen-xl mx-auto">
-          <div className="flex justify-between items-center mb-6">
-            <div className="flex flex-col items-start gap-4">
-              <h1 className="text-4xl font-medium text-start">Credentials</h1>
-              <p className="text-gray-600">
-                Manage and securely store your API keys, tokens, and third-party
-                service credentials.
-              </p>
-              <select className="border border-gray-300 rounded-lg px-3 py-1 text-sm w-64 h-10">
-                <option className="text-sm">Last 7 days</option>
-              </select>
-            </div>
+      <main className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto p-6">
+          <div className="max-w-7xl mx-auto">
+            {/* Header */}
+            <div className="mb-8">
+              <div className="flex flex-col gap-6">
+                {/* Title and Description */}
+                <div className="flex flex-col gap-2">
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                    Credentials
+                  </h1>
+                  <p className="text-gray-600 text-lg">
+                    Connect and manage your service integrations securely
+                  </p>
+                </div>
 
-            {/* Search & Create Button */}
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-6 justify-center">
-                <div className="flex gap-2 p-3 flex-col items-start">
-                  <label className="input w-full rounded-2xl border flex items-center gap-2 px-2 py-1 ">
-                    <Search className="h-4 w-4 opacity-50" />
+                {/* Search and Connect Row */}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  {/* Search Bar */}
+                  <div className="relative flex-1 sm:flex-none">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <input
                       type="search"
-                      className="grow w-62"
-                      placeholder="Search"
+                      className="pl-10 pr-4 py-2 w-full sm:w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                      placeholder="Search credentials..."
+                      value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
                     />
-                  </label>
+                  </div>
+
+                  {/* Connect Service Button */}
+                  <button
+                    className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
+                    onClick={() => setShowServiceSelection(true)}
+                  >
+                    <Plus className="w-5 h-5" />
+                    Connect Service
+                  </button>
                 </div>
               </div>
-
-              <button
-                className="flex items-center gap-2 px-4 py-2 bg-[#9664E0] text-white rounded-lg hover:bg-[#8557d4] transition duration-200"
-                onClick={() =>
-                  (
-                    document.getElementById("my_modal_1") as HTMLDialogElement
-                  )?.showModal()
-                }
-              >
-                <Plus className="w-4 h-4" />
-                Create Credential
-              </button>
             </div>
-          </div>
 
-          {/* Table */}
-          {isLoading ? (
-            <div className="flex items-center justify-center ">
-              <LoadingSpinner text="Loading Credentials" />
-            </div>
-          ) : error ? (
-            <p className="text-red-500">{error}</p>
-          ) : userCredentials.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-4">
-              <div className="flex items-center justify-center">
-                <img
-                  src="/emptycredentials.svg"
-                  alt="emptycredentials"
-                  className="w-36 h-36"
-                />
+            {/* Category Filter Row */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 bg-gray-100 rounded-lg p-1 w-fit">
+                <button
+                  onClick={() => setSelectedCategory("all")}
+                  className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                    selectedCategory === "all"
+                      ? "bg-white text-gray-900 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <Shield className="w-4 h-4" />
+                    All Services
+                  </div>
+                </button>
+                {categories.map((category) => (
+                  <button
+                    key={category}
+                    onClick={() => setSelectedCategory(category)}
+                    className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
+                      selectedCategory === category
+                        ? "bg-white text-gray-900 shadow-sm"
+                        : "text-gray-600 hover:text-gray-900"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {getCategoryIcon(category)}
+                      {getCategoryLabel(category)}
+                    </div>
+                  </button>
+                ))}
               </div>
-              <div className="text-lg font-light">No Credentials Yet</div>
             </div>
-          ) : (
-            <div className="overflow-hidden rounded-xl border border-gray-300">
-              <table className="w-full text-sm p-2">
-                <thead className="bg-[#F5F5F5] text-left text-md border-b border-gray-300 ">
-                  <tr>
-                    <th className="p-6 font-normal text-base">Name</th>
-                    <th className="p-6 font-normal text-base">Created</th>
-                    <th className="p-6 font-normal text-base">Updated</th>
-                    <th></th>
-                    <th className="p-6 font-medium text-base">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {userCredentials
-                    .filter((credential) =>
-                      credential.name
-                        .toLowerCase()
-                        .includes(searchQuery.toLowerCase())
-                    )
-                    .map((credential) => (
-                      <tr
-                        key={credential.id}
-                        className="border-b border-gray-300"
-                      >
-                        <td className="p-6 flex items-center gap-4">
-                          {/* Optionally add logo if available */}
-                          {credential.name}
-                        </td>
-                        <td className="p-3">
-                          {timeAgo(credential.created_at)}
-                        </td>
-                        <td className="p-3">
-                          {timeAgo(credential.updated_at)}
-                        </td>
-                        <td></td>
 
-                        <td className="p-6">
-                          <div className="flex items-center gap-1">
-                            <button
-                              className="p-2 rounded-lg hover:bg-purple-50 transition duration-200 group"
-                              title="Edit variable"
-                              onClick={() =>
-                                (
-                                  document.getElementById(
-                                    `editModal-${credential.id}`
-                                  ) as HTMLDialogElement
-                                )?.showModal()
-                              }
-                            >
-                              <Pencil className="w-4 h-4 text-gray-400 group-hover:text-[#9664E0]" />
-                            </button>
-                            <button
-                              className="p-2 rounded-lg hover:bg-red-50 transition duration-200 group"
-                              title="Delete variable"
-                              onClick={() =>
-                                (
-                                  document.getElementById(
-                                    `deleteModal-${credential.id}`
-                                  ) as HTMLDialogElement
-                                )?.showModal()
-                              }
-                            >
-                              <Trash className="w-4 h-4 text-gray-400 group-hover:text-red-500" />
-                            </button>
-                          </div>
-                          <dialog
-                            id={`updateModal-${credential.id}`}
-                            className="modal"
-                          >
-                            <div className="modal-box">
-                              <h3 className="font-bold text-lg">
-                                Update Credential
-                              </h3>
-                              <p className="py-4">
-                                Update{" "}
-                                <strong className="font-mono">
-                                  {credential.name}
-                                </strong>
-                                ?
-                                <br />
-                                <span className="text-red-600 text-sm">
-                                  This action cannot be undone.
-                                </span>
-                              </p>
-                              <div className="modal-action">
-                                <form
-                                  method="dialog"
-                                  className="flex items-center gap-2"
-                                >
-                                  <button className="btn">Cancel</button>
-                                  <button className="btn bg-red-500 hover:bg-red-600 text-white">
-                                    Update
-                                  </button>
-                                </form>
-                              </div>
-                            </div>
-                          </dialog>
+            {/* Content */}
+            {isLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loading size="sm" />
+              </div>
+            ) : error ? (
+              <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-600">
+                {error}
+              </div>
+            ) : userCredentials.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-4 py-10">
+                <div className="w-24 h-24 bg-gradient-to-br from-purple-100 to-blue-100 rounded-full flex items-center justify-center">
+                  <Shield className="w-12 h-12 text-purple-600" />
+                </div>
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900 mb-1">
+                    No Credentials Yet
+                  </h3>
+                  <p className="text-gray-600 mb-3 text-sm">
+                    Connect your first service to get started with KAI Fusion
+                  </p>
+                  <button
+                    onClick={() => setShowServiceSelection(true)}
+                    className="px-4 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all duration-200 text-sm"
+                  >
+                    Connect Your First Service
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {pagedCredentials.map((credential) => (
+                  <CredentialCard
+                    key={credential.id}
+                    credential={credential}
+                    onEdit={handleEditCredential}
+                    onDelete={handleDeleteCredential}
+                    onViewSecret={handleViewSecret}
+                  />
+                ))}
+              </div>
+            )}
 
-                          {/* Delete Modal for each variable */}
-                          <dialog
-                            id={`deleteModal-${credential.id}`}
-                            className="modal"
-                          >
-                            <div className="modal-box">
-                              <h3 className="font-bold text-lg">
-                                Delete Credential
-                              </h3>
-                              <p className="py-4">
-                                Are you sure you want to delete{" "}
-                                <strong className="font-mono">
-                                  {credential.name}
-                                </strong>
-                                ?
-                                <br />
-                                <span className="text-red-600 text-sm">
-                                  This action cannot be undone.
-                                </span>
-                              </p>
-                              <div className="modal-action">
-                                <form
-                                  method="dialog"
-                                  className="flex items-center gap-2"
-                                >
-                                  <button className="btn">Cancel</button>
-                                  <button
-                                    className="btn bg-red-500 hover:bg-red-600 text-white"
-                                    onClick={() => handleDelete(credential.id)}
-                                  >
-                                    Delete
-                                  </button>
-                                </form>
-                              </div>
-                            </div>
-                          </dialog>
-                        </td>
-                      </tr>
-                    ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+            {/* Pagination */}
+            {!isLoading && !error && userCredentials.length > 0 && (
+              <div className="mt-6">
+                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 p-4 bg-white rounded-xl">
+                  <div></div>
+                  <div className="flex items-center gap-2 justify-center">
+                    <button
+                      className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setPage(page - 1)}
+                      disabled={page === 1}
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                    </button>
+
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
+                      (p) => (
+                        <button
+                          key={p}
+                          onClick={() => setPage(p)}
+                          className={`px-3 py-1.5 rounded-md text-sm font-medium border transition-all duration-200 ${
+                            p === page
+                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                          }`}
+                        >
+                          {p}
+                        </button>
+                      )
+                    )}
+
+                    <button
+                      className="p-1.5 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                      onClick={() => setPage(page + 1)}
+                      disabled={page === totalPages}
+                    >
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="text-xs text-gray-600 text-right">
+                    Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
+                    {totalItems}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </main>
 
-      {/* First Modal: Select API */}
-      <dialog id="my_modal_1" className="modal">
-        <div className="modal-box space-y-4 max-h-[80vh] overflow-auto">
-          <h3 className="font-bold text-lg">Add New Credential</h3>
-          <div className="flex items-center gap-6 justify-center w-full">
-            <div className="flex gap-2 p-3 flex-col items-start w-full">
-              <label className="input w-full rounded-2xl border flex items-center gap-2 px-2 py-1">
-                <Search className="h-4 w-4 opacity-50" />
-                <input
-                  type="search"
-                  className="grow w-full"
-                  placeholder="Search"
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </label>
+      {/* Service Selection Modal */}
+      {showServiceSelection && (
+        <ServiceSelectionModal
+          onSelectService={handleServiceSelect}
+          onClose={() => setShowServiceSelection(false)}
+        />
+      )}
+
+      {/* Dynamic Credential Form Modal */}
+      {selectedService && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-xl font-bold text-gray-900">
+                  {editingCredential
+                    ? "Edit Credential"
+                    : "Connect to " + selectedService.name}
+                </h2>
+                <button
+                  onClick={() => {
+                    setSelectedService(null);
+                    setEditingCredential(null);
+                    setEditingInitialValues({});
+                  }}
+                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
+                  </svg>
+                </button>
+              </div>
+
+              <DynamicCredentialForm
+                service={selectedService}
+                onSubmit={
+                  editingCredential
+                    ? handleUpdateCredential
+                    : handleCredentialSubmit
+                }
+                onCancel={() => {
+                  setSelectedService(null);
+                  setEditingCredential(null);
+                  setEditingInitialValues({});
+                }}
+                initialValues={
+                  editingCredential
+                    ? { name: editingCredential.name, ...editingInitialValues }
+                    : { name: `${selectedService.name} Credential` }
+                }
+                isSubmitting={isSubmitting}
+              />
             </div>
           </div>
-          <div className="grid grid-cols-3 gap-4">
-            {apiKeys.map((apiKey) => (
-              <div
-                key={apiKey.id}
-                className="flex items-center justify-center gap-2 w-full border rounded-2xl p-3 hover:bg-[#ede7f6] hover:text-[#9664E0] cursor-pointer"
-                onClick={() => {
-                  const modal1 = document.getElementById(
-                    "my_modal_1"
-                  ) as HTMLDialogElement;
-                  const modal2 = document.getElementById(
-                    "modalCreateCredential"
-                  ) as HTMLDialogElement;
-                  setSelectedApi(apiKey);
-                  modal1?.close();
-                  setTimeout(() => {
-                    modal2?.showModal();
-                  }, 100);
-                }}
-              >
-                <img src={apiKey.logo} className="w-8 h-8" alt="" />
-                <h2 className="text-lg font-light">{apiKey.name}</h2>
-              </div>
-            ))}
-          </div>
-          <div className="modal-action">
-            <form method="dialog">
-              <button className="btn">Close</button>
-            </form>
-          </div>
         </div>
-      </dialog>
-
-      {/* Second Modal: After Selection */}
-      <dialog id="modalCreateCredential" className="modal">
-        <div className="modal-box">
-          {selectedApi && (
-            <>
-              <div className="flex items-center gap-2 mb-6 space-x-4 p-3">
-                <div>
-                  <img src={selectedApi.logo} className="w-8 h-8" alt="" />
-                </div>
-                <div>
-                  <h2 className="text-lg font-medium">{selectedApi.name}</h2>
-                </div>
-              </div>
-
-              <Formik
-                initialValues={{ name: "", apiKey: "" }}
-                validate={validateCredential}
-                onSubmit={handleCredentialSubmit}
-              >
-                {({ values, errors, touched, isSubmitting }) => (
-                  <Form className="flex flex-col gap-4 space-y-4">
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="name" className="font-light">
-                        Credential Name
-                      </label>
-                      <Field
-                        name="name"
-                        type="text"
-                        placeholder="Enter credential name"
-                        className={`input w-full h-12 rounded-2xl ${
-                          errors.name && touched.name
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-white hover:border-gray-400"
-                        }`}
-                      />
-                      <ErrorMessage
-                        name="name"
-                        component="p"
-                        className="text-red-500 text-sm"
-                      />
-                    </div>
-
-                    <div className="flex flex-col gap-2">
-                      <label htmlFor="apiKey" className="font-light">
-                        {selectedApi.name} API Key
-                      </label>
-                      <Field
-                        name="apiKey"
-                        type="password"
-                        placeholder="Enter API Key"
-                        className={`input w-full h-12 rounded-2xl ${
-                          errors.apiKey && touched.apiKey
-                            ? "border-red-300 bg-red-50"
-                            : "border-gray-300 bg-white hover:border-gray-400"
-                        }`}
-                      />
-                      <ErrorMessage
-                        name="apiKey"
-                        component="p"
-                        className="text-red-500 text-sm"
-                      />
-                    </div>
-
-                    <div className="modal-action">
-                      <div className="flex gap-4">
-                        <button
-                          type="button"
-                          className="btn"
-                          onClick={() => {
-                            const modal = document.getElementById(
-                              "modalCreateCredential"
-                            ) as HTMLDialogElement;
-                            modal?.close();
-                            setSelectedApi(null);
-                          }}
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          type="submit"
-                          className="btn btn-primary"
-                          disabled={isSubmitting}
-                        >
-                          {isSubmitting ? "Saving..." : "Save"}
-                        </button>
-                      </div>
-                    </div>
-                  </Form>
-                )}
-              </Formik>
-            </>
-          )}
-        </div>
-      </dialog>
+      )}
     </div>
   );
 }

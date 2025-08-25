@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 import jwt
 from jose import JWTError
 
-from app.core.config import get_settings
+from app.core.constants import SECRET_KEY, ALGORITHM
 from app.core.database import get_db_session
 from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
 from app.services.user_service import UserService
@@ -29,7 +29,6 @@ from pydantic import BaseModel, EmailStr
 logger = logging.getLogger(__name__)
 router = APIRouter()
 security = HTTPBearer()
-settings = get_settings()
 
 # Request/Response Models
 class SignInRequest(BaseModel):
@@ -136,7 +135,7 @@ async def refresh_token(
 ):
     """Refresh access token using refresh token"""
     try:
-        payload = jwt.decode(request.refresh_token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        payload = jwt.decode(request.refresh_token, SECRET_KEY, algorithms=[ALGORITHM])
         email: str = payload.get("sub")
         user_id: str = payload.get("user_id")
         

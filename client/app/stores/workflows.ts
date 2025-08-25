@@ -17,7 +17,7 @@ interface WorkflowState {
   publicWorkflows: Workflow[];
   templates: WorkflowTemplateResponse[];
   categories: string[];
-  stats: WorkflowStats | null;
+  dashboardStats: WorkflowStats | null;
   currentWorkflow: Workflow | null;
   isLoading: boolean;
   error: string | null;
@@ -31,11 +31,12 @@ interface WorkflowState {
   deleteWorkflow: (id: string) => Promise<void>;
   duplicateWorkflow: (id: string, new_name?: string) => Promise<Workflow>;
   updateWorkflowVisibility: (id: string, is_public: boolean) => Promise<void>;
+  updateWorkflowStatus: (id: string, is_active: boolean) => Promise<void>;
   fetchTemplates: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   createTemplate: (data: WorkflowTemplateCreate) => Promise<WorkflowTemplateResponse>;
   createTemplateFromWorkflow: (workflow_id: string, template_name: string, template_description?: string, category?: string) => Promise<WorkflowTemplateResponse>;
-  fetchStats: () => Promise<void>;
+  fetchDashboardStats: () => Promise<void>;
   setCurrentWorkflow: (workflow: Workflow | null) => void;
   setHasUnsavedChanges: (hasChanges: boolean) => void;
   clearError: () => void;
@@ -46,7 +47,7 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
   publicWorkflows: [],
   templates: [],
   categories: [],
-  stats: null,
+  dashboardStats: null,
   currentWorkflow: null,
   isLoading: false,
   error: null,
@@ -55,7 +56,12 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
     set({ isLoading: true, error: null });
     try {
       const workflows = await WorkflowService.getWorkflows();
-      set({ workflows, isLoading: false });
+      // Add default is_active status for workflows
+      const workflowsWithStatus = workflows.map(workflow => ({
+        ...workflow,
+        is_active: workflow.is_active ?? true
+      }));
+      set({ workflows: workflowsWithStatus, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }
@@ -134,6 +140,27 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
       throw error;
     }
   },
+  updateWorkflowStatus: async (id: string, is_active: boolean) => {
+    set({ isLoading: true });
+    try {
+      // Update local state immediately for better UX
+      set((state) => ({
+        workflows: state.workflows.map((w) => 
+          w.id === id ? { ...w, is_active } : w
+        ),
+        currentWorkflow: state.currentWorkflow?.id === id 
+          ? { ...state.currentWorkflow, is_active } 
+          : state.currentWorkflow,
+        isLoading: false,
+      }));
+      
+      // TODO: Implement backend API call when ready
+      // await WorkflowService.updateWorkflowStatus(id, is_active);
+    } catch (error: any) {
+      set({ error: error.message, isLoading: false });
+      throw error;
+    }
+  },
   fetchTemplates: async () => {
     set({ isLoading: true });
     try {
@@ -174,11 +201,12 @@ const workflowStateCreator: StateCreator<WorkflowState> = (set, get) => ({
       throw error;
     }
   },
-  fetchStats: async () => {
+ 
+  fetchDashboardStats: async () => {
     set({ isLoading: true });
     try {
-      const stats = await WorkflowService.getWorkflowStats();
-      set({ stats, isLoading: false });
+      const dashboardStats = await WorkflowService.getDashboardStats();
+      set({ dashboardStats, isLoading: false });
     } catch (error: any) {
       set({ error: error.message, isLoading: false });
     }

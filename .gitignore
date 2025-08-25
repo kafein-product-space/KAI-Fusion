@@ -16,7 +16,7 @@ build/
 .pytest_cache/
 .coverage
 htmlcov/
-
+CLAUDE.md
 # Node
 node_modules/
 npm-debug.log*
@@ -130,3 +130,6 @@ temp/
 *.sln
 *.sw?
 .vercel
+
+
+.venv/

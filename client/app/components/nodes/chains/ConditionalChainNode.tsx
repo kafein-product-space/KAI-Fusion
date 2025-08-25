@@ -1,8 +1,6 @@
 import React, { useRef } from "react";
 import { useReactFlow, Handle, Position } from "@xyflow/react";
 import { Link } from "lucide-react";
-import AgentConfigModal from "../../modals/agents/AgentConfigModal";
-import OpenAIChatNodeModal from "../../modals/llms/OpenAIChatModal";
 import ConditionalChainConfigModal from "../../modals/chains/ConditionalChainConfigModal";
 
 interface ConditionalChainNodeProps {
@@ -11,7 +9,7 @@ interface ConditionalChainNodeProps {
 }
 
 function ConditionalChainNode({ data, id }: ConditionalChainNodeProps) {
-  const { setNodes } = useReactFlow();
+  const { setNodes, getEdges } = useReactFlow();
 
   const modalRef = useRef<HTMLDialogElement>(null);
 
@@ -28,7 +26,14 @@ function ConditionalChainNode({ data, id }: ConditionalChainNodeProps) {
       )
     );
   };
+  const edges = getEdges ? getEdges() : [];
 
+  const isHandleConnected = (handleId: string, isSource = false) =>
+    edges.some((edge) =>
+      isSource
+        ? edge.source === id && edge.sourceHandle === handleId
+        : edge.target === id && edge.targetHandle === handleId
+    );
   return (
     <>
       {/* Ana node kutusu */}

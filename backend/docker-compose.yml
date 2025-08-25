@@ -1,31 +1,48 @@
 version: '3'
 services:
-  datafocusbe:
+  kaifusion:
     build:
       context: .
       dockerfile: Dockerfile
-    image: datafocusbe:latest
+    image: kaifusion:latest
     ports:
-      - 0.0.0.0:${RISK_SERVER_PORT}:3030
+      - 0.0.0.0:${PORT}:8000
     environment:
-      RISK_SERVER_PORT: ${RISK_SERVER_PORT}
-      RISK_DATABASE_URL: ${RISK_DATABASE_URL}
-      RISK_DATABASE_USERNAME: ${RISK_DATABASE_USERNAME}
-      RISK_DATABASE_PASSWORD: ${RISK_DATABASE_PASSWORD}
-      REPORT_SERVICE: ${REPORT_SERVICE:-0}
-      RISK_KAFKA_SERVER: ${RISK_KAFKA_SERVER}
-      KAFKA_REPORT_REQUEST: ${KAFKA_REPORT_REQUEST}
-      KAFKA_REPORT_STATUS: ${KAFKA_REPORT_STATUS}
-      AUTH_TOK: ${AUTH_TOK}
-    command: uvicorn main:app --host 0.0.0.0 --port 3030
+      # Core Application Settings
+      SECRET_KEY: ${SECRET_KEY}
+
+      # Database Settings
+      CREATE_DATABASE: ${CREATE_DATABASE}
+      DATABASE_URL: ${DATABASE_URL}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      DATABASE_PORT: ${DATABASE_PORT}
+      DATABASE_HOST: ${DATABASE_HOST}
+      DATABASE_SSL: ${DATABASE_SSL}
+      DISABLE_DATABASE: ${DISABLE_DATABASE}
+
+      # Security
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+
+      # LangSmith Settings
+      LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
+      LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
+      LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
+      LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
+
+      # Async Database
+      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
+
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
     volumes:
       - ./:/app
     networks:
-      - risk-network
+      - kaifusion-network
     stdin_open: true
     restart: always
     tty: true
 
 networks:
-  risk-network:
+  kaifusion-network:
     driver: bridge

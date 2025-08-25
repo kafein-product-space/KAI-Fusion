@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import ApiKeyService from '~/services/apiKeyService';
+import ApiKeyService from '../services/apiKeyService';
 import type { ApiKey, ApiKeyCreateRequest, ApiKeyUpdateRequest, ApiKeyCreateResponse } from '~/types/api';
 
 interface ApiKeyStore {

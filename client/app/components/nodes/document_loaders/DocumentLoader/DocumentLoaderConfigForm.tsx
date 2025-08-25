@@ -1,0 +1,496 @@
+// DocumentLoaderConfigForm.tsx
+import React, { useRef, useState } from "react";
+import { Formik, Form, Field, ErrorMessage } from "formik";
+import { useSnackbar } from "notistack";
+import { Settings, Database, Key, Lock } from "lucide-react";
+
+// Standard props interface matching other config forms
+interface DocumentLoaderConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
+interface FileItem {
+  name: string;
+  size: number;
+  type: string;
+  lastModified: number;
+}
+
+export default function DocumentLoaderConfigForm({
+  configData,
+  onSave,
+  onCancel,
+}: DocumentLoaderConfigFormProps) {
+  const { enqueueSnackbar } = useSnackbar();
+  
+  // Default values for missing fields
+  const initialValues = {
+    drive_links: configData?.drive_links || "",
+    google_drive_auth_type: configData?.google_drive_auth_type || "service_account",
+    service_account_json: configData?.service_account_json || "",
+    oauth2_client_id: configData?.oauth2_client_id || "",
+    oauth2_client_secret: configData?.oauth2_client_secret || "",
+    supported_formats: configData?.supported_formats || ["txt", "json", "docx", "pdf"],
+    min_content_length: configData?.min_content_length || 100,
+    max_file_size_mb: configData?.max_file_size_mb || 100,
+    quality_threshold: configData?.quality_threshold || 0.5,
+    storage_enabled: configData?.storage_enabled ?? true,
+    deduplicate: configData?.deduplicate ?? true,
+  };
+  
+  const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
+  const [authType, setAuthType] = useState(
+    initialValues.google_drive_auth_type || "service_account"
+  );
+  
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.drive_links) {
+      errors.drive_links = "At least one Google Drive link is required";
+    }
+    if (values.min_content_length < 1) {
+      errors.min_content_length = "Min content length must be at least 1";
+    }
+    if (values.max_file_size_mb < 1 || values.max_file_size_mb > 1000) {
+      errors.max_file_size_mb = "Max file size must be between 1 and 1000 MB";
+    }
+    if (authType === "service_account" && !values.service_account_json) {
+      errors.service_account_json = "Service account JSON is required";
+    }
+    if (authType === "oauth2") {
+      if (!values.oauth2_client_id) {
+        errors.oauth2_client_id = "Client ID is required for OAuth2";
+      }
+      if (!values.oauth2_client_secret) {
+        errors.oauth2_client_secret = "Client Secret is required for OAuth2";
+      }
+    }
+    return errors;
+  };
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (files) {
+      const validFiles: FileItem[] = [];
+
+      Array.from(files).forEach((file) => {
+        // Check file size (max 100MB default)
+        const maxSize = 100 * 1024 * 1024;
+        if (file.size > maxSize) {
+          alert(
+            `Dosya çok büyük: ${file.name} (${formatFileSize(
+              file.size
+            )}). Maksimum: 100MB`
+          );
+          return;
+        }
+
+        // Check file extension
+        const extension = file.name.toLowerCase().split(".").pop();
+        const supportedExtensions = ["txt", "json", "docx", "pdf"];
+        if (!supportedExtensions.includes(extension || "")) {
+          alert(
+            `Desteklenmeyen dosya formatı: ${
+              file.name
+            }. Desteklenen formatlar: ${supportedExtensions.join(", ")}`
+          );
+          return;
+        }
+
+        validFiles.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+        });
+      });
+
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleRemoveFile = (index: number) => {
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const formatFileSize = (bytes: number) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+  };
+
+  const formatDate = (timestamp: number) => {
+    return new Date(timestamp).toLocaleDateString();
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+
+    const files = e.dataTransfer.files;
+    if (files) {
+      const validFiles: FileItem[] = [];
+
+      Array.from(files).forEach((file) => {
+        // Check file size (max 100MB default)
+        const maxSize = 100 * 1024 * 1024;
+        if (file.size > maxSize) {
+          alert(
+            `Dosya çok büyük: ${file.name} (${formatFileSize(
+              file.size
+            )}). Maksimum: 100MB`
+          );
+          return;
+        }
+
+        // Check file extension
+        const extension = file.name.toLowerCase().split(".").pop();
+        const supportedExtensions = ["txt", "json", "docx", "pdf"];
+        if (!supportedExtensions.includes(extension || "")) {
+          alert(
+            `Desteklenmeyen dosya formatı: ${
+              file.name
+            }. Desteklenen formatlar: ${supportedExtensions.join(", ")}`
+          );
+          return;
+        }
+
+        validFiles.push({
+          name: file.name,
+          size: file.size,
+          type: file.type,
+          lastModified: file.lastModified,
+        });
+      });
+
+      setSelectedFiles((prev) => [...prev, ...validFiles]);
+    }
+  };
+
+  const handleSaveConfig = async (values: any) => {
+    try {
+      // Show loading message
+      enqueueSnackbar(
+        "Google Drive Document Loader konfigürasyonu kaydediliyor...",
+        {
+          variant: "info",
+        }
+      );
+
+      // Call the original onSave
+      await onSave(values);
+
+      // Show success message
+      enqueueSnackbar("Google Drive Document Loader başarıyla kaydedildi! 🎉", {
+        variant: "success",
+      });
+    } catch (error) {
+      // Show error message
+      enqueueSnackbar("Konfigürasyon kaydedilirken hata oluştu!", {
+        variant: "error",
+      });
+      console.error("DocumentLoader config save error:", error);
+    }
+  };
+
+  return (
+    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
+      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
+        <div className="flex items-center gap-2">
+          <Database className="w-4 h-4 text-white" />
+          <span className="text-white text-xs font-medium">
+            Google Drive Document Loader
+          </span>
+        </div>
+        <Settings className="w-4 h-4 text-white" />
+      </div>
+
+      <Formik
+        initialValues={initialValues}
+        validate={validate}
+        onSubmit={handleSaveConfig}
+        enableReinitialize={true}
+      >
+        {({ values, errors, touched, isSubmitting, setFieldValue }) => (
+          <Form className="space-y-3 w-full p-3">
+            {/* Google Drive Links */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Google Drive Links
+              </label>
+              <Field
+                as="textarea"
+                name="drive_links"
+                placeholder="https://drive.google.com/file/d/...&#10;https://drive.google.com/drive/folders/..."
+                className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none"
+                rows={3}
+              />
+              <ErrorMessage
+                name="drive_links"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
+            </div>
+
+            {/* Authentication Type */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Authentication Method
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthType("service_account");
+                    setFieldValue("google_drive_auth_type", "service_account");
+                  }}
+                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                    authType === "service_account"
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  <Key className="w-3 h-3 inline mr-1" />
+                  Service Account
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthType("oauth2");
+                    setFieldValue("google_drive_auth_type", "oauth2");
+                  }}
+                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                    authType === "oauth2"
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                  }`}
+                >
+                  <Lock className="w-3 h-3 inline mr-1" />
+                  OAuth2
+                </button>
+              </div>
+            </div>
+
+            {/* Service Account Configuration */}
+            {authType === "service_account" && (
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Service Account JSON
+                </label>
+                <Field
+                  as="textarea"
+                  name="service_account_json"
+                  placeholder='{"type": "service_account", "project_id": "...", ...}'
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none font-mono"
+                  rows={6}
+                />
+                <ErrorMessage
+                  name="service_account_json"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
+              </div>
+            )}
+
+            {/* OAuth2 Configuration */}
+            {authType === "oauth2" && (
+              <div className="space-y-2">
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Client ID
+                  </label>
+                  <Field
+                    type="password"
+                    name="oauth2_client_id"
+                    placeholder="Your Google OAuth2 Client ID"
+                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                  />
+                  <ErrorMessage
+                    name="oauth2_client_id"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-white text-xs font-medium mb-1 block">
+                    Client Secret
+                  </label>
+                  <Field
+                    type="password"
+                    name="oauth2_client_secret"
+                    placeholder="Your Google OAuth2 Client Secret"
+                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                  />
+                  <ErrorMessage
+                    name="oauth2_client_secret"
+                    component="div"
+                    className="text-red-400 text-xs mt-1"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Supported Formats */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Supported Formats
+              </label>
+              <div className="grid grid-cols-2 gap-2">
+                {[
+                  {
+                    value: "txt",
+                    label: "Text Files",
+                    description: ".txt, .md, .log",
+                  },
+                  {
+                    value: "json",
+                    label: "JSON",
+                    description: ".json, .jsonl",
+                  },
+                  {
+                    value: "docx",
+                    label: "Word Docs",
+                    description: ".docx, .doc",
+                  },
+                  { value: "pdf", label: "PDF", description: ".pdf" },
+                  { value: "csv", label: "CSV", description: ".csv" },
+                ].map((format) => (
+                  <label
+                    key={format.value}
+                    className="flex items-center space-x-2 cursor-pointer"
+                  >
+                    <Field
+                      type="checkbox"
+                      name="supported_formats"
+                      value={format.value}
+                      className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
+                    />
+                    <div className="text-white text-xs">
+                      <div className="font-medium">{format.label}</div>
+                      <div className="text-gray-400">{format.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+              <ErrorMessage
+                name="supported_formats"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
+            </div>
+
+            {/* Processing Options */}
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Min Content Length
+                </label>
+                <Field
+                  type="number"
+                  name="min_content_length"
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                />
+                <ErrorMessage
+                  name="min_content_length"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
+              </div>
+
+              <div>
+                <label className="text-white text-xs font-medium mb-1 block">
+                  Max File Size (MB)
+                </label>
+                <Field
+                  type="number"
+                  name="max_file_size_mb"
+                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                />
+                <ErrorMessage
+                  name="max_file_size_mb"
+                  component="div"
+                  className="text-red-400 text-xs mt-1"
+                />
+              </div>
+            </div>
+
+            {/* Quality Settings */}
+            <div>
+              <label className="text-white text-xs font-medium mb-1 block">
+                Quality Threshold: {values.quality_threshold || 0.5}
+              </label>
+              <Field
+                type="range"
+                name="quality_threshold"
+                min="0"
+                max="1"
+                step="0.1"
+                className="w-full h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
+              />
+              <ErrorMessage
+                name="quality_threshold"
+                component="div"
+                className="text-red-400 text-xs mt-1"
+              />
+            </div>
+
+            {/* Processing Options */}
+            <div className="space-y-2">
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <Field
+                  type="checkbox"
+                  name="storage_enabled"
+                  className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-white text-xs">
+                  Enable Document Storage
+                </span>
+              </label>
+
+              <label className="flex items-center space-x-2 cursor-pointer">
+                <Field
+                  type="checkbox"
+                  name="deduplicate"
+                  className="w-3 h-3 text-blue-600 bg-slate-700 border-gray-600 rounded focus:ring-blue-500"
+                />
+                <span className="text-white text-xs">Remove Duplicates</span>
+              </label>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 pt-2">
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-medium py-2 px-3 rounded hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? "Kaydediliyor..." : "Konfigürasyonu Kaydet"}
+              </button>
+              <button
+                type="button"
+                onClick={onCancel}
+                className="bg-slate-700 text-white text-xs font-medium py-2 px-3 rounded hover:bg-slate-600 transition-all"
+              >
+                İptal
+              </button>
+            </div>
+          </Form>
+        )}
+      </Formik>
+    </div>
+  );
+}

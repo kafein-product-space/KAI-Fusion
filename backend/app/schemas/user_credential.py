@@ -30,11 +30,13 @@ class UserCredentialResponse(UserCredentialBase):
 class CredentialCreateRequest(BaseModel):
     name: str
     data: Dict[str, Any]  # Flexible data structure for different credential types
+    service_type: Optional[str] = None  # Optional explicit service type from client
 
 # Schema for API credential update
 class CredentialUpdateRequest(BaseModel):
     name: Optional[str] = None
     data: Optional[Dict[str, Any]] = None
+    service_type: Optional[str] = None  # Allow updating service type explicitly
 
 # Schema for detailed API responses including the service type and metadata
 class CredentialDetailResponse(BaseModel):
@@ -52,3 +54,11 @@ class CredentialDetailResponse(BaseModel):
 class CredentialDeleteResponse(BaseModel):
     message: str
     deleted_id: uuid.UUID 
+
+class CredentialSecretResponse(BaseModel):
+    id: uuid.UUID
+    name: str
+    service_type: str
+    created_at: datetime
+    updated_at: datetime
+    secret: Dict[str, Any] 

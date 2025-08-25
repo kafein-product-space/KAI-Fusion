@@ -61,6 +61,7 @@ export interface Workflow {
   created_at: string;
   updated_at: string;
   is_public: boolean;
+  is_active?: boolean;
   version?: number;
 }
 
@@ -76,6 +77,7 @@ export interface WorkflowUpdateRequest {
   description?: string;
   flow_data?: WorkflowData;
   is_public?: boolean;
+  is_active?: boolean;
 }
 
 export interface WorkflowStats {
@@ -141,6 +143,7 @@ export interface WorkflowExecutionResult {
   execution_id?: string;
   executed_nodes?: string[];
   session_id?: string;
+  node_outputs?: Record<string, any>;
 }
 
 export interface WorkflowExecution {
@@ -150,7 +153,7 @@ export interface WorkflowExecution {
   result: WorkflowExecutionResult;
   started_at: string;
   completed_at?: string;
-  status: 'success' | 'failed' | 'running';
+  status: 'completed' | 'failed' | 'running';
   runtime?: string;
 }
 
@@ -244,7 +247,7 @@ export interface Variable {
   id: string;
   name: string;
   value: string;
-  type: 'static' | 'dynamic';
+  type: string; // enum değil, string olmalı
   description?: string;
   user_id: string;
   created_at: string;
@@ -254,7 +257,7 @@ export interface Variable {
 export interface VariableCreateRequest {
   name: string;
   value: string;
-  type: 'static' | 'dynamic';
+  type: string; // enum değil, string olmalı
   description?: string;
 }
 

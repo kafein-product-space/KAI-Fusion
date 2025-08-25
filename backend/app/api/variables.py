@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
-@router.get("/", response_model=List[VariableResponse])
+@router.get("", response_model=List[VariableResponse])
 async def get_variables(
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
@@ -30,10 +30,10 @@ async def get_variables(
     limit: int = 100
 ):
     """
-    Get list of all variables.
+    Get list of all variables for the current user.
     """
     try:
-        variables = await variable_service.get_all(db, skip=skip, limit=limit)
+        variables = await variable_service.get_all(db, skip=skip, limit=limit, user_id=current_user.id)
         return variables
     except Exception as e:
         logger.error(f"Error fetching variables: {str(e)}")
@@ -102,7 +102,7 @@ async def get_variables_by_type(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
-@router.post("/", response_model=VariableResponse)
+@router.post("", response_model=VariableResponse)
 async def create_variable(
     variable_data: VariableCreate,
     db: AsyncSession = Depends(get_db_session),
@@ -113,15 +113,15 @@ async def create_variable(
     Create a new variable.
     """
     try:
-        # Check if variable with same name already exists
-        existing_variable = await variable_service.get_by_name(db, variable_data.name)
+        # Check if variable with same name already exists for this user
+        existing_variable = await variable_service.get_by_name_and_user(db, variable_data.name, current_user.id)
         if existing_variable:
             raise HTTPException(
                 status_code=400, 
                 detail=f"Variable with name '{variable_data.name}' already exists"
             )
         
-        variable = await variable_service.create_variable(db, variable_data)
+        variable = await variable_service.create_variable(db, variable_data, current_user.id)
         return variable
     except HTTPException:
         raise
@@ -146,9 +146,13 @@ async def update_variable(
         if not variable:
             raise HTTPException(status_code=404, detail="Variable not found")
         
-        # Check if name is being changed and if new name already exists
+        # Check if user owns this variable
+        if variable.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to update this variable")
+        
+        # Check if name is being changed and if new name already exists for this user
         if variable_data.name and variable_data.name != variable.name:
-            existing_variable = await variable_service.get_by_name(db, variable_data.name)
+            existing_variable = await variable_service.get_by_name_and_user(db, variable_data.name, current_user.id)
             if existing_variable:
                 raise HTTPException(
                     status_code=400,
@@ -178,6 +182,10 @@ async def delete_variable(
         variable = await variable_service.get(db, variable_id)
         if not variable:
             raise HTTPException(status_code=404, detail="Variable not found")
+        
+        # Check if user owns this variable
+        if variable.user_id != current_user.id:
+            raise HTTPException(status_code=403, detail="Not authorized to delete this variable")
         
         await variable_service.remove(db, id=variable_id)
         return {"message": "Variable deleted successfully"}
