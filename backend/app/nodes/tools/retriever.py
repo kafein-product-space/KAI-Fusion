@@ -58,6 +58,9 @@ This provider can be connected to:
 
 from typing import Dict, Any, Optional, List
 import logging
+import sys
+import os
+import locale
 from langchain_core.runnables import Runnable
 from langchain_core.retrievers import BaseRetriever
 from langchain_core.documents import Document
@@ -79,8 +82,10 @@ except ImportError:
 from langchain.retrievers import ContextualCompressionRetriever
 
 from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
+from app.core.logging_config import get_colored_logger
 
 logger = logging.getLogger(__name__)
+colored_logger = get_colored_logger("retrieval_provider")
 
 def _check_schema_compatibility(connection_string: str) -> bool:
     """Check if the database schema is compatible with the new API."""
@@ -322,11 +327,36 @@ class RetrieverNode(ProviderNode):
         from langchain_core.tools import Tool
         
         def retrieve_func(query: str) -> str:
-            """Core retrieval function."""
+            """Core retrieval function with Turkish character support."""
             try:
+                # 🔧 FIX: Set proper encoding for Turkish characters
+                try:
+                    # Force UTF-8 encoding for all string operations
+                    if hasattr(sys.stdout, 'reconfigure'):
+                        sys.stdout.reconfigure(encoding='utf-8')
+                    if hasattr(sys.stderr, 'reconfigure'):
+                        sys.stderr.reconfigure(encoding='utf-8')
+
+                    # Set environment variables for UTF-8
+                    os.environ['PYTHONIOENCODING'] = 'utf-8'
+                    os.environ['LANG'] = 'tr_TR.UTF-8'
+                    os.environ['LC_ALL'] = 'tr_TR.UTF-8'
+
+                    # Force locale to handle Turkish characters properly
+                    try:
+                        locale.setlocale(locale.LC_ALL, 'Turkish_Türkiye.utf8')
+                    except locale.Error:
+                        try:
+                            locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
+                        except locale.Error:
+                            pass  # If locale setting fails, continue anyway
+
+                except Exception as encoding_error:
+                    print(f"[WARNING] Retriever encoding setup failed: {encoding_error}")
+
                 if not query or not query.strip():
                     return "Invalid query: Please provide a non-empty search query."
-                
+
                 # Clean and optimize query for retrieval
                 cleaned_query = query.strip()
                 
@@ -346,20 +376,21 @@ class RetrieverNode(ProviderNode):
                     try:
                         # Extract and clean content
                         content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
-                        
-                        # Smart content truncation with context preservation
-                        if len(content) > 500:
-                            # Try to truncate at sentence boundary
-                            truncated = content[:500]
+
+                        # Enhanced content handling with more comprehensive information
+                        if len(content) > 2000:
+                            # Try to truncate at sentence boundary for longer content
+                            truncated = content[:2000]
                             last_period = truncated.rfind('.')
                             last_space = truncated.rfind(' ')
-                            
-                            if last_period > 400:  # Good sentence boundary found
+
+                            if last_period > 1800:  # Good sentence boundary found
                                 content = truncated[:last_period + 1] + "..."
-                            elif last_space > 400:  # Good word boundary found
+                            elif last_space > 1800:  # Good word boundary found
                                 content = truncated[:last_space] + "..."
                             else:  # Hard truncation
                                 content = truncated + "..."
+                        # For shorter content, keep it as is for maximum detail
                         
                         # Extract metadata if available
                         metadata_info = ""
@@ -367,23 +398,51 @@ class RetrieverNode(ProviderNode):
                             source = doc.metadata.get('source', '')
                             if source:
                                 metadata_info = f" (Source: {source})"
-                        
-                        # Format individual result
-                        result_text = f"Document {i+1}{metadata_info}:\n{content}"
-                        results.append(result_text)
+
+                            # Enhanced formatting with more detailed information
+                            result_text = f"""=== DOKÜMAN {i+1} ==={metadata_info}
+İÇERİK:
+{content}
+
+---
+"""
+                            results.append(result_text)
                         
                     except Exception as doc_error:
                         # Handle individual document processing errors
                         results.append(f"Document {i+1}: Error processing document - {str(doc_error)}")
                 
-                # Combine all results with clear separation
+                # Combine all results with enhanced formatting
                 final_result = "\n\n".join(results)
-                
-                # Add result summary for agent context
-                result_summary = f"Found {len(docs)} documents, showing top {len(results)} results:\n\n{final_result}"
-                
+
+                # Enhanced result summary with more comprehensive information
+                result_summary = f"""🔍 ARAMA SONUÇLARI
+Toplam bulunan doküman sayısı: {len(docs)}
+Gösterilen doküman sayısı: {len(results)}
+
+{final_result}
+
+📊 ARAMA ÖZETİ:
+- Bu sonuçlar, '{cleaned_query}' sorgusu için en alakalı dokümanları içerir
+- Her dokümandaki detaylı bilgiler agent tarafından analiz edilecektir
+- Dokümanlar önem sırasına göre sıralanmıştır"""
+
+                # Log retrieval tool response in yellow
+                colored_logger.yellow(f"🔍 RETRIEVAL TOOL RESPONSE | Query: '{cleaned_query}' | Documents found: {len(docs)} | Response length: {len(result_summary)} chars")
+                colored_logger.yellow(f"📄 Response preview: {result_summary[:200]}{'...' if len(result_summary) > 200 else ''}")
+
                 return result_summary
                 
+            except UnicodeEncodeError as unicode_error:
+                # Specific handling for Turkish character encoding errors
+                error_msg = (
+                    f"Türkçe karakter encoding hatası: '{query}' sorgusu işlenirken hata oluştu. "
+                    f"Hata detayı: {str(unicode_error)}. "
+                    "Lütfen sorgunuzu kontrol edin ve Türkçe karakterleri doğru kullandığınızdan emin olun."
+                )
+                colored_logger.yellow(f"❌ RETRIEVAL TOOL TURKISH ENCODING ERROR | Query: '{query}' | Error: {str(unicode_error)}")
+                return error_msg
+
             except Exception as e:
                 # Comprehensive error handling with actionable feedback
                 error_msg = (
@@ -391,7 +450,10 @@ class RetrieverNode(ProviderNode):
                     "This might be due to retriever configuration issues or temporary service unavailability. "
                     "Try rephrasing your query or contact system administrator if the issue persists."
                 )
-                
+
+                # Log error for debugging
+                colored_logger.yellow(f"❌ RETRIEVAL TOOL ERROR | Query: '{query}' | Error: {str(e)}")
+
                 return error_msg
         
         # Create and return the configured tool
