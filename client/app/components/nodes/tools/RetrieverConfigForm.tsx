@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Settings, Search, Filter } from "lucide-react";
 import JSONEditor from "~/components/common/JSONEditor";
-
+import CredentialSelector from "~/components/credentials/CredentialSelector";
+import { useUserCredentialStore } from "~/stores/userCredential";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
 // Standard props interface matching other config forms
 interface RetrieverConfigFormProps {
   configData: any;
@@ -15,9 +17,16 @@ export default function RetrieverConfigForm({
   onSave,
   onCancel,
 }: RetrieverConfigFormProps) {
-  
+  const { userCredentials, fetchCredentials } = useUserCredentialStore();
+
+  // Fetch credentials on component mount
+  useEffect(() => {
+    fetchCredentials();
+  }, [fetchCredentials]);
+
   // Default values for missing fields
   const initialValues = {
+    credential_id: configData?.credential_id || "",
     database_connection: configData?.database_connection || "",
     collection_name: configData?.collection_name || "",
     search_k: configData?.search_k || 6,
@@ -78,6 +87,111 @@ export default function RetrieverConfigForm({
               <div className="flex items-center gap-2 text-sm font-semibold text-blue-400 uppercase tracking-wider">
                 <Search className="w-4 h-4" />
                 Search Configuration
+              </div>
+              {/* Credential ID */}
+              <div>
+                <label className="text-white text-sm font-medium mb-2 block">
+                  Select Credential
+                </label>
+                <CredentialSelector
+                  value={values.credential_id}
+                  onChange={async (credentialId) => {
+                    setFieldValue("credential_id", credentialId);
+                    if (credentialId) {
+                      try {
+                        const credentialSecret = await getUserCredentialSecret(
+                          credentialId
+                        );
+                        const secret = credentialSecret?.secret || {};
+                        // Prefer direct connection_string if provided
+                        if (secret.connection_string) {
+                          setFieldValue(
+                            "database_connection",
+                            secret.connection_string
+                          );
+                        } else {
+                          // Build connection string from discrete fields if possible
+                          const host = secret.host;
+                          const port = secret.port;
+                          const database = secret.database;
+                          const username = secret.username;
+                          const password = secret.password;
+                          if (
+                            host &&
+                            port &&
+                            database &&
+                            username &&
+                            typeof password !== "undefined"
+                          ) {
+                            const userEnc = encodeURIComponent(username);
+                            const passEnc = encodeURIComponent(password);
+                            const builtConn = `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
+                            setFieldValue("database_connection", builtConn);
+                          }
+                        }
+
+                        // Optional convenience fills
+                        if (secret.collection_name) {
+                          setFieldValue(
+                            "collection_name",
+                            secret.collection_name
+                          );
+                        }
+                        if (secret.table_prefix) {
+                          setFieldValue("table_prefix", secret.table_prefix);
+                        }
+                      } catch (error) {
+                        console.error(
+                          "Failed to fetch credential secret:",
+                          error
+                        );
+                      }
+                    }
+                  }}
+                  onCredentialLoad={(secret) => {
+                    if (!secret) return;
+                    if (secret.connection_string) {
+                      setFieldValue(
+                        "database_connection",
+                        secret.connection_string
+                      );
+                    } else {
+                      const host = secret.host;
+                      const port = secret.port;
+                      const database = secret.database;
+                      const username = secret.username;
+                      const password = secret.password;
+                      if (
+                        host &&
+                        port &&
+                        database &&
+                        username &&
+                        typeof password !== "undefined"
+                      ) {
+                        const userEnc = encodeURIComponent(username);
+                        const passEnc = encodeURIComponent(password);
+                        const builtConn = `postgresql://${userEnc}:${passEnc}@${host}:${port}/${database}`;
+                        setFieldValue("database_connection", builtConn);
+                      }
+                    }
+
+                    if (secret.collection_name) {
+                      setFieldValue("collection_name", secret.collection_name);
+                    }
+                    if (secret.table_prefix) {
+                      setFieldValue("table_prefix", secret.table_prefix);
+                    }
+                  }}
+                  serviceType="postgresql_vectorstore"
+                  placeholder="Select Credential"
+                  showCreateNew={true}
+                  className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                />
+                <ErrorMessage
+                  name="credential_id"
+                  component="div"
+                  className="text-red-400 text-sm mt-1"
+                />
               </div>
 
               {/* Database Connection */}
@@ -147,7 +261,10 @@ export default function RetrieverConfigForm({
               {/* Search K */}
               <div>
                 <label className="text-white text-sm font-medium mb-2 block">
-                  Search K: <span className="text-blue-400 font-mono">{values.search_k}</span>
+                  Search K:{" "}
+                  <span className="text-blue-400 font-mono">
+                    {values.search_k}
+                  </span>
                 </label>
                 <Field
                   name="search_k"
@@ -172,7 +289,10 @@ export default function RetrieverConfigForm({
               {/* Score Threshold */}
               <div>
                 <label className="text-white text-sm font-medium mb-2 block">
-                  Score Threshold: <span className="text-purple-400 font-mono">{values.score_threshold.toFixed(2)}</span>
+                  Score Threshold:{" "}
+                  <span className="text-purple-400 font-mono">
+                    {values.score_threshold.toFixed(2)}
+                  </span>
                 </label>
                 <Field
                   name="score_threshold"
@@ -233,7 +353,9 @@ export default function RetrieverConfigForm({
                   </label>
                   <JSONEditor
                     value={values.metadata_filter || "{}"}
-                    onChange={(value) => setFieldValue("metadata_filter", value)}
+                    onChange={(value) =>
+                      setFieldValue("metadata_filter", value)
+                    }
                     placeholder='{"data_type": "products", "category": "electronics"}'
                     description="Filter documents by metadata (JSON format)"
                     height={120}
@@ -270,7 +392,6 @@ export default function RetrieverConfigForm({
                 </div>
               )}
             </div>
-
           </Form>
         )}
       </Formik>
