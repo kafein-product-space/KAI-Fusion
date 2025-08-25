@@ -16,31 +16,57 @@ export default function DocumentChunkSplitterConfigForm({
   initialValues,
   validate,
   onSubmit,
+  onSave,
   onCancel,
-}: DocumentChunkSplitterConfigFormProps) {
-  return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Scissors className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Document Chunk Splitter
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
+  configData,
+}: DocumentChunkSplitterConfigFormProps & { configData?: any; onSave?: any }) {
 
+  const defaultInitialValues = {
+    chunkSize: 1000,
+    overlap: 200,
+    separator: "\\n\\n",
+    keepSeparator: true,
+    lengthFunction: "len",
+    isSeparatorRegex: false,
+    ...(initialValues || configData)
+  };
+
+  const defaultValidate = validate || ((values: any) => {
+    const errors: any = {};
+    if (!values.chunkSize || values.chunkSize < 100 || values.chunkSize > 10000) {
+      errors.chunkSize = "Chunk size must be between 100 and 10000";
+    }
+    if (values.overlap < 0 || values.overlap > 5000) {
+      errors.overlap = "Overlap must be between 0 and 5000";
+    }
+    return errors;
+  });
+
+  const actualOnSubmit = onSubmit || onSave;
+  return (
+    <div className="w-full h-full">
       <Formik
-        initialValues={initialValues}
-        validate={validate}
-        onSubmit={onSubmit}
+        initialValues={defaultInitialValues}
+        validate={defaultValidate}
+        onSubmit={(values, actions) => {
+          console.log("DocumentChunkSplitter form submitting with values:", values);
+          try {
+            if (typeof actualOnSubmit === 'function') {
+              actualOnSubmit(values, actions);
+            } else {
+              console.error("actualOnSubmit is not a function:", actualOnSubmit);
+            }
+          } catch (error) {
+            console.error("Error in onSubmit:", error);
+          }
+        }}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-8 w-full p-6">
             {/* Chunk Size */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Chunk Size
               </label>
               <Field
@@ -48,24 +74,24 @@ export default function DocumentChunkSplitterConfigForm({
                 type="number"
                 min={100}
                 max={10000}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 placeholder="1000"
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Number of characters per chunk (100-10000)
               </div>
               <ErrorMessage
                 name="chunkSize"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Overlap */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Overlap
               </label>
               <Field
@@ -73,78 +99,78 @@ export default function DocumentChunkSplitterConfigForm({
                 type="number"
                 min={0}
                 max={5000}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 placeholder="200"
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Number of characters to overlap between chunks (0-5000)
               </div>
               <ErrorMessage
                 name="overlap"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Separator */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Separator
               </label>
               <Field
                 name="separator"
                 type="text"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 placeholder="\n\n"
               />
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Character or string to split on (default: double newline)
               </div>
               <ErrorMessage
                 name="separator"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Keep Separator */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Keep Separator
               </label>
               <Field
                 as="select"
                 name="keepSeparator"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
                 <option value={true}>Yes</option>
                 <option value={false}>No</option>
               </Field>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Whether to keep the separator in the chunks
               </div>
               <ErrorMessage
                 name="keepSeparator"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Length Function */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Length Function
               </label>
               <Field
                 as="select"
                 name="lengthFunction"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -152,62 +178,41 @@ export default function DocumentChunkSplitterConfigForm({
                 <option value="tokenizer">Token Count</option>
                 <option value="custom">Custom Function</option>
               </Field>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Function to measure chunk length
               </div>
               <ErrorMessage
                 name="lengthFunction"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Is Separator Regex */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Use Regex Separator
               </label>
               <Field
                 as="select"
                 name="isSeparatorRegex"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
                 <option value={false}>No</option>
                 <option value={true}>Yes</option>
               </Field>
-              <div className="text-xs text-gray-400 mt-1">
+              <div className="text-sm text-gray-400 mt-2">
                 Treat separator as regular expression
               </div>
               <ErrorMessage
                 name="isSeparatorRegex"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✕
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-orange-600 rounded text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✓
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

@@ -3,7 +3,13 @@ import React, { useRef, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useSnackbar } from "notistack";
 import { Settings, Database, Key, Lock } from "lucide-react";
-import type { DocumentLoaderConfigFormProps } from "./types";
+
+// Standard props interface matching other config forms
+interface DocumentLoaderConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
 
 interface FileItem {
   name: string;
@@ -13,16 +19,57 @@ interface FileItem {
 }
 
 export default function DocumentLoaderConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: DocumentLoaderConfigFormProps) {
   const { enqueueSnackbar } = useSnackbar();
+  
+  // Default values for missing fields
+  const initialValues = {
+    drive_links: configData?.drive_links || "",
+    google_drive_auth_type: configData?.google_drive_auth_type || "service_account",
+    service_account_json: configData?.service_account_json || "",
+    oauth2_client_id: configData?.oauth2_client_id || "",
+    oauth2_client_secret: configData?.oauth2_client_secret || "",
+    supported_formats: configData?.supported_formats || ["txt", "json", "docx", "pdf"],
+    min_content_length: configData?.min_content_length || 100,
+    max_file_size_mb: configData?.max_file_size_mb || 100,
+    quality_threshold: configData?.quality_threshold || 0.5,
+    storage_enabled: configData?.storage_enabled ?? true,
+    deduplicate: configData?.deduplicate ?? true,
+  };
+  
   const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
   const [authType, setAuthType] = useState(
     initialValues.google_drive_auth_type || "service_account"
   );
+  
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.drive_links) {
+      errors.drive_links = "At least one Google Drive link is required";
+    }
+    if (values.min_content_length < 1) {
+      errors.min_content_length = "Min content length must be at least 1";
+    }
+    if (values.max_file_size_mb < 1 || values.max_file_size_mb > 1000) {
+      errors.max_file_size_mb = "Max file size must be between 1 and 1000 MB";
+    }
+    if (authType === "service_account" && !values.service_account_json) {
+      errors.service_account_json = "Service account JSON is required";
+    }
+    if (authType === "oauth2") {
+      if (!values.oauth2_client_id) {
+        errors.oauth2_client_id = "Client ID is required for OAuth2";
+      }
+      if (!values.oauth2_client_secret) {
+        errors.oauth2_client_secret = "Client Secret is required for OAuth2";
+      }
+    }
+    return errors;
+  };
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -143,8 +190,8 @@ export default function DocumentLoaderConfigForm({
         }
       );
 
-      // Call the original onSubmit
-      await onSubmit(values);
+      // Call the original onSave
+      await onSave(values);
 
       // Show success message
       enqueueSnackbar("Google Drive Document Loader başarıyla kaydedildi! 🎉", {
@@ -172,10 +219,7 @@ export default function DocumentLoaderConfigForm({
       </div>
 
       <Formik
-        initialValues={{
-          ...initialValues,
-          google_drive_auth_type: authType,
-        }}
+        initialValues={initialValues}
         validate={validate}
         onSubmit={handleSaveConfig}
         enableReinitialize={true}

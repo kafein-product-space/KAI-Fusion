@@ -5,6 +5,35 @@ import { getUserCredentialSecret } from "~/services/userCredentialService";
 import { useEffect } from "react";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Custom CSS for range slider
+const sliderStyle = `
+  .slider::-webkit-slider-thumb {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3B82F6;
+    cursor: pointer;
+    border: 2px solid #1E40AF;
+  }
+  
+  .slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: #3B82F6;
+    cursor: pointer;
+    border: 2px solid #1E40AF;
+  }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement("style");
+  styleSheet.innerText = sliderStyle;
+  document.head.appendChild(styleSheet);
+}
+
 interface ChatConfigFormProps {
   configData: any;
   onSave: (values: any) => void;
@@ -24,15 +53,7 @@ export default function ChatConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Brain className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">OpenAI Chat</span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={{
           model_name: configData.model_name || "gpt-4o",
@@ -47,21 +68,23 @@ export default function ChatConfigForm({
         validateOnBlur={true}
         validate={(values) => {
           const errors: any = {};
-          // Only validate API key if it's not empty (allow empty for initial state)
-          if (values.api_key && values.api_key.trim() === "") {
-            errors.api_key = "API key is required";
+          // API key is only required if no credential is selected
+          if (!values.credential_id && (!values.api_key || values.api_key.trim() === "")) {
+            errors.api_key = "API key is required when no credential is selected";
           }
           if (values.temperature < 0 || values.temperature > 2)
             errors.temperature = "Temperature must be between 0 and 2";
+          if (!values.max_tokens || values.max_tokens < 1 || values.max_tokens > 4096)
+            errors.max_tokens = "Max tokens must be between 1 and 4096";
           return errors;
         }}
         onSubmit={(values) => onSave(values)}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-8 w-full h-full">
             {/* Credential ID */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Credential
               </label>
               <CredentialSelector
@@ -97,43 +120,43 @@ export default function ChatConfigForm({
                 serviceType="openai"
                 placeholder="Select Credential"
                 showCreateNew={true}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
               <ErrorMessage
                 name="credential_id"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* API Key */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                API Key
+              <label className="text-white text-sm font-medium mb-2 block">
+                API Key {values.credential_id && <span className="text-gray-400">(optional if using credential)</span>}
               </label>
               <Field
                 name="api_key"
                 type="password"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="api_key"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Model */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Model
               </label>
               <Field
                 as="select"
                 name="model_name"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -146,14 +169,14 @@ export default function ChatConfigForm({
               <ErrorMessage
                 name="model_name"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Temperature */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
-                Temperature
+              <label className="text-white text-sm font-medium mb-2 block">
+                Temperature: <span className="text-blue-400 font-mono">{values.temperature}</span>
               </label>
               <Field
                 name="temperature"
@@ -161,63 +184,40 @@ export default function ChatConfigForm({
                 min={0}
                 max={2}
                 step={0.1}
-                className="w-full text-white"
+                className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
-                <span>0</span>
-                <span className="font-bold text-blue-400">
-                  {values.temperature}
-                </span>
-                <span>2</span>
+              <div className="flex justify-between text-sm text-gray-400 mt-2">
+                <span>Precise (0)</span>
+                <span>Creative (2)</span>
               </div>
               <ErrorMessage
                 name="temperature"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Max Tokens */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Max Tokens
               </label>
               <Field
                 name="max_tokens"
                 type="number"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                min="1"
+                max="4096"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="max_tokens"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
-            </div>
-
-            {/* Buttons */}
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✕
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✓
-              </button>
             </div>
           </Form>
         )}

@@ -4,15 +4,46 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Settings, Filter, Key } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
-import type { CohereRerankerConfigFormProps } from "./types";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Standard props interface matching other config forms
+interface CohereRerankerConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
 export default function CohereRerankerConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: CohereRerankerConfigFormProps) {
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    cohere_api_key: configData?.cohere_api_key || "",
+    model: configData?.model || "rerank-english-v3.0",
+    top_n: configData?.top_n || 10,
+    max_chunks_per_doc: configData?.max_chunks_per_doc || 10,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.cohere_api_key) {
+      errors.cohere_api_key = "API key is required";
+    }
+    if (!values.model) {
+      errors.model = "Model is required";
+    }
+    if (values.top_n < 1 || values.top_n > 20) {
+      errors.top_n = "Top N must be between 1 and 20";
+    }
+    if (values.max_chunks_per_doc < 1 || values.max_chunks_per_doc > 50) {
+      errors.max_chunks_per_doc = "Max chunks per doc must be between 1 and 50";
+    }
+    return errors;
+  };
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
   // Fetch credentials on component mount
@@ -21,28 +52,18 @@ export default function CohereRerankerConfigForm({
   }, [fetchCredentials]);
 
   return (
-    <div className="relative p-2 w-64 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Filter className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Cohere Reranker
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSubmit}
+        onSubmit={onSave}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-8 w-full p-6">
             {/* Credential ID */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Select Credential
               </label>
               <CredentialSelector
@@ -78,43 +99,43 @@ export default function CohereRerankerConfigForm({
                 serviceType="cohere"
                 placeholder="Select Credential"
                 showCreateNew={true}
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
               />
               <ErrorMessage
                 name="credential_id"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* API Key */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 API Key
               </label>
               <Field
                 name="cohere_api_key"
                 type="password"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
               <ErrorMessage
                 name="cohere_api_key"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Model */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Model
               </label>
               <Field
                 as="select"
                 name="model"
-                className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
@@ -130,13 +151,13 @@ export default function CohereRerankerConfigForm({
               <ErrorMessage
                 name="model"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Top N */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Top N
               </label>
               <Field
@@ -144,11 +165,11 @@ export default function CohereRerankerConfigForm({
                 type="range"
                 min={1}
                 max={20}
-                className="w-full text-white"
+                className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
+              <div className="flex justify-between text-sm text-gray-400 mt-2">
                 <span>1</span>
                 <span className="font-bold text-blue-400">{values.top_n}</span>
                 <span>20</span>
@@ -156,13 +177,13 @@ export default function CohereRerankerConfigForm({
               <ErrorMessage
                 name="top_n"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Max Chunks Per Doc */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Max Chunks Per Doc
               </label>
               <Field
@@ -170,11 +191,11 @@ export default function CohereRerankerConfigForm({
                 type="range"
                 min={1}
                 max={50}
-                className="w-full text-white"
+                className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               />
-              <div className="flex justify-between text-xs text-gray-300 mt-1">
+              <div className="flex justify-between text-sm text-gray-400 mt-2">
                 <span>1</span>
                 <span className="font-bold text-green-400">
                   {values.max_chunks_per_doc}
@@ -184,31 +205,10 @@ export default function CohereRerankerConfigForm({
               <ErrorMessage
                 name="max_chunks_per_doc"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
-            {/* Buttons */}
-            <div className="flex space-x-2">
-              <button
-                type="button"
-                onClick={onCancel}
-                className="text-xs px-2 py-1 bg-slate-700 rounded"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✕
-              </button>
-              <button
-                type="submit"
-                disabled={isSubmitting || Object.keys(errors).length > 0}
-                className="text-xs px-2 py-1 bg-blue-600 rounded text-white"
-                onMouseDown={(e: any) => e.stopPropagation()}
-                onTouchStart={(e: any) => e.stopPropagation()}
-              >
-                ✓
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

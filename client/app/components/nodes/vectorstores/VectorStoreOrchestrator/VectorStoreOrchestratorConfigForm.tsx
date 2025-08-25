@@ -11,19 +11,62 @@ import {
   Zap,
   Info,
 } from "lucide-react";
-import type { VectorStoreOrchestratorConfigFormProps } from "./types";
 import JSONEditor from "~/components/common/JSONEditor";
 import TabNavigation from "~/components/common/TabNavigation";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 
+// Standard props interface matching other config forms
+interface VectorStoreOrchestratorConfigFormProps {
+  configData: any;
+  onSave: (values: any) => void;
+  onCancel: () => void;
+}
+
 export default function VectorStoreOrchestratorConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
 }: VectorStoreOrchestratorConfigFormProps) {
+  // Default values for missing fields
+  const initialValues = {
+    credential_id: configData?.credential_id || "",
+    connection_string: configData?.connection_string || "",
+    collection_name: configData?.collection_name || "",
+    table_prefix: configData?.table_prefix || "",
+    custom_metadata: configData?.custom_metadata || "{}",
+    preserve_document_metadata: configData?.preserve_document_metadata ?? true,
+    metadata_strategy: configData?.metadata_strategy || "merge",
+    search_algorithm: configData?.search_algorithm || "cosine",
+    search_k: configData?.search_k || 10,
+    score_threshold: configData?.score_threshold || 0.0,
+    batch_size: configData?.batch_size || 100,
+    pre_delete_collection: configData?.pre_delete_collection ?? false,
+    enable_hnsw_index: configData?.enable_hnsw_index ?? true,
+  };
+
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+
+    if (!values.collection_name) {
+      errors.collection_name = "Collection name is required";
+    }
+    if (!values.connection_string) {
+      errors.connection_string = "Connection string is required";
+    }
+    // Validate JSON metadata
+    if (values.custom_metadata) {
+      try {
+        JSON.parse(values.custom_metadata);
+      } catch (e) {
+        errors.custom_metadata = "Invalid JSON format";
+      }
+    }
+
+    return errors;
+  };
   const [activeTab, setActiveTab] = useState("data");
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
@@ -54,23 +97,12 @@ export default function VectorStoreOrchestratorConfigForm({
   ];
 
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Layers className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Vector Store Orchestrator
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
-          console.log("Form submitted with values:", values);
-          onSubmit(values);
+          onSave(values);
           setSubmitting(false);
         }}
         enableReinitialize
@@ -92,28 +124,32 @@ export default function VectorStoreOrchestratorConfigForm({
           };
 
           return (
-            <Form className="space-y-3 w-full p-3" onSubmit={handleSubmit}>
+            <Form
+              className="space-y-6 w-full h-full"
+              onSubmit={handleSubmit}
+              id="vectorstore-config-form"
+            >
               {/* Tab Navigation */}
               <TabNavigation
                 tabs={tabs}
                 activeTab={activeTab}
                 onTabChange={handleTabChange}
-                className="mb-4"
+                className="mb-6"
               />
 
               {/* Tab Content */}
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {/* Data Configuration Tab */}
                 {activeTab === "data" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
-                      <Database className="w-3 h-3" />
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 text-sm font-semibold text-blue-400 uppercase tracking-wider">
+                      <Database className="w-5 h-5" />
                       Data Configuration
                     </div>
 
                     {/* Credential ID */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Select Credential
                       </label>
                       <CredentialSelector
@@ -160,7 +196,10 @@ export default function VectorStoreOrchestratorConfigForm({
                                 );
                               }
                               if (secret.table_prefix) {
-                                setFieldValue("table_prefix", secret.table_prefix);
+                                setFieldValue(
+                                  "table_prefix",
+                                  secret.table_prefix
+                                );
                               }
                             } catch (error) {
                               console.error(
@@ -198,7 +237,10 @@ export default function VectorStoreOrchestratorConfigForm({
                           }
 
                           if (secret.collection_name) {
-                            setFieldValue("collection_name", secret.collection_name);
+                            setFieldValue(
+                              "collection_name",
+                              secret.collection_name
+                            );
                           }
                           if (secret.table_prefix) {
                             setFieldValue("table_prefix", secret.table_prefix);
@@ -207,53 +249,53 @@ export default function VectorStoreOrchestratorConfigForm({
                         serviceType="postgresql_vectorstore"
                         placeholder="Select Credential"
                         showCreateNew={true}
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                       />
                       <ErrorMessage
                         name="credential_id"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Connection String */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Connection String
                       </label>
                       <Field
                         name="connection_string"
                         type="password"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
                       <ErrorMessage
                         name="connection_string"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Collection Name - Required */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Collection Name *
                       </label>
                       <Field
                         name="collection_name"
                         type="text"
                         placeholder="e.g., amazon_products, user_manuals, company_docs"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
                       <ErrorMessage
                         name="collection_name"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         Vector collection name - separates different datasets
                         (REQUIRED for data isolation)
                       </p>
@@ -261,23 +303,23 @@ export default function VectorStoreOrchestratorConfigForm({
 
                     {/* Table Prefix - New */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Table Prefix (Optional)
                       </label>
                       <Field
                         name="table_prefix"
                         type="text"
                         placeholder="e.g., project1_, client_a_"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
                       <ErrorMessage
                         name="table_prefix"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         Custom table prefix for complete database isolation
                         (optional)
                       </p>
@@ -287,27 +329,27 @@ export default function VectorStoreOrchestratorConfigForm({
 
                 {/* Metadata Configuration Tab */}
                 {activeTab === "metadata" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
-                      <Tag className="w-3 h-3" />
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 text-sm font-semibold text-purple-400 uppercase tracking-wider">
+                      <Tag className="w-5 h-5" />
                       Metadata Configuration
                     </div>
 
                     {/* Custom Metadata */}
                     <div className="relative">
-                      <div className="flex items-center gap-2 mb-2">
-                        <label className="text-white text-xs font-medium">
+                      <div className="flex items-center gap-3 mb-3">
+                        <label className="text-white text-sm font-medium">
                           Custom Metadata
                         </label>
                         <div className="relative group">
-                          <Info className="w-3 h-3 text-blue-400 cursor-help" />
-                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-slate-800 border border-slate-600 rounded-lg shadow-lg text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 w-80">
-                            <div className="space-y-2">
+                          <Info className="w-4 h-4 text-blue-400 cursor-help" />
+                          <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-4 py-3 bg-slate-800 border border-slate-600 rounded-lg shadow-lg text-sm text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-50 w-96">
+                            <div className="space-y-3">
                               <div>
                                 <strong className="text-blue-400">
                                   Recommended Format:
                                 </strong>
-                                <pre className="text-xs text-slate-300 bg-slate-900 p-2 rounded mt-1 overflow-x-auto">
+                                <pre className="text-sm text-slate-300 bg-slate-900 p-3 rounded mt-2 overflow-x-auto">
                                   {`{
   "source": "amazon_catalog",
   "category": "electronics", 
@@ -323,7 +365,7 @@ export default function VectorStoreOrchestratorConfigForm({
                                 <strong className="text-green-400">
                                   Common Fields:
                                 </strong>
-                                <ul className="text-xs text-slate-300 mt-1 space-y-1">
+                                <ul className="text-sm text-slate-300 mt-2 space-y-1">
                                   <li>
                                     • <code>source</code>: Data source
                                     identifier
@@ -359,43 +401,43 @@ export default function VectorStoreOrchestratorConfigForm({
                         }
                         placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}'
                         description="Custom metadata to add to all documents (JSON format)"
-                        height={80}
-                        error={errors.custom_metadata}
+                        height={120}
+                        error={errors.custom_metadata as string}
                       />
                     </div>
 
                     {/* Preserve Document Metadata */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-3 text-white text-sm font-medium mb-2">
                         <Field
                           name="preserve_document_metadata"
                           type="checkbox"
-                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                          className="w-5 h-5 text-blue-600 bg-slate-900/80 border border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                           onMouseDown={(e: any) => e.stopPropagation()}
                           onTouchStart={(e: any) => e.stopPropagation()}
                         />
                         Preserve Document Metadata
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-8">
                         Keep original document metadata alongside custom
                         metadata
                       </p>
                       <ErrorMessage
                         name="preserve_document_metadata"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Metadata Strategy */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Metadata Strategy
                       </label>
                       <Field
                         as="select"
                         name="metadata_strategy"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       >
@@ -407,13 +449,13 @@ export default function VectorStoreOrchestratorConfigForm({
                         </option>
                         <option value="document_only">Document Only</option>
                       </Field>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         How to handle metadata conflicts
                       </p>
                       <ErrorMessage
                         name="metadata_strategy"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
                   </div>
@@ -421,21 +463,21 @@ export default function VectorStoreOrchestratorConfigForm({
 
                 {/* Search Configuration Tab */}
                 {activeTab === "search" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-green-400 uppercase tracking-wider">
-                      <Search className="w-3 h-3" />
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-3 text-sm font-semibold text-green-400 uppercase tracking-wider">
+                      <Search className="w-5 h-5" />
                       Search Configuration
                     </div>
 
                     {/* Search Algorithm */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Search Algorithm
                       </label>
                       <Field
                         as="select"
                         name="search_algorithm"
-                        className="text-xs text-white px-2 py-1 rounded-lg w-full bg-slate-900/80 border"
+                        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       >
@@ -446,13 +488,13 @@ export default function VectorStoreOrchestratorConfigForm({
                       <ErrorMessage
                         name="search_algorithm"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Search K */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Search K
                       </label>
                       <Field
@@ -460,13 +502,13 @@ export default function VectorStoreOrchestratorConfigForm({
                         type="range"
                         min={1}
                         max={50}
-                        className="w-full text-white"
+                        className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer slider:bg-blue-500"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
-                      <div className="flex justify-between text-xs text-gray-300 mt-1">
+                      <div className="flex justify-between text-sm text-gray-300 mt-2">
                         <span>1</span>
-                        <span className="font-bold text-blue-400">
+                        <span className="font-bold text-blue-400 text-lg">
                           {values.search_k}
                         </span>
                         <span>50</span>
@@ -474,13 +516,13 @@ export default function VectorStoreOrchestratorConfigForm({
                       <ErrorMessage
                         name="search_k"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Score Threshold */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Score Threshold
                       </label>
                       <Field
@@ -489,13 +531,13 @@ export default function VectorStoreOrchestratorConfigForm({
                         min={0}
                         max={1}
                         step={0.1}
-                        className="w-full text-white"
+                        className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
-                      <div className="flex justify-between text-xs text-gray-300 mt-1">
+                      <div className="flex justify-between text-sm text-gray-300 mt-2">
                         <span>0.0</span>
-                        <span className="font-bold text-purple-400">
+                        <span className="font-bold text-purple-400 text-lg">
                           {values.score_threshold?.toFixed(1) || "0.0"}
                         </span>
                         <span>1.0</span>
@@ -503,13 +545,13 @@ export default function VectorStoreOrchestratorConfigForm({
                       <ErrorMessage
                         name="score_threshold"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Batch Size */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Batch Size
                       </label>
                       <Field
@@ -518,13 +560,13 @@ export default function VectorStoreOrchestratorConfigForm({
                         min={10}
                         max={1000}
                         step={10}
-                        className="w-full text-white"
+                        className="w-full h-3 bg-slate-700 rounded-lg appearance-none cursor-pointer"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                       />
-                      <div className="flex justify-between text-xs text-gray-300 mt-1">
+                      <div className="flex justify-between text-sm text-gray-300 mt-2">
                         <span>10</span>
-                        <span className="font-bold text-green-400">
+                        <span className="font-bold text-green-400 text-lg">
                           {values.batch_size}
                         </span>
                         <span>1000</span>
@@ -532,87 +574,55 @@ export default function VectorStoreOrchestratorConfigForm({
                       <ErrorMessage
                         name="batch_size"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Pre Delete Collection */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-3 text-white text-sm font-medium mb-2">
                         <Field
                           name="pre_delete_collection"
                           type="checkbox"
-                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                          className="w-5 h-5 text-blue-600 bg-slate-900/80 border border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                           onMouseDown={(e: any) => e.stopPropagation()}
                           onTouchStart={(e: any) => e.stopPropagation()}
                         />
                         Pre Delete Collection
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-8">
                         Delete existing collection before creating new one
                       </p>
                       <ErrorMessage
                         name="pre_delete_collection"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Enable HNSW Index */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-3 text-white text-sm font-medium mb-2">
                         <Field
                           name="enable_hnsw_index"
                           type="checkbox"
-                          className="w-3 h-3 text-blue-600 bg-slate-900/80 border rounded"
+                          className="w-5 h-5 text-blue-600 bg-slate-900/80 border border-gray-600 rounded focus:ring-blue-500 focus:ring-2"
                           onMouseDown={(e: any) => e.stopPropagation()}
                           onTouchStart={(e: any) => e.stopPropagation()}
                         />
                         Enable HNSW Index
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-8">
                         Use HNSW index for faster similarity search
                       </p>
                       <ErrorMessage
                         name="enable_hnsw_index"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
                   </div>
                 )}
-              </div>
-
-              {/* Buttons */}
-              <div className="flex space-x-2 pt-2 border-t border-slate-600/30">
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onCancel();
-                  }}
-                  className="text-xs px-2 py-1 bg-slate-700 rounded text-white hover:bg-slate-600 transition-colors"
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                >
-                  ✕
-                </button>
-                <button
-                  type="submit"
-                  disabled={
-                    isSubmitting || !isValid || Object.keys(errors).length > 0
-                  }
-                  className={`text-xs px-2 py-1 rounded text-white transition-colors ${
-                    isSubmitting || !isValid || Object.keys(errors).length > 0
-                      ? "bg-gray-500 cursor-not-allowed"
-                      : "bg-blue-600 hover:bg-blue-700"
-                  }`}
-                  onMouseDown={(e: any) => e.stopPropagation()}
-                  onTouchStart={(e: any) => e.stopPropagation()}
-                >
-                  {isSubmitting ? "..." : "✓"}
-                </button>
               </div>
             </Form>
           );

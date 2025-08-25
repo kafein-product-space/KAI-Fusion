@@ -20,40 +20,73 @@ import {
   ExternalLink,
   FileText,
 } from "lucide-react";
-import type { WebhookTriggerConfig } from "./types";
 import TabNavigation from "~/components/common/TabNavigation";
 
+// Standard props interface matching other config forms
 interface WebhookTriggerConfigFormProps {
-  initialValues: WebhookTriggerConfig;
-  validate: (values: WebhookTriggerConfig) => any;
-  onSubmit: (values: WebhookTriggerConfig) => void;
+  configData: any;
+  onSave: (values: any) => void;
   onCancel: () => void;
-  webhookEndpoint?: string;
-  webhookToken?: string;
-  events?: any[];
-  stats?: any;
-  isListening?: boolean;
-  onTestEvent?: () => void;
-  onStopListening?: () => void;
-  onCopyToClipboard?: (text: string, type: string) => void;
 }
 
 export default function WebhookTriggerConfigForm({
-  initialValues,
-  validate,
-  onSubmit,
+  configData,
+  onSave,
   onCancel,
-  webhookEndpoint,
-  webhookToken,
-  events,
-  stats,
-  isListening,
-  onTestEvent,
-  onStopListening,
-  onCopyToClipboard,
 }: WebhookTriggerConfigFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
+  
+  // Default values for missing fields
+  const initialValues = {
+    http_method: configData?.http_method || "POST",
+    authentication_required: configData?.authentication_required ?? false,
+    webhook_token: configData?.webhook_token || "",
+    allowed_event_types: configData?.allowed_event_types || "",
+    max_payload_size: configData?.max_payload_size || 1024,
+    rate_limit_per_minute: configData?.rate_limit_per_minute || 60,
+    enable_cors: configData?.enable_cors ?? true,
+    webhook_timeout: configData?.webhook_timeout || 30,
+    allowed_ips: configData?.allowed_ips || "",
+    max_concurrent_connections: configData?.max_concurrent_connections || 100,
+    connection_timeout: configData?.connection_timeout || 30,
+    enable_response_cache: configData?.enable_response_cache ?? false,
+    cache_duration: configData?.cache_duration || 300,
+    enable_websocket_broadcast: configData?.enable_websocket_broadcast ?? false,
+    realtime_channels: configData?.realtime_channels || "",
+    tenant_isolation: configData?.tenant_isolation ?? false,
+    tenant_header: configData?.tenant_header || "X-Tenant-ID",
+    circuit_breaker: configData?.circuit_breaker ?? false,
+  };
+
   const [currentValues, setCurrentValues] = useState(initialValues);
+  
+  // Validation function
+  const validate = (values: any) => {
+    const errors: any = {};
+    if (!values.max_payload_size || values.max_payload_size < 1) {
+      errors.max_payload_size = "Max payload size must be at least 1 KB";
+    }
+    if (!values.rate_limit_per_minute || values.rate_limit_per_minute < 0) {
+      errors.rate_limit_per_minute = "Rate limit must be at least 0";
+    }
+    if (!values.webhook_timeout || values.webhook_timeout < 5 || values.webhook_timeout > 300) {
+      errors.webhook_timeout = "Webhook timeout must be between 5 and 300 seconds";
+    }
+    return errors;
+  };
+  
+  // Mock data for testing features since these would come from backend
+  const webhookEndpoint = "http://localhost:8000/api/webhooks/trigger/123";
+  const events: any[] = [];
+  const stats: any = { total_events: 0 };
+  const isListening = false;
+  
+  // Mock functions for testing features
+  const onTestEvent = () => {};
+  const onStopListening = () => {};
+  const onCopyToClipboard = (text: string, type: string) => {
+    navigator.clipboard.writeText(text);
+  };
 
   const tabs = [
     {
@@ -136,48 +169,16 @@ export default function WebhookTriggerConfigForm({
   };
 
   return (
-    <div className="relative p-2 w-124 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Webhook className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Webhook Trigger
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={(values) => {
           setCurrentValues(values);
-          const errors: any = {};
-
-          if (!values.max_payload_size || values.max_payload_size < 1) {
-            errors.max_payload_size = "Max payload size must be at least 1 KB";
-          }
-
-          if (
-            !values.rate_limit_per_minute ||
-            values.rate_limit_per_minute < 0
-          ) {
-            errors.rate_limit_per_minute = "Rate limit must be at least 0";
-          }
-
-          if (
-            !values.webhook_timeout ||
-            values.webhook_timeout < 5 ||
-            values.webhook_timeout > 300
-          ) {
-            errors.webhook_timeout =
-              "Webhook timeout must be between 5 and 300 seconds";
-          }
-
-          return errors;
+          return validate(values);
         }}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSubmit(values);
+          onSave(values);
           setSubmitting(false);
         }}
         enableReinitialize
@@ -197,7 +198,7 @@ export default function WebhookTriggerConfigForm({
           };
 
           return (
-            <Form className="space-y-3 w-full p-3" onSubmit={handleSubmit}>
+            <Form className="space-y-8 w-full p-6" onSubmit={handleSubmit}>
               {/* Tab Navigation */}
               <TabNavigation
                 tabs={tabs}
@@ -207,24 +208,24 @@ export default function WebhookTriggerConfigForm({
               />
 
               {/* Tab Content */}
-              <div className="space-y-3">
+              <div className="space-y-6">
                 {/* Basic Configuration Tab */}
                 {activeTab === "basic" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-blue-400 uppercase tracking-wider">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-blue-400 uppercase tracking-wider">
                       <Settings className="w-3 h-3" />
                       <span>Basic Settings</span>
                     </div>
 
                     {/* HTTP Method */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         HTTP Method
                       </label>
                       <Field
                         as="select"
                         name="http_method"
-                        className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="select select-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                       >
                         <option value="POST">POST - JSON Body (Default)</option>
                         <option value="GET">GET - Query Parameters</option>
@@ -235,24 +236,24 @@ export default function WebhookTriggerConfigForm({
                         </option>
                         <option value="HEAD">HEAD - Headers Only</option>
                       </Field>
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         Choose the HTTP method for webhook requests
                       </p>
                       <ErrorMessage
                         name="http_method"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Authentication Required
                       </label>
                       <Field
                         as="select"
                         name="authentication_required"
-                        className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="select select-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                       >
                         <option value="true">Yes</option>
                         <option value="false">No</option>
@@ -260,43 +261,43 @@ export default function WebhookTriggerConfigForm({
                       <ErrorMessage
                         name="authentication_required"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     {/* Authentication Token - Only show if authentication is required */}
                     {currentValues.authentication_required && (
                       <div>
-                        <label className="text-white text-xs font-medium mb-1 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           Authentication Token
                         </label>
                         <Field
                           type="text"
                           name="webhook_token"
                           placeholder="Enter Bearer token for authentication"
-                          className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                          className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         />
-                        <p className="text-xs text-slate-400 mt-1">
+                        <p className="text-sm text-slate-400 mt-1">
                           This token will be used as Bearer token in
                           Authorization header
                         </p>
                         <ErrorMessage
                           name="webhook_token"
                           component="div"
-                          className="text-red-400 text-xs mt-1"
+                          className="text-red-400 text-sm mt-1"
                         />
                       </div>
                     )}
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Allowed Event Types
                       </label>
                       <Field
                         as="textarea"
                         name="allowed_event_types"
                         placeholder="user.created, order.completed, data.updated (comma-separated, empty = all)"
-                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         rows={2}
                       />
                     </div>
@@ -305,56 +306,56 @@ export default function WebhookTriggerConfigForm({
 
                 {/* Security Configuration Tab */}
                 {activeTab === "security" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-green-400 uppercase tracking-wider">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-green-400 uppercase tracking-wider">
                       <Shield className="w-3 h-3" />
                       <span>Security Settings</span>
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Max Payload Size (KB)
                       </label>
                       <Field
                         type="number"
                         name="max_payload_size"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="1"
                         max="10240"
                       />
                       <ErrorMessage
                         name="max_payload_size"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Rate Limit (per minute)
                       </label>
                       <Field
                         type="number"
                         name="rate_limit_per_minute"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="0"
                         max="1000"
                       />
                       <ErrorMessage
                         name="rate_limit_per_minute"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Enable CORS
                       </label>
                       <Field
                         as="select"
                         name="enable_cors"
-                        className="select select-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="select select-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                       >
                         <option value="true">Yes</option>
                         <option value="false">No</option>
@@ -362,48 +363,48 @@ export default function WebhookTriggerConfigForm({
                       <ErrorMessage
                         name="enable_cors"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Webhook Timeout (seconds)
                       </label>
                       <Field
                         type="number"
                         name="webhook_timeout"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="5"
                         max="300"
                       />
                       <ErrorMessage
                         name="webhook_timeout"
                         component="div"
-                        className="text-red-400 text-xs mt-1"
+                        className="text-red-400 text-sm mt-1"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Secret Token
                       </label>
                       <Field
                         type="password"
                         name="webhook_token"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         placeholder="Enter secret token"
                       />
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Allowed IPs (Optional)
                       </label>
                       <Field
                         as="textarea"
                         name="allowed_ips"
-                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         placeholder="192.168.1.1, 10.0.0.0/8"
                         rows={2}
                       />
@@ -413,38 +414,38 @@ export default function WebhookTriggerConfigForm({
 
                 {/* Advanced Configuration Tab */}
                 {activeTab === "advanced" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-purple-400 uppercase tracking-wider">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-purple-400 uppercase tracking-wider">
                       <Zap className="w-3 h-3" />
                       <span>Advanced Features</span>
                     </div>
 
                     {/* Performance Settings */}
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Max Concurrent Connections
                       </label>
                       <Field
                         type="number"
                         name="max_concurrent_connections"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="1"
                         max="1000"
                         placeholder="100"
                       />
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         Maximum number of concurrent webhook connections
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Connection Timeout (seconds)
                       </label>
                       <Field
                         type="number"
                         name="connection_timeout"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="5"
                         max="300"
                         placeholder="30"
@@ -453,7 +454,7 @@ export default function WebhookTriggerConfigForm({
 
                     {/* Caching Settings */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-2 text-white text-sm font-medium mb-1">
                         <Field
                           name="enable_response_cache"
                           type="checkbox"
@@ -461,19 +462,19 @@ export default function WebhookTriggerConfigForm({
                         />
                         Enable Response Caching
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-5">
                         Cache webhook responses for better performance
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Cache Duration (seconds)
                       </label>
                       <Field
                         type="number"
                         name="cache_duration"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         min="60"
                         max="3600"
                         placeholder="300"
@@ -482,7 +483,7 @@ export default function WebhookTriggerConfigForm({
 
                     {/* WebSocket Broadcasting */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-2 text-white text-sm font-medium mb-1">
                         <Field
                           name="enable_websocket_broadcast"
                           type="checkbox"
@@ -490,30 +491,30 @@ export default function WebhookTriggerConfigForm({
                         />
                         Enable WebSocket Broadcasting
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-5">
                         Broadcast webhook events via WebSocket
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Realtime Channels
                       </label>
                       <Field
                         as="textarea"
                         name="realtime_channels"
-                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         placeholder="admin, analytics, monitoring"
                         rows={2}
                       />
-                      <p className="text-xs text-slate-400 mt-1">
+                      <p className="text-sm text-slate-400 mt-1">
                         Comma-separated list of WebSocket channels
                       </p>
                     </div>
 
                     {/* Tenant Isolation */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-2 text-white text-sm font-medium mb-1">
                         <Field
                           name="tenant_isolation"
                           type="checkbox"
@@ -521,26 +522,26 @@ export default function WebhookTriggerConfigForm({
                         />
                         Enable Tenant Isolation
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-5">
                         Separate webhook processing per tenant
                       </p>
                     </div>
 
                     <div>
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Tenant Header
                       </label>
                       <Field
                         type="text"
                         name="tenant_header"
-                        className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 focus:ring-1 focus:ring-blue-500/20"
+                        className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20"
                         placeholder="X-Tenant-ID"
                       />
                     </div>
 
                     {/* Circuit Breaker */}
                     <div>
-                      <label className="flex items-center gap-2 text-white text-xs font-medium mb-1">
+                      <label className="flex items-center gap-2 text-white text-sm font-medium mb-1">
                         <Field
                           name="circuit_breaker"
                           type="checkbox"
@@ -548,7 +549,7 @@ export default function WebhookTriggerConfigForm({
                         />
                         Enable Circuit Breaker
                       </label>
-                      <p className="text-xs text-slate-400 ml-5">
+                      <p className="text-sm text-slate-400 ml-5">
                         Automatically handle failures and timeouts
                       </p>
                     </div>
@@ -557,21 +558,21 @@ export default function WebhookTriggerConfigForm({
 
                 {/* Testing & Events Tab */}
                 {activeTab === "testing" && (
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-xs font-semibold text-yellow-400 uppercase tracking-wider">
+                  <div className="space-y-6">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-yellow-400 uppercase tracking-wider">
                       <TestTube className="w-3 h-3" />
                       <span>Testing & Events</span>
                     </div>
 
                     {/* Webhook Endpoint Display */}
                     <div className="mb-3">
-                      <label className="text-white text-xs font-medium mb-1 block">
+                      <label className="text-white text-sm font-medium mb-2 block">
                         Webhook Endpoint
                       </label>
-                      <div className="bg-slate-800/50 p-3 rounded border border-slate-600/50">
+                      <div className="bg-slate-800/50 p-3 rounded border border-gray-600">
                         <div className="flex items-center gap-2 mb-2">
                           <Globe className="w-3 h-3 text-blue-400" />
-                          <span className="text-blue-400 text-xs font-semibold">
+                          <span className="text-blue-400 text-sm font-semibold">
                             Listening URL:
                           </span>
                         </div>
@@ -580,7 +581,7 @@ export default function WebhookTriggerConfigForm({
                             type="text"
                             value={webhookEndpoint || "Loading..."}
                             readOnly
-                            className="input input-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50 font-mono"
+                            className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 font-mono"
                           />
                           <button
                             type="button"
@@ -596,7 +597,7 @@ export default function WebhookTriggerConfigForm({
                             <Copy className="w-3 h-3" />
                           </button>
                         </div>
-                        <div className="text-slate-400 text-xs mt-2">
+                        <div className="text-slate-400 text-sm mt-2">
                           Send {initialValues.http_method || "POST"} requests to
                           this URL to trigger the webhook
                         </div>
@@ -627,7 +628,7 @@ export default function WebhookTriggerConfigForm({
                     </div>
 
                     {/* Stream Status */}
-                    <div className="bg-slate-800/50 p-2 rounded text-xs text-white mb-3">
+                    <div className="bg-slate-800/50 p-2 rounded text-sm text-white mb-3">
                       <div className="flex items-center gap-1 mb-1">
                         <Activity className="w-2 h-2 text-blue-400" />
                         <span>
@@ -653,14 +654,14 @@ export default function WebhookTriggerConfigForm({
                     {/* cURL Command */}
                     {webhookEndpoint && (
                       <div className="mb-3">
-                        <label className="text-white text-xs font-medium mb-1 block">
+                        <label className="text-white text-sm font-medium mb-2 block">
                           cURL Command
                         </label>
                         <div className="flex gap-2">
                           <textarea
                             value={generateCurlCommand()}
                             readOnly
-                            className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-xs rounded px-3 py-2 border border-slate-600/50"
+                            className="textarea textarea-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600"
                             rows={4}
                           />
                           <button
@@ -679,7 +680,7 @@ export default function WebhookTriggerConfigForm({
                     {/* Recent Events */}
                     {events && events.length > 0 && (
                       <div>
-                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                        <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
                           <FileText className="w-3 h-3" />
                           Recent Events ({events.length})
                         </label>
@@ -687,7 +688,7 @@ export default function WebhookTriggerConfigForm({
                           {events.slice(0, 3).map((event, index) => (
                             <div
                               key={index}
-                              className="bg-slate-800/50 p-2 rounded text-xs text-white"
+                              className="bg-slate-800/50 p-2 rounded text-sm text-white"
                             >
                               <div className="flex items-center gap-1">
                                 <Clock className="w-2 h-2 text-blue-400" />
@@ -714,11 +715,11 @@ export default function WebhookTriggerConfigForm({
                     {/* Statistics */}
                     {stats && (
                       <div>
-                        <label className="text-white text-xs font-medium mb-1 block flex items-center gap-2">
+                        <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
                           <BarChart3 className="w-3 h-3" />
                           Statistics
                         </label>
-                        <div className="bg-slate-800/50 p-2 rounded text-xs text-white space-y-1">
+                        <div className="bg-slate-800/50 p-2 rounded text-sm text-white space-y-1">
                           <div className="flex justify-between">
                             <span className="text-slate-400">
                               Total Events:
@@ -744,23 +745,6 @@ export default function WebhookTriggerConfigForm({
                 )}
               </div>
 
-              {/* Action Buttons */}
-              <div className="flex justify-end space-x-2 pt-3 border-t border-white/20">
-                <button
-                  type="button"
-                  onClick={onCancel}
-                  className="btn btn-sm btn-ghost text-slate-400 hover:text-white"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="btn btn-sm bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-400 hover:to-purple-500 text-white border-0"
-                >
-                  {isSubmitting ? "Saving..." : "Save"}
-                </button>
-              </div>
             </Form>
           );
         }}
