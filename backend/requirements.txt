@@ -1,81 +1,188 @@
 #Python 3.11
 # Web Framework
-fastapi>=0.104.0
-uvicorn[standard]>=0.24.0
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+starlette==0.47.3
 
 # Database
-sqlalchemy>=2.0.0
-asyncpg>=0.28.0
-alembic>=1.12.0
-psycopg2-binary>=2.9.0
-PyJWT>=2.8.0
+sqlalchemy==2.0.43
+asyncpg==0.30.0
+alembic==1.16.4
+psycopg2-binary==2.9.10
+psycopg==3.2.9
+psycopg-pool==3.2.6
+PyJWT==2.10.1
+
 # Vector Database
-pgvector>=0.2.0
+pgvector==0.3.6
+
 # Data Validation
-pydantic>=2.5.0
-pydantic-settings>=2.1.0
-email-validator>=2.1.0
+pydantic==2.11.7
+pydantic-core==2.33.2
+pydantic-settings==2.10.1
+email-validator==2.2.0
 
 # Authentication & Security
-python-jose[cryptography]>=3.3.0
+python-jose==3.5.0
 passlib==1.7.4
-bcrypt<4.1.0
-cryptography>=41.0.0
+bcrypt==4.0.1
+cryptography==45.0.6
 
 # AI/ML Framework
-langchain>=0.1.0
-langchain-core>=0.1.0
-langchain-community>=0.0.10
-langchain-openai>=0.0.5
-langchain-tavily>=0.2.0
-langchain-text-splitters>=0.3.0
-langgraph>=0.0.30
+langchain==0.3.27
+langchain-core==0.3.74
+langchain-community==0.3.27
+langchain-openai==0.3.31
+langchain-tavily==0.2.11
+langchain-text-splitters==0.3.9
+langchain-cohere==0.4.5
+langchain-postgres==0.0.15
+langgraph==0.6.6
+langgraph-checkpoint==2.1.1
+langgraph-prebuilt==0.6.4
+langgraph-sdk==0.2.3
+langsmith==0.4.16
+
 # Reranking and Compression
 cohere==5.12.0
-rank-bm25>=0.2.2
+rank-bm25==0.2.2
 
 # Scheduling and Triggers
-croniter>=1.4.0
-APScheduler>=3.10.0
-pytz>=2023.3
+croniter==6.0.0
+APScheduler==3.11.0
+pytz==2025.2
+tzdata==2025.2
+tzlocal==5.3.1
 
 # Environment
-python-dotenv>=1.0.0
+python-dotenv==1.1.1
 
 # HTTP Client
-httpx>=0.25.0
-requests>=2.31.0
+httpx==0.28.1
+httpx-sse==0.4.0
+httpcore==1.0.9
+requests==2.32.5
+requests-oauthlib==2.0.0
+requests-toolbelt==1.0.0
+aiohttp==3.12.15
+aiohappyeyeballs==2.6.1
+aiosignal==1.4.0
 
 # Template Engine
-jinja2>=3.1.0
+jinja2==3.1.6
 
-google-api-python-client>=2.100.0  # Google Drive API
-google-auth>=2.22.0
-google-auth-oauthlib>=1.0.0
-google-auth-httplib2>=0.1.0
-boto3>=1.34.0
+# Google APIs
+google-api-python-client==2.179.0
+google-auth==2.40.3
+google-auth-oauthlib==1.2.2
+google-auth-httplib2==0.2.0
+google-api-core==2.25.1
+googleapis-common-protos==1.70.0
+
+# AWS
+boto3==1.40.16
+botocore==1.40.16
+s3transfer==0.13.1
 
 # System Monitoring
-psutil>=5.9.0
+psutil==7.0.0
 
 # Additional utilities
-python-multipart>=0.0.6
+python-multipart==0.0.20
 
 # Document Processing
-PyPDF2>=3.0.0
-pdfplumber>=0.10.0
-python-docx>=0.8.11
+PyPDF2==3.0.1
+pdfplumber==0.11.7
+pdfminer.six==20250506
+pypdfium2==4.30.0
+python-docx==1.2.0
 
-# Testing (optional)
-pytest>=7.4.0
-pytest-asyncio>=0.21.0
+# Testing
+pytest==8.4.1
+pytest-asyncio==1.1.0
 
 # HTML Processing
-beautifulsoup4>=4.12.0
-lxml>=4.9.0
+beautifulsoup4==4.13.5
+lxml==6.0.1
+soupsieve==2.7
 
-# ML/Vector
-numpy>=1.24.0
-scikit-learn>=1.3.0
-langchain-cohere>=0.4.0  # Instead of legacy langchain.retrievers.document_compressors
-langchain-postgres>=0.0.15  # Instead of legacy langchain_community.vectorstores.PGVector
+# ML/Vector/AI
+numpy==2.3.2
+scikit-learn==1.7.1
+scipy==1.16.1
+openai==1.101.0
+tiktoken==0.11.0
+tokenizers==0.21.4
+huggingface-hub==0.34.4
+
+# Core Dependencies
+annotated-types==0.7.0
+anyio==4.10.0
+attrs==25.3.0
+certifi==2025.8.3
+cffi==1.17.1
+charset-normalizer==3.4.3
+click==8.2.1
+colorama==0.4.6
+dataclasses-json==0.6.7
+distro==1.9.0
+dnspython==2.7.0
+ecdsa==0.19.1
+fastapi==0.116.1
+fastavro==1.12.0
+filelock==3.19.1
+frozenlist==1.7.0
+fsspec==2025.7.0
+greenlet==3.2.4
+h11==0.16.0
+httptools==0.6.4
+httplib2==0.22.0
+idna==3.10
+iniconfig==2.1.0
+jiter==0.10.0
+jmespath==1.0.1
+joblib==1.5.1
+jsonpatch==1.33
+jsonpointer==3.0.0
+mako==1.3.10
+markupsafe==3.0.2
+marshmallow==3.26.1
+multidict==6.6.4
+mypy-extensions==1.0.0
+oauthlib==3.3.1
+orjson==3.11.2
+packaging==25.0
+parameterized==0.9.0
+pillow==11.3.0
+pluggy==1.6.0
+propcache==0.3.2
+proto-plus==1.26.1
+protobuf==6.32.0
+pyasn1==0.6.1
+pyasn1-modules==0.4.2
+pycparser==2.22
+pygments==2.19.2
+pyparsing==3.2.3
+python-dateutil==2.9.0.post0
+pyyaml==6.0.2
+regex==2025.7.34
+rsa==4.9.1
+setuptools==65.5.0
+six==1.17.0
+sniffio==1.3.1
+tenacity==9.1.2
+threadpoolctl==3.6.0
+tqdm==4.67.1
+types-pyyaml==6.0.12.20250822
+types-requests==2.32.4.20250809
+typing-extensions==4.15.0
+typing-inspect==0.9.0
+typing-inspection==0.4.1
+uritemplate==4.2.0
+urllib3==2.5.0
+watchfiles==1.1.0
+websockets==15.0.1
+xxhash==3.5.0
+yarl==1.20.1
+zstandard==0.24.0
+cachetools==5.5.2
