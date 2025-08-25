@@ -1301,43 +1301,85 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
         # Calculate size
         package_size = os.path.getsize(zip_path)
         
-        # Move to permanent storage
+        # Move to permanent storage with enhanced directory handling
         import shutil
-        permanent_dir = os.path.join(os.getcwd(), "exports")
+        import re
+        
+        # Get exports directory with automatic creation
+        backend_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # Go up from app/routes to backend
+        permanent_dir = os.path.join(backend_root, "exports")
         os.makedirs(permanent_dir, exist_ok=True)
         
-        permanent_zip_path = os.path.join(permanent_dir, f"{package_name}.zip")
-        shutil.move(zip_path, permanent_zip_path)
+        # Sanitize package name for safe filename
+        safe_package_name = re.sub(r'[^\w\-_\.]', '-', package_name)
+        safe_package_name = re.sub(r'-+', '-', safe_package_name).strip('-')
         
-        download_url = f"/api/v1/export/download/{package_name}.zip"
+        permanent_zip_path = os.path.join(permanent_dir, f"{safe_package_name}.zip")
+        
+        # Ensure unique filename if conflict
+        counter = 1
+        original_path = permanent_zip_path
+        while os.path.exists(permanent_zip_path):
+            name_part = f"{safe_package_name}-{counter}"
+            permanent_zip_path = os.path.join(permanent_dir, f"{name_part}.zip")
+            counter += 1
+        
+        shutil.move(zip_path, permanent_zip_path)
+        logger.info(f"Export package saved to: {permanent_zip_path}")
+        
+        final_filename = os.path.basename(permanent_zip_path)
+        download_url = f"/api/v1/export/download/{final_filename}"
         
         return {
             "download_url": download_url,
             "package_size": package_size,
-            "local_path": permanent_zip_path
+            "local_path": permanent_zip_path,
+            "filename": final_filename
         }
+
+def get_exports_directory() -> str:
+    """Get exports directory with automatic creation."""
+    # Use absolute path relative to backend app
+    backend_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))  # Go up from app/routes to backend
+    exports_dir = os.path.join(backend_root, "exports")
+    os.makedirs(exports_dir, exist_ok=True)
+    return exports_dir
 
 @router.get("/export/download/{filename}", tags=["Export"])
 async def download_export_package(filename: str):
-    """Download exported workflow package."""
+    """Download exported workflow package with enhanced error handling."""
     try:
         # Validate filename to prevent directory traversal
         if ".." in filename or "/" in filename or "\\" in filename:
+            logger.warning(f"Invalid filename attempted: {filename}")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid filename"
             )
         
-        # Construct file path
-        exports_dir = os.path.join(os.getcwd(), "exports")
+        # Get exports directory with automatic creation
+        exports_dir = get_exports_directory()
         file_path = os.path.join(exports_dir, filename)
+        
+        logger.info(f"Attempting to download: {filename} from {exports_dir}")
         
         # Check if file exists
         if not os.path.exists(file_path):
+            logger.warning(f"Export file not found: {filename}")
+            
+            # List available files for debugging
+            if os.path.exists(exports_dir):
+                available_files = os.listdir(exports_dir)
+                logger.info(f"Available export files ({len(available_files)}): {available_files}")
+            else:
+                logger.warning(f"Exports directory does not exist: {exports_dir}")
+            
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Export package not found"
+                detail=f"Export package '{filename}' not found. Please ensure the export was completed successfully."
             )
+        
+        logger.info(f"Successfully found export file: {file_path}")
         
         # Return file response
         return FileResponse(
@@ -1346,11 +1388,13 @@ async def download_export_package(filename: str):
             media_type="application/zip"
         )
         
+    except HTTPException:
+        raise  # Re-raise HTTP exceptions
     except Exception as e:
-        logger.error(f"Download failed: {e}")
+        logger.error(f"Download failed for {filename}: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Download failed"
+            detail="Download failed due to server error"
         )
 
 @router.get("/export/workflows", tags=["Export"])
