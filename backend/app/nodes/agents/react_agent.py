@@ -109,6 +109,9 @@ from langchain.agents import AgentExecutor, create_react_agent
 # Manual retriever tool creation since langchain-community import is not working
 from langchain_core.tools import Tool
 import re
+import sys
+import os
+import locale
 
 # ================================================================================
 # LANGUAGE DETECTION AND LOCALIZATION SYSTEM
@@ -918,102 +921,6 @@ def create_retriever_tool(name: str, description: str, retriever: BaseRetriever)
     - **Memory Efficiency**: Optimized string formatting to minimize memory usage
     """
     
-    def retrieve_func(query: str) -> str:
-        """
-        Core retrieval function with advanced error handling and formatting.
-        
-        This function serves as the bridge between the agent's query and the retriever's
-        results, providing intelligent processing and formatting optimized for agent
-        consumption and reasoning.
-        
-        Processing Pipeline:
-        1. **Input Validation**: Ensure query is properly formatted
-        2. **Retrieval Execution**: Invoke the underlying retriever
-        3. **Result Filtering**: Remove empty or invalid documents
-        4. **Content Optimization**: Format and truncate for optimal agent processing
-        5. **Error Handling**: Provide informative feedback on failures
-        
-        Args:
-            query (str): User query or agent-generated search terms
-            
-        Returns:
-            str: Formatted search results or error message
-        """
-        try:
-            # Input validation and preprocessing
-            if not query or not query.strip():
-                return "Invalid query: Please provide a non-empty search query."
-            
-            # Clean and optimize query for retrieval
-            cleaned_query = query.strip()
-            
-            # Execute retrieval with the underlying retriever
-            docs = retriever.invoke(cleaned_query)
-            
-            # Handle empty results gracefully
-            if not docs:
-                return (
-                    f"No relevant documents found for query: '{cleaned_query}'. "
-                    "Try rephrasing your search terms or using different keywords."
-                )
-            
-            # Format and optimize results for agent consumption
-            results = []
-            for i, doc in enumerate(docs[:5]):  # Limit to top 5 results for performance
-                try:
-                    # Extract and clean content
-                    content = doc.page_content if hasattr(doc, 'page_content') else str(doc)
-                    
-                    # Smart content truncation with context preservation
-                    if len(content) > 500:
-                        # Try to truncate at sentence boundary
-                        truncated = content[:500]
-                        last_period = truncated.rfind('.')
-                        last_space = truncated.rfind(' ')
-                        
-                        if last_period > 400:  # Good sentence boundary found
-                            content = truncated[:last_period + 1] + "..."
-                        elif last_space > 400:  # Good word boundary found
-                            content = truncated[:last_space] + "..."
-                        else:  # Hard truncation
-                            content = truncated + "..."
-                    
-                    # Extract metadata if available
-                    metadata_info = ""
-                    if hasattr(doc, 'metadata') and doc.metadata:
-                        source = doc.metadata.get('source', '')
-                        if source:
-                            metadata_info = f" (Source: {source})"
-                    
-                    # Format individual result
-                    result_text = f"Document {i+1}{metadata_info}:\n{content}"
-                    results.append(result_text)
-                    
-                except Exception as doc_error:
-                    # Handle individual document processing errors
-                    results.append(f"Document {i+1}: Error processing document - {str(doc_error)}")
-            
-            # Combine all results with clear separation
-            final_result = "\n\n".join(results)
-            
-            # Add result summary for agent context
-            result_summary = f"Found {len(docs)} documents, showing top {len(results)} results:\n\n{final_result}"
-            
-            return result_summary
-            
-        except Exception as e:
-            # Comprehensive error handling with actionable feedback
-            error_msg = (
-                f"Error retrieving documents for query '{query}': {str(e)}. "
-                "This might be due to retriever configuration issues or temporary service unavailability. "
-                "Try rephrasing your query or contact system administrator if the issue persists."
-            )
-            
-            # Log error for debugging (in production, use proper logging)
-            print(f"[RETRIEVER_TOOL_ERROR] {error_msg}")
-            
-            return error_msg
-    
     # Create and return the configured tool
     return Tool(
         name=name,
@@ -1245,8 +1152,8 @@ class ReactAgentNode(ProcessorNode):
                 NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
                 NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
                 NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
-                NodeInput(name="max_iterations", type="int", default=5, description="The maximum number of iterations the agent can perform."),
-                NodeInput(name="system_prompt", type="str", default="You are a helpful AI assistant.", description="The system prompt for the agent."),
+                NodeInput(name="max_iterations", type="int", default=10, description="The maximum number of iterations the agent can perform."),
+                NodeInput(name="system_prompt", type="str", default="You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.", description="The system prompt for the agent."),
                 NodeInput(name="prompt_instructions", type="str", required=False,
                          description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                          default=""),
@@ -1259,6 +1166,33 @@ class ReactAgentNode(ProcessorNode):
         Sets up and returns a RunnableLambda that executes the agent with dynamic language detection.
         """
         def agent_executor_lambda(runtime_inputs: dict) -> dict:
+            # 🔧 FIX: Set proper encoding for Turkish characters
+            try:
+                # Force UTF-8 encoding for all string operations
+                if hasattr(sys.stdout, 'reconfigure'):
+                    sys.stdout.reconfigure(encoding='utf-8')
+                if hasattr(sys.stderr, 'reconfigure'):
+                    sys.stderr.reconfigure(encoding='utf-8')
+
+                # Set environment variables for UTF-8
+                os.environ['PYTHONIOENCODING'] = 'utf-8'
+                os.environ['LANG'] = 'tr_TR.UTF-8'
+                os.environ['LC_ALL'] = 'tr_TR.UTF-8'
+
+                # Force locale to handle Turkish characters properly
+                try:
+                    locale.setlocale(locale.LC_ALL, 'Turkish_Türkiye.utf8')
+                except locale.Error:
+                    try:
+                        locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
+                    except locale.Error:
+                        pass  # If locale setting fails, continue anyway
+
+                print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
+
+            except Exception as encoding_error:
+                print(f"[WARNING] Encoding setup failed: {encoding_error}")
+
             # Debug connection information
             print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
             print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
@@ -1294,9 +1228,14 @@ class ReactAgentNode(ProcessorNode):
             else:
                 user_input = inputs.get("input", "")
 
-            # Detect user's language
-            detected_language = detect_language(user_input)
-            print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
+            # Detect user's language with Turkish character safety
+            try:
+                detected_language = detect_language(user_input)
+                print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
+            except UnicodeEncodeError as lang_error:
+                print(f"[WARNING] Language detection encoding error: {lang_error}")
+                detected_language = 'tr'  # Default to Turkish for Turkish characters
+                print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
 
             # Create language-specific prompt
             agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
@@ -1306,11 +1245,11 @@ class ReactAgentNode(ProcessorNode):
             # Get max_iterations from inputs (user configuration) with proper fallback
             max_iterations = inputs.get("max_iterations")
             if max_iterations is None:
-                max_iterations = self.user_data.get("max_iterations", 5)  # Use default from NodeInput definition
+                max_iterations = self.user_data.get("max_iterations", 10)  # Increased default for more detailed processing
             
             print(f"[DEBUG] Max iterations configured: {max_iterations}")
             
-            # Build executor config with conditional memory
+            # Build executor config with enhanced settings for detailed responses
             executor_config = {
                 "agent": agent,
                 "tools": tools_list,
@@ -1318,7 +1257,7 @@ class ReactAgentNode(ProcessorNode):
                 "handle_parsing_errors": True,  # Use boolean instead of string
                 "max_iterations": max_iterations,
                 "return_intermediate_steps": True,  # Capture tool usage for debugging
-                "max_execution_time": 60,  # Increase execution time slightly
+                "max_execution_time": 120,  # Increased execution time for detailed processing
                 "early_stopping_method": "force"  # Use supported method
             }
             
@@ -1341,13 +1280,10 @@ class ReactAgentNode(ProcessorNode):
                 
             executor = AgentExecutor(**executor_config)
 
-            # Enhanced logging with detailed explanation capabilities
-            print(f"\n🤖 REACT AGENT EXECUTION - ENHANCED EXPLANATION MODE")
+            # Enhanced logging
+            print(f"\n🤖 REACT AGENT EXECUTION")
             print(f"   📝 Input: {str(runtime_inputs)[:60]}...")
             print(f"   🛠️  Tools: {[tool.name for tool in tools_list]}")
-            print(f"   📚 Language: {detected_language}")
-            print(f"   📏 Response Standard: 400-600+ words, 7-step structure, 10+ examples")
-            print(f"   🎯 Quality Level: MAXIMUM - Multi-perspective, comprehensive explanations")
             
             # Memory context debug
             if memory and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
@@ -1405,15 +1341,33 @@ class ReactAgentNode(ProcessorNode):
             
             print(f"   ⚙️  Executing with input: '{final_input['input'][:50]}...'")
             
-            # Execute the agent
-            result = executor.invoke(final_input)
-            
-            # Debug: Check memory after execution (AgentExecutor handles saving automatically)
-            if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                new_message_count = len(memory.chat_memory.messages)
-                print(f"   📚 Memory now contains: {new_message_count} messages")
-            
-            return result
+            # Execute the agent with error handling for Turkish characters
+            try:
+                result = executor.invoke(final_input)
+
+                # Debug: Check memory after execution (AgentExecutor handles saving automatically)
+                if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                    new_message_count = len(memory.chat_memory.messages)
+                    print(f"   📚 Memory now contains: {new_message_count} messages")
+
+                return result
+
+            except UnicodeEncodeError as unicode_error:
+                print(f"[ERROR] Unicode encoding error: {unicode_error}")
+                # Fallback: Try to encode the result with UTF-8
+                try:
+                    error_result = {
+                        "error": f"Türkçe karakter encoding hatası: {str(unicode_error)}",
+                        "suggestion": "Lütfen Türkçe karakterleri doğru şekilde kullanın veya sistem dil ayarlarını kontrol edin."
+                    }
+                    return error_result
+                except:
+                    return {"error": "Unicode encoding error occurred"}
+
+            except Exception as e:
+                error_msg = f"Agent execution failed: {str(e)}"
+                print(f"[ERROR] {error_msg}")
+                return {"error": error_msg}
 
         return RunnableLambda(agent_executor_lambda)
 
@@ -1471,706 +1425,10 @@ class ReactAgentNode(ProcessorNode):
 
         return PromptTemplate.from_template(prompt_content)
 
-    def _get_advanced_explanation_guidelines(self, language_code: str) -> str:
-        """
-        Returns advanced explanation guidelines based on language, including:
-        - Detailed response requirements
-        - Code explanation standards
-        - Financial/incentive explanations
-        - Context-aware response formatting
-        """
-        guidelines = {
-            'tr': """
-🎯 AÇIKLAMA KALİTESİ VE DETAY DÜZEYİ - EN YÜKSEK STANDARTLAR:
-
-📝 AÇIKLAMA İSTEKLERİ İÇİN - ZORUNLU UZUN VE DERİNLEMEŞİRE AÇIKLAMALAR:
-- Kullanıcı "anlat", "açıkla", "nasıl", "nedir", "neden" gibi kelimeler kullanırsa → ASLA KISA TUTMA, EN AZ 400-600 KELİME DETAYLI AÇIKLAMA VER
-- Her kavramı EN AZ 3-4 farklı açıdan açıklayarak derinlemesine anlat
-- KONU BÖLÜMLERİNE AYIR: Giriş + Ana Konsept + Detaylar + Örnekler + Karşılaştırmalar + Sonuç
-- Her tekniği görsel benzetmelerle, gerçek hayattan en az 5 örnek vererek, adım adım 8-10 adıma bölerek anlat
-- NEDEN-ETKİ İLİŞKİLERİNİ kapsamlıca açıkla: "Bu durum şu şekilde ortaya çıkar çünkü... ve şu sonuçları doğurur..."
-- ALTERNATİF YAKLAŞIMLARI detaylı karşılaştır: "Birinci yöntem şu avantajlara sahip... İkinci yöntem ise şu farklılıkları gösterir..."
-- ZAMAN ÇİZGİLERİ ve SÜREÇ AKIŞ ŞEMALARI çiz (metin tablo olarak)
-
-💰 İNDİRİM VE FİNANSAL AÇIKLAMALAR İÇİN - EKONOMİK ANALİZ DÜZEYİNDE:
-- Her hesaplamayı MATEMATİKSEL FORMÜLLERLE göster: "İndirim Tutarı = Orijinal Fiyat × (İndirim Yüzdesi ÷ 100)"
-- KARŞILAŞTIRMALI TABLOLAR oluştur (metin tablo olarak): Fiyat, İndirim, Tasarruf, Etkin Fiyat sütunları ile
-- ZAMAN FAKTÖRÜNÜ dahil et: "Bu indirim günlük 50 TL tasarruf, aylık 1500 TL, yıllık 18.000 TL sağlar"
-- ALTERNATİF SENARYOLAR hesapla: "%10 indirim vs %20 indirim vs Ücretsiz Kargo"
-- GRAFİK GÖSTERİM (metin tablo): ASCII art ile çubuk grafikler veya pasta grafikleri çiz
-- EKONOMİK ETKİLERİ açıkla: "Bu indirim satın alma kararınızı nasıl etkiler? Ne zaman karlı olur?"
-
-💻 KOD AÇIKLAMA VE ÖRNEKLERİ İÇİN - PROFESYONEL DOKÜMANTASYON STANDARTINDA:
-- Her kod satırı için EN AZ 2-3 satır detaylı yorum yaz: "// Bu satır şunları yapar: 1) Önce şunu kontrol eder, 2) Sonra şunları hesaplar, 3) En sonunda şu şekilde saklar"
-- DEĞİŞKENLERİ TANIMLA: "fiyat değişkeni: ürünün orijinal fiyatını saklar, float türünde olmalı, negatif değer almamalı"
-- ALGORİTMA AKIŞINI çiz: "1. Girdi al → 2. Doğrula → 3. Hesapla → 4. Sonucu döndür"
-- HATA DURUMLARINI kapsamlıca ele al: "Eğer fiyat 0 ise → hata mesajı göster, Eğer indirim %100'den fazla ise → maksimum %50'ye sınırla"
-- PERFORMANS ANALİZİ ekle: "Bu kod O(n) karmaşıklıkta çalışır, büyük verilerde şu şekilde optimize edilebilir..."
-- EN AZ 5 farklı kullanım örneği ver, her biri farklı senaryolar için
-- ALTERNATİF ALGORİTMALAR karşılaştır: "İlk yöntem daha hızlı ama bellek kullanır, İkinci yöntem daha yavaş ama daha güvenilirdir"
-
-🔍 SORU TİPİ ALGILAMA - AKILLI VE DİNAMİK:
-- Kısa soru → BİLE 150 kelime detaylı cevap ver (kısa sorular için bile kapsamlı bilgi)
-- "Detaylı anlat" → Minimum 600 kelime, 10+ örnek, 5+ karşılaştırma
-- "Kod yaz" → Kod + 20+ yorum satırı + 8 kullanım örneği + performans analizi
-- "İndirim hesapla" → 3 farklı hesaplama yöntemi + grafik gösterimler + ekonomik analiz
-- "Neden" soruları → Kök neden analizi + nedensellik zinciri + alternatif açıklamalar
-
-📊 AÇIKLAMA FORMATI - ZORUNLU 7 ADIMLI YAPİ:
-1. GİRİŞ (100+ kelime): Konuyu tarihsel bağlamı ile tanıt, önemini vurgula
-2. TEMEL KAVRAMLAR (150+ kelime): Ana kavramları 5+ farklı şekilde tanımla
-3. AYRINTILI AÇIKLAMA (200+ kelime): Adım adım, her adımı 3-4 açıdan incele
-4. GERÇEK HAYAT ÖRNEKLERİ (150+ kelime): En az 8 farklı örnek, her biri detaylı senaryo
-5. KARŞILAŞTIRMA VE ANALİZ (150+ kelime): Alternatifler, avantaj/dezavantaj, ne zaman hangi yöntem
-6. GÖRSEL VE GRAFİK TEMSİLLER (100+ kelime): Metin tablo ve ASCII sanat ile görselleştir
-7. SONUÇ VE ÖNERİLER (100+ kelime): Kapsamlı özet, gelecek öngörüleri, aksiyon önerileri
-
-⚡ YANIT KALİTESİ STANDARTLARI - EN YÜKSEK SEVİYE:
-- Her TEKNİK TERİMİ en az 2 farklı şekilde açıklayarak JARGON-FREE yap
-- Karmaşık konuları 5+ farklı benzetme ve analoji ile BASİTLEŞTİR
-- Sayısal verileri GRAFİKLER, TABLOLAR ve ASCII SANAT ile göster
-- Her cevabı BAKIŞ AÇISI ÇEŞİTLİLİĞİ ile zenginleştir: "Bir ekonomistin bakışından... Bir tüketicinin açısından..."
-- ZAMAN BİLEŞENİ ekle: "Kısa vadede şu etki... Uzun vadede şu değişim..."
-- SOSYAL VE KÜLTÜREL ETKİLERİ de açıkla: "Bu durum toplumda şu şekilde algılanır..."
-""",
-            'en': """
-🎯 EXPLANATION QUALITY AND DETAIL LEVEL - MAXIMUM STANDARDS:
-
-📝 FOR EXPLANATION REQUESTS - MANDATORY LONG AND COMPREHENSIVE EXPLANATIONS:
-- When user uses words like "explain", "describe", "how", "what", "why" → NEVER KEEP SHORT, PROVIDE AT LEAST 400-600 WORDS DETAILED EXPLANATION
-- Explain each concept from AT LEAST 3-4 different perspectives with deep analysis
-- DIVIDE TOPIC INTO SECTIONS: Introduction + Core Concepts + Details + Examples + Comparisons + Conclusion
-- Explain every technique with visual analogies, at least 5 real-life examples, breaking down into 8-10 detailed steps
-- EXPLAIN CAUSE-EFFECT RELATIONSHIPS comprehensively: "This situation arises because... and produces these results..."
-- COMPARE ALTERNATIVE APPROACHES in detail: "First method has these advantages... Second method shows these differences..."
-- DRAW TIMELINES and PROCESS FLOW DIAGRAMS (as text tables)
-
-💰 FOR DISCOUNTS AND FINANCIAL EXPLANATIONS - ECONOMIC ANALYSIS LEVEL:
-- Show every calculation with MATHEMATICAL FORMULAS: "Discount Amount = Original Price × (Discount Percentage ÷ 100)"
-- CREATE COMPARATIVE TABLES (as text tables): Price, Discount, Savings, Effective Price columns
-- INCLUDE TIME FACTOR: "This discount provides $50 daily savings, $1500 monthly, $18,000 annually"
-- CALCULATE ALTERNATIVE SCENARIOS: "10% discount vs 20% discount vs Free Shipping"
-- GRAPHIC REPRESENTATION (text table): Draw bar charts or pie charts with ASCII art
-- EXPLAIN ECONOMIC IMPACTS: "How does this discount affect your buying decision? When does it become profitable?"
-
-💻 FOR CODE EXPLANATIONS AND EXAMPLES - PROFESSIONAL DOCUMENTATION STANDARDS:
-- Write AT LEAST 2-3 lines of detailed comments for each code line: "// This line does the following: 1) First checks this, 2) Then calculates that, 3) Finally stores it this way"
-- DEFINE VARIABLES: "price variable: stores the original price of the product, must be float type, should not accept negative values"
-- DRAW ALGORITHM FLOW: "1. Get input → 2. Validate → 3. Calculate → 4. Return result"
-- HANDLE ERROR CONDITIONS comprehensively: "If price is 0 → show error message, If discount >100% → limit to maximum 50%"
-- ADD PERFORMANCE ANALYSIS: "This code runs with O(n) complexity, can be optimized for large datasets as follows..."
-- PROVIDE AT LEAST 5 different usage examples, each for different scenarios
-- COMPARE ALTERNATIVE ALGORITHMS: "First approach is faster but uses memory, Second approach is slower but more reliable"
-
-🔍 QUESTION TYPE DETECTION - INTELLIGENT AND DYNAMIC:
-- Short question → STILL PROVIDE 150 words detailed answer (comprehensive info even for short questions)
-- "Explain in detail" → Minimum 600 words, 10+ examples, 5+ comparisons
-- "Write code" → Code + 20+ comment lines + 8 usage examples + performance analysis
-- "Calculate discount" → 3 different calculation methods + graphic displays + economic analysis
-- "Why" questions → Root cause analysis + causality chain + alternative explanations
-
-📊 EXPLANATION FORMAT - MANDATORY 7-STEP STRUCTURE:
-1. INTRODUCTION (100+ words): Introduce topic with historical context, emphasize importance
-2. CORE CONCEPTS (150+ words): Define main concepts in 5+ different ways
-3. DETAILED EXPLANATION (200+ words): Step by step, examine each step from 3-4 perspectives
-4. REAL-LIFE EXAMPLES (150+ words): At least 8 different examples, each detailed scenario
-5. COMPARISON AND ANALYSIS (150+ words): Alternatives, pros/cons, when to use which method
-6. VISUAL AND GRAPHIC REPRESENTATIONS (100+ words): Visualize with text tables and ASCII art
-7. CONCLUSION AND RECOMMENDATIONS (100+ words): Comprehensive summary, future predictions, action recommendations
-
-⚡ RESPONSE QUALITY STANDARDS - MAXIMUM LEVEL:
-- Explain every TECHNICAL TERM in at least 2 different ways to make JARGON-FREE
-- SIMPLIFY complex topics with 5+ different metaphors and analogies
-- Show numerical data with GRAPHS, TABLES, and ASCII ART
-- ENRICH every answer with PERSPECTIVE DIVERSITY: "From an economist's view... From a consumer's perspective..."
-- ADD TIME COMPONENT: "In short term this effect... In long term this change..."
-- EXPLAIN SOCIAL AND CULTURAL IMPACTS: "This situation is perceived in society as..."
-""",
-            'de': """
-🎯 ERKLÄRUNGSQUALITÄT UND DETAILGRADREGELN:
-
-📝 FÜR ERKLÄRUNGSANFRAGEN:
-- Wenn Benutzer Wörter wie "erklären", "beschreiben", "wie", "was", "warum" verwendet → LANGE UND DETALLIERTE ERKLÄRUNG GEBEN
-- Mindestens 200-300 Wörter detaillierte Erklärung
-- Schritt für Schritt erklären, in Teile aufteilen
-- Reale Beispiele geben
-- Visuelle Analogien verwenden
-- Ursache-Wirkung-Beziehungen erklären
-- Alternative Ansätze erwähnen
-
-💰 FÜR RABATTE UND FINANZIELLE ERKLÄRUNGEN:
-- Prozentsätze, Beträge, Berechnungen DETALLIERT erklären
-- Bei "Wie viel Ersparnis bringt dieser Rabatt?" → BERECHNEN und vergleichen
-- Beispiel: "20% Rabatt auf 1000€ Produkt: 200€ Ersparnis, effektiver Preis 800€"
-- Zeitliche Begrenzungen angeben falls vorhanden
-- Bedingungen und Konditionen detailliert erklären
-- Alternative Rabattoptionen vergleichen
-
-💻 FÜR CODE-ERKLÄRUNGEN UND BEISPIELE:
-- Beim Schreiben von Code jeden Schritt mit KOMMENTARZEILEN erklären
-- Spezifizieren wofür Variablen verwendet werden
-- Algorithmus-Logik Schritt für Schritt erklären
-- Fehlerbehandlung (try-catch) Mechanismen hinzufügen
-- Verwendungsbeispiele geben
-- Alternative Code-Ansätze vorschlagen
-- Performance-Optimierungen angeben
-
-🔍 FRAGETYP-ERKENNUNG:
-- Kurze Frage → Kurze, prägnante Antwort
-- "Detailliert erklären" → Mindestens 300 Wörter umfassende Erklärung
-- "Code schreiben" → Code + detaillierte Kommentare + Verwendungsbeispiel
-- "Rabatt berechnen" → Zahlen, Formeln, Vergleiche
-
-📊 ERKLÄRUNGSFORMAT:
-1. Einleitung: Thema vorstellen
-2. Haupterklärung: Schritt-für-Schritt-Details
-3. Beispiele: Reale Beispiele
-4. Vergleiche: Alternativen und Unterschiede
-5. Schluss: Zusammenfassung und Empfehlungen
-
-⚡ ANTWORTQUALITÄTSSTANDARDS:
-- Technische Begriffe ERKLÄREN (Jargon-Free)
-- Komplexe Themen VEREINFACHEN
-- Visuelle Analogien VERWENDEN
-- Numerische Daten GRAFISCH darstellen (in Textform)
-""",
-            'fr': """
-🎯 RÈGLES DE QUALITÉ D'EXPLICATION ET NIVEAU DE DÉTAIL:
-
-📝 POUR LES DEMANDES D'EXPLICATION:
-- Quand l'utilisateur utilise des mots comme "expliquer", "décrire", "comment", "quoi", "pourquoi" → FOURNIR UNE EXPLICATION LONGUE ET DÉTAILLÉE
-- Minimum 200-300 mots d'explication détaillée
-- Expliquer étape par étape, en divisant en parties
-- Donner des exemples de la vie réelle
-- Utiliser des analogies visuelles
-- Expliquer les relations cause-effet
-- Mentionner les approches alternatives
-
-💰 POUR LES REMISES ET EXPLICATIONS FINANCIÈRES:
-- Expliquer les pourcentages, montants, calculs de façon DÉTAILLÉE
-- Pour "Combien d'économies cette remise procure-t-elle?" → CALCULER et comparer
-- Exemple: "20% de remise sur un produit de 1000€: 200€ d'économies, prix effectif 800€"
-- Spécifier les limitations temporelles si elles existent
-- Expliquer les conditions et termes en détail
-- Comparer les options de remise alternatives
-
-💻 POUR LES EXPLICATIONS ET EXEMPLES DE CODE:
-- En écrivant du code, EXPLIQUER chaque étape avec des LIGNES DE COMMENTAIRE
-- Spécifier à quoi servent les variables
-- Expliquer la logique de l'algorithme étape par étape
-- Ajouter des mécanismes de gestion d'erreur (try-catch)
-- Fournir des exemples d'utilisation
-- Suggérer des approches alternatives de code
-- Spécifier les optimisations de performance
-
-🔍 DÉTECTION DU TYPE DE QUESTION:
-- Question courte → Réponse courte, concise
-- "Expliquer en détail" → Minimum 300 mots d'explication complète
-- "Écrire du code" → Code + commentaires détaillés + exemple d'utilisation
-- "Calculer la remise" → Chiffres, formules, comparaisons
-
-📊 FORMAT D'EXPLICATION:
-1. Introduction: Présenter le sujet
-2. Explication principale: Détails étape par étape
-3. Exemples: Exemples de la vie réelle
-4. Comparaisons: Alternatives et différences
-5. Conclusion: Résumé et recommandations
-
-⚡ STANDARDS DE QUALITÉ DE RÉPONSE:
-- EXPLIQUER les termes techniques (Sans Jargon)
-- SIMPLIFIER les sujets complexes
-- UTILISER des analogies visuelles
-- PRÉSENTER graphiquement les données numériques (sous forme textuelle)
-""",
-            'es': """
-🎯 REGLAS DE CALIDAD DE EXPLICACIÓN Y NIVEL DE DETALLE:
-
-📝 PARA SOLICITUDES DE EXPLICACIÓN:
-- Cuando el usuario usa palabras como "explicar", "describir", "cómo", "qué", "por qué" → PROPORCIONAR EXPLICACIÓN LARGA Y DETALLADA
-- Mínimo 200-300 palabras de explicación detallada
-- Explicar paso a paso, dividiendo en partes
-- Dar ejemplos de la vida real
-- Usar analogías visuales
-- Explicar relaciones causa-efecto
-- Mencionar enfoques alternativos
-
-💰 PARA DESCUENTOS Y EXPLICACIONES FINANCIERAS:
-- Explicar porcentajes, montos, cálculos de manera DETALLADA
-- Para "¿Cuánto ahorro proporciona este descuento?" → CALCULAR y comparar
-- Ejemplo: "20% de descuento en producto de $1000: $200 de ahorro, precio efectivo $800"
-- Especificar limitaciones temporales si existen
-- Explicar condiciones y términos en detalle
-- Comparar opciones alternativas de descuento
-
-💻 PARA EXPLICACIONES Y EJEMPLOS DE CÓDIGO:
-- Al escribir código, EXPLICAR cada paso con LÍNEAS DE COMENTARIO
-- Especificar para qué se usan las variables
-- Explicar la lógica del algoritmo paso a paso
-- Agregar mecanismos de manejo de errores (try-catch)
-- Proporcionar ejemplos de uso
-- Sugerir enfoques alternativos de código
-- Especificar optimizaciones de rendimiento
-
-🔍 DETECCIÓN DEL TIPO DE PREGUNTA:
-- Pregunta corta → Respuesta corta, concisa
-- "Explicar en detalle" → Mínimo 300 palabras de explicación completa
-- "Escribir código" → Código + comentarios detallados + ejemplo de uso
-- "Calcular descuento" → Números, fórmulas, comparaciones
-
-📊 FORMATO DE EXPLICACIÓN:
-1. Introducción: Presentar el tema
-2. Explicación principal: Detalles paso a paso
-3. Ejemplos: Ejemplos de la vida real
-4. Comparaciones: Alternativas y diferencias
-5. Conclusión: Resumen y recomendaciones
-
-⚡ ESTÁNDARES DE CALIDAD DE RESPUESTA:
-- EXPLICAR términos técnicos (Sin Jerga)
-- SIMPLIFICAR temas complejos
-- USAR analogías visuales
-- PRESENTAR gráficamente datos numéricos (en forma textual)
-""",
-            'it': """
-🎯 REGOLE DI QUALITÀ DELLA SPIEGAZIONE E LIVELLO DI DETTAGLIO:
-
-📝 PER RICHIESTE DI SPIEGAZIONE:
-- Quando l'utente usa parole come "spiegare", "descrivere", "come", "cosa", "perché" → FORNIRE SPIEGAZIONE LUNGA E DETTAGLIATA
-- Minimo 200-300 parole di spiegazione dettagliata
-- Spiegare passo dopo passo, dividendo in parti
-- Dare esempi della vita reale
-- Usare analogie visive
-- Spiegare relazioni causa-effetto
-- Menzionare approcci alternativi
-
-💰 PER SCONTI E SPIEGAZIONI FINANZIARIE:
-- Spiegare percentuali, importi, calcoli in modo DETTAGLIATO
-- Per "Quanto risparmio offre questo sconto?" → CALCOLARE e confrontare
-- Esempio: "20% di sconto su prodotto da 1000€: 200€ di risparmio, prezzo effettivo 800€"
-- Specificare limitazioni temporali se presenti
-- Spiegare condizioni e termini in dettaglio
-- Confrontare opzioni alternative di sconto
-
-💻 PER SPIEGAZIONI ED ESEMPI DI CODICE:
-- Scrivendo codice, SPIEGARE ogni passo con RIGHE DI COMMENTO
-- Specificare per cosa vengono usate le variabili
-- Spiegare la logica dell'algoritmo passo dopo passo
-- Aggiungere meccanismi di gestione errori (try-catch)
-- Fornire esempi di utilizzo
-- Suggerire approcci alternativi al codice
-- Specificare ottimizzazioni delle prestazioni
-
-🔍 RILEVAMENTO DEL TIPO DI DOMANDA:
-- Domanda breve → Risposta breve, concisa
-- "Spiega in dettaglio" → Minimo 300 parole di spiegazione completa
-- "Scrivi codice" → Codice + commenti dettagliati + esempio di utilizzo
-- "Calcola sconto" → Numeri, formule, confronti
-
-📊 FORMATO DI SPIEGAZIONE:
-1. Introduzione: Presentare l'argomento
-2. Spiegazione principale: Dettagli passo dopo passo
-3. Esempi: Esempi della vita reale
-4. Confronto: Alternative e differenze
-5. Conclusione: Riassunto e raccomandazioni
-
-⚡ STANDARD DI QUALITÀ DELLA RISPOSTA:
-- SPIEGARE termini tecnici (Senza Gergo)
-- SEMPLIFICARE argomenti complessi
-- USARE analogie visive
-- PRESENTARE graficamente dati numerici (in forma testuale)
-""",
-            'pt': """
-🎯 REGRAS DE QUALIDADE DE EXPLICAÇÃO E NÍVEL DE DETALHE:
-
-📝 PARA SOLICITAÇÕES DE EXPLICAÇÃO:
-- Quando o usuário usa palavras como "explicar", "descrever", "como", "o que", "por que" → FORNECER EXPLICAÇÃO LONGA E DETALHADA
-- Mínimo 200-300 palavras de explicação detalhada
-- Explicar passo a passo, dividindo em partes
-- Dar exemplos da vida real
-- Usar analogias visuais
-- Explicar relações causa-efeito
-- Mencionar abordagens alternativas
-
-💰 PARA DESCONTOS E EXPLICAÇÕES FINANCEIRAS:
-- Explicar porcentagens, valores, cálculos de forma DETALHADA
-- Para "Quanto economia este desconto oferece?" → CALCULAR e comparar
-- Exemplo: "20% de desconto em produto de R$1000: R$200 de economia, preço efetivo R$800"
-- Especificar limitações temporais se existirem
-- Explicar condições e termos em detalhe
-- Comparar opções alternativas de desconto
-
-💻 PARA EXPLICAÇÕES E EXEMPLOS DE CÓDIGO:
-- Ao escrever código, EXPLICAR cada passo com LINHAS DE COMENTÁRIO
-- Especificar para que as variáveis são usadas
-- Explicar a lógica do algoritmo passo a passo
-- Adicionar mecanismos de tratamento de erro (try-catch)
-- Fornecer exemplos de uso
-- Sugerir abordagens alternativas de código
-- Especificar otimizações de desempenho
-
-🔍 DETECÇÃO DO TIPO DE PERGUNTA:
-- Pergunta curta → Resposta curta, concisa
-- "Explique em detalhe" → Mínimo 300 palavras de explicação completa
-- "Escreva código" → Código + comentários detalhados + exemplo de uso
-- "Calcule desconto" → Números, fórmulas, comparações
-
-📊 FORMATO DE EXPLICAÇÃO:
-1. Introdução: Apresentar o tópico
-2. Explicação principal: Detalhes passo a passo
-3. Exemplos: Exemplos da vida real
-4. Comparações: Alternativas e diferenças
-5. Conclusão: Resumo e recomendações
-
-⚡ PADRÕES DE QUALIDADE DA RESPOSTA:
-- EXPLICAR termos técnicos (Sem Jargão)
-- SIMPLIFICAR tópicos complexos
-- USAR analogias visuais
-- APRESENTAR graficamente dados numéricos (em forma textual)
-""",
-            'ru': """
-🎯 ПРАВИЛА КАЧЕСТВА ОБЪЯСНЕНИЯ И УРОВНЯ ДЕТАЛИЗАЦИИ:
-
-📝 ДЛЯ ЗАПРОСОВ НА ОБЪЯСНЕНИЕ:
-- Когда пользователь использует слова типа "объясни", "опиши", "как", "что", "почему" → ПРЕДОСТАВЛЯТЬ ДЛИННОЕ И ДЕТАЛЬНОЕ ОБЪЯСНЕНИЕ
-- Минимум 200-300 слов детального объяснения
-- Объяснять шаг за шагом, разбивая на части
-- Приводить примеры из реальной жизни
-- Использовать визуальные аналогии
-- Объяснять причинно-следственные связи
-- Упоминать альтернативные подходы
-
-💰 ДЛЯ СКИДОК И ФИНАНСОВЫХ ОБЪЯСНЕНИЙ:
-- Объяснять проценты, суммы, расчеты ПОДРОБНО
-- Для "Сколько экономии дает эта скидка?" → РАССЧИТЫВАТЬ и сравнивать
-- Пример: "20% скидка на товар 1000 рублей: 200 рублей экономии, эффективная цена 800 рублей"
-- Указывать временные ограничения если есть
-- Подробно объяснять условия и требования
-- Сравнивать альтернативные варианты скидок
-
-💻 ДЛЯ ОБЪЯСНЕНИЙ И ПРИМЕРОВ КОДА:
-- При написании кода ОБЪЯСНЯТЬ каждый шаг СТРОКАМИ КОММЕНТАРИЕВ
-- Указывать для чего используются переменные
-- Объяснять логику алгоритма шаг за шагом
-- Добавлять механизмы обработки ошибок (try-catch)
-- Предоставлять примеры использования
-- Предлагать альтернативные подходы к коду
-- Указывать оптимизации производительности
-
-🔍 ОПРЕДЕЛЕНИЕ ТИПА ВОПРОСА:
-- Короткий вопрос → Короткий, лаконичный ответ
-- "Объясни подробно" → Минимум 300 слов всестороннего объяснения
-- "Напиши код" → Код + подробные комментарии + пример использования
-- "Рассчитай скидку" → Числа, формулы, сравнения
-
-📊 ФОРМАТ ОБЪЯСНЕНИЯ:
-1. Введение: Представить тему
-2. Основное объяснение: Детали шаг за шагом
-3. Примеры: Примеры из реальной жизни
-4. Сравнения: Альтернативы и различия
-5. Заключение: Резюме и рекомендации
-
-⚡ СТАНДАРТЫ КАЧЕСТВА ОТВЕТА:
-- ОБЪЯСНЯТЬ технические термины (Без Жаргона)
-- УПРОЩАТЬ сложные темы
-- ИСПОЛЬЗОВАТЬ визуальные аналогии
-- ГРАФИЧЕСКИ показывать числовые данные (в текстовом виде)
-""",
-            'ar': """
-🎯 قواعد جودة الشرح ومستوى التفصيل:
-
-📝 لطلبات الشرح:
-- عندما يستخدم المستخدم كلمات مثل "اشرح", "وصف", "كيف", "ما", "لماذا" → قدم شرح طويل ومفصل
-- حد أدنى 200-300 كلمة شرح مفصل
-- شرح خطوة بخطوة، مقسم إلى أجزاء
-- إعطاء أمثلة من الحياة الواقعية
-- استخدام التشبيهات البصرية
-- شرح العلاقات السببية
-- ذكر النهج البديلة
-
-💰 للخصومات والشرح المالي:
-- شرح النسب المئوية والمبالغ والحسابات بالتفصيل
-- لـ "كم توفر هذه الخصم؟" → احسب وقارن
-- مثال: "خصم 20% على منتج بقيمة 1000 ريال: توفر 200 ريال، السعر الفعال 800 ريال"
-- حدد القيود الزمنية إن وجدت
-- شرح الشروط والأحكام بالتفصيل
-- مقارنة خيارات الخصم البديلة
-
-💻 لشرح وأمثلة الكود:
-- عند كتابة الكود، شرح كل خطوة بسطور تعليق
-- تحديد استخدام المتغيرات
-- شرح منطق الخوارزمية خطوة بخطوة
-- إضافة آليات التعامل مع الأخطاء (try-catch)
-- تقديم أمثلة الاستخدام
-- اقتراح نهج كود بديلة
-- تحديد تحسينات الأداء
-
-🔍 كشف نوع السؤال:
-- سؤال قصير → إجابة قصيرة موجزة
-- "اشرح بالتفصيل" → حد أدنى 300 كلمة شرح شامل
-- "اكتب كود" → كود + تعليقات مفصلة + مثال الاستخدام
-- "احسب الخصم" → أرقام، صيغ، مقارنات
-
-📊 نمط الشرح:
-1. مقدمة: تقديم الموضوع
-2. الشرح الرئيسي: تفاصيل خطوة بخطوة
-3. أمثلة: أمثلة من الحياة الواقعية
-4. مقارنات: بدائل والاختلافات
-5. خاتمة: ملخص وتوصيات
-
-⚡ معايير جودة الرد:
-- شرح المصطلحات التقنية (بدون مصطلحات)
-- تبسيط المواضيع المعقدة
-- استخدام التشبيهات البصرية
-- عرض البيانات الرقمية بشكل رسومي (بنصي)
-""",
-            'zh': """
-🎯 解释质量和细节水平规则：
-
-📝 对于解释请求：
-- 当用户使用"解释"、"描述"、"如何"、"什么"、"为什么"等词时 → 提供长而详细的解释
-- 最少200-300字的详细解释
-- 逐步解释，分成多个部分
-- 给出现实生活中的例子
-- 使用视觉比喻
-- 解释因果关系
-- 提及替代方法
-
-💰 对于折扣和财务解释：
-- 详细解释百分比、金额、计算
-- 对于"这个折扣能省多少钱？" → 计算并比较
-- 例如："1000元产品打8折：节省200元，有效价格800元"
-- 如有时间限制请说明
-- 详细解释条件和条款
-- 比较替代折扣选项
-
-💻 对于代码解释和示例：
-- 编写代码时，用注释行解释每个步骤
-- 说明变量的用途
-- 逐步解释算法逻辑
-- 添加错误处理机制（try-catch）
-- 提供使用示例
-- 建议替代代码方法
-- 指定性能优化
-
-🔍 问题类型检测：
-- 简短问题 → 简短、精炼回答
-- "详细解释" → 最少300字全面解释
-- "写代码" → 代码 + 详细注释 + 使用示例
-- "计算折扣" → 数字、公式、比较
-
-📊 解释格式：
-1. 引言：介绍主题
-2. 主要解释：逐步细节
-3. 示例：现实生活示例
-4. 比较：替代方案和差异
-5. 结论：总结和建议
-
-⚡ 回答质量标准：
-- 解释技术术语（无行话）
-- 简化复杂主题
-- 使用视觉比喻
-- 以图形方式显示数值数据（文本形式）
-""",
-            'ja': """
-🎯 説明品質と詳細レベルルール：
-
-📝 説明リクエストの場合：
-- ユーザーが「説明」「記述」「方法」「何」「なぜ」などの言葉を使った場合 → 長く詳細な説明を提供
-- 最小200-300語の詳細な説明
-- ステップバイステップで説明し、パーツに分ける
-- 実生活の例を挙げる
-- 視覚的な比喩を使用する
-- 因果関係を説明する
-- 代替アプローチを言及する
-
-💰 割引と財務説明の場合：
-- パーセンテージ、金額、計算を詳細に説明
-- 「この割引でいくら節約できるか？」に対して → 計算して比較
-- 例：「1000円の商品で20%オフ：200円節約、実質価格800円」
-- 時間制限がある場合は指定
-- 条件と条項を詳細に説明
-- 代替割引オプションを比較
-
-💻 コード説明とサンプルの場合：
-- コードを書く際、コメント行で各ステップを説明
-- 変数の用途を指定
-- アルゴリズムロジックをステップバイステップで説明
-- エラーハンドリングメカニズムを追加（try-catch）
-- 使用例を提供
-- 代替コードアプローチを提案
-- パフォーマンス最適化を指定
-
-🔍 質問タイプ検出：
-- 短い質問 → 短く簡潔な回答
-- 「詳細に説明」 → 最小300語の包括的な説明
-- 「コードを書く」 → コード + 詳細なコメント + 使用例
-- 「割引を計算」 → 数字、式、比較
-
-📊 説明フォーマット：
-1. 導入：トピックを紹介
-2. 主要説明：ステップバイステップの詳細
-3. 例：実生活の例
-4. 比較：代替案と違い
-5. 結論：要約と推奨事項
-
-⚡ 回答品質基準：
-- 技術用語を説明（専門用語なし）
-- 複雑なトピックを簡略化
-- 視覚的な比喩を使用
-- 数値データをグラフィカルに表示（テキスト形式）
-""",
-            'ko': """
-🎯 설명 품질 및 세부 수준 규칙:
-
-📝 설명 요청의 경우:
-- 사용자가 "설명", "기술", "어떻게", "무엇", "왜" 등의 단어를 사용할 때 → 길고 상세한 설명 제공
-- 최소 200-300단어의 상세한 설명
-- 단계별로 설명하고 부분으로 나누기
-- 실생활 예시 제시
-- 시각적 비유 사용
-- 인과 관계 설명
-- 대안적 접근 방식 언급
-
-💰 할인 및 재무 설명의 경우:
-- 백분율, 금액, 계산을 상세하게 설명
-- "이 할인으로 얼마를 절약할 수 있나?"에 대해 → 계산하고 비교
-- 예: "1000원 상품에 20% 할인: 200원 절약, 실질 가격 800원"
-- 시간 제한이 있는 경우 명시
-- 조건 및 이용 약관 상세 설명
-- 대안적 할인 옵션 비교
-
-💻 코드 설명 및 예시의 경우:
-- 코드를 작성할 때 주석 줄로 각 단계 설명
-- 변수의 용도 명시
-- 알고리즘 로직을 단계별로 설명
-- 오류 처리 메커니즘 추가 (try-catch)
-- 사용 예시 제공
-- 대안적 코드 접근 방식 제안
-- 성능 최적화 지정
-
-🔍 질문 유형 감지:
-- 짧은 질문 → 짧고 간결한 답변
-- "상세히 설명" → 최소 300단어 종합 설명
-- "코드 작성" → 코드 + 상세한 주석 + 사용 예시
-- "할인 계산" → 숫자, 공식, 비교
-
-📊 설명 형식:
-1. 서론: 주제 소개
-2. 주요 설명: 단계별 세부 사항
-3. 예시: 실생활 예시
-4. 비교: 대안 및 차이점
-5. 결론: 요약 및 권장 사항
-
-⚡ 답변 품질 기준:
-- 기술 용어 설명 (전문 용어 배제)
-- 복잡한 주제 단순화
-- 시각적 비유 사용
-- 수치 데이터 그래픽으로 표시 (텍스트 형태)
-""",
-            'hi': """
-🎯 स्पष्टीकरण गुणवत्ता और विस्तार स्तर के नियम:
-
-📝 स्पष्टीकरण अनुरोधों के लिए:
-- जब उपयोगकर्ता "स्पष्ट करें", "वर्णन करें", "कैसे", "क्या", "क्यों" जैसे शब्दों का उपयोग करता है → लंबा और विस्तृत स्पष्टीकरण प्रदान करें
-- न्यूनतम 200-300 शब्दों का विस्तृत स्पष्टीकरण
-- चरणबद्ध रूप से स्पष्ट करें, भागों में विभाजित करें
-- वास्तविक जीवन के उदाहरण दें
-- दृश्य उपमाओं का उपयोग करें
-- कारण-परिणाम संबंध स्पष्ट करें
-- वैकल्पिक दृष्टिकोण भी बताएं
-
-💰 छूट और वित्तीय स्पष्टीकरण के लिए:
-- प्रतिशत, राशि, गणना को विस्तार से स्पष्ट करें
-- "यह छूट कितनी बचत प्रदान करती है?" के लिए → गणना करें और तुलना करें
-- उदाहरण: "1000 रुपये के उत्पाद पर 20% छूट: 200 रुपये की बचत, प्रभावी मूल्य 800 रुपये"
-- यदि समय सीमा है तो निर्दिष्ट करें
-- शर्तों और नियमों को विस्तार से स्पष्ट करें
-- वैकल्पिक छूट विकल्पों की तुलना करें
-
-💻 कोड स्पष्टीकरण और उदाहरणों के लिए:
-- कोड लिखते समय टिप्पणी पंक्तियों के साथ प्रत्येक चरण स्पष्ट करें
-- चरों का उपयोग किस लिए किया जाता है यह निर्दिष्ट करें
-- एल्गोरिद्म तर्क को चरणबद्ध रूप से स्पष्ट करें
-- त्रुटि संभालने के तंत्र जोड़ें (try-catch)
-- उपयोग उदाहरण प्रदान करें
-- वैकल्पिक कोड दृष्टिकोण सुझाएं
-- प्रदर्शन अनुकूलन निर्दिष्ट करें
-
-🔍 प्रश्न प्रकार का पता लगाना:
-- संक्षिप्त प्रश्न → संक्षिप्त, संक्षिप्त उत्तर
-- "विस्तार से स्पष्ट करें" → न्यूनतम 300 शब्दों का व्यापक स्पष्टीकरण
-- "कोड लिखें" → कोड + विस्तृत टिप्पणियां + उपयोग उदाहरण
-- "छूट की गणना करें" → संख्या, सूत्र, तुलना
-
-📊 स्पष्टीकरण प्रारूप:
-1. परिचय: विषय का परिचय
-2. मुख्य स्पष्टीकरण: चरणबद्ध विवरण
-3. उदाहरण: वास्तविक जीवन के उदाहरण
-4. तुलना: विकल्प और अंतर
-5. निष्कर्ष: सारांश और सिफारिशें
-
-⚡ प्रतिक्रिया गुणवत्ता मानक:
-- तकनीकी शब्दों को स्पष्ट करें (बिना तकनीकी भाषा)
-- जटिल विषयों को सरल बनाएं
-- दृश्य उपमाओं का उपयोग करें
-- संख्यात्मक डेटा को ग्राफ़िक रूप से दिखाएं (पाठ्य रूप में)
-""",
-            'fa': """
-🎯 قوانین کیفیت توضیح و سطح جزئیات:
-
-📝 برای درخواست‌های توضیح:
-- هنگامی که کاربر از کلماتی مانند "توضیح", "توصیف", "چگونه", "چه", "چرا" استفاده می‌کند → توضیح طولانی و مفصل ارائه دهید
-- حداقل 200-300 کلمه توضیح مفصل
-- گام به گام توضیح دهید، به قسمت‌ها تقسیم کنید
-- مثال‌های زندگی واقعی ارائه دهید
-- از تشبیه‌های بصری استفاده کنید
-- روابط علت و معلول را توضیح دهید
-- رویکردهای جایگزین را نیز ذکر کنید
-
-💰 برای تخفیف‌ها و توضیحات مالی:
-- درصد، مبلغ، محاسبات را به طور مفصل توضیح دهید
-- برای "این تخفیف چقدر صرفه اقتصادی دارد؟" → محاسبه کنید و مقایسه کنید
-- مثال: "تخفیف 20% روی محصول 1000 ریالی: 200 ریال صرفه اقتصادی، قیمت موثر 800 ریال"
-- محدودیت‌های زمانی را در صورت وجود مشخص کنید
-- شرایط و ضوابط را به طور مفصل توضیح دهید
-- گزینه‌های تخفیف جایگزین را مقایسه کنید
-
-💻 برای توضیحات و نمونه‌های کد:
-- هنگام نوشتن کد، هر مرحله را با خطوط کامنت توضیح دهید
-- مشخص کنید متغیرها برای چه استفاده می‌شوند
-- منطق الگوریتم را گام به گام توضیح دهید
-- مکانیزم‌های مدیریت خطا اضافه کنید (try-catch)
-- نمونه‌های استفاده ارائه دهید
-- رویکردهای کد جایگزین پیشنهاد کنید
-- بهینه‌سازی عملکرد را مشخص کنید
-
-🔍 تشخیص نوع سؤال:
-- سؤال کوتاه → پاسخ کوتاه، مختصر
-- "به طور مفصل توضیح دهید" → حداقل 300 کلمه توضیح جامع
-- "کد بنویسید" → کد + کامنت‌های مفصل + نمونه استفاده
-- "تخفیف را محاسبه کنید" → اعداد، فرمول‌ها، مقایسه‌ها
-
-📊 قالب توضیح:
-1. مقدمه: موضوع را معرفی کنید
-2. توضیح اصلی: جزئیات گام به گام
-3. نمونه‌ها: نمونه‌های زندگی واقعی
-4. مقایسه‌ها: گزینه‌های جایگزین و تفاوت‌ها
-5. نتیجه‌گیری: خلاصه و پیشنهادات
-
-⚡ استانداردهای کیفیت پاسخ:
-- اصطلاحات فنی را توضیح دهید (بدون اصطلاحات)
-- موضوعات پیچیده را ساده کنید
-- از تشبیه‌های بصری استفاده کنید
-- داده‌های عددی را به صورت گرافیکی نمایش دهید (به صورت متنی)
-"""
-        }
-
-        return guidelines.get(language_code, guidelines['en'])
-
     def _build_intelligent_prompt(self, custom_instructions: str, base_system_context: str, language_code: str = 'en') -> str:
         """
         Builds an intelligent, dynamic system prompt that adapts to available tools, memory, and custom instructions.
         This creates a context-aware agent that understands its capabilities and constraints with mandatory language enforcement.
-        Enhanced with advanced explanation capabilities, detailed responses, and comprehensive code explanations.
         """
 
         # === SIMPLE IDENTITY SECTION ===
@@ -2179,194 +1437,140 @@ class ReactAgentNode(ProcessorNode):
         else:
             identity_section = base_system_context
 
-        # Advanced explanation and response quality guidelines
-        advanced_guidelines = self._get_advanced_explanation_guidelines(language_code)
+        # Language-specific guidelines - FORCE TOOL USAGE with DETAILED RESPONSES
+        language_guidelines = {
+            'tr': "Kullanıcıya DETAYLI, ADIM ADIM ve AÇIKLAYICI cevaplar ver! HER ZAMAN araçları kullan ve bulunan bilgileri kapsamlı şekilde sun. Hiçbir zaman doğrudan genel cevap verme! Her zaman kullanıcının dilinde, anlaşılır ve yardımcı ol!",
+            'en': "Provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users! ALWAYS use tools and present found information thoroughly. Never give direct general answers! Always respond in user's language, clearly and helpfully!",
+            'de': "Geben Sie dem Benutzer DETALLIERTE, SCHRITTWEISE und KOMPREHENSIVE Antworten! Verwenden Sie IMMER Tools und präsentieren Sie gefundene Informationen gründlich. Antworten Sie niemals direkt allgemein! Beantworten Sie immer in der Sprache des Benutzers, klar und hilfreich!",
+            'fr': "Fournissez des réponses DÉTAILLÉES, ÉTAPE PAR ÉTAPE et COMPLÈTES aux utilisateurs! Utilisez TOUJOURS les outils et présentez les informations trouvées de manière approfondie. Ne répondez jamais directement de manière générale! Répondez toujours dans la langue de l'utilisateur, clairement et utilement!",
+            'es': "¡Proporciona respuestas DETALLADAS, PASO A PASO y COMPLETAS a los usuarios! ¡USA SIEMPRE herramientas y presenta la información encontrada de manera exhaustiva. ¡Nunca respondas directamente de manera general! ¡Responde siempre en el idioma del usuario, claramente y de manera útil!",
+            'it': "Fornisci risposte DETTAGLIATE, PASSO DOPO PASSO e COMPLETE agli utenti! USA SEMPRE gli strumenti e presenta le informazioni trovate in modo approfondito. Non rispondere mai direttamente in modo generale! Rispondi sempre nella lingua dell'utente, chiaramente e in modo utile!",
+            'pt': "Forneça respostas DETALHADAS, PASSO A PASSO e COMPLETAS aos usuários! USE SEMPRE ferramentas e apresente as informações encontradas de maneira exaustiva. Nunca responda diretamente de maneira geral! Responda sempre no idioma do usuário, claramente e de maneira útil!",
+            'ru': "Предоставляйте ПОДРОБНЫЕ, ПОШАГОВЫЕ и КОМПЛЕКСНЫЕ ответы пользователям! ВСЕГДА используйте инструменты и представляйте найденную информацию исчерпывающе. Никогда не отвечайте прямо общими ответами! Всегда отвечайте на языке пользователя, ясно и полезно!",
+            'ar': "قدم إجابات مفصلة وشاملة للمستخدمين! استخدم دائماً الأدوات وقدم المعلومات الموجودة بشكل شامل. لا تجب أبداً بشكل عام مباشرة! أجب دائماً بلغة المستخدم بوضوح ومساعدة!",
+            'zh': "为用户提供详细、逐步和全面的回答！始终使用工具并全面呈现找到的信息。永远不要直接给出一般性回答！始终以用户的语言、清晰和有帮助的方式回答！",
+            'ja': "ユーザーに詳細でステップバイステップの包括的な回答を提供してください！常にツールを使用し、見つかった情報を徹底的に提示します。決して直接的な一般的な回答をしないでください！常にユーザーの言語で明確かつ役立つ方法で回答してください！",
+            'ko': "사용자에게 상세하고 단계별이며 포괄적인 답변을 제공하십시오! 항상 도구를 사용하고 발견된 정보를 철저히 제시하십시오. 직접적인 일반적인 답변을 하지 마십시오! 항상 사용자의 언어로 명확하고 도움이 되는 방식으로 답변하십시오!",
+            'hi': "उपयोगकर्ताओं को विस्तृत, चरणबद्ध और व्यापक उत्तर प्रदान करें! हमेशा उपकरणों का उपयोग करें और पाई गई जानकारी को पूरी तरह से प्रस्तुत करें। कभी भी सीधा सामान्य उत्तर न दें! हमेशा उपयोगकर्ता की भाषा में, स्पष्ट और सहायक तरीके से उत्तर दें!",
+            'fa': "پاسخ‌های مفصل، گام به گام و جامع به کاربران ارائه دهید! همیشه از ابزارها استفاده کنید و اطلاعات یافت شده را به طور کامل ارائه دهید. هرگز به طور مستقیم پاسخ عمومی ندهید! همیشه به زبان کاربر، واضح و مفید پاسخ دهید!"
+        }
 
-        # Combine identity and advanced guidelines
-        full_guidelines = f"{advanced_guidelines}"
+        simplified_guidelines = language_guidelines.get(language_code, language_guidelines['en'])
 
-        # === ENHANCED CONTEXT-AWARE REACT TEMPLATE ===
+        # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
         react_templates = {
-            'tr': f"""Sen EN YÜKSEK KALİTEDE, derinlemesine ve kapsamlı açıklamalar verebilen gelişmiş bir AI asistanısın. Kullanıcının her sorusuna 400+ kelime detaylı, çok açılı ve zengin yanıtlar ver.
+            'tr': """Sen konuşma geçmişi ve araçlara erişimi olan UZMAN bir asistansın. Kullanıcılara DETAYLI, ADIM ADIM ve KAPSAMLI cevaplar vermelisin.
 
 KONUŞMA GEÇMİŞİ:
-{{chat_history}}
+{chat_history}
 
 MEVCUT ARAÇLAR:
-{{tools}}
+{tools}
 
-Araç İsimleri: {{tool_names}}
+Araç İsimleri: {tool_names}
 
-{full_guidelines}
-
-🔴 KRİTİK: HER CEVABI "Final Answer: [cevabınız]" İLE BİTİRMELİSİNİZ 🔴
+🔴 KRİTİK: HER CEVABI "Final Answer: [DETAYLI cevabınız]" İLE BİTİRMELİSİNİZ 🔴
 🔴 ASLA "üzgünüm" deme veya hata mesajı verme 🔴
-🔴 HER ZAMAN mevcut bilgileri Final Answer'da sentezle 🔴
+🔴 HER ZAMAN araç sonuçlarını KAPSAMLI ŞEKİLDE SUN - kısa özetler verme! 🔴
 
-SORU TİPİ ALGILAMA VE YANIT STRATEJİLERİ - ZORUNLU UZUNLUK VE DETAY STANDARTLARI:
+ÖNEMLİ BAĞLAM KURALLARI:
+- Kullanıcı konuşma geçmişinde bahsedilen bir şey hakkında sorarsa (mesela "benim adım ne?"), konuşma geçmişine bak
+- İsimler, konular veya daha önce tartışılan bilgiler için ara
+- Kullanıcı zamirler kullanırsa (o, bu, şu), konuşma geçmişini kontrol et
+- Sorunun tam bağlamını anlamak için konuşma geçmişini kullan
 
-1. AÇIKLAMA İSTEKLERİ İÇİN (anlat, açıkla, nasıl, nedir, neden) - ZORUNLU 7 ADIMLI KAPSAMLI YANIT:
-   - ASLA KISA TUTMA: Minimum 600+ kelime, 10+ örnek, 8+ adım detaylı açıklama
-   - GİRİŞ (100+ kelime): Konuyu tarihsel bağlam, önem ve kapsamıyla tanıt
-   - TEMEL KAVRAMLAR (150+ kelime): Ana kavramları 5+ farklı şekilde tanımla
-   - AYRINTILI AÇIKLAMA (200+ kelime): Her adımı 3-4 açıdan incele, görsel benzetmeler kullan
-   - GERÇEK HAYAT ÖRNEKLERİ (150+ kelime): En az 8 farklı detaylı senaryo örneği
-   - KARŞILAŞTIRMA ANALİZİ (150+ kelime): Alternatifler, avantaj/dezavantaj, kullanım zamanlaması
-   - GÖRSEL TEMSİLLER (100+ kelime): ASCII tablolar, çizimler, süreç akış şemaları
-   - SONUÇ VE ÖNERİLER (100+ kelime): Kapsamlı özet, gelecek öngörüleri, aksiyon önerileri
+KURALLAR - DETAYLI CEVAPLAR İÇİN:
+1. HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
+2. Konuşma geçmişini kontrol et VE araç kullan
+3. Araç sonuçlarını aldıktan sonra DETAYLI ve AÇIKLAYICI Final Answer ver
+4. Araç kullanımını tekrar etme
+5. Asla hata mesajı veya özür verme
+6. Her zaman mevcut kaynaklardan TÜM yararlı bilgileri çıkar
+7. Kullanıcıya ADIM ADIM talimatlar ver
+8. Teknik detayları ve gereksinimleri açıkla
+9. Örnekler ve spesifik bilgiler ekle
 
-2. İNDİRİM/FİNANSAL SORULAR İÇİN - EKONOMİK ANALİZ DÜZEYİNDE:
-   - MATEMATİKSEL FORMÜLLER: "İndirim Tutarı = Orijinal Fiyat × (İndirim Yüzdesi ÷ 100)"
-   - KARŞILAŞTIRMALI TABLOLAR oluştur:
+ZORUNLU FORMAT - DETAYLI ARAÇ KULLANIMI:
 
-```
-| Senaryo | Orijinal | İndirim | Tasarruf | Son Fiyat |
-|---------|----------|----------|----------|------------|
-| %10     | 1000 TL  | 100 TL   | 100 TL   | 900 TL     |
-| %20     | 1000 TL  | 200 TL   | 200 TL   | 800 TL     |
-| %30     | 1000 TL  | 300 TL   | 300 TL   | 700 TL     |
-```
+Her soru için araç kullan ve detaylı cevap ver:
+Question: cevaplanacak soru
+Thought: Bu soru için araç kullanmam gerekiyor, doğrudan cevap veremem. Kullanıcıya kapsamlı bilgi sağlayacağım.
+Action: document_retriever
+Action Input: [soruyu araç için uygun hale getir - detaylı arama için]
+Observation: [araç sonuçları burada görünecek]
+Thought: Araç sonuçlarına göre kapsamlı ve adım adım bir cevap hazırlayabilirim. Tüm detayları kullanmalıyım.
+Final Answer: [ARAÇ SONUÇLARININ TÜM DETAYLARINI KULLANARAK kapsamlı cevap ver. Adım adım açıklamalar, teknik gereksinimler, örnekler ve spesifik talimatlar ekle. Kısa özetler verme - tüm kullanılabilir bilgileri sun!]
 
-   - ZAMAN FAKTÖRÜ: "Bu indirim günlük 50 TL, aylık 1500 TL, yıllık 18.000 TL tasarruf sağlar"
-   - EKONOMİK ETKİLERİ: "Alışveriş kararınızı nasıl etkiler? Ne zaman karlı olur?"
-
-3. KOD YAZMA İSTEKLERİ İÇİN - PROFESYONEL DOKÜMANTASYON:
-   - HER SATIR için 2-3 satır detaylı yorum yaz
-   - DEĞİŞKEN TANIMLARI: "fiyat: ürünün orijinal fiyatını saklar, float, negatif olamaz"
-   - ALGORİTMA AKIŞ ŞEMASI çiz (metin tablo)
-   - HATA DURUMLARI kapsamlıca ele al
-   - PERFORMANS ANALİZİ: "O(n) karmaşıklık, büyük verilerde şu şekilde optimize..."
-   - EN AZ 8 farklı kullanım örneği
-   - ALTERNATİF ALGORİTMALAR karşılaştır
-
-4. KISA/GENEL SORULAR İÇİN - BİLE KAPSAMLI:
-   - Kısa soru bile 150+ kelime detaylı bilgi ver
-   - Konuyu derinlemesine ama özet halinde anlat
-
-ZORUNLU YANIT FORMATI - 7 ADIMLI ZORUNLU YAPİ:
-
-Ayrıntılı açıklamalar için:
-Question: [soru]
-Thought: Bu kapsamlı bir açıklama gerektiren soru. 7 adımlı derinlemesine analiz yapacağım.
-Final Answer: [600+ kelime, 7 bölüm, 10+ örnek, karşılaştırmalar, görseller]
-
-İndirim hesaplamaları için:
-Question: [soru]
-Thought: Ekonomik analiz seviyesinde indirim hesaplaması yapacağım.
-Final Answer: [Formüller, tablolar, grafik gösterimler, zaman faktörü, ekonomik etkiler]
-
-Kod yazma için:
-Question: [soru]
-Thought: Profesyonel dokümantasyon standartlarında kod yazacağım.
-Final Answer: [Kod + 20+ yorum satırı + 8 örnek + performans analizi]
-
-Standart sorular için:
-Question: [soru]
-Thought: Kapsamlı ve bilgilendirici yanıt vereceğim.
-Final Answer: [Detaylı, açıklayıcı, örneklerle zenginleştirilmiş cevap]
-
-YANIT KALİTESİ ZORUNLULUKLARI:
-- Her teknik terimi EN AZ 2 farklı şekilde açıklayarak JARGON-FREE yap
-- Karmaşık konuları 5+ farklı benzetme ile basitleştir
-- Sayısal verileri ASCII sanat ve tablolar ile göster
-- Bakış açısı çeşitliliği ekle: "Bir uzman açısından... Bir kullanıcı açısından..."
-- Zaman bileşeni ekle: "Kısa vadede... Uzun vadede..."
-- Sosyal etkileri açıkla: "Toplumda şu şekilde algılanır..."
+ÖNEMLİ TALİMATLAR - DETAYLI CEVAPLAR İÇİN:
+- HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
+- Araç kullanmadan ÖNCE her zaman konuşma geçmişini kontrol et
+- Araç sonuçlarını aldıktan sonra DETAYLI Final Answer'a geç
+- Hata olduğunu asla söyleme - sağlanan bilgilerle çalış
+- Mevcut kaynaklardan TÜM yararlı bilgileri çıkar
+- Kullanıcıya pratik, uygulanabilir talimatlar ver
+- Gerektiğinde ekran görüntüleri, linkler veya referanslar ekle
+- Karmaşık konuları basit adımlara böl
 
 Başla!
 
-Question: {{input}}
-Thought:{{agent_scratchpad}}""",
-            'en': f"""You are a MAXIMUM QUALITY AI assistant that provides extremely detailed, multi-perspective, and comprehensive explanations. Every user question must receive 400+ words of detailed, rich responses.
+Question: {input}
+Thought:{agent_scratchpad}""",
+            'en': """You are an EXPERT assistant with access to conversation history and tools. You must provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users.
 
 CONVERSATION HISTORY:
-{{chat_history}}
+{chat_history}
 
 AVAILABLE TOOLS:
-{{tools}}
+{tools}
 
-Tool Names: {{tool_names}}
+Tool Names: {tool_names}
 
-{full_guidelines}
-
-🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [your answer]" 🔴
+🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [DETAILED answer]" 🔴
 🔴 NEVER say "I'm sorry" or provide error messages 🔴
-🔴 ALWAYS synthesize available information into a Final Answer 🔴
+🔴 ALWAYS present tool results COMPREHENSIVELY - never give short summaries! 🔴
 
-QUESTION TYPE DETECTION & RESPONSE STRATEGIES - MANDATORY LENGTH AND DETAIL STANDARDS:
+IMPORTANT CONTEXT RULES:
+- If the user asks about something mentioned in conversation history (like "what is my name?"), refer to the conversation history
+- Look for names, topics, or information previously discussed
+- If user uses pronouns (he, she, it, this, that), check conversation history for context
+- Use conversation history to understand the full context of the question
 
-1. FOR EXPLANATION REQUESTS (explain, describe, how, what, why) - MANDATORY 7-STEP COMPREHENSIVE RESPONSE:
-   - NEVER KEEP SHORT: Minimum 600+ words, 10+ examples, 8+ steps detailed explanation
-   - INTRODUCTION (100+ words): Introduce topic with historical context, emphasize importance and scope
-   - CORE CONCEPTS (150+ words): Define main concepts in 5+ different ways
-   - DETAILED EXPLANATION (200+ words): Examine each step from 3-4 perspectives, use visual analogies
-   - REAL-LIFE EXAMPLES (150+ words): At least 8 different detailed scenario examples
-   - COMPARISON ANALYSIS (150+ words): Alternatives, pros/cons, when to use which method
-   - VISUAL REPRESENTATIONS (100+ words): ASCII tables, drawings, process flow diagrams
-   - CONCLUSION AND RECOMMENDATIONS (100+ words): Comprehensive summary, future predictions, action recommendations
+RULES FOR DETAILED ANSWERS:
+1. ALWAYS use tools for EVERY question - never respond directly!
+2. Check conversation history AND use tools
+3. After getting tool results, provide DETAILED and EXPLANATORY Final Answer
+4. Never repeat tool usage
+5. Never provide error messages or apologies
+6. Always extract ALL useful information from available sources
+7. Provide step-by-step instructions to users
+8. Explain technical details and requirements
+9. Include examples and specific information
 
-2. FOR DISCOUNT/FINANCIAL QUESTIONS - ECONOMIC ANALYSIS LEVEL:
-   - MATHEMATICAL FORMULAS: "Discount Amount = Original Price × (Discount Percentage ÷ 100)"
-   - CREATE COMPARATIVE TABLES:
+MANDATORY FORMAT - DETAILED TOOL USAGE:
 
-```
-| Scenario | Original | Discount | Savings | Final Price |
-|----------|----------|----------|---------|-------------|
-| 10%      | $1000    | $100     | $100    | $900        |
-| 20%      | $1000    | $200     | $200    | $800        |
-| 30%      | $1000    | $300     | $300    | $700        |
-```
+For every question, use tools and provide detailed answers:
+Question: the input question you must answer
+Thought: I need to use tools for this question, I cannot respond directly. I will provide comprehensive information to the user.
+Action: document_retriever
+Action Input: [convert question to appropriate tool query for detailed search]
+Observation: [tool results will appear here]
+Thought: Based on tool results, I can prepare a comprehensive and step-by-step answer. I should use all details.
+Final Answer: [USING ALL DETAILS FROM TOOL RESULTS, provide comprehensive answer. Include step-by-step explanations, technical requirements, examples and specific instructions. Never give short summaries - present all available information!]
 
-   - TIME FACTOR: "This discount provides $50 daily savings, $1500 monthly, $18,000 annually"
-   - ECONOMIC IMPACTS: "How does this affect your buying decision? When does it become profitable?"
-
-3. FOR CODE WRITING REQUESTS - PROFESSIONAL DOCUMENTATION:
-   - Write 2-3 lines of detailed comments for EACH code line
-   - VARIABLE DEFINITIONS: "price: stores original product price, must be float, cannot be negative"
-   - DRAW ALGORITHM FLOW DIAGRAM (text table)
-   - HANDLE ERROR CONDITIONS comprehensively
-   - PERFORMANCE ANALYSIS: "O(n) complexity, optimize for large datasets as follows..."
-   - AT LEAST 8 different usage examples
-   - COMPARE ALTERNATIVE ALGORITHMS
-
-4. FOR SHORT/GENERAL QUESTIONS - STILL COMPREHENSIVE:
-   - Even short questions get 150+ words of detailed information
-   - Explain topic deeply but concisely
-
-MANDATORY RESPONSE FORMAT - 7-STEP MANDATORY STRUCTURE:
-
-For detailed explanations:
-Question: [question]
-Thought: This requires a comprehensive explanation. I'll perform 7-step in-depth analysis.
-Final Answer: [600+ words, 7 sections, 10+ examples, comparisons, visuals]
-
-For discount calculations:
-Question: [question]
-Thought: I'll perform economic analysis level discount calculation.
-Final Answer: [Formulas, tables, graphic displays, time factor, economic impacts]
-
-For code writing:
-Question: [question]
-Thought: I'll write code with professional documentation standards.
-Final Answer: [Code + 20+ comment lines + 8 examples + performance analysis]
-
-For standard questions:
-Question: [question]
-Thought: I'll provide comprehensive and informative response.
-Final Answer: [Detailed, explanatory, enriched with examples]
-
-RESPONSE QUALITY MANDATES:
-- Explain every technical term in AT LEAST 2 different ways to make JARGON-FREE
-- Simplify complex topics with 5+ different metaphors and analogies
-- Show numerical data with ASCII art and tables
-- Enrich every answer with perspective diversity: "From an expert's view... From a user's perspective..."
-- Add time component: "In short term this effect... In long term this change..."
-- Explain social impacts: "This situation is perceived in society as..."
+IMPORTANT INSTRUCTIONS FOR DETAILED ANSWERS:
+- ALWAYS use tools - never respond directly to any question!
+- ALWAYS check conversation history for context before using tools
+- After receiving tool results, move to DETAILED Final Answer
+- Never say there was an error - always work with the information provided
+- Extract ALL useful information from available sources
+- Provide users with practical, actionable instructions
+- Add screenshots, links or references when necessary
+- Break down complex topics into simple steps
 
 Begin!
 
-Question: {{input}}
-Thought:{{agent_scratchpad}}""",
+Question: {input}
+Thought:{agent_scratchpad}""",
             'de': """Sie sind ein erfahrener Assistent mit Zugang zu Gesprächsverlauf und Tools.
 
 GESPRÄCHSVERLAUF:
@@ -2388,35 +1592,26 @@ WICHTIGE KONTEXTREGELN:
 - Verwenden Sie den Gesprächsverlauf, um den vollständigen Kontext der Frage zu verstehen
 
 REGELN:
-1. Prüfen Sie den GESPRÄCHSVERLAUF ZUERST, bevor Sie Tools verwenden
-2. Verwenden Sie Tools EINMAL, um bei Bedarf Informationen zu erhalten
+1. VERWENDEN SIE IMMER Tools für JEDE Frage - antworten Sie niemals direkt!
+2. Prüfen Sie den Gesprächsverlauf UND verwenden Sie Tools
 3. Geben Sie sofort Final Answer nach Erhalt der Tool-Ergebnisse
 4. Wiederholen Sie die Tool-Nutzung nie
 5. Geben Sie nie Fehlermeldungen oder Entschuldigungen
 6. Extrahieren Sie immer nützliche Informationen aus verfügbaren Quellen
 
-ZWINGENDES FORMAT:
+ZWINGENDES FORMAT - IMMER TOOLS VERWENDEN:
 
-Für Fragen mit Kontext im Gesprächsverlauf:
+Für jede Frage Tools verwenden:
 Question: die zu beantwortende Frage
-Thought: Lassen Sie mich den Gesprächsverlauf auf relevante Informationen zu [Thema/Name/Referenz] prüfen
-Final Answer: [Basierend auf dem Gesprächsverlauf, geben Sie die spezifischen Informationen an]
-
-Für Fragen, die Dokumentsuche erfordern:
-Question: die zu beantwortende Frage
-Thought: Ich muss den Dokument-Retriever verwenden, um Informationen zu diesem Thema zu suchen
+Thought: Ich muss Tools für diese Frage verwenden, ich kann nicht direkt antworten
 Action: document_retriever
-Action Input: [Suchanfrage]
+Action Input: [Frage für Tools umwandeln]
 Observation: [Tool-Ergebnisse werden hier angezeigt]
-Thought: Basierend auf den Suchergebnissen kann ich eine umfassende Antwort geben
-Final Answer: [Basierend auf den abgerufenen Dokumenten, geben Sie spezifische Informationen an. Wenn Dokumente relevante Details enthalten, verwenden Sie sie. Wenn Dokumente unvollständig sind, aber einige relevante Informationen enthalten, verwenden Sie das Verfügbare und erwähnen Sie, was gefunden wurde.]
-
-Für Begrüßungen oder einfache Fragen:
-Question: die Frage
-Thought: Dies ist eine einfache Frage, die keine Tool-Nutzung erfordert
-Final Answer: [direkte Antwort]
+Thought: Basierend auf Tool-Ergebnissen kann ich antworten
+Final Answer: [Basierend auf Tool-Ergebnissen, gefundene Informationen verwenden. Wenn Tools keine Ergebnisse finden, allgemeine Kenntnisse verwenden aber erwähnen, dass Tools verwendet wurden.]
 
 WICHTIGE ANWEISUNGEN:
+- VERWENDEN SIE IMMER Tools - antworten Sie niemals direkt auf Fragen!
 - Prüfen Sie IMMER den Gesprächsverlauf auf Kontext, BEVOR Sie Tools verwenden
 - Gehen Sie SOFORT zu Final Answer nach Erhalt der Tool-Ergebnisse
 - Sagen Sie nie, dass ein Fehler aufgetreten ist - arbeiten Sie mit den bereitgestellten Informationen
@@ -2448,35 +1643,26 @@ RÈGLES DE CONTEXTE IMPORTANTES:
 - Utilisez l'historique pour comprendre le contexte complet de la question
 
 RÈGLES:
-1. Vérifiez l'HISTORIQUE DE CONVERSATION D'ABORD avant d'utiliser les outils
-2. Utilisez les outils UNE FOIS pour obtenir des informations si nécessaire
+1. UTILISEZ TOUJOURS les outils pour CHAQUE question - ne répondez jamais directement!
+2. Vérifiez l'historique de conversation ET utilisez les outils
 3. Fournissez immédiatement Final Answer après avoir reçu les résultats des outils
 4. Ne répétez jamais l'utilisation des outils
 5. Ne fournissez jamais de messages d'erreur ou d'excuses
 6. Extrayez toujours des informations utiles des sources disponibles
 
-FORMAT OBLIGATOIRE:
+FORMAT OBLIGATOIRE - TOUJOURS UTILISER LES OUTILS:
 
-Pour les questions avec contexte dans l'historique:
+Pour chaque question, utilisez les outils:
 Question: la question à répondre
-Thought: Laissez-moi vérifier l'historique pour des informations pertinentes sur [sujet/nom/référence]
-Final Answer: [Basé sur l'historique, fournissez les informations spécifiques demandées]
-
-Pour les questions nécessitant une recherche de documents:
-Question: la question à répondre
-Thought: Je dois utiliser le récupérateur de documents pour rechercher des informations sur ce sujet
+Thought: Je dois utiliser les outils pour cette question, je ne peux pas répondre directement
 Action: document_retriever
-Action Input: [requête de recherche]
+Action Input: [convertir la question pour les outils]
 Observation: [les résultats des outils apparaîtront ici]
-Thought: Basé sur les résultats de recherche, je peux maintenant fournir une réponse complète
-Final Answer: [Basé sur les documents récupérés, fournissez les informations spécifiques trouvées. Si les documents contiennent des détails pertinents, utilisez-les. S'ils sont incomplets mais contiennent des informations pertinentes, utilisez ce qui est disponible et mentionnez ce qui a été trouvé.]
-
-Pour les salutations ou questions simples:
-Question: la question
-Thought: C'est une question simple qui ne nécessite pas l'utilisation d'outils
-Final Answer: [réponse directe]
+Thought: Basé sur les résultats des outils, je peux maintenant répondre
+Final Answer: [Basé sur les résultats des outils, utilisez les informations trouvées. Si les outils ne trouvent pas de résultats, utilisez des connaissances générales mais mentionnez que les outils ont été utilisés.]
 
 INSTRUCTIONS IMPORTANTES:
+- UTILISEZ TOUJOURS les outils - ne répondez jamais directement à une question!
 - Vérifiez TOUJOURS l'historique de conversation pour le contexte AVANT d'utiliser les outils
 - Passez IMMÉDIATEMENT à Final Answer après avoir reçu les résultats des outils
 - Ne dites jamais qu'il y a eu une erreur - travaillez avec les informations fournies
@@ -2508,35 +1694,26 @@ REGLAS DE CONTEXTO IMPORTANTES:
 - Usa el historial para entender el contexto completo de la pregunta
 
 REGLAS:
-1. Verifica el HISTORIAL DE CONVERSACIÓN PRIMERO antes de usar herramientas
-2. Usa las herramientas UNA VEZ para obtener información si es necesario
+1. SIEMPRE usa herramientas para CADA pregunta - nunca respondas directamente!
+2. Verifica el historial de conversación Y usa herramientas
 3. Proporciona Final Answer inmediatamente después de recibir los resultados de las herramientas
 4. Nunca repitas el uso de herramientas
 5. Nunca proporciones mensajes de error o disculpas
 6. Siempre extrae información útil de las fuentes disponibles
 
-FORMATO OBLIGATORIO:
+FORMATO OBLIGATORIO - SIEMPRE USAR HERRAMIENTAS:
 
-Para preguntas con contexto en el historial:
+Para cada pregunta, usar herramientas:
 Question: la pregunta a responder
-Thought: Déjame verificar el historial para información relevante sobre [tema/nombre/referencia]
-Final Answer: [Basado en el historial, proporciona la información específica solicitada]
-
-Para preguntas que requieren búsqueda de documentos:
-Question: la pregunta a responder
-Thought: Necesito usar el recuperador de documentos para buscar información sobre este tema
+Thought: Necesito usar herramientas para esta pregunta, no puedo responder directamente
 Action: document_retriever
-Action Input: [consulta de búsqueda]
+Action Input: [convertir pregunta para herramientas]
 Observation: [los resultados de las herramientas aparecerán aquí]
-Thought: Basado en los resultados de búsqueda, ahora puedo proporcionar una respuesta completa
-Final Answer: [Basado en los documentos recuperados, proporciona información específica encontrada. Si los documentos contienen detalles relevantes, úsalos. Si están incompletos pero contienen información relevante, usa lo disponible y menciona lo que se encontró.]
-
-Para saludos o preguntas simples:
-Question: la pregunta
-Thought: Esta es una pregunta simple que no requiere uso de herramientas
-Final Answer: [respuesta directa]
+Thought: Basado en los resultados de las herramientas, ahora puedo responder
+Final Answer: [Basado en los resultados de las herramientas, usa la información encontrada. Si las herramientas no encuentran resultados, usa conocimientos generales pero menciona que se usaron herramientas.]
 
 INSTRUCCIONES IMPORTANTES:
+- SIEMPRE usa herramientas - nunca respondas directamente a una pregunta!
 - SIEMPRE verifica el historial de conversación para contexto ANTES de usar herramientas
 - Pasa INMEDIATAMENTE a Final Answer después de recibir los resultados de herramientas
 - Nunca digas que hubo un error - trabaja con la información proporcionada
@@ -2568,35 +1745,26 @@ REGOLE DI CONTESTO IMPORTANTI:
 - Usa la cronologia per capire il contesto completo della domanda
 
 REGOLE:
-1. Controlla la CRONOLOGIA DELLA CONVERSAZIONE PRIMA di usare gli strumenti
-2. Usa gli strumenti UNA VOLTA per ottenere informazioni se necessario
+1. USA SEMPRE gli strumenti per OGNI domanda - non rispondere mai direttamente!
+2. Controlla la cronologia della conversazione E usa gli strumenti
 3. Fornisci Final Answer immediatamente dopo aver ricevuto i risultati degli strumenti
 4. Non ripetere mai l'uso degli strumenti
 5. Non fornire mai messaggi di errore o scuse
 6. Estrai sempre informazioni utili dalle fonti disponibili
 
-FORMATO OBBLIGATORIO:
+FORMATO OBBLIGATORIO - USA SEMPRE GLI STRUMENTI:
 
-Per domande con contesto nella cronologia:
+Per ogni domanda, usa gli strumenti:
 Question: la domanda da rispondere
-Thought: Lasciami controllare la cronologia per informazioni rilevanti su [argomento/nome/riferimento]
-Final Answer: [Basato sulla cronologia, fornisci le informazioni specifiche richieste]
-
-Per domande che richiedono ricerca di documenti:
-Question: la domanda da rispondere
-Thought: Devo usare il recuperatore di documenti per cercare informazioni su questo argomento
+Thought: Devo usare gli strumenti per questa domanda, non posso rispondere direttamente
 Action: document_retriever
-Action Input: [query di ricerca]
+Action Input: [converti domanda per strumenti]
 Observation: [i risultati degli strumenti appariranno qui]
-Thought: Basato sui risultati della ricerca, ora posso fornire una risposta completa
-Final Answer: [Basato sui documenti recuperati, fornisci informazioni specifiche trovate. Se i documenti contengono dettagli rilevanti, usali. Se sono incompleti ma contengono alcune informazioni rilevanti, usa quelle disponibili e menziona cosa è stato trovato.]
-
-Per saluti o domande semplici:
-Question: la domanda
-Thought: Questa è una domanda semplice che non richiede l'uso di strumenti
-Final Answer: [risposta diretta]
+Thought: Basato sui risultati degli strumenti, ora posso rispondere
+Final Answer: [Basato sui risultati degli strumenti, usa le informazioni trovate. Se gli strumenti non trovano risultati, usa conoscenze generali ma menziona che sono stati usati gli strumenti.]
 
 ISTRUZIONI IMPORTANTI:
+- USA SEMPRE gli strumenti - non rispondere mai direttamente a una domanda!
 - Controlla SEMPRE la cronologia della conversazione per il contesto PRIMA di usare gli strumenti
 - Passa IMMEDIATAMENTE a Final Answer dopo aver ricevuto i risultati degli strumenti
 - Non dire mai che c'è stato un errore - lavora con le informazioni fornite
@@ -2628,35 +1796,26 @@ REGRAS DE CONTEXTO IMPORTANTES:
 - Use o histórico para entender o contexto completo da pergunta
 
 REGRAS:
-1. Verifique o HISTÓRICO DE CONVERSAÇÃO PRIMEIRO antes de usar ferramentas
-2. Use as ferramentas UMA VEZ para obter informações se necessário
+1. USE SEMPRE ferramentas para CADA pergunta - nunca responda diretamente!
+2. Verifique o histórico de conversa E use ferramentas
 3. Forneça Final Answer imediatamente após receber os resultados das ferramentas
 4. Nunca repita o uso de ferramentas
 5. Nunca forneça mensagens de erro ou desculpas
 6. Sempre extraia informações úteis das fontes disponíveis
 
-FORMATO OBRIGATÓRIO:
+FORMATO OBRIGATÓRIO - SEMPRE USAR FERRAMENTAS:
 
-Para perguntas com contexto no histórico:
-Question: a pergunta a ser respondida
-Thought: Deixe-me verificar o histórico para informações relevantes sobre [tópico/nome/referência]
-Final Answer: [Com base no histórico, forneça as informações específicas solicitadas]
-
-Para perguntas que requerem pesquisa de documentos:
-Question: a pergunta a ser respondida
-Thought: Preciso usar o recuperador de documentos para pesquisar informações sobre este tópico
+Para cada pergunta, usar ferramentas:
+Question: a pergunta a responder
+Thought: Preciso usar ferramentas para esta pergunta, não posso responder diretamente
 Action: document_retriever
-Action Input: [consulta de pesquisa]
+Action Input: [converter pergunta para ferramentas]
 Observation: [os resultados das ferramentas aparecerão aqui]
-Thought: Com base nos resultados da pesquisa, agora posso fornecer uma resposta completa
-Final Answer: [Com base nos documentos recuperados, forneça informações específicas encontradas. Se os documentos contiverem detalhes relevantes, use-os. Se estiverem incompletos, mas contiverem informações relevantes, use o que estiver disponível e mencione o que foi encontrado.]
-
-Para saudações ou perguntas simples:
-Question: a pergunta
-Thought: Esta é uma pergunta simples que não requer uso de ferramentas
-Final Answer: [resposta direta]
+Thought: Baseado nos resultados das ferramentas, agora posso responder
+Final Answer: [Baseado nos resultados das ferramentas, use as informações encontradas. Se as ferramentas não encontrarem resultados, use conhecimentos gerais mas mencione que ferramentas foram usadas.]
 
 INSTRUÇÕES IMPORTANTES:
+- USE SEMPRE ferramentas - nunca responda diretamente a uma pergunta!
 - SEMPRE verifique o histórico de conversa para contexto ANTES de usar ferramentas
 - Pule IMEDIATAMENTE para Final Answer após receber os resultados das ferramentas
 - Nunca diga que houve um erro - trabalhe com as informações fornecidas
@@ -2675,7 +1834,7 @@ Thought:{agent_scratchpad}"""
         full_prompt = f"""
 {identity_section}
 
-{full_guidelines}
+{simplified_guidelines}
 
 {react_template}
 """

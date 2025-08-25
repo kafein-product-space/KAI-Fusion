@@ -53,12 +53,52 @@ class JSONFormatter(logging.Formatter):
 
 class HumanReadableFormatter(logging.Formatter):
     """Human-readable formatter for development environments."""
-    
-    def __init__(self):
+
+    # ANSI color codes
+    COLORS = {
+        'DEBUG': '\033[36m',    # Cyan
+        'INFO': '\033[32m',     # Green
+        'WARNING': '\033[33m',  # Yellow
+        'ERROR': '\033[31m',    # Red
+        'CRITICAL': '\033[35m', # Magenta
+        'RESET': '\033[0m'      # Reset to default
+    }
+
+    def __init__(self, use_colors=True):
         super().__init__(
             fmt="%(asctime)s | %(levelname)-8s | %(name)-20s | %(funcName)-15s:%(lineno)-4d | %(message)s",
             datefmt="%Y-%m-%d %H:%M:%S"
         )
+        self.use_colors = use_colors and os.name != 'nt'  # Disable colors on Windows by default
+
+    def format(self, record: logging.LogRecord) -> str:
+        # Store the original levelname
+        original_levelname = record.levelname
+
+        if self.use_colors:
+            # Add color to levelname
+            if record.levelname in self.COLORS:
+                colored_levelname = f"{self.COLORS[record.levelname]}{record.levelname}{self.COLORS['RESET']}"
+                record.levelname = colored_levelname
+
+        # Format the message
+        formatted_message = super().format(record)
+
+        # Restore original levelname
+        record.levelname = original_levelname
+
+        return formatted_message
+
+
+class ColoredLoggerAdapter(logging.LoggerAdapter):
+    """Logger adapter that provides colored logging methods."""
+
+    def yellow(self, message, *args, **kwargs):
+        """Log a message with yellow color."""
+        if self.isEnabledFor(logging.INFO):
+            # Use ANSI yellow color for the entire message
+            yellow_message = f"\033[33m{message}\033[0m"
+            self.log(logging.INFO, yellow_message, *args, **kwargs)
 
 
 class DatabaseFilter(logging.Filter):
@@ -155,9 +195,10 @@ def setup_comprehensive_logging():
         console_handler.setFormatter(JSONFormatter())
         console_handler.setLevel(logging.INFO)
     else:
-        console_handler.setFormatter(HumanReadableFormatter())
+        # Use colored formatter for development
+        console_handler.setFormatter(HumanReadableFormatter(use_colors=True))
         console_handler.setLevel(logging.DEBUG)
-    
+
     root_logger.addHandler(console_handler)
     
     # Configure specific loggers
@@ -193,19 +234,34 @@ def configure_third_party_loggers():
     logging.getLogger("asyncio").setLevel(logging.WARNING)
 
 
-def get_logger_with_context(name: str, **context: Any) -> logging.LoggerAdapter:
+def get_logger_with_context(name: str, **context: Any) -> ColoredLoggerAdapter:
     """
     Get a logger with additional context that will be included in all log messages.
-    
+    Supports colored logging with .yellow() method.
+
     Args:
         name: Logger name
         **context: Additional context to include in log messages
-    
+
     Returns:
-        LoggerAdapter with context
+        ColoredLoggerAdapter with context and colored logging support
     """
     logger = logging.getLogger(name)
-    return logging.LoggerAdapter(logger, context)
+    return ColoredLoggerAdapter(logger, context)
+
+
+def get_colored_logger(name: str) -> ColoredLoggerAdapter:
+    """
+    Get a colored logger for the specified name.
+
+    Args:
+        name: Logger name
+
+    Returns:
+        ColoredLoggerAdapter with colored logging support
+    """
+    logger = logging.getLogger(name)
+    return ColoredLoggerAdapter(logger, {})
 
 
 def log_performance(func_name: str, duration: float, **extra_context: Any):
