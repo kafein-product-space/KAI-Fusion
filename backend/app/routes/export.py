@@ -94,35 +94,13 @@ class ExportPackage(BaseModel):
 # Initialize dynamic analyzer (replaces static NODE_ENV_MAPPING)
 dynamic_analyzer = DynamicNodeAnalyzer(node_registry)
 
-# Legacy compatibility layer - for gradual migration
-LEGACY_ENV_DESCRIPTIONS = {
-    # Core system
-    "DATABASE_URL": "PostgreSQL database connection URL for workflow data",
-    "SECRET_KEY": "Secret key for JWT authentication and encryption",
-    "WORKFLOW_ID": "Unique identifier for the exported workflow",
-    
-    # Monitoring
-    "LANGCHAIN_API_KEY": "LangSmith API key for optional monitoring",
-    "LANGCHAIN_PROJECT": "LangSmith project name for tracing",
-    "LANGCHAIN_TRACING_V2": "Enable LangSmith tracing (true/false)",
-    
-    # Security
-    "API_KEYS": "Comma-separated API keys for authentication",
-    "REQUIRE_API_KEY": "Whether API key authentication is required",
-    
-    # Runtime
-    "API_HOST": "Host address for the API server",
-    "API_PORT": "Internal port for the API server",
-    "DOCKER_PORT": "External Docker port mapping"
-}
-
-LEGACY_ENV_EXAMPLES = {
-    "DATABASE_URL": "postgresql://user:password@localhost:5432/workflow_db",
-    "SECRET_KEY": "your-secret-key-here",
-    "LANGCHAIN_API_KEY": "lsv2_sk_abc123...",
-    "API_KEYS": "key1,key2,key3",
-    "REQUIRE_API_KEY": "true",
-    "LANGCHAIN_TRACING_V2": "true"
+# System environment variables (minimal set for runtime)
+SYSTEM_ENV_VARS = {
+    "DATABASE_URL": "PostgreSQL database connection URL",
+    "SECRET_KEY": "Secret key for JWT authentication",
+    "WORKFLOW_ID": "Workflow identifier",
+    "API_KEYS": "Comma-separated API keys",
+    "REQUIRE_API_KEY": "API key authentication required"
 }
 
 # ================================================================================
@@ -147,54 +125,32 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         analysis_result = analyzer.analyze_workflow(flow_data)
         
         logger.info(f"✅ Dynamic analysis complete - Found {len(analysis_result.node_types)} node types")
-        logger.info(f"📋 Environment variables: {len(analysis_result.required_env_vars)} required, {len(analysis_result.optional_env_vars)} optional")
+        logger.info(f"📋 Environment variables: {len(analysis_result.environment_variables)} total")
         logger.info(f"📦 Package dependencies: {len(analysis_result.package_dependencies)} packages")
         
         # Convert DynamicAnalysisResult to WorkflowDependencies format
         required_env_vars = []
         optional_env_vars = []
         
-        # Process required environment variables
-        for env_var in analysis_result.required_env_vars:
-            required_env_vars.append(EnvironmentVariable(
-                name=env_var.name,
-                description=env_var.description,
-                example=env_var.example or "",
-                required=True,
-                node_type=env_var.source_node or "Dynamic"
-            ))
-        
-        # Process optional environment variables
-        for env_var in analysis_result.optional_env_vars:
-            optional_env_vars.append(EnvironmentVariable(
-                name=env_var.name,
-                description=env_var.description,
-                example=env_var.example or "",
-                default=env_var.default_value or "",
-                required=False,
-                node_type=env_var.source_node or "Dynamic"
-            ))
-        
-        # Add system-level required variables
-        if not any(var.name == "DATABASE_URL" for var in required_env_vars):
-            required_env_vars.append(EnvironmentVariable(
-                name="DATABASE_URL",
-                description="PostgreSQL database connection URL for workflow execution data",
-                example="postgresql://user:password@localhost:5432/workflow_db",
-                required=True,
-                node_type="System"
-            ))
-        
-        # Add monitoring variables as optional
-        if not any(var.name == "LANGCHAIN_API_KEY" for var in optional_env_vars):
-            optional_env_vars.append(EnvironmentVariable(
-                name="LANGCHAIN_API_KEY",
-                description="LangSmith API key for monitoring (optional)",
-                example="lsv2_sk_abc123...",
-                default="",
-                required=False,
-                node_type="Monitoring"
-            ))
+        # Process environment variables by required status
+        for env_var in analysis_result.environment_variables:
+            if env_var.required:
+                required_env_vars.append(EnvironmentVariable(
+                    name=env_var.name,
+                    description=env_var.description,
+                    example=env_var.example or "",
+                    required=True,
+                    node_type=env_var.node_type or "Dynamic"
+                ))
+            else:
+                optional_env_vars.append(EnvironmentVariable(
+                    name=env_var.name,
+                    description=env_var.description,
+                    example=env_var.example or "",
+                    default=str(env_var.default) if env_var.default is not None else "",
+                    required=False,
+                    node_type=env_var.node_type or "Dynamic"
+                ))
         
         # Define standard API endpoints
         api_endpoints = [
@@ -210,7 +166,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         
         logger.info(f"🎯 Dynamic analysis summary:")
         logger.info(f"   • Node types: {', '.join(analysis_result.node_types)}")
-        logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.required_env_vars if v.security_level in ['critical', 'high']])}")
+        logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.environment_variables if v.security_level in ['critical', 'high']])}")
         logger.info(f"   • Package dependencies: {len(analysis_result.package_dependencies)}")
         
         return WorkflowDependencies(
@@ -218,7 +174,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
             nodes=analysis_result.node_types,
             required_env_vars=required_env_vars,
             optional_env_vars=optional_env_vars,
-            python_packages=analysis_result.package_dependencies,
+            python_packages=[f"{pkg.name}{pkg.version}" for pkg in analysis_result.package_dependencies],
             api_endpoints=api_endpoints
         )
         
@@ -510,293 +466,818 @@ def create_minimal_backend(dependencies: WorkflowDependencies) -> Dict[str, str]
     """Create minimal backend components for workflow runtime."""
     logger.info("Creating minimal backend components")
     
-    # Main application file
+    # Full-featured workflow runtime with OpenAI integration
     main_py = f'''# -*- coding: utf-8 -*-
-"""
-Minimal KAI-Fusion Workflow Runtime
-Auto-generated runtime for workflow: {dependencies.workflow_id}
-"""
+"""KAI-Fusion Workflow Runtime with OpenAI Integration"""
 
 import os
 import logging
+import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import uuid
 
-# Import modular components
-from app.api.workflow import router as workflow_router
-from app.api.health import router as health_router
-from app.core.config import settings
-from app.core.database import init_database, close_database
-
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
-    format=os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load workflow definition
 try:
     with open('workflow-definition.json', 'r', encoding='utf-8') as f:
-        WORKFLOW_DEFINITION = json.load(f)
-    logger.info("Workflow definition loaded successfully")
+        WORKFLOW_DEF = json.load(f)
+    logger.info("Workflow definition loaded")
 except Exception as e:
-    logger.error(f"Failed to load workflow definition: {{e}}")
-    WORKFLOW_DEFINITION = {{"nodes": [], "edges": []}}
+    logger.error(f"Failed to load workflow: {{e}}")
+    WORKFLOW_DEF = {{"nodes": [], "edges": []}}
 
 # Security configuration
-API_KEYS = [key.strip() for key in (settings.API_KEYS or '').split(',') if key.strip()]
-# Use REQUIRE_API_KEY setting from export configuration
-REQUIRE_API_KEY = settings.REQUIRE_API_KEY.lower() == 'true'
+API_KEYS = [k.strip() for k in (os.getenv("API_KEYS", "") or "").split(",") if k.strip()]
+REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "false").lower() == "true"
 
-# Minimal startup log (avoid template-time f-string evaluation)
-logger.info("Workflow runtime security configuration loaded")
+# Database setup
+async def init_database():
+    """Initialize database and create tables if they don't exist."""
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            logger.warning("No DATABASE_URL provided, using SQLite")
+            database_url = "sqlite:///./workflow.db"
+        
+        logger.info(f"Initializing database: {{database_url[:50]}}...")
+        
+        # Handle different database types
+        if database_url.startswith("sqlite"):
+            # For SQLite, create simple JSON storage
+            import sqlite3
+            import json
+            
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Create basic execution tracking table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS workflow_executions (
+                    execution_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    input_data TEXT,
+                    result_data TEXT,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Create session memory table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS session_memory (
+                    session_id TEXT NOT NULL,
+                    message_order INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, message_order)
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+            logger.info("SQLite database initialized successfully")
+            
+        elif database_url.startswith("postgresql"):
+            # For PostgreSQL, create tables using asyncpg
+            try:
+                import asyncpg
+                
+                # Parse connection URL
+                conn = await asyncpg.connect(database_url)
+                
+                # Create execution tracking table
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS workflow_executions (
+                        execution_id VARCHAR(255) PRIMARY KEY,
+                        status VARCHAR(50) NOT NULL,
+                        input_data JSONB,
+                        result_data JSONB,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Create session memory table
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS session_memory (
+                        session_id VARCHAR(255) NOT NULL,
+                        message_order INTEGER NOT NULL,
+                        role VARCHAR(20) NOT NULL,
+                        content TEXT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (session_id, message_order)
+                    )
+                ''')
+                
+                await conn.close()
+                logger.info("PostgreSQL database initialized successfully")
+                
+            except ImportError:
+                logger.error("asyncpg not installed for PostgreSQL support")
+                raise
+            except Exception as e:
+                logger.error(f"PostgreSQL initialization failed: {{e}}")
+                # Fall back to in-memory storage
+                logger.warning("Falling back to in-memory storage")
+        else:
+            logger.warning(f"Unsupported database type: {{database_url[:10]}}, using in-memory storage")
+            
+    except Exception as e:
+        logger.error(f"Database initialization failed: {{e}}")
+        logger.warning("Continuing with in-memory storage only")
 
 # Initialize FastAPI
 app = FastAPI(
     title="KAI-Fusion Workflow Runtime",
-    description=f"Runtime for workflow: {{settings.WORKFLOW_ID}}",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    description=f"Runtime for workflow: {{os.getenv('WORKFLOW_ID', 'unknown')}}",
+    version="1.0.0"
 )
+
+# Startup event to initialize database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database and other services on startup."""
+    try:
+        await init_database()
+        logger.info("✅ Workflow runtime started successfully")
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {{e}}")
+        logger.warning("⚠️ Continuing with limited functionality")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown."""
+    logger.info("🔄 Shutting down workflow runtime")
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for workflow exports
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Request models
-class WorkflowExecuteRequest(BaseModel):
+# Request/Response models
+class WorkflowRequest(BaseModel):
     input: str
     parameters: Dict[str, Any] = {{}}
+    session_id: Optional[str] = None
 
-class WorkflowExecuteResponse(BaseModel):
+class WorkflowResponse(BaseModel):
     execution_id: str
     status: str
     result: Optional[Any] = None
     error: Optional[str] = None
     timestamp: str
 
+# In-memory execution storage (fallback)
+EXECUTIONS = {{}}
+
+# Database persistence functions
+async def save_execution_to_db(execution_data: Dict[str, Any]):
+    """Save execution to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            conn.execute("""
+                INSERT OR REPLACE INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                execution_data["execution_id"],
+                execution_data["status"],
+                json.dumps(execution_data.get("input")),
+                json.dumps(execution_data.get("result")),
+                execution_data.get("error")
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            await conn.execute("""
+                INSERT INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                ON CONFLICT (execution_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    result_data = EXCLUDED.result_data,
+                    error_message = EXCLUDED.error_message,
+                    updated_at = EXCLUDED.updated_at
+            """,
+                execution_data["execution_id"],
+                execution_data["status"],
+                execution_data.get("input"),
+                execution_data.get("result"),
+                execution_data.get("error")
+            )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save to database: {{e}}")
+        # Continue with in-memory storage
+
+async def get_execution_from_db(execution_id: str) -> Optional[Dict[str, Any]]:
+    """Get execution from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = ?
+            """, (execution_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {{
+                    "execution_id": row[0],
+                    "status": row[1],
+                    "input": json.loads(row[2]) if row[2] else None,
+                    "result": json.loads(row[3]) if row[3] else None,
+                    "error": row[4],
+                    "timestamp": row[5]
+                }}
+                
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            row = await conn.fetchrow("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = $1
+            """, execution_id)
+            
+            await conn.close()
+            
+            if row:
+                return {{
+                    "execution_id": row["execution_id"],
+                    "status": row["status"],
+                    "input": row["input_data"],
+                    "result": row["result_data"],
+                    "error": row["error_message"],
+                    "timestamp": row["created_at"].isoformat()
+                }}
+                
+    except Exception as e:
+        logger.error(f"Failed to get from database: {{e}}")
+        
+    return None
+
+async def save_session_memory_to_db(session_id: str, messages: list):
+    """Save session memory to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Clear existing session messages
+            conn.execute('DELETE FROM session_memory WHERE session_id = ?', (session_id,))
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            # Clear existing session messages
+            await conn.execute('DELETE FROM session_memory WHERE session_id = $1', session_id)
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                await conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES ($1, $2, $3, $4, $5)
+                """,
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save session memory to database: {{e}}")
+
+async def load_session_memory_from_db(session_id: str) -> list:
+    """Load session memory from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = ? ORDER BY message_order
+            """, (session_id,))
+            
+            messages = []
+            for row in cursor.fetchall():
+                messages.append({{
+                    "role": row[0],
+                    "content": row[1],
+                    "timestamp": row[2]
+                }})
+            
+            conn.close()
+            return messages
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            rows = await conn.fetch("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = $1 ORDER BY message_order
+            """, session_id)
+            
+            messages = []
+            for row in rows:
+                messages.append({{
+                    "role": row["role"],
+                    "content": row["content"],
+                    "timestamp": row["timestamp"].isoformat()
+                }})
+            
+            await conn.close()
+            return messages
+            
+    except Exception as e:
+        logger.error(f"Failed to load session memory from database: {{e}}")
+        
+    return []
+
 # Security middleware
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    # API key validation only (no host validation as requested)
-    if REQUIRE_API_KEY:
-        path = request.url.path
-        if path.startswith("/api/") and not path.startswith("/api/health"):
-            api_key = request.headers.get("X-API-Key")
-            auth_header = request.headers.get("Authorization")
+    if REQUIRE_API_KEY and request.url.path.startswith("/api/"):
+        api_key = request.headers.get("X-API-Key") or (
+            request.headers.get("Authorization", "").replace("Bearer ", "")
+        )
+        if not api_key or api_key not in API_KEYS:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    return await call_next(request)
 
-            if not api_key and auth_header and auth_header.startswith("Bearer "):
-                api_key = auth_header.split(" ")[1]
-
+def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Execute LLM workflow with user input and session memory."""
+    try:
+        # Find LLM and Memory nodes in workflow
+        llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+        memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+        
+        if not llm_nodes:
+            return {{"response": "No LLM nodes found in workflow", "type": "error"}}
+        
+        # Initialize memory system
+        session_memory = []
+        if session_id and memory_nodes:
+            session_memory = load_session_memory(session_id)
+        
+        # OpenAI integration
+        try:
+            import openai
+            
+            # Get API key from environment
+            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAICHAT_API_KEY")
             if not api_key:
-                logger.warning("API key is missing")
-                raise HTTPException(status_code=401, detail="API key required")
-            if api_key not in API_KEYS:
-                logger.warning("Invalid API key provided")
-                raise HTTPException(status_code=401, detail="Invalid API key")
-            logger.info("Request authenticated successfully")
+                return {{"response": "OpenAI API key not configured", "type": "error"}}
+            
+            # Initialize OpenAI client
+            client = openai.OpenAI(api_key=api_key)
+            
+            # Get model from workflow or use default
+            model = "gpt-4o-mini"
+            temperature = 0.7
+            max_tokens = 2048
+            
+            # Extract model config from first LLM node
+            if llm_nodes:
+                node_data = llm_nodes[0].get("data", {{}})
+                model = node_data.get("model_name", model)
+                temperature = float(node_data.get("temperature", temperature))
+                max_tokens = int(node_data.get("max_tokens", max_tokens))
+            
+            # Build messages with memory
+            messages = [{{"role": "system", "content": "You are a helpful AI assistant integrated into KAI-Fusion workflow system."}}]
+            
+            # Add memory context if available
+            if session_memory:
+                # Add recent conversation history (last 10 messages)
+                recent_memory = session_memory[-10:] if len(session_memory) > 10 else session_memory
+                for mem in recent_memory:
+                    if mem.get("role") in ["user", "assistant"]:
+                        messages.append({{"role": mem["role"], "content": mem["content"]}})
+            
+            # Add current user input
+            messages.append({{"role": "user", "content": user_input}})
+            
+            # Create chat completion
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            assistant_response = response.choices[0].message.content
+            
+            # Save to memory if memory nodes exist and session_id provided
+            if session_id and memory_nodes:
+                save_to_session_memory(session_id, user_input, assistant_response)
+            
+            return {{
+                "response": assistant_response,
+                "type": "success",
+                "model": model,
+                "session_id": session_id,
+                "memory_enabled": bool(memory_nodes and session_id),
+                "usage": {{
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens
+                }}
+            }}
+            
+        except ImportError:
+            return {{"response": "OpenAI library not installed", "type": "error"}}
+        except Exception as e:
+            logger.error(f"OpenAI API error: {{e}}")
+            return {{"response": f"LLM execution failed: {{str(e)}}", "type": "error"}}
+    
+    except Exception as e:
+        logger.error(f"Workflow execution error: {{e}}")
+        return {{"response": f"Workflow execution failed: {{str(e)}}", "type": "error"}}
 
-    response = await call_next(request)
-    return response
+def load_session_memory(session_id: str) -> list:
+    """Load conversation memory for a session."""
+    try:
+        # Try database first
+        try:
+            return asyncio.get_event_loop().run_until_complete(load_session_memory_from_db(session_id))
+        except Exception as db_e:
+            logger.warning(f"Failed to load from database, falling back to file: {{db_e}}")
+            
+            # Fallback to file storage
+            memory_file = f"memory/session_{{session_id}}.json"
+            if os.path.exists(memory_file):
+                with open(memory_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+                    
+    except Exception as e:
+        logger.error(f"Failed to load session memory: {{e}}")
+    return []
 
-# Include API routers
-app.include_router(health_router, prefix="/api/health", tags=["Health"])
-app.include_router(workflow_router, prefix="/api/workflow", tags=["Workflow"])
+def save_to_session_memory(session_id: str, user_input: str, assistant_response: str):
+    """Save conversation to session memory."""
+    try:
+        # Load existing memory (try database first, then file)
+        memory = load_session_memory(session_id)
+        
+        # Add new conversation
+        timestamp = datetime.now().isoformat()
+        new_messages = [
+            {{"role": "user", "content": user_input, "timestamp": timestamp}},
+            {{"role": "assistant", "content": assistant_response, "timestamp": timestamp}}
+        ]
+        memory.extend(new_messages)
+        
+        # Keep only last 100 messages to prevent memory from growing too large
+        if len(memory) > 100:
+            memory = memory[-100:]
+        
+        # Try to save to database first
+        try:
+            asyncio.create_task(save_session_memory_to_db(session_id, memory))
+        except Exception as db_e:
+            logger.warning(f"Failed to save to database, falling back to file: {{db_e}}")
+            
+            # Fallback to file storage
+            os.makedirs("memory", exist_ok=True)
+            memory_file = f"memory/session_{{session_id}}.json"
+            with open(memory_file, 'w', encoding='utf-8') as f:
+                json.dump(memory, f, indent=2, ensure_ascii=False)
+            
+    except Exception as e:
+        logger.error(f"Failed to save session memory: {{e}}")
 
-# Root endpoint
+# API Endpoints
 @app.get("/")
 async def root():
     return {{
         "service": "KAI-Fusion Workflow Runtime",
-        "version": "1.0.0", 
-        "workflow_id": settings.WORKFLOW_ID,
-        "status": "running",
-        "docs": "/docs",
-        "api_endpoints": {{
-            "health": "/api/health",
-            "workflow": "/api/workflow",
-            "execute": "/api/workflow/execute"
-        }}
+        "workflow_id": os.getenv("WORKFLOW_ID"),
+        "status": "running"
     }}
 
-# Legacy health endpoint for backwards compatibility 
 @app.get("/health")
-async def legacy_health():
+async def health():
+    return {{"status": "healthy", "timestamp": datetime.now().isoformat()}}
+
+@app.post("/api/workflow/execute", response_model=WorkflowResponse)
+async def execute_workflow(request: WorkflowRequest):
+    execution_id = str(uuid.uuid4())
+    
+    try:
+        # Generate session ID if not provided
+        session_id = request.session_id or f"session_{{str(uuid.uuid4())[:8]}}"
+        
+        logger.info(f"Executing workflow with input: {{request.input}}, session: {{session_id}}")
+        
+        # Execute LLM workflow with session memory
+        result = execute_llm_workflow(request.input, session_id, request.parameters or {{}})
+        
+        # Store execution result for status/result endpoints
+        EXECUTIONS[execution_id] = {{
+            "execution_id": execution_id,
+            "status": "completed" if result.get("type") == "success" else "failed",
+            "result": result,
+            "error": None if result.get("type") == "success" else result.get("response"),
+            "timestamp": datetime.now().isoformat(),
+            "session_id": session_id
+        }}
+        
+        return WorkflowResponse(
+            execution_id=execution_id,
+            status="completed" if result.get("type") == "success" else "failed",
+            result=result,
+            error=None if result.get("type") == "success" else result.get("response"),
+            timestamp=datetime.now().isoformat()
+        )
+        
+    except Exception as e:
+        logger.error(f"Workflow execution failed: {{e}}")
+        execution_data = {{
+            "execution_id": execution_id,
+            "status": "failed",
+            "error": str(e),
+            "result": None,
+            "timestamp": datetime.now().isoformat()
+        }}
+        EXECUTIONS[execution_id] = execution_data
+        return WorkflowResponse(**execution_data)
+
+@app.get("/api/workflow/status/{{execution_id}}")
+async def get_execution_status(execution_id: str):
+    """Get execution status."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution status: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/result/{{execution_id}}")
+async def get_execution_result(execution_id: str):
+    """Get execution result."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution["result"],
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution result: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/executions/{{execution_id}}")
+async def get_execution_details(execution_id: str):
+    """Get execution status and details (legacy endpoint for compatibility)."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution.get("result"),
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution details: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/info")
+async def workflow_info():
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
     return {{
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "workflow_id": settings.WORKFLOW_ID
+        "workflow": WORKFLOW_DEF,
+        "nodes_count": len(WORKFLOW_DEF.get("nodes", [])),
+        "edges_count": len(WORKFLOW_DEF.get("edges", [])),
+        "llm_nodes": llm_nodes,
+        "memory_nodes": memory_nodes,
+        "memory_enabled": len(memory_nodes) > 0,
+        "status": "ready"
     }}
 
-# Application lifecycle events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database and services on startup."""
-    try:
-        await init_database()
-        logger.info("Workflow runtime started successfully")
-    except Exception as e:
-        logger.error(f"Startup failed: {{e}}")
-        raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown."""
-    try:
-        await close_database()
-        logger.info("Workflow runtime stopped")
-    except Exception as e:
-        logger.error(f"Shutdown error: {{e}}")
-
-# Placeholder external workflow integration
+# External workflow compatibility endpoints
 @app.get("/api/workflow/external/info")
-async def get_external_workflow_info():
+async def external_workflow_info():
+    """External workflow compatibility endpoint"""
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
     return {{
-        "workflow_id": settings.WORKFLOW_ID,
-        "name": WORKFLOW_DEFINITION.get("name", "External Workflow"),
-        "description": WORKFLOW_DEFINITION.get("description", "Exported workflow running in Docker"),
-        "version": "1.0.0",
-        "is_external": True,
-        "external_host": os.getenv('EXTERNAL_HOST', ''),
-        "flow_data": WORKFLOW_DEFINITION,
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown"),
+        "name": "Exported Workflow",
+        "description": "KAI-Fusion exported workflow runtime",
+        "external_url": f"http://localhost:{{os.getenv('API_PORT', '8000')}}",
+        "api_key_required": REQUIRE_API_KEY,
+        "connection_status": "online",
         "capabilities": {{
-            "execution": True,
-            "monitoring": bool(os.getenv("LANGCHAIN_TRACING_V2")),
-            "api_key_required": REQUIRE_API_KEY
+            "chat": len(llm_nodes) > 0,
+            "memory": len(memory_nodes) > 0,
+            "info_access": True,
+            "modification": False
         }},
-        "connection_info": {{
-            "last_ping": datetime.now().isoformat(),
-            "uptime": "healthy",
-            "health": "healthy"
-        }}
+        "created_at": datetime.now().isoformat(),
+        "last_health_check": datetime.now().isoformat()
     }}
 
 @app.post("/api/workflow/external/ping")
 async def external_ping():
+    """External workflow ping endpoint"""
     return {{
-        "status": "alive",
+        "status": "online",
         "timestamp": datetime.now().isoformat(),
-        "workflow_id": settings.WORKFLOW_ID,
-        "uptime": "healthy"
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown")
     }}
 
-# Workflow execution (placeholder - would integrate with actual engine)
-@app.post("/api/workflow/execute", response_model=WorkflowExecuteResponse)
-async def execute_workflow(request: WorkflowExecuteRequest):
-    execution_id = str(uuid.uuid4())
-    
+@app.get("/api/workflow/external/metrics")
+async def external_metrics():
+    """External workflow metrics endpoint"""
+    return {{
+        "uptime": "running",
+        "requests_processed": 0,
+        "last_activity": datetime.now().isoformat(),
+        "memory_usage": "N/A",
+        "status": "healthy"
+    }}
+
+@app.get("/api/workflow/sessions")
+async def list_sessions():
+    """List all chat sessions with memory."""
     try:
-        # TODO: Integrate with actual workflow engine
-        # This is a placeholder implementation
-        result = {{
-            "message": "Workflow execution completed",
-            "input": request.input,
-            "parameters": request.parameters,
-            "processed_at": datetime.now().isoformat()
-        }}
+        sessions = []
+        memory_dir = "memory"
         
-        return WorkflowExecuteResponse(
-            execution_id=execution_id,
-            status="completed",
-            result=result,
-            timestamp=datetime.now().isoformat()
-        )
-    
+        if os.path.exists(memory_dir):
+            for filename in os.listdir(memory_dir):
+                if filename.startswith("session_") and filename.endswith(".json"):
+                    session_id = filename.replace("session_", "").replace(".json", "")
+                    memory = load_session_memory(session_id)
+                    
+                    # Get last message timestamp
+                    last_timestamp = None
+                    if memory:
+                        last_message = memory[-1]
+                        last_timestamp = last_message.get("timestamp")
+                    
+                    sessions.append({{
+                        "session_id": session_id,
+                        "message_count": len(memory),
+                        "last_activity": last_timestamp
+                    }})
+        
+        return {{
+            "sessions": sessions,
+            "total_sessions": len(sessions)
+        }}
     except Exception as e:
-        logger.error(f"Workflow execution failed: {{e}}")
-        return WorkflowExecuteResponse(
-            execution_id=execution_id,
-            status="failed",
-            error=str(e),
-            timestamp=datetime.now().isoformat()
-        )
+        logger.error(f"Failed to list sessions: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/workflow/status/{{execution_id}}")
-async def get_execution_status(execution_id: str):
-    # TODO: Implement actual status tracking
-    return {{
-        "execution_id": execution_id,
-        "status": "completed",
-        "timestamp": datetime.now().isoformat()
-    }}
+@app.get("/api/workflow/memory/{{session_id}}")
+async def get_session_memory(session_id: str):
+    """Get conversation memory for a session."""
+    try:
+        memory = load_session_memory(session_id)
+        return {{
+            "session_id": session_id,
+            "messages": memory,
+            "message_count": len(memory),
+            "memory_enabled": True
+        }}
+    except Exception as e:
+        logger.error(f"Failed to get session memory: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/workflow/result/{{execution_id}}")
-async def get_execution_result(execution_id: str):
-    # TODO: Implement actual result retrieval
-    return {{
-        "execution_id": execution_id,
-        "result": "Placeholder result",
-        "timestamp": datetime.now().isoformat()
-    }}
+@app.delete("/api/workflow/memory/{{session_id}}")
+async def clear_session_memory(session_id: str):
+    """Clear conversation memory for a session."""
+    try:
+        memory_file = f"memory/session_{{session_id}}.json"
+        if os.path.exists(memory_file):
+            os.remove(memory_file)
+        
+        return {{
+            "session_id": session_id,
+            "status": "cleared",
+            "message": "Session memory cleared successfully"
+        }}
+    except Exception as e:
+        logger.error(f"Failed to clear session memory: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host=settings.HOST,
-        port=settings.API_PORT
-    )
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("API_PORT", "8000")))
 '''
     
-    # Dockerfile
-    dockerfile = f'''FROM python:3.11-slim
+    # Simplified Dockerfile
+    dockerfile = '''FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    libpq-dev \\
-    curl \\
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies  
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir uvicorn[standard]>=0.24.0 sqlalchemy>=2.0.0 asyncpg>=0.28.0
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY main.py .
-COPY app/ ./app/
-COPY workflow-definition.json .
-COPY .env .
+# Copy application
+COPY . .
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \\
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Create logs directory with proper permissions
-RUN mkdir -p /app/logs && \\
-    chmod -R 755 /app && \\
-    chown -R root:root /app
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \\
+    CMD curl -f http://localhost:$API_PORT/health || exit 1
 
 EXPOSE 8000
 
-# Create startup script to ensure uvicorn is available
-RUN echo '#!/bin/bash' > /start.sh && \\
-    echo 'echo "Checking required packages..."' >> /start.sh && \\
-    echo 'python -m pip show uvicorn || pip install uvicorn[standard]' >> /start.sh && \\
-    echo 'python -m pip show asyncpg || pip install asyncpg' >> /start.sh && \\
-    echo 'python -m pip show sqlalchemy || pip install sqlalchemy' >> /start.sh && \\
-    echo 'echo "Starting application..."' >> /start.sh && \\
-    echo 'cd /app' >> /start.sh && \\
-    echo 'exec python -m uvicorn main:app --host 0.0.0.0 --port $API_PORT --log-level info' >> /start.sh && \\
-    chmod +x /start.sh
-
-# Start application
-CMD ["/start.sh"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 '''
     
     return {
@@ -827,8 +1308,8 @@ def filter_requirements_for_nodes(node_types: List[str]) -> str:
         # Perform package analysis
         analysis_result = analyzer.analyze_workflow(flow_data)
         
-        # Get dynamically determined packages
-        dynamic_packages = analysis_result.package_dependencies
+        # Get dynamically determined packages - format PackageDependency objects properly
+        dynamic_packages = [f"{pkg.name}{pkg.version}" for pkg in analysis_result.package_dependencies]
         
         logger.info(f"✅ Dynamic package analysis complete - Found {len(dynamic_packages)} packages")
         logger.info(f"📦 Key packages: {', '.join(dynamic_packages[:5])}{'...' if len(dynamic_packages) > 5 else ''}")
@@ -1027,182 +1508,78 @@ def create_pre_configured_env_file(
 
 def create_ready_to_run_docker_context(
     workflow: Workflow,
-    minimal_backend: Dict[str, str], 
+    minimal_backend: Dict[str, str],
     pre_configured_env: str,
     docker_config: DockerConfig
 ) -> Dict[str, str]:
     """Create ready-to-run Docker context files."""
     logger.info("Creating Docker context")
     
-    # docker-compose.yml
     docker_compose = f'''services:
-  # Workflow API Backend (RESTful API only)
   workflow-api:
     build: .
     env_file:
       - .env
-    environment:
-      # Override critical settings to ensure they're set
-      - WORKFLOW_MODE=runtime
     ports:
       - "{docker_config.docker_port}:{docker_config.api_port}"
     volumes:
       - ./logs:/app/logs
-      - workflow_memory:/app/memory
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:$$API_PORT/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:$$API_PORT/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
     restart: unless-stopped
-    networks:
-      - workflow-runtime-network
 
 volumes:
   logs:
-  workflow_memory:
-    driver: local
-
-networks:
-  workflow-runtime-network:
-    driver: bridge
 '''
     
-    return {
-        "docker-compose.yml": docker_compose
-    }
+    return {"docker-compose.yml": docker_compose}
 
 def generate_ready_to_run_readme(workflow_name: str, env_config: WorkflowEnvironmentConfig) -> str:
     """Generate README for exported workflow."""
     
-    # Get formatted date outside f-string to avoid backslash issue
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     workflow_slug = workflow_name.lower().replace(' ', '-')
+    port = env_config.docker.docker_port
+    auth_required = env_config.security.require_api_key
     
-    # Build API key section
-    api_key_status = "WITH API KEY:" if env_config.security.require_api_key else "WITHOUT API KEY:"
-    api_key_header = '  -H "X-API-Key: YOUR_API_KEY" \\\n  # OR -H "Authorization: Bearer YOUR_API_KEY" \\' if env_config.security.require_api_key else ''
-    
-    # Build security status
-    auth_status = "✅ API Key authentication is ENABLED" if env_config.security.require_api_key else "⚠️ API Key authentication is DISABLED"
-    host_status = "✅ All hosts allowed for maximum accessibility" if env_config.security.allowed_hosts == "*" else f"⚠️ Limited to hosts: {env_config.security.allowed_hosts}"
-    
-    # Build monitoring status  
-    monitoring_status = "✅ LangSmith monitoring is ENABLED" if env_config.monitoring.enable_langsmith else "❌ LangSmith monitoring is DISABLED"
+    auth_example = '''  -H "X-API-Key: YOUR_API_KEY" \\''' if auth_required else ""
     
     readme = f"""# {workflow_name} - Docker Export
 
-This is a ready-to-run Docker export of your KAI-Fusion workflow.
+Ready-to-run Docker export of your KAI-Fusion workflow.
 
 ## Quick Start
 
-1. **Extract the package:**
-   ```bash
-   unzip workflow-export-{workflow_slug}.zip
-   cd workflow-export-{workflow_slug}/
-   ```
-
-2. **Start the workflow:**
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **Check status:**
-   ```bash
-   docker-compose ps
-   docker-compose logs workflow-api
-   ```
-
-4. **Test the API:**
-   ```bash
-   curl http://localhost:{env_config.docker.docker_port}/health
-   curl http://localhost:{env_config.docker.docker_port}/api/workflow/info
-   ```
+1. Extract: `unzip workflow-export-{workflow_slug}.zip && cd workflow-export-{workflow_slug}/`
+2. Start: `docker-compose up -d`
+3. Test: `curl http://localhost:{port}/health`
 
 ## API Usage
 
-### Execute Workflow
-{api_key_status}
+Execute workflow:
 ```bash
-curl -X POST http://localhost:{env_config.docker.docker_port}/api/workflow/execute \\
+curl -X POST http://localhost:{port}/api/workflow/execute \\
   -H "Content-Type: application/json" \\
-{api_key_header}
-  -d '{{"input": "Your input here", "parameters": {{}}}}'
+{auth_example}
+  -d '{{"input": "Your input here"}}'
 ```
-
-### Available Endpoints
-- `GET /health` - Health check
-- `GET /api/workflow/info` - Workflow information
-- `POST /api/workflow/execute` - Execute workflow
-- `GET /api/workflow/status/{{execution_id}}` - Check execution status
-- `GET /api/workflow/result/{{execution_id}}` - Get execution result
 
 ## Configuration
 
-### Environment Variables
-The `.env` file contains all pre-configured settings. You can modify:
+- API key required: {auth_required}
+- Port: {port}
+- Modify `.env` file to change settings
 
-- `DOCKER_PORT` - Change the external port
-- `API_KEYS` - Update API keys for access control
-- `REQUIRE_API_KEY` - Enable/disable API key authentication
+## Troubleshooting
 
-### Security
-{auth_status}
-{host_status}
+- Check status: `docker-compose ps`
+- View logs: `docker-compose logs workflow-api`
+- Restart: `docker-compose restart`
 
-### Monitoring
-{monitoring_status}
-
- ## Troubleshooting
- 
- ### Check Container Status
- ```bash
- docker-compose ps
- docker-compose logs -f workflow-api
- ```
- 
- ### Port Connection Issues
- If you can't access http://localhost:{env_config.docker.docker_port}:
- 
- 1. **Check if container is running:**
-    ```bash
-    docker-compose ps
-    ```
- 
- 2. **Check port mapping:**
-    ```bash
-    docker port $(docker-compose ps -q workflow-api)
-    ```
- 
- 3. **Test internal connection:**
-    ```bash
-    docker-compose exec workflow-api sh -c 'curl http://localhost:$API_PORT/health'
-    ```
- 
- 4. **Windows Docker Desktop - try 127.0.0.1:**
-    ```bash
-    curl http://127.0.0.1:{env_config.docker.docker_port}/health
-    ```
- 
- ### Restart Services
- ```bash
- docker-compose restart
- docker-compose down && docker-compose up -d
- ```
- 
- ### Rebuild if Needed
- ```bash
- docker-compose down
- docker-compose build --no-cache
- docker-compose up -d
- ```
-
-## Support
-
-This workflow was exported from KAI-Fusion. For support, please refer to your KAI-Fusion documentation.
-
-Generated on: {current_time}
+Generated: {current_time}
 """
     
     return readme
@@ -1212,82 +1589,27 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
     logger.info("Creating workflow export package")
     
     workflow = components['workflow']
+    package_name = f"workflow-export-{workflow.name.lower().replace(' ', '-')}"
     
-    # Create temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        package_name = f"workflow-export-{workflow.name.lower().replace(' ', '-')}"
         package_dir = os.path.join(temp_dir, package_name)
         os.makedirs(package_dir)
-        
-        # Create organized directory structure
-        app_dir = os.path.join(package_dir, "app")
-        api_dir = os.path.join(app_dir, "api")
-        models_dir = os.path.join(app_dir, "models")
-        core_dir = os.path.join(app_dir, "core")
-        
-        os.makedirs(app_dir)
-        os.makedirs(api_dir)
-        os.makedirs(models_dir)
-        os.makedirs(core_dir)
         os.makedirs(os.path.join(package_dir, "logs"))
         
-        # Write root level configuration files
-        with open(os.path.join(package_dir, ".env"), 'w', encoding='utf-8') as f:
-            f.write(components['pre_configured_env'])
+        # Write essential files
+        files_to_write = {
+            ".env": components['pre_configured_env'],
+            "Dockerfile": components['backend']['Dockerfile'],
+            "docker-compose.yml": components['docker_configs']['docker-compose.yml'],
+            "requirements.txt": components['filtered_requirements'],
+            "README.md": components['readme'],
+            "main.py": components['backend']['main.py'],
+            "workflow-definition.json": json.dumps(workflow.flow_data, indent=2, ensure_ascii=False)
+        }
         
-        with open(os.path.join(package_dir, "Dockerfile"), 'w', encoding='utf-8') as f:
-            f.write(components['backend']['Dockerfile'])
-        
-        with open(os.path.join(package_dir, "docker-compose.yml"), 'w', encoding='utf-8') as f:
-            f.write(components['docker_configs']['docker-compose.yml'])
-        
-        with open(os.path.join(package_dir, "requirements.txt"), 'w', encoding='utf-8') as f:
-            f.write(components['filtered_requirements'])
-        
-        with open(os.path.join(package_dir, "README.md"), 'w', encoding='utf-8') as f:
-            f.write(components['readme'])
-        
-        # Write application structure
-        with open(os.path.join(package_dir, "main.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend']['main.py'])
-        
-        # Write API files
-        with open(os.path.join(api_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""API module for workflow execution."""\n')
-        
-        with open(os.path.join(api_dir, "workflow.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('api_workflow', generate_workflow_api_code()))
-        
-        with open(os.path.join(api_dir, "health.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('api_health', generate_health_api_code()))
-        
-        # Write Models files
-        with open(os.path.join(models_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Data models for workflow execution."""\n')
-        
-        with open(os.path.join(models_dir, "workflow.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('models_workflow', generate_workflow_models_code()))
-        
-        with open(os.path.join(models_dir, "execution.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('models_execution', generate_execution_models_code()))
-        
-        # Write Core files
-        with open(os.path.join(core_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Core utilities and configuration."""\n')
-        
-        with open(os.path.join(core_dir, "config.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('core_config', generate_core_config_code()))
-        
-        with open(os.path.join(core_dir, "database.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('core_database', generate_core_database_code()))
-        
-        # Write main app init
-        with open(os.path.join(app_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Workflow execution application."""\n')
-        
-        # Write workflow definition
-        with open(os.path.join(package_dir, "workflow-definition.json"), 'w', encoding='utf-8') as f:
-            json.dump(workflow.flow_data, f, indent=2, ensure_ascii=False)
+        for filename, content in files_to_write.items():
+            with open(os.path.join(package_dir, filename), 'w', encoding='utf-8') as f:
+                f.write(content)
         
         # Create ZIP file
         zip_path = f"{package_dir}.zip"
@@ -1298,22 +1620,16 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
                     arcname = os.path.relpath(file_path, temp_dir)
                     zipf.write(file_path, arcname)
         
-        # Calculate size
-        package_size = os.path.getsize(zip_path)
-        
         # Move to permanent storage
         import shutil
         permanent_dir = os.path.join(os.getcwd(), "exports")
         os.makedirs(permanent_dir, exist_ok=True)
-        
         permanent_zip_path = os.path.join(permanent_dir, f"{package_name}.zip")
         shutil.move(zip_path, permanent_zip_path)
         
-        download_url = f"/api/v1/export/download/{package_name}.zip"
-        
         return {
-            "download_url": download_url,
-            "package_size": package_size,
+            "download_url": f"/api/v1/export/download/{package_name}.zip",
+            "package_size": os.path.getsize(permanent_zip_path),
             "local_path": permanent_zip_path
         }
 
@@ -1332,11 +1648,23 @@ async def download_export_package(filename: str):
         exports_dir = os.path.join(os.getcwd(), "exports")
         file_path = os.path.join(exports_dir, filename)
         
+        logger.info(f"Looking for export file: {file_path}")
+        logger.info(f"Exports directory: {exports_dir}")
+        logger.info(f"File exists: {os.path.exists(file_path)}")
+        
+        # List available files for debugging
+        if os.path.exists(exports_dir):
+            available_files = os.listdir(exports_dir)
+            logger.info(f"Available files: {available_files}")
+        else:
+            logger.error(f"Exports directory does not exist: {exports_dir}")
+            os.makedirs(exports_dir, exist_ok=True)
+        
         # Check if file exists
         if not os.path.exists(file_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Export package not found"
+                detail=f"Export package not found: {filename}. Available files: {os.listdir(exports_dir) if os.path.exists(exports_dir) else 'None'}"
             )
         
         # Return file response

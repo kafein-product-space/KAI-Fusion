@@ -42,8 +42,20 @@ export const exportService = {
    */
   async downloadPackage(downloadUrl: string): Promise<void> {
     try {
-      // Fetch the file as blob
-      const response = await fetch(downloadUrl);
+      // Extract the endpoint path from download URL
+      // downloadUrl format: "/api/v1/export/download/filename.zip"
+      const endpoint = downloadUrl.startsWith('/api/v1')
+        ? downloadUrl.replace('/api/v1', '')
+        : downloadUrl;
+        
+      console.log('Downloading from endpoint:', endpoint);
+      
+      // Use apiClient for consistent base URL and authentication
+      const response = await fetch(`${apiClient.getBaseURL()}${endpoint}`, {
+        headers: {
+          'Authorization': `Bearer ${apiClient.getAccessToken()}`
+        }
+      });
       
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status} ${response.statusText}`);
