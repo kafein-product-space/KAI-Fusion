@@ -466,9 +466,9 @@ def create_minimal_backend(dependencies: WorkflowDependencies) -> Dict[str, str]
     """Create minimal backend components for workflow runtime."""
     logger.info("Creating minimal backend components")
     
-    # Simplified main application
+    # Full-featured workflow runtime with OpenAI integration
     main_py = f'''# -*- coding: utf-8 -*-
-"""Minimal KAI-Fusion Workflow Runtime"""
+"""KAI-Fusion Workflow Runtime with OpenAI Integration"""
 
 import os
 import logging
@@ -517,6 +517,7 @@ app.add_middleware(
 class WorkflowRequest(BaseModel):
     input: str
     parameters: Dict[str, Any] = {{}}
+    session_id: Optional[str] = None
 
 class WorkflowResponse(BaseModel):
     execution_id: str
@@ -537,6 +538,136 @@ async def security_middleware(request: Request, call_next):
     
     return await call_next(request)
 
+def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
+    """Execute LLM workflow with user input and session memory."""
+    try:
+        # Find LLM and Memory nodes in workflow
+        llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+        memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+        
+        if not llm_nodes:
+            return {{"response": "No LLM nodes found in workflow", "type": "error"}}
+        
+        # Initialize memory system
+        session_memory = []
+        if session_id and memory_nodes:
+            session_memory = load_session_memory(session_id)
+        
+        # OpenAI integration
+        try:
+            import openai
+            
+            # Get API key from environment
+            api_key = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAICHAT_API_KEY")
+            if not api_key:
+                return {{"response": "OpenAI API key not configured", "type": "error"}}
+            
+            # Initialize OpenAI client
+            client = openai.OpenAI(api_key=api_key)
+            
+            # Get model from workflow or use default
+            model = "gpt-4o-mini"
+            temperature = 0.7
+            max_tokens = 2048
+            
+            # Extract model config from first LLM node
+            if llm_nodes:
+                node_data = llm_nodes[0].get("data", {{}})
+                model = node_data.get("model_name", model)
+                temperature = float(node_data.get("temperature", temperature))
+                max_tokens = int(node_data.get("max_tokens", max_tokens))
+            
+            # Build messages with memory
+            messages = [{{"role": "system", "content": "You are a helpful AI assistant integrated into KAI-Fusion workflow system."}}]
+            
+            # Add memory context if available
+            if session_memory:
+                # Add recent conversation history (last 10 messages)
+                recent_memory = session_memory[-10:] if len(session_memory) > 10 else session_memory
+                for mem in recent_memory:
+                    if mem.get("role") in ["user", "assistant"]:
+                        messages.append({{"role": mem["role"], "content": mem["content"]}})
+            
+            # Add current user input
+            messages.append({{"role": "user", "content": user_input}})
+            
+            # Create chat completion
+            response = client.chat.completions.create(
+                model=model,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            
+            assistant_response = response.choices[0].message.content
+            
+            # Save to memory if memory nodes exist and session_id provided
+            if session_id and memory_nodes:
+                save_to_session_memory(session_id, user_input, assistant_response)
+            
+            return {{
+                "response": assistant_response,
+                "type": "success",
+                "model": model,
+                "session_id": session_id,
+                "memory_enabled": bool(memory_nodes and session_id),
+                "usage": {{
+                    "prompt_tokens": response.usage.prompt_tokens,
+                    "completion_tokens": response.usage.completion_tokens,
+                    "total_tokens": response.usage.total_tokens
+                }}
+            }}
+            
+        except ImportError:
+            return {{"response": "OpenAI library not installed", "type": "error"}}
+        except Exception as e:
+            logger.error(f"OpenAI API error: {{e}}")
+            return {{"response": f"LLM execution failed: {{str(e)}}", "type": "error"}}
+    
+    except Exception as e:
+        logger.error(f"Workflow execution error: {{e}}")
+        return {{"response": f"Workflow execution failed: {{str(e)}}", "type": "error"}}
+
+def load_session_memory(session_id: str) -> list:
+    """Load conversation memory for a session."""
+    try:
+        memory_file = f"memory/session_{{session_id}}.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
+    except Exception as e:
+        logger.error(f"Failed to load session memory: {{e}}")
+    return []
+
+def save_to_session_memory(session_id: str, user_input: str, assistant_response: str):
+    """Save conversation to session memory."""
+    try:
+        # Create memory directory if it doesn't exist
+        os.makedirs("memory", exist_ok=True)
+        
+        memory_file = f"memory/session_{{session_id}}.json"
+        
+        # Load existing memory
+        memory = load_session_memory(session_id)
+        
+        # Add new conversation
+        timestamp = datetime.now().isoformat()
+        memory.extend([
+            {{"role": "user", "content": user_input, "timestamp": timestamp}},
+            {{"role": "assistant", "content": assistant_response, "timestamp": timestamp}}
+        ])
+        
+        # Keep only last 100 messages to prevent memory file from growing too large
+        if len(memory) > 100:
+            memory = memory[-100:]
+        
+        # Save updated memory
+        with open(memory_file, 'w', encoding='utf-8') as f:
+            json.dump(memory, f, indent=2, ensure_ascii=False)
+            
+    except Exception as e:
+        logger.error(f"Failed to save session memory: {{e}}")
+
 # API Endpoints
 @app.get("/")
 async def root():
@@ -555,36 +686,155 @@ async def execute_workflow(request: WorkflowRequest):
     execution_id = str(uuid.uuid4())
     
     try:
-        # Placeholder for actual workflow execution
-        result = {{
-            "message": "Workflow executed successfully",
-            "input": request.input,
-            "parameters": request.parameters,
-            "processed_at": datetime.now().isoformat()
-        }}
+        # Generate session ID if not provided
+        session_id = request.session_id or f"session_{{str(uuid.uuid4())[:8]}}"
+        
+        logger.info(f"Executing workflow with input: {{request.input}}, session: {{session_id}}")
+        
+        # Execute LLM workflow with session memory
+        result = execute_llm_workflow(request.input, session_id, request.parameters or {{}})
         
         return WorkflowResponse(
             execution_id=execution_id,
-            status="completed",
+            status="completed" if result.get("type") == "success" else "failed",
             result=result,
+            error=None if result.get("type") == "success" else result.get("response"),
             timestamp=datetime.now().isoformat()
         )
-    
+        
     except Exception as e:
+        logger.error(f"Workflow execution failed: {{e}}")
         return WorkflowResponse(
             execution_id=execution_id,
             status="failed",
             error=str(e),
+            result=None,
             timestamp=datetime.now().isoformat()
         )
 
 @app.get("/api/workflow/info")
 async def workflow_info():
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
     return {{
         "workflow": WORKFLOW_DEF,
         "nodes_count": len(WORKFLOW_DEF.get("nodes", [])),
+        "edges_count": len(WORKFLOW_DEF.get("edges", [])),
+        "llm_nodes": llm_nodes,
+        "memory_nodes": memory_nodes,
+        "memory_enabled": len(memory_nodes) > 0,
         "status": "ready"
     }}
+
+# External workflow compatibility endpoints
+@app.get("/api/workflow/external/info")
+async def external_workflow_info():
+    """External workflow compatibility endpoint"""
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
+    return {{
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown"),
+        "name": "Exported Workflow",
+        "description": "KAI-Fusion exported workflow runtime",
+        "external_url": f"http://localhost:{{os.getenv('API_PORT', '8000')}}",
+        "api_key_required": REQUIRE_API_KEY,
+        "connection_status": "online",
+        "capabilities": {{
+            "chat": len(llm_nodes) > 0,
+            "memory": len(memory_nodes) > 0,
+            "info_access": True,
+            "modification": False
+        }},
+        "created_at": datetime.now().isoformat(),
+        "last_health_check": datetime.now().isoformat()
+    }}
+
+@app.post("/api/workflow/external/ping")
+async def external_ping():
+    """External workflow ping endpoint"""
+    return {{
+        "status": "online",
+        "timestamp": datetime.now().isoformat(),
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown")
+    }}
+
+@app.get("/api/workflow/external/metrics")
+async def external_metrics():
+    """External workflow metrics endpoint"""
+    return {{
+        "uptime": "running",
+        "requests_processed": 0,
+        "last_activity": datetime.now().isoformat(),
+        "memory_usage": "N/A",
+        "status": "healthy"
+    }}
+
+@app.get("/api/workflow/sessions")
+async def list_sessions():
+    """List all chat sessions with memory."""
+    try:
+        sessions = []
+        memory_dir = "memory"
+        
+        if os.path.exists(memory_dir):
+            for filename in os.listdir(memory_dir):
+                if filename.startswith("session_") and filename.endswith(".json"):
+                    session_id = filename.replace("session_", "").replace(".json", "")
+                    memory = load_session_memory(session_id)
+                    
+                    # Get last message timestamp
+                    last_timestamp = None
+                    if memory:
+                        last_message = memory[-1]
+                        last_timestamp = last_message.get("timestamp")
+                    
+                    sessions.append({{
+                        "session_id": session_id,
+                        "message_count": len(memory),
+                        "last_activity": last_timestamp
+                    }})
+        
+        return {{
+            "sessions": sessions,
+            "total_sessions": len(sessions)
+        }}
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/memory/{{session_id}}")
+async def get_session_memory(session_id: str):
+    """Get conversation memory for a session."""
+    try:
+        memory = load_session_memory(session_id)
+        return {{
+            "session_id": session_id,
+            "messages": memory,
+            "message_count": len(memory),
+            "memory_enabled": True
+        }}
+    except Exception as e:
+        logger.error(f"Failed to get session memory: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.delete("/api/workflow/memory/{{session_id}}")
+async def clear_session_memory(session_id: str):
+    """Clear conversation memory for a session."""
+    try:
+        memory_file = f"memory/session_{{session_id}}.json"
+        if os.path.exists(memory_file):
+            os.remove(memory_file)
+        
+        return {{
+            "session_id": session_id,
+            "status": "cleared",
+            "message": "Session memory cleared successfully"
+        }}
+    except Exception as e:
+        logger.error(f"Failed to clear session memory: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 if __name__ == "__main__":
     import uvicorn
