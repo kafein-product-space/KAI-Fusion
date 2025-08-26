@@ -519,29 +519,29 @@ async def init_database():
             conn = sqlite3.connect(db_path)
             
             # Create basic execution tracking table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS workflow_executions (
-                    execution_id TEXT PRIMARY KEY,
-                    status TEXT NOT NULL,
-                    input_data TEXT,
-                    result_data TEXT,
-                    error_message TEXT,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                )
-            ''')
+            conn.execute("""
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    execution_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    input_data TEXT,
+    result_data TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+            """)
             
             # Create session memory table
-            conn.execute('''
-                CREATE TABLE IF NOT EXISTS session_memory (
-                    session_id TEXT NOT NULL,
-                    message_order INTEGER NOT NULL,
-                    role TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    PRIMARY KEY (session_id, message_order)
-                )
-            ''')
+            conn.execute("""
+CREATE TABLE IF NOT EXISTS session_memory (
+    session_id TEXT NOT NULL,
+    message_order INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, message_order)
+)
+            """)
             
             conn.commit()
             conn.close()
@@ -556,29 +556,29 @@ async def init_database():
                 conn = await asyncpg.connect(database_url)
                 
                 # Create execution tracking table
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS workflow_executions (
-                        execution_id VARCHAR(255) PRIMARY KEY,
-                        status VARCHAR(50) NOT NULL,
-                        input_data JSONB,
-                        result_data JSONB,
-                        error_message TEXT,
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                ''')
+                await conn.execute("""
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    execution_id VARCHAR(255) PRIMARY KEY,
+    status VARCHAR(50) NOT NULL,
+    input_data JSONB,
+    result_data JSONB,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+                """)
                 
                 # Create session memory table
-                await conn.execute('''
-                    CREATE TABLE IF NOT EXISTS session_memory (
-                        session_id VARCHAR(255) NOT NULL,
-                        message_order INTEGER NOT NULL,
-                        role VARCHAR(20) NOT NULL,
-                        content TEXT NOT NULL,
-                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                        PRIMARY KEY (session_id, message_order)
-                    )
-                ''')
+                await conn.execute("""
+CREATE TABLE IF NOT EXISTS session_memory (
+    session_id VARCHAR(255) NOT NULL,
+    message_order INTEGER NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, message_order)
+)
+                """)
                 
                 await conn.close()
                 logger.info("PostgreSQL database initialized successfully")
