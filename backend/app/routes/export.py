@@ -585,17 +585,16 @@ CREATE TABLE IF NOT EXISTS session_memory (
                 
             except ImportError:
                 logger.error("asyncpg not installed for PostgreSQL support")
-                raise
+                logger.warning("Continuing with file-based storage")
             except Exception as e:
                 logger.error(f"PostgreSQL initialization failed: {{e}}")
-                # Fall back to in-memory storage
-                logger.warning("Falling back to in-memory storage")
+                logger.warning("Continuing with file-based storage")
         else:
-            logger.warning(f"Unsupported database type: {{database_url[:10]}}, using in-memory storage")
+            logger.warning(f"Unsupported database type: {{database_url[:10]}}, using file-based storage")
             
     except Exception as e:
         logger.error(f"Database initialization failed: {{e}}")
-        logger.warning("Continuing with in-memory storage only")
+        logger.warning("Continuing with file-based storage only")
 
 # Initialize FastAPI
 app = FastAPI(
@@ -612,8 +611,8 @@ async def startup_event():
         await init_database()
         logger.info("✅ Workflow runtime started successfully")
     except Exception as e:
-        logger.error(f"❌ Startup failed: {{e}}")
-        logger.warning("⚠️ Continuing with limited functionality")
+        logger.error(f"❌ Database startup failed: {{e}}")
+        logger.info("✅ Workflow runtime started with file-based storage")
 
 @app.on_event("shutdown")
 async def shutdown_event():
@@ -872,6 +871,10 @@ async def security_middleware(request: Request, call_next):
 def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
     """Execute LLM workflow with user input and session memory."""
     try:
+        # Validate user input
+        if not user_input or not user_input.strip():
+            return {{"response": "Input is required and cannot be empty", "type": "error"}}
+            
         # Find LLM and Memory nodes in workflow
         llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
         memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
@@ -922,6 +925,8 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
             # Add current user input
             messages.append({{"role": "user", "content": user_input}})
             
+            logger.info(f"Calling OpenAI with model {{model}} for input: {{user_input[:50]}}...")
+            
             # Create chat completion
             response = client.chat.completions.create(
                 model=model,
@@ -962,17 +967,22 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
 def load_session_memory(session_id: str) -> list:
     """Load conversation memory for a session."""
     try:
-        # Try database first
+        # Try database first (async safe)
         try:
-            return asyncio.get_event_loop().run_until_complete(load_session_memory_from_db(session_id))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            memory = loop.run_until_complete(load_session_memory_from_db(session_id))
+            loop.close()
+            if memory:
+                return memory
         except Exception as db_e:
             logger.warning(f"Failed to load from database, falling back to file: {{db_e}}")
             
-            # Fallback to file storage
-            memory_file = f"memory/session_{{session_id}}.json"
-            if os.path.exists(memory_file):
-                with open(memory_file, 'r', encoding='utf-8') as f:
-                    return json.load(f)
+        # Fallback to file storage
+        memory_file = f"memory/session_{{session_id}}.json"
+        if os.path.exists(memory_file):
+            with open(memory_file, 'r', encoding='utf-8') as f:
+                return json.load(f)
                     
     except Exception as e:
         logger.error(f"Failed to load session memory: {{e}}")
@@ -981,7 +991,7 @@ def load_session_memory(session_id: str) -> list:
 def save_to_session_memory(session_id: str, user_input: str, assistant_response: str):
     """Save conversation to session memory."""
     try:
-        # Load existing memory (try database first, then file)
+        # Load existing memory
         memory = load_session_memory(session_id)
         
         # Add new conversation
@@ -996,9 +1006,12 @@ def save_to_session_memory(session_id: str, user_input: str, assistant_response:
         if len(memory) > 100:
             memory = memory[-100:]
         
-        # Try to save to database first
+        # Try to save to database first (async safe)
         try:
-            asyncio.create_task(save_session_memory_to_db(session_id, memory))
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(save_session_memory_to_db(session_id, memory))
+            loop.close()
         except Exception as db_e:
             logger.warning(f"Failed to save to database, falling back to file: {{db_e}}")
             
@@ -1033,6 +1046,16 @@ async def execute_workflow(request: WorkflowRequest):
         session_id = request.session_id or f"session_{{str(uuid.uuid4())[:8]}}"
         
         logger.info(f"Executing workflow with input: {{request.input}}, session: {{session_id}}")
+        
+        # Validate input
+        if not request.input or not request.input.strip():
+            return WorkflowResponse(
+                execution_id=execution_id,
+                status="failed",
+                error="Input is required and cannot be empty",
+                result=None,
+                timestamp=datetime.now().isoformat()
+            )
         
         # Execute LLM workflow with session memory
         result = execute_llm_workflow(request.input, session_id, request.parameters or {{}})
