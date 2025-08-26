@@ -174,7 +174,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
             nodes=analysis_result.node_types,
             required_env_vars=required_env_vars,
             optional_env_vars=optional_env_vars,
-            python_packages=[str(pkg) for pkg in analysis_result.package_dependencies],
+            python_packages=[f"{pkg.name}{pkg.version}" for pkg in analysis_result.package_dependencies],
             api_endpoints=api_endpoints
         )
         
@@ -642,8 +642,8 @@ def filter_requirements_for_nodes(node_types: List[str]) -> str:
         # Perform package analysis
         analysis_result = analyzer.analyze_workflow(flow_data)
         
-        # Get dynamically determined packages
-        dynamic_packages = [str(pkg) for pkg in analysis_result.package_dependencies]
+        # Get dynamically determined packages - format PackageDependency objects properly
+        dynamic_packages = [f"{pkg.name}{pkg.version}" for pkg in analysis_result.package_dependencies]
         
         logger.info(f"✅ Dynamic package analysis complete - Found {len(dynamic_packages)} packages")
         logger.info(f"📦 Key packages: {', '.join(dynamic_packages[:5])}{'...' if len(dynamic_packages) > 5 else ''}")
