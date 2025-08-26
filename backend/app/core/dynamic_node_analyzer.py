@@ -108,14 +108,25 @@ class CredentialDetector:
         if getattr(input_spec, 'is_secret', False):
             return True
         
-        # 2. Secondary check: name patterns
         input_name_lower = input_spec.name.lower()
+        input_type_lower = input_spec.type.lower()
+        
+        # 2. Explicit non-credential patterns (BufferMemory config keys)
+        non_credential_patterns = {
+            'memory_key', 'input_key', 'output_key', 'return_messages',
+            'model_name', 'temperature', 'max_tokens', 'top_p',
+            'collection_name', 'search_k', 'max_iterations'
+        }
+        
+        if input_name_lower in non_credential_patterns:
+            return False
+        
+        # 3. Secondary check: name patterns
         for pattern in self.credential_name_patterns:
             if pattern in input_name_lower:
                 return True
         
-        # 3. Tertiary check: type patterns
-        input_type_lower = input_spec.type.lower()
+        # 4. Tertiary check: type patterns
         if input_type_lower in self.credential_type_patterns:
             return True
         
@@ -142,11 +153,16 @@ class EnvVarNameGenerator:
         self.node_type_mappings = {
             'OpenAIChat': 'OPENAI',
             'OpenAINode': 'OPENAI',
+            'OpenAIEmbeddingsProvider': 'OPENAI',
+            'OpenAIEmbeddings': 'OPENAI',
             'CohereRerankerNode': 'COHERE',
             'CohereRerankerProvider': 'COHERE',
             'VectorStoreOrchestrator': 'VECTORSTORE',
             'TavilyWebSearch': 'TAVILY',
-            'TavilyWebSearchNode': 'TAVILY'
+            'TavilyWebSearchNode': 'TAVILY',
+            'TavilySearch': 'TAVILY',
+            'RetrieverProvider': 'RETRIEVER',
+            'BufferMemory': 'BUFFER_MEMORY'
         }
         
         # Input name normalization
@@ -411,7 +427,7 @@ class DynamicNodeAnalyzer:
                         description=f"{input_spec.description} (Node: {node_type})",
                         example=example_value,
                         default=getattr(input_spec, 'default', None),
-                        required=input_spec.required,
+                        required=self._determine_if_required(input_spec, is_credential),
                         node_type=node_type,
                         input_name=input_spec.name,
                         is_credential=is_credential,
@@ -439,6 +455,32 @@ class DynamicNodeAnalyzer:
             ))
         
         return environment_variables
+    
+    def _determine_if_required(self, input_spec: NodeInput, is_credential: bool) -> bool:
+        """
+        Determine if an environment variable should be required or optional
+        
+        Logic:
+        - Credentials without default values: Required
+        - Credentials with default values: Optional (fallback available)
+        - Configuration with default values: Optional
+        - Configuration without default values: Required (needed for functionality)
+        - Special cases: API keys are generally required even with defaults
+        """
+        has_default = hasattr(input_spec, 'default') and input_spec.default is not None
+        input_name_lower = input_spec.name.lower()
+        
+        # Critical credentials are always required (API keys, connection strings)
+        critical_credential_patterns = ['api_key', 'connection_string', 'database_url', 'token']
+        if is_credential and any(pattern in input_name_lower for pattern in critical_credential_patterns):
+            return True
+        
+        # Configuration parameters with defaults are optional
+        if has_default:
+            return False
+        
+        # Everything else follows the original required flag
+        return input_spec.required
     
     def _generate_example_value(self, input_spec: NodeInput, node_type: str) -> str:
         """Input spec'e göre example value oluştur"""

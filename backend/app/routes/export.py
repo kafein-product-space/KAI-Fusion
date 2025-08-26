@@ -94,35 +94,13 @@ class ExportPackage(BaseModel):
 # Initialize dynamic analyzer (replaces static NODE_ENV_MAPPING)
 dynamic_analyzer = DynamicNodeAnalyzer(node_registry)
 
-# Legacy compatibility layer - for gradual migration
-LEGACY_ENV_DESCRIPTIONS = {
-    # Core system
-    "DATABASE_URL": "PostgreSQL database connection URL for workflow data",
-    "SECRET_KEY": "Secret key for JWT authentication and encryption",
-    "WORKFLOW_ID": "Unique identifier for the exported workflow",
-    
-    # Monitoring
-    "LANGCHAIN_API_KEY": "LangSmith API key for optional monitoring",
-    "LANGCHAIN_PROJECT": "LangSmith project name for tracing",
-    "LANGCHAIN_TRACING_V2": "Enable LangSmith tracing (true/false)",
-    
-    # Security
-    "API_KEYS": "Comma-separated API keys for authentication",
-    "REQUIRE_API_KEY": "Whether API key authentication is required",
-    
-    # Runtime
-    "API_HOST": "Host address for the API server",
-    "API_PORT": "Internal port for the API server",
-    "DOCKER_PORT": "External Docker port mapping"
-}
-
-LEGACY_ENV_EXAMPLES = {
-    "DATABASE_URL": "postgresql://user:password@localhost:5432/workflow_db",
-    "SECRET_KEY": "your-secret-key-here",
-    "LANGCHAIN_API_KEY": "lsv2_sk_abc123...",
-    "API_KEYS": "key1,key2,key3",
-    "REQUIRE_API_KEY": "true",
-    "LANGCHAIN_TRACING_V2": "true"
+# System environment variables (minimal set for runtime)
+SYSTEM_ENV_VARS = {
+    "DATABASE_URL": "PostgreSQL database connection URL",
+    "SECRET_KEY": "Secret key for JWT authentication",
+    "WORKFLOW_ID": "Workflow identifier",
+    "API_KEYS": "Comma-separated API keys",
+    "REQUIRE_API_KEY": "API key authentication required"
 }
 
 # ================================================================================
@@ -147,54 +125,32 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         analysis_result = analyzer.analyze_workflow(flow_data)
         
         logger.info(f"✅ Dynamic analysis complete - Found {len(analysis_result.node_types)} node types")
-        logger.info(f"📋 Environment variables: {len(analysis_result.required_env_vars)} required, {len(analysis_result.optional_env_vars)} optional")
+        logger.info(f"📋 Environment variables: {len(analysis_result.environment_variables)} total")
         logger.info(f"📦 Package dependencies: {len(analysis_result.package_dependencies)} packages")
         
         # Convert DynamicAnalysisResult to WorkflowDependencies format
         required_env_vars = []
         optional_env_vars = []
         
-        # Process required environment variables
-        for env_var in analysis_result.required_env_vars:
-            required_env_vars.append(EnvironmentVariable(
-                name=env_var.name,
-                description=env_var.description,
-                example=env_var.example or "",
-                required=True,
-                node_type=env_var.source_node or "Dynamic"
-            ))
-        
-        # Process optional environment variables
-        for env_var in analysis_result.optional_env_vars:
-            optional_env_vars.append(EnvironmentVariable(
-                name=env_var.name,
-                description=env_var.description,
-                example=env_var.example or "",
-                default=env_var.default_value or "",
-                required=False,
-                node_type=env_var.source_node or "Dynamic"
-            ))
-        
-        # Add system-level required variables
-        if not any(var.name == "DATABASE_URL" for var in required_env_vars):
-            required_env_vars.append(EnvironmentVariable(
-                name="DATABASE_URL",
-                description="PostgreSQL database connection URL for workflow execution data",
-                example="postgresql://user:password@localhost:5432/workflow_db",
-                required=True,
-                node_type="System"
-            ))
-        
-        # Add monitoring variables as optional
-        if not any(var.name == "LANGCHAIN_API_KEY" for var in optional_env_vars):
-            optional_env_vars.append(EnvironmentVariable(
-                name="LANGCHAIN_API_KEY",
-                description="LangSmith API key for monitoring (optional)",
-                example="lsv2_sk_abc123...",
-                default="",
-                required=False,
-                node_type="Monitoring"
-            ))
+        # Process environment variables by required status
+        for env_var in analysis_result.environment_variables:
+            if env_var.required:
+                required_env_vars.append(EnvironmentVariable(
+                    name=env_var.name,
+                    description=env_var.description,
+                    example=env_var.example or "",
+                    required=True,
+                    node_type=env_var.node_type or "Dynamic"
+                ))
+            else:
+                optional_env_vars.append(EnvironmentVariable(
+                    name=env_var.name,
+                    description=env_var.description,
+                    example=env_var.example or "",
+                    default=str(env_var.default) if env_var.default is not None else "",
+                    required=False,
+                    node_type=env_var.node_type or "Dynamic"
+                ))
         
         # Define standard API endpoints
         api_endpoints = [
@@ -210,7 +166,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         
         logger.info(f"🎯 Dynamic analysis summary:")
         logger.info(f"   • Node types: {', '.join(analysis_result.node_types)}")
-        logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.required_env_vars if v.security_level in ['critical', 'high']])}")
+        logger.info(f"   • Critical credentials detected: {len([v for v in analysis_result.environment_variables if v.security_level in ['critical', 'high']])}")
         logger.info(f"   • Package dependencies: {len(analysis_result.package_dependencies)}")
         
         return WorkflowDependencies(
@@ -218,7 +174,7 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
             nodes=analysis_result.node_types,
             required_env_vars=required_env_vars,
             optional_env_vars=optional_env_vars,
-            python_packages=analysis_result.package_dependencies,
+            python_packages=[str(pkg) for pkg in analysis_result.package_dependencies],
             api_endpoints=api_endpoints
         )
         
@@ -510,77 +466,59 @@ def create_minimal_backend(dependencies: WorkflowDependencies) -> Dict[str, str]
     """Create minimal backend components for workflow runtime."""
     logger.info("Creating minimal backend components")
     
-    # Main application file
+    # Simplified main application
     main_py = f'''# -*- coding: utf-8 -*-
-"""
-Minimal KAI-Fusion Workflow Runtime
-Auto-generated runtime for workflow: {dependencies.workflow_id}
-"""
+"""Minimal KAI-Fusion Workflow Runtime"""
 
 import os
 import logging
 from datetime import datetime
 from typing import Dict, Any, Optional
-from fastapi import FastAPI, HTTPException, Header, Request
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
 import uuid
 
-# Import modular components
-from app.api.workflow import router as workflow_router
-from app.api.health import router as health_router
-from app.core.config import settings
-from app.core.database import init_database, close_database
-
 # Configure logging
-logging.basicConfig(
-    level=getattr(logging, os.getenv('LOG_LEVEL', 'INFO')),
-    format=os.getenv('LOG_FORMAT', '%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-)
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load workflow definition
 try:
     with open('workflow-definition.json', 'r', encoding='utf-8') as f:
-        WORKFLOW_DEFINITION = json.load(f)
-    logger.info("Workflow definition loaded successfully")
+        WORKFLOW_DEF = json.load(f)
+    logger.info("Workflow definition loaded")
 except Exception as e:
-    logger.error(f"Failed to load workflow definition: {{e}}")
-    WORKFLOW_DEFINITION = {{"nodes": [], "edges": []}}
+    logger.error(f"Failed to load workflow: {{e}}")
+    WORKFLOW_DEF = {{"nodes": [], "edges": []}}
 
 # Security configuration
-API_KEYS = [key.strip() for key in (settings.API_KEYS or '').split(',') if key.strip()]
-# Use REQUIRE_API_KEY setting from export configuration
-REQUIRE_API_KEY = settings.REQUIRE_API_KEY.lower() == 'true'
-
-# Minimal startup log (avoid template-time f-string evaluation)
-logger.info("Workflow runtime security configuration loaded")
+API_KEYS = [k.strip() for k in (os.getenv("API_KEYS", "") or "").split(",") if k.strip()]
+REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "false").lower() == "true"
 
 # Initialize FastAPI
 app = FastAPI(
     title="KAI-Fusion Workflow Runtime",
-    description=f"Runtime for workflow: {{settings.WORKFLOW_ID}}",
-    version="1.0.0",
-    docs_url="/docs",
-    redoc_url="/redoc"
+    description=f"Runtime for workflow: {{os.getenv('WORKFLOW_ID', 'unknown')}}",
+    version="1.0.0"
 )
 
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Allow all origins for workflow exports
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Request models
-class WorkflowExecuteRequest(BaseModel):
+# Request/Response models
+class WorkflowRequest(BaseModel):
     input: str
     parameters: Dict[str, Any] = {{}}
 
-class WorkflowExecuteResponse(BaseModel):
+class WorkflowResponse(BaseModel):
     execution_id: str
     status: str
     result: Optional[Any] = None
@@ -590,124 +528,42 @@ class WorkflowExecuteResponse(BaseModel):
 # Security middleware
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
-    # API key validation only (no host validation as requested)
-    if REQUIRE_API_KEY:
-        path = request.url.path
-        if path.startswith("/api/") and not path.startswith("/api/health"):
-            api_key = request.headers.get("X-API-Key")
-            auth_header = request.headers.get("Authorization")
+    if REQUIRE_API_KEY and request.url.path.startswith("/api/"):
+        api_key = request.headers.get("X-API-Key") or (
+            request.headers.get("Authorization", "").replace("Bearer ", "")
+        )
+        if not api_key or api_key not in API_KEYS:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    return await call_next(request)
 
-            if not api_key and auth_header and auth_header.startswith("Bearer "):
-                api_key = auth_header.split(" ")[1]
-
-            if not api_key:
-                logger.warning("API key is missing")
-                raise HTTPException(status_code=401, detail="API key required")
-            if api_key not in API_KEYS:
-                logger.warning("Invalid API key provided")
-                raise HTTPException(status_code=401, detail="Invalid API key")
-            logger.info("Request authenticated successfully")
-
-    response = await call_next(request)
-    return response
-
-# Include API routers
-app.include_router(health_router, prefix="/api/health", tags=["Health"])
-app.include_router(workflow_router, prefix="/api/workflow", tags=["Workflow"])
-
-# Root endpoint
+# API Endpoints
 @app.get("/")
 async def root():
     return {{
         "service": "KAI-Fusion Workflow Runtime",
-        "version": "1.0.0", 
-        "workflow_id": settings.WORKFLOW_ID,
-        "status": "running",
-        "docs": "/docs",
-        "api_endpoints": {{
-            "health": "/api/health",
-            "workflow": "/api/workflow",
-            "execute": "/api/workflow/execute"
-        }}
+        "workflow_id": os.getenv("WORKFLOW_ID"),
+        "status": "running"
     }}
 
-# Legacy health endpoint for backwards compatibility 
 @app.get("/health")
-async def legacy_health():
-    return {{
-        "status": "healthy",
-        "timestamp": datetime.now().isoformat(),
-        "workflow_id": settings.WORKFLOW_ID
-    }}
+async def health():
+    return {{"status": "healthy", "timestamp": datetime.now().isoformat()}}
 
-# Application lifecycle events
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database and services on startup."""
-    try:
-        await init_database()
-        logger.info("Workflow runtime started successfully")
-    except Exception as e:
-        logger.error(f"Startup failed: {{e}}")
-        raise
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Clean up resources on shutdown."""
-    try:
-        await close_database()
-        logger.info("Workflow runtime stopped")
-    except Exception as e:
-        logger.error(f"Shutdown error: {{e}}")
-
-# Placeholder external workflow integration
-@app.get("/api/workflow/external/info")
-async def get_external_workflow_info():
-    return {{
-        "workflow_id": settings.WORKFLOW_ID,
-        "name": WORKFLOW_DEFINITION.get("name", "External Workflow"),
-        "description": WORKFLOW_DEFINITION.get("description", "Exported workflow running in Docker"),
-        "version": "1.0.0",
-        "is_external": True,
-        "external_host": os.getenv('EXTERNAL_HOST', ''),
-        "flow_data": WORKFLOW_DEFINITION,
-        "capabilities": {{
-            "execution": True,
-            "monitoring": bool(os.getenv("LANGCHAIN_TRACING_V2")),
-            "api_key_required": REQUIRE_API_KEY
-        }},
-        "connection_info": {{
-            "last_ping": datetime.now().isoformat(),
-            "uptime": "healthy",
-            "health": "healthy"
-        }}
-    }}
-
-@app.post("/api/workflow/external/ping")
-async def external_ping():
-    return {{
-        "status": "alive",
-        "timestamp": datetime.now().isoformat(),
-        "workflow_id": settings.WORKFLOW_ID,
-        "uptime": "healthy"
-    }}
-
-# Workflow execution (placeholder - would integrate with actual engine)
-@app.post("/api/workflow/execute", response_model=WorkflowExecuteResponse)
-async def execute_workflow(request: WorkflowExecuteRequest):
+@app.post("/api/workflow/execute", response_model=WorkflowResponse)
+async def execute_workflow(request: WorkflowRequest):
     execution_id = str(uuid.uuid4())
     
     try:
-        # TODO: Integrate with actual workflow engine
-        # This is a placeholder implementation
+        # Placeholder for actual workflow execution
         result = {{
-            "message": "Workflow execution completed",
+            "message": "Workflow executed successfully",
             "input": request.input,
             "parameters": request.parameters,
             "processed_at": datetime.now().isoformat()
         }}
         
-        return WorkflowExecuteResponse(
+        return WorkflowResponse(
             execution_id=execution_id,
             status="completed",
             result=result,
@@ -715,88 +571,47 @@ async def execute_workflow(request: WorkflowExecuteRequest):
         )
     
     except Exception as e:
-        logger.error(f"Workflow execution failed: {{e}}")
-        return WorkflowExecuteResponse(
+        return WorkflowResponse(
             execution_id=execution_id,
             status="failed",
             error=str(e),
             timestamp=datetime.now().isoformat()
         )
 
-@app.get("/api/workflow/status/{{execution_id}}")
-async def get_execution_status(execution_id: str):
-    # TODO: Implement actual status tracking
+@app.get("/api/workflow/info")
+async def workflow_info():
     return {{
-        "execution_id": execution_id,
-        "status": "completed",
-        "timestamp": datetime.now().isoformat()
-    }}
-
-@app.get("/api/workflow/result/{{execution_id}}")
-async def get_execution_result(execution_id: str):
-    # TODO: Implement actual result retrieval
-    return {{
-        "execution_id": execution_id,
-        "result": "Placeholder result",
-        "timestamp": datetime.now().isoformat()
+        "workflow": WORKFLOW_DEF,
+        "nodes_count": len(WORKFLOW_DEF.get("nodes", [])),
+        "status": "ready"
     }}
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        app,
-        host=settings.HOST,
-        port=settings.API_PORT
-    )
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("API_PORT", "8000")))
 '''
     
-    # Dockerfile
-    dockerfile = f'''FROM python:3.11-slim
+    # Simplified Dockerfile
+    dockerfile = '''FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \\
-    libpq-dev \\
-    curl \\
-    && rm -rf /var/lib/apt/lists/*
+# Install dependencies
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy requirements and install Python dependencies  
 COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir uvicorn[standard]>=0.24.0 sqlalchemy>=2.0.0 asyncpg>=0.28.0
+RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY main.py .
-COPY app/ ./app/
-COPY workflow-definition.json .
-COPY .env .
+# Copy application
+COPY . .
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \\
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Create logs directory with proper permissions
-RUN mkdir -p /app/logs && \\
-    chmod -R 755 /app && \\
-    chown -R root:root /app
+HEALTHCHECK --interval=30s --timeout=10s --retries=3 \\
+    CMD curl -f http://localhost:$API_PORT/health || exit 1
 
 EXPOSE 8000
 
-# Create startup script to ensure uvicorn is available
-RUN echo '#!/bin/bash' > /start.sh && \\
-    echo 'echo "Checking required packages..."' >> /start.sh && \\
-    echo 'python -m pip show uvicorn || pip install uvicorn[standard]' >> /start.sh && \\
-    echo 'python -m pip show asyncpg || pip install asyncpg' >> /start.sh && \\
-    echo 'python -m pip show sqlalchemy || pip install sqlalchemy' >> /start.sh && \\
-    echo 'echo "Starting application..."' >> /start.sh && \\
-    echo 'cd /app' >> /start.sh && \\
-    echo 'exec python -m uvicorn main:app --host 0.0.0.0 --port $API_PORT --log-level info' >> /start.sh && \\
-    chmod +x /start.sh
-
-# Start application
-CMD ["/start.sh"]
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
 '''
     
     return {
@@ -828,7 +643,7 @@ def filter_requirements_for_nodes(node_types: List[str]) -> str:
         analysis_result = analyzer.analyze_workflow(flow_data)
         
         # Get dynamically determined packages
-        dynamic_packages = analysis_result.package_dependencies
+        dynamic_packages = [str(pkg) for pkg in analysis_result.package_dependencies]
         
         logger.info(f"✅ Dynamic package analysis complete - Found {len(dynamic_packages)} packages")
         logger.info(f"📦 Key packages: {', '.join(dynamic_packages[:5])}{'...' if len(dynamic_packages) > 5 else ''}")
@@ -1027,182 +842,78 @@ def create_pre_configured_env_file(
 
 def create_ready_to_run_docker_context(
     workflow: Workflow,
-    minimal_backend: Dict[str, str], 
+    minimal_backend: Dict[str, str],
     pre_configured_env: str,
     docker_config: DockerConfig
 ) -> Dict[str, str]:
     """Create ready-to-run Docker context files."""
     logger.info("Creating Docker context")
     
-    # docker-compose.yml
     docker_compose = f'''services:
-  # Workflow API Backend (RESTful API only)
   workflow-api:
     build: .
     env_file:
       - .env
-    environment:
-      # Override critical settings to ensure they're set
-      - WORKFLOW_MODE=runtime
     ports:
       - "{docker_config.docker_port}:{docker_config.api_port}"
     volumes:
       - ./logs:/app/logs
-      - workflow_memory:/app/memory
     healthcheck:
-      test: ["CMD", "sh", "-c", "curl -f http://localhost:$$API_PORT/health"]
+      test: ["CMD", "curl", "-f", "http://localhost:$$API_PORT/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
     restart: unless-stopped
-    networks:
-      - workflow-runtime-network
 
 volumes:
   logs:
-  workflow_memory:
-    driver: local
-
-networks:
-  workflow-runtime-network:
-    driver: bridge
 '''
     
-    return {
-        "docker-compose.yml": docker_compose
-    }
+    return {"docker-compose.yml": docker_compose}
 
 def generate_ready_to_run_readme(workflow_name: str, env_config: WorkflowEnvironmentConfig) -> str:
     """Generate README for exported workflow."""
     
-    # Get formatted date outside f-string to avoid backslash issue
     current_time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     workflow_slug = workflow_name.lower().replace(' ', '-')
+    port = env_config.docker.docker_port
+    auth_required = env_config.security.require_api_key
     
-    # Build API key section
-    api_key_status = "WITH API KEY:" if env_config.security.require_api_key else "WITHOUT API KEY:"
-    api_key_header = '  -H "X-API-Key: YOUR_API_KEY" \\\n  # OR -H "Authorization: Bearer YOUR_API_KEY" \\' if env_config.security.require_api_key else ''
-    
-    # Build security status
-    auth_status = "✅ API Key authentication is ENABLED" if env_config.security.require_api_key else "⚠️ API Key authentication is DISABLED"
-    host_status = "✅ All hosts allowed for maximum accessibility" if env_config.security.allowed_hosts == "*" else f"⚠️ Limited to hosts: {env_config.security.allowed_hosts}"
-    
-    # Build monitoring status  
-    monitoring_status = "✅ LangSmith monitoring is ENABLED" if env_config.monitoring.enable_langsmith else "❌ LangSmith monitoring is DISABLED"
+    auth_example = '''  -H "X-API-Key: YOUR_API_KEY" \\''' if auth_required else ""
     
     readme = f"""# {workflow_name} - Docker Export
 
-This is a ready-to-run Docker export of your KAI-Fusion workflow.
+Ready-to-run Docker export of your KAI-Fusion workflow.
 
 ## Quick Start
 
-1. **Extract the package:**
-   ```bash
-   unzip workflow-export-{workflow_slug}.zip
-   cd workflow-export-{workflow_slug}/
-   ```
-
-2. **Start the workflow:**
-   ```bash
-   docker-compose up -d
-   ```
-
-3. **Check status:**
-   ```bash
-   docker-compose ps
-   docker-compose logs workflow-api
-   ```
-
-4. **Test the API:**
-   ```bash
-   curl http://localhost:{env_config.docker.docker_port}/health
-   curl http://localhost:{env_config.docker.docker_port}/api/workflow/info
-   ```
+1. Extract: `unzip workflow-export-{workflow_slug}.zip && cd workflow-export-{workflow_slug}/`
+2. Start: `docker-compose up -d`
+3. Test: `curl http://localhost:{port}/health`
 
 ## API Usage
 
-### Execute Workflow
-{api_key_status}
+Execute workflow:
 ```bash
-curl -X POST http://localhost:{env_config.docker.docker_port}/api/workflow/execute \\
+curl -X POST http://localhost:{port}/api/workflow/execute \\
   -H "Content-Type: application/json" \\
-{api_key_header}
-  -d '{{"input": "Your input here", "parameters": {{}}}}'
+{auth_example}
+  -d '{{"input": "Your input here"}}'
 ```
-
-### Available Endpoints
-- `GET /health` - Health check
-- `GET /api/workflow/info` - Workflow information
-- `POST /api/workflow/execute` - Execute workflow
-- `GET /api/workflow/status/{{execution_id}}` - Check execution status
-- `GET /api/workflow/result/{{execution_id}}` - Get execution result
 
 ## Configuration
 
-### Environment Variables
-The `.env` file contains all pre-configured settings. You can modify:
+- API key required: {auth_required}
+- Port: {port}
+- Modify `.env` file to change settings
 
-- `DOCKER_PORT` - Change the external port
-- `API_KEYS` - Update API keys for access control
-- `REQUIRE_API_KEY` - Enable/disable API key authentication
+## Troubleshooting
 
-### Security
-{auth_status}
-{host_status}
+- Check status: `docker-compose ps`
+- View logs: `docker-compose logs workflow-api`
+- Restart: `docker-compose restart`
 
-### Monitoring
-{monitoring_status}
-
- ## Troubleshooting
- 
- ### Check Container Status
- ```bash
- docker-compose ps
- docker-compose logs -f workflow-api
- ```
- 
- ### Port Connection Issues
- If you can't access http://localhost:{env_config.docker.docker_port}:
- 
- 1. **Check if container is running:**
-    ```bash
-    docker-compose ps
-    ```
- 
- 2. **Check port mapping:**
-    ```bash
-    docker port $(docker-compose ps -q workflow-api)
-    ```
- 
- 3. **Test internal connection:**
-    ```bash
-    docker-compose exec workflow-api sh -c 'curl http://localhost:$API_PORT/health'
-    ```
- 
- 4. **Windows Docker Desktop - try 127.0.0.1:**
-    ```bash
-    curl http://127.0.0.1:{env_config.docker.docker_port}/health
-    ```
- 
- ### Restart Services
- ```bash
- docker-compose restart
- docker-compose down && docker-compose up -d
- ```
- 
- ### Rebuild if Needed
- ```bash
- docker-compose down
- docker-compose build --no-cache
- docker-compose up -d
- ```
-
-## Support
-
-This workflow was exported from KAI-Fusion. For support, please refer to your KAI-Fusion documentation.
-
-Generated on: {current_time}
+Generated: {current_time}
 """
     
     return readme
@@ -1212,82 +923,27 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
     logger.info("Creating workflow export package")
     
     workflow = components['workflow']
+    package_name = f"workflow-export-{workflow.name.lower().replace(' ', '-')}"
     
-    # Create temporary directory
     with tempfile.TemporaryDirectory() as temp_dir:
-        package_name = f"workflow-export-{workflow.name.lower().replace(' ', '-')}"
         package_dir = os.path.join(temp_dir, package_name)
         os.makedirs(package_dir)
-        
-        # Create organized directory structure
-        app_dir = os.path.join(package_dir, "app")
-        api_dir = os.path.join(app_dir, "api")
-        models_dir = os.path.join(app_dir, "models")
-        core_dir = os.path.join(app_dir, "core")
-        
-        os.makedirs(app_dir)
-        os.makedirs(api_dir)
-        os.makedirs(models_dir)
-        os.makedirs(core_dir)
         os.makedirs(os.path.join(package_dir, "logs"))
         
-        # Write root level configuration files
-        with open(os.path.join(package_dir, ".env"), 'w', encoding='utf-8') as f:
-            f.write(components['pre_configured_env'])
+        # Write essential files
+        files_to_write = {
+            ".env": components['pre_configured_env'],
+            "Dockerfile": components['backend']['Dockerfile'],
+            "docker-compose.yml": components['docker_configs']['docker-compose.yml'],
+            "requirements.txt": components['filtered_requirements'],
+            "README.md": components['readme'],
+            "main.py": components['backend']['main.py'],
+            "workflow-definition.json": json.dumps(workflow.flow_data, indent=2, ensure_ascii=False)
+        }
         
-        with open(os.path.join(package_dir, "Dockerfile"), 'w', encoding='utf-8') as f:
-            f.write(components['backend']['Dockerfile'])
-        
-        with open(os.path.join(package_dir, "docker-compose.yml"), 'w', encoding='utf-8') as f:
-            f.write(components['docker_configs']['docker-compose.yml'])
-        
-        with open(os.path.join(package_dir, "requirements.txt"), 'w', encoding='utf-8') as f:
-            f.write(components['filtered_requirements'])
-        
-        with open(os.path.join(package_dir, "README.md"), 'w', encoding='utf-8') as f:
-            f.write(components['readme'])
-        
-        # Write application structure
-        with open(os.path.join(package_dir, "main.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend']['main.py'])
-        
-        # Write API files
-        with open(os.path.join(api_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""API module for workflow execution."""\n')
-        
-        with open(os.path.join(api_dir, "workflow.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('api_workflow', generate_workflow_api_code()))
-        
-        with open(os.path.join(api_dir, "health.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('api_health', generate_health_api_code()))
-        
-        # Write Models files
-        with open(os.path.join(models_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Data models for workflow execution."""\n')
-        
-        with open(os.path.join(models_dir, "workflow.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('models_workflow', generate_workflow_models_code()))
-        
-        with open(os.path.join(models_dir, "execution.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('models_execution', generate_execution_models_code()))
-        
-        # Write Core files
-        with open(os.path.join(core_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Core utilities and configuration."""\n')
-        
-        with open(os.path.join(core_dir, "config.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('core_config', generate_core_config_code()))
-        
-        with open(os.path.join(core_dir, "database.py"), 'w', encoding='utf-8') as f:
-            f.write(components['backend'].get('core_database', generate_core_database_code()))
-        
-        # Write main app init
-        with open(os.path.join(app_dir, "__init__.py"), 'w', encoding='utf-8') as f:
-            f.write('"""Workflow execution application."""\n')
-        
-        # Write workflow definition
-        with open(os.path.join(package_dir, "workflow-definition.json"), 'w', encoding='utf-8') as f:
-            json.dump(workflow.flow_data, f, indent=2, ensure_ascii=False)
+        for filename, content in files_to_write.items():
+            with open(os.path.join(package_dir, filename), 'w', encoding='utf-8') as f:
+                f.write(content)
         
         # Create ZIP file
         zip_path = f"{package_dir}.zip"
@@ -1298,22 +954,16 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
                     arcname = os.path.relpath(file_path, temp_dir)
                     zipf.write(file_path, arcname)
         
-        # Calculate size
-        package_size = os.path.getsize(zip_path)
-        
         # Move to permanent storage
         import shutil
         permanent_dir = os.path.join(os.getcwd(), "exports")
         os.makedirs(permanent_dir, exist_ok=True)
-        
         permanent_zip_path = os.path.join(permanent_dir, f"{package_name}.zip")
         shutil.move(zip_path, permanent_zip_path)
         
-        download_url = f"/api/v1/export/download/{package_name}.zip"
-        
         return {
-            "download_url": download_url,
-            "package_size": package_size,
+            "download_url": f"/api/v1/export/download/{package_name}.zip",
+            "package_size": os.path.getsize(permanent_zip_path),
             "local_path": permanent_zip_path
         }
 
@@ -1332,11 +982,23 @@ async def download_export_package(filename: str):
         exports_dir = os.path.join(os.getcwd(), "exports")
         file_path = os.path.join(exports_dir, filename)
         
+        logger.info(f"Looking for export file: {file_path}")
+        logger.info(f"Exports directory: {exports_dir}")
+        logger.info(f"File exists: {os.path.exists(file_path)}")
+        
+        # List available files for debugging
+        if os.path.exists(exports_dir):
+            available_files = os.listdir(exports_dir)
+            logger.info(f"Available files: {available_files}")
+        else:
+            logger.error(f"Exports directory does not exist: {exports_dir}")
+            os.makedirs(exports_dir, exist_ok=True)
+        
         # Check if file exists
         if not os.path.exists(file_path):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail="Export package not found"
+                detail=f"Export package not found: {filename}. Available files: {os.listdir(exports_dir) if os.path.exists(exports_dir) else 'None'}"
             )
         
         # Return file response
