@@ -4,12 +4,13 @@ import {
   ChevronLeft,
   ChevronRight,
   MoreVertical,
-  Search,
+  Filter,
   Trash,
   X,
   Clock,
   Play,
   FileText,
+  RotateCcw,
 } from "lucide-react";
 import React, { useEffect, useState } from "react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
@@ -20,24 +21,26 @@ import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 
 function ExecutionsLayout() {
-  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [workflowFilter, setWorkflowFilter] = useState("all");
   const { executions, loading, error, fetchExecutions } = useExecutionsStore();
   const { workflows, currentWorkflow, fetchWorkflows, setCurrentWorkflow } =
     useWorkflows();
   const [itemsPerPage, setItemsPerPage] = useState(6);
   const [page, setPage] = useState(1);
 
-  // Sayfalama hesaplamaları
-  const filteredExecutions = executions.filter(
-    (execution) =>
-      (execution.input_text?.toLowerCase() || "").includes(
-        searchQuery.toLowerCase()
-      ) ||
-      execution.status.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (currentWorkflow?.name?.toLowerCase() || "").includes(
-        searchQuery.toLowerCase()
-      )
-  );
+  // Filtreleme hesaplamaları
+  const filteredExecutions = executions.filter((execution) => {
+    // Status filtresi
+    const statusMatches =
+      statusFilter === "all" || execution.status === statusFilter;
+
+    // Workflow filtresi
+    const workflowMatches =
+      workflowFilter === "all" || execution.workflow_id === workflowFilter;
+
+    return statusMatches && workflowMatches;
+  });
   const totalItems = filteredExecutions.length;
   const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
   const startIdx = (page - 1) * itemsPerPage;
@@ -65,6 +68,18 @@ function ExecutionsLayout() {
       fetchExecutions(currentWorkflow.id);
     }
   }, [currentWorkflow, fetchExecutions]);
+
+  // Get unique execution statuses for filter dropdown
+  const availableStatuses = [
+    "all",
+    ...new Set(executions.map((ex) => ex.status)),
+  ];
+
+  // Get unique workflow names for filter dropdown
+  const availableWorkflows = [
+    { id: "all", name: "All Workflows" },
+    ...workflows.map((wf) => ({ id: wf.id, name: wf.name })),
+  ];
 
   const getTagColor = (tag: string) => {
     switch (tag) {
@@ -122,24 +137,38 @@ function ExecutionsLayout() {
                   </p>
                 </div>
 
-                {/* Action Buttons */}
+                {/* Filter Controls */}
                 <div className="flex items-center gap-4">
-                  {/* Workflow Selector */}
+                  {/* Status Filter */}
                   <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                     <select
-                      className="border border-gray-300 rounded-xl px-4 py-2 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 w-64"
-                      value={currentWorkflow?.id || ""}
+                      className="pl-10 pr-4 py-2 w-48 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                      value={statusFilter}
                       onChange={(e) => {
-                        const selected = workflows.find(
-                          (w) => w.id === e.target.value
-                        );
-                        if (selected) {
-                          setCurrentWorkflow(selected);
-                          fetchExecutions(selected.id);
-                        }
+                        setStatusFilter(e.target.value);
+                        setPage(1); // Reset to first page when filtering
                       }}
                     >
-                      {workflows.map((wf) => (
+                      <option value="all">All Statuses</option>
+                      <option value="completed">Completed</option>
+                      <option value="failed">Failed</option>
+                      <option value="pending">Pending</option>
+                      <option value="running">Running</option>
+                    </select>
+                  </div>
+
+                  {/* Workflow Filter */}
+                  <div className="relative">
+                    <select
+                      className="border border-gray-300 rounded-xl px-4 py-2 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 w-48"
+                      value={workflowFilter}
+                      onChange={(e) => {
+                        setWorkflowFilter(e.target.value);
+                        setPage(1); // Reset to first page when filtering
+                      }}
+                    >
+                      {availableWorkflows.map((wf) => (
                         <option key={wf.id} value={wf.id}>
                           {wf.name}
                         </option>
@@ -147,20 +176,51 @@ function ExecutionsLayout() {
                     </select>
                   </div>
 
-                  {/* Search Bar */}
-                  <div className="relative">
-                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <input
-                      type="search"
-                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
-                      placeholder="Search executions..."
-                      value={searchQuery}
-                      onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                  </div>
+                  {/* Clear Filters Button */}
+                  {(statusFilter !== "all" || workflowFilter !== "all") && (
+                    <button
+                      onClick={() => {
+                        setStatusFilter("all");
+                        setWorkflowFilter("all");
+                        setPage(1);
+                      }}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-200"
+                      title="Clear all filters"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Clear Filters
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
+
+            {/* Filter Results Info */}
+            {(statusFilter !== "all" || workflowFilter !== "all") &&
+              !loading && (
+                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
+                  <p className="text-sm text-blue-700">
+                    <Filter className="inline w-4 h-4 mr-1" />
+                    Showing {filteredExecutions.length} of {executions.length}{" "}
+                    executions
+                    {statusFilter !== "all" && (
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                        Status: {statusFilter}
+                      </span>
+                    )}
+                    {workflowFilter !== "all" && (
+                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                        Workflow:{" "}
+                        {
+                          availableWorkflows.find(
+                            (w) => w.id === workflowFilter
+                          )?.name
+                        }
+                      </span>
+                    )}
+                  </p>
+                </div>
+              )}
 
             {/* Executions Content */}
             {error && (
@@ -173,7 +233,7 @@ function ExecutionsLayout() {
               <div className="flex items-center justify-center py-12">
                 <Loading size="sm" />
               </div>
-            ) : executions.length === 0 ? (
+            ) : filteredExecutions.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-6 py-12">
                 <div className="flex items-center justify-center">
                   <img
@@ -184,10 +244,14 @@ function ExecutionsLayout() {
                 </div>
                 <div className="text-center">
                   <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    No Executions Yet
+                    {executions.length === 0
+                      ? "No Executions Yet"
+                      : "No Results Found"}
                   </h3>
                   <p className="text-gray-600">
-                    Start a workflow to see execution history here.
+                    {executions.length === 0
+                      ? "Start a workflow to see execution history here."
+                      : "Try adjusting your filters to see more results."}
                   </p>
                 </div>
               </div>
