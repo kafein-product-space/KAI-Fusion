@@ -63,7 +63,7 @@ const executeWorkflowWithStreaming = async (
     
     const stream = await executeWorkflowStream(executionData);
     const reader = stream.getReader();
-    const decoder = new TextDecoder();
+    const decoder = new TextDecoder('utf-8');
     
     while (true) {
       const { value, done } = await reader.read();
@@ -72,7 +72,7 @@ const executeWorkflowWithStreaming = async (
         break;
       }
 
-      const chunk = decoder.decode(value);
+      const chunk = decoder.decode(value, { stream: true });
       const lines = chunk.split('\n');
 
       for (const line of lines) {
@@ -163,8 +163,13 @@ const executeWorkflowWithStreaming = async (
               };
               
               // Import and use executions store
-              const { setCurrentExecution } = await import('./executions').then(m => m.useExecutionsStore.getState());
-              setCurrentExecution(executionResult);
+              try {
+                const executionsModule = await import('./executions');
+                const executionsStore = executionsModule.useExecutionsStore.getState();
+                executionsStore.setCurrentExecution(executionResult);
+              } catch (error) {
+                console.error('❌ Error setting execution result:', error);
+              }
               console.log('💾 Execution result saved to store');
               console.log('📊 Final node_outputs:', executionResult.result.node_outputs);
               
@@ -174,7 +179,14 @@ const executeWorkflowWithStreaming = async (
               }, 1500);
             }
           } catch (e) {
-            console.error('❌ Error parsing stream data:', e, 'Raw data:', data);
+            // Handle JSON parsing errors gracefully, especially with Turkish characters
+            if (e instanceof SyntaxError && e.message.includes('Unterminated string')) {
+              console.warn('⚠️ JSON parsing error (likely due to special characters), skipping chunk:', data.substring(0, 100) + '...');
+            } else {
+              console.error('❌ Error parsing stream data:', e, 'Raw data:', data.substring(0, 200) + '...');
+            }
+            // Continue processing other lines instead of breaking
+            continue;
           }
         }
       }

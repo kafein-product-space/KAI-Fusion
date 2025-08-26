@@ -1147,15 +1147,15 @@ async def execute_adhoc_workflow(
                 # Make chunk serializable before JSON conversion
                 try:
                     serialized_chunk = _make_chunk_serializable(chunk)
-                    yield f"data: {json.dumps(serialized_chunk)}\n\n"
+                    yield f"data: {json.dumps(serialized_chunk, ensure_ascii=False)}\n\n"
                 except (TypeError, ValueError) as e:
                     logger.warning(f"Non-serializable chunk: {e}")
                     safe_chunk = {"type": "error", "error": f"Serialization error: {str(e)}", "original_type": type(chunk).__name__}
-                    yield f"data: {json.dumps(safe_chunk)}\n\n"
+                    yield f"data: {json.dumps(safe_chunk, ensure_ascii=False)}\n\n"
         except Exception as e:
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
-            yield f"data: {json.dumps(error_data)}\n\n"
+            yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
             
             # Execution hatası kaydet - Use cached execution_id to avoid detached instance issues
             if execution_id:
@@ -1207,7 +1207,15 @@ async def execute_adhoc_workflow(
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
 
-    return StreamingResponse(event_generator(), media_type="text/event-stream")
+    return StreamingResponse(
+        event_generator(), 
+        media_type="text/event-stream; charset=utf-8",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Content-Encoding": "utf-8"
+        }
+    )
 
 @router.get("/queue/status")
 async def get_execution_queue_status(
