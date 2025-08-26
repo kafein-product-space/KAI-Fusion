@@ -526,6 +526,9 @@ class WorkflowResponse(BaseModel):
     error: Optional[str] = None
     timestamp: str
 
+# In-memory execution storage
+EXECUTIONS = {{}}
+
 # Security middleware
 @app.middleware("http")
 async def security_middleware(request: Request, call_next):
@@ -694,6 +697,16 @@ async def execute_workflow(request: WorkflowRequest):
         # Execute LLM workflow with session memory
         result = execute_llm_workflow(request.input, session_id, request.parameters or {{}})
         
+        # Store execution result for status/result endpoints
+        EXECUTIONS[execution_id] = {{
+            "execution_id": execution_id,
+            "status": "completed" if result.get("type") == "success" else "failed",
+            "result": result,
+            "error": None if result.get("type") == "success" else result.get("response"),
+            "timestamp": datetime.now().isoformat(),
+            "session_id": session_id
+        }}
+        
         return WorkflowResponse(
             execution_id=execution_id,
             status="completed" if result.get("type") == "success" else "failed",
@@ -704,13 +717,76 @@ async def execute_workflow(request: WorkflowRequest):
         
     except Exception as e:
         logger.error(f"Workflow execution failed: {{e}}")
-        return WorkflowResponse(
-            execution_id=execution_id,
-            status="failed",
-            error=str(e),
-            result=None,
-            timestamp=datetime.now().isoformat()
-        )
+        execution_data = {{
+            "execution_id": execution_id,
+            "status": "failed",
+            "error": str(e),
+            "result": None,
+            "timestamp": datetime.now().isoformat()
+        }}
+        EXECUTIONS[execution_id] = execution_data
+        return WorkflowResponse(**execution_data)
+
+@app.get("/api/workflow/status/{{execution_id}}")
+async def get_execution_status(execution_id: str):
+    """Get execution status."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution status: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/result/{{execution_id}}")
+async def get_execution_result(execution_id: str):
+    """Get execution result."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution["result"],
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution result: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/executions/{{execution_id}}")
+async def get_execution_details(execution_id: str):
+    """Get execution status and details (legacy endpoint for compatibility)."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {{
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution.get("result"),
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
+        }}
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution details: {{e}}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/api/workflow/info")
 async def workflow_info():
