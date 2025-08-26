@@ -472,6 +472,7 @@ def create_minimal_backend(dependencies: WorkflowDependencies) -> Dict[str, str]
 
 import os
 import logging
+import asyncio
 from datetime import datetime
 from typing import Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, Request
@@ -497,12 +498,127 @@ except Exception as e:
 API_KEYS = [k.strip() for k in (os.getenv("API_KEYS", "") or "").split(",") if k.strip()]
 REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "false").lower() == "true"
 
+# Database setup
+async def init_database():
+    """Initialize database and create tables if they don't exist."""
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            logger.warning("No DATABASE_URL provided, using SQLite")
+            database_url = "sqlite:///./workflow.db"
+        
+        logger.info(f"Initializing database: {{database_url[:50]}}...")
+        
+        # Handle different database types
+        if database_url.startswith("sqlite"):
+            # For SQLite, create simple JSON storage
+            import sqlite3
+            import json
+            
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Create basic execution tracking table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS workflow_executions (
+                    execution_id TEXT PRIMARY KEY,
+                    status TEXT NOT NULL,
+                    input_data TEXT,
+                    result_data TEXT,
+                    error_message TEXT,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
+            
+            # Create session memory table
+            conn.execute('''
+                CREATE TABLE IF NOT EXISTS session_memory (
+                    session_id TEXT NOT NULL,
+                    message_order INTEGER NOT NULL,
+                    role TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    PRIMARY KEY (session_id, message_order)
+                )
+            ''')
+            
+            conn.commit()
+            conn.close()
+            logger.info("SQLite database initialized successfully")
+            
+        elif database_url.startswith("postgresql"):
+            # For PostgreSQL, create tables using asyncpg
+            try:
+                import asyncpg
+                
+                # Parse connection URL
+                conn = await asyncpg.connect(database_url)
+                
+                # Create execution tracking table
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS workflow_executions (
+                        execution_id VARCHAR(255) PRIMARY KEY,
+                        status VARCHAR(50) NOT NULL,
+                        input_data JSONB,
+                        result_data JSONB,
+                        error_message TEXT,
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                ''')
+                
+                # Create session memory table
+                await conn.execute('''
+                    CREATE TABLE IF NOT EXISTS session_memory (
+                        session_id VARCHAR(255) NOT NULL,
+                        message_order INTEGER NOT NULL,
+                        role VARCHAR(20) NOT NULL,
+                        content TEXT NOT NULL,
+                        timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                        PRIMARY KEY (session_id, message_order)
+                    )
+                ''')
+                
+                await conn.close()
+                logger.info("PostgreSQL database initialized successfully")
+                
+            except ImportError:
+                logger.error("asyncpg not installed for PostgreSQL support")
+                raise
+            except Exception as e:
+                logger.error(f"PostgreSQL initialization failed: {{e}}")
+                # Fall back to in-memory storage
+                logger.warning("Falling back to in-memory storage")
+        else:
+            logger.warning(f"Unsupported database type: {{database_url[:10]}}, using in-memory storage")
+            
+    except Exception as e:
+        logger.error(f"Database initialization failed: {{e}}")
+        logger.warning("Continuing with in-memory storage only")
+
 # Initialize FastAPI
 app = FastAPI(
     title="KAI-Fusion Workflow Runtime",
     description=f"Runtime for workflow: {{os.getenv('WORKFLOW_ID', 'unknown')}}",
     version="1.0.0"
 )
+
+# Startup event to initialize database
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database and other services on startup."""
+    try:
+        await init_database()
+        logger.info("✅ Workflow runtime started successfully")
+    except Exception as e:
+        logger.error(f"❌ Startup failed: {{e}}")
+        logger.warning("⚠️ Continuing with limited functionality")
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Clean up resources on shutdown."""
+    logger.info("🔄 Shutting down workflow runtime")
 
 # CORS middleware
 app.add_middleware(
@@ -526,8 +642,220 @@ class WorkflowResponse(BaseModel):
     error: Optional[str] = None
     timestamp: str
 
-# In-memory execution storage
+# In-memory execution storage (fallback)
 EXECUTIONS = {{}}
+
+# Database persistence functions
+async def save_execution_to_db(execution_data: Dict[str, Any]):
+    """Save execution to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            conn.execute("""
+                INSERT OR REPLACE INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                execution_data["execution_id"],
+                execution_data["status"],
+                json.dumps(execution_data.get("input")),
+                json.dumps(execution_data.get("result")),
+                execution_data.get("error")
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            await conn.execute("""
+                INSERT INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                ON CONFLICT (execution_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    result_data = EXCLUDED.result_data,
+                    error_message = EXCLUDED.error_message,
+                    updated_at = EXCLUDED.updated_at
+            """,
+                execution_data["execution_id"],
+                execution_data["status"],
+                execution_data.get("input"),
+                execution_data.get("result"),
+                execution_data.get("error")
+            )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save to database: {{e}}")
+        # Continue with in-memory storage
+
+async def get_execution_from_db(execution_id: str) -> Optional[Dict[str, Any]]:
+    """Get execution from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = ?
+            """, (execution_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {{
+                    "execution_id": row[0],
+                    "status": row[1],
+                    "input": json.loads(row[2]) if row[2] else None,
+                    "result": json.loads(row[3]) if row[3] else None,
+                    "error": row[4],
+                    "timestamp": row[5]
+                }}
+                
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            row = await conn.fetchrow("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = $1
+            """, execution_id)
+            
+            await conn.close()
+            
+            if row:
+                return {{
+                    "execution_id": row["execution_id"],
+                    "status": row["status"],
+                    "input": row["input_data"],
+                    "result": row["result_data"],
+                    "error": row["error_message"],
+                    "timestamp": row["created_at"].isoformat()
+                }}
+                
+    except Exception as e:
+        logger.error(f"Failed to get from database: {{e}}")
+        
+    return None
+
+async def save_session_memory_to_db(session_id: str, messages: list):
+    """Save session memory to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Clear existing session messages
+            conn.execute('DELETE FROM session_memory WHERE session_id = ?', (session_id,))
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            # Clear existing session messages
+            await conn.execute('DELETE FROM session_memory WHERE session_id = $1', session_id)
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                await conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES ($1, $2, $3, $4, $5)
+                """,
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save session memory to database: {{e}}")
+
+async def load_session_memory_from_db(session_id: str) -> list:
+    """Load session memory from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = ? ORDER BY message_order
+            """, (session_id,))
+            
+            messages = []
+            for row in cursor.fetchall():
+                messages.append({{
+                    "role": row[0],
+                    "content": row[1],
+                    "timestamp": row[2]
+                }})
+            
+            conn.close()
+            return messages
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            rows = await conn.fetch("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = $1 ORDER BY message_order
+            """, session_id)
+            
+            messages = []
+            for row in rows:
+                messages.append({{
+                    "role": row["role"],
+                    "content": row["content"],
+                    "timestamp": row["timestamp"].isoformat()
+                }})
+            
+            await conn.close()
+            return messages
+            
+    except Exception as e:
+        logger.error(f"Failed to load session memory from database: {{e}}")
+        
+    return []
 
 # Security middleware
 @app.middleware("http")
@@ -634,10 +962,18 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
 def load_session_memory(session_id: str) -> list:
     """Load conversation memory for a session."""
     try:
-        memory_file = f"memory/session_{{session_id}}.json"
-        if os.path.exists(memory_file):
-            with open(memory_file, 'r', encoding='utf-8') as f:
-                return json.load(f)
+        # Try database first
+        try:
+            return asyncio.get_event_loop().run_until_complete(load_session_memory_from_db(session_id))
+        except Exception as db_e:
+            logger.warning(f"Failed to load from database, falling back to file: {{db_e}}")
+            
+            # Fallback to file storage
+            memory_file = f"memory/session_{{session_id}}.json"
+            if os.path.exists(memory_file):
+                with open(memory_file, 'r', encoding='utf-8') as f:
+                    return json.load(f)
+                    
     except Exception as e:
         logger.error(f"Failed to load session memory: {{e}}")
     return []
@@ -645,28 +981,32 @@ def load_session_memory(session_id: str) -> list:
 def save_to_session_memory(session_id: str, user_input: str, assistant_response: str):
     """Save conversation to session memory."""
     try:
-        # Create memory directory if it doesn't exist
-        os.makedirs("memory", exist_ok=True)
-        
-        memory_file = f"memory/session_{{session_id}}.json"
-        
-        # Load existing memory
+        # Load existing memory (try database first, then file)
         memory = load_session_memory(session_id)
         
         # Add new conversation
         timestamp = datetime.now().isoformat()
-        memory.extend([
+        new_messages = [
             {{"role": "user", "content": user_input, "timestamp": timestamp}},
             {{"role": "assistant", "content": assistant_response, "timestamp": timestamp}}
-        ])
+        ]
+        memory.extend(new_messages)
         
-        # Keep only last 100 messages to prevent memory file from growing too large
+        # Keep only last 100 messages to prevent memory from growing too large
         if len(memory) > 100:
             memory = memory[-100:]
         
-        # Save updated memory
-        with open(memory_file, 'w', encoding='utf-8') as f:
-            json.dump(memory, f, indent=2, ensure_ascii=False)
+        # Try to save to database first
+        try:
+            asyncio.create_task(save_session_memory_to_db(session_id, memory))
+        except Exception as db_e:
+            logger.warning(f"Failed to save to database, falling back to file: {{db_e}}")
+            
+            # Fallback to file storage
+            os.makedirs("memory", exist_ok=True)
+            memory_file = f"memory/session_{{session_id}}.json"
+            with open(memory_file, 'w', encoding='utf-8') as f:
+                json.dump(memory, f, indent=2, ensure_ascii=False)
             
     except Exception as e:
         logger.error(f"Failed to save session memory: {{e}}")
