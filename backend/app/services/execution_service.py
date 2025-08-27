@@ -44,6 +44,26 @@ class ExecutionService(BaseService[WorkflowExecution]):
         result = await db.execute(query)
         return result.scalars().all()
 
+    async def get_all_user_executions(
+        self,
+        db: AsyncSession,
+        user_id: uuid.UUID,
+        skip: int = 0,
+        limit: int = 100,
+    ) -> List[WorkflowExecution]:
+        """
+        Get all executions for a user across all workflows.
+        """
+        query = (
+            select(self.model)
+            .filter_by(user_id=user_id)
+            .order_by(self.model.created_at.desc())
+            .offset(skip)
+            .limit(limit)
+        )
+        result = await db.execute(query)
+        return result.scalars().all()
+
     async def update_execution(
         self,
         db: AsyncSession,

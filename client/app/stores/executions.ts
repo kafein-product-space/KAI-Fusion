@@ -44,8 +44,8 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
   fetchAllExecutions: async () => {
     set({ loading: true, error: null });
     try {
-      // Şimdilik boş array döndür - backend'te tüm executions endpoint'i eklendiğinde güncellenecek
-      set({ executions: [], loading: false });
+      const executions = await executionService.listExecutions(); // workflow_id olmadan çağır
+      set({ executions, loading: false });
     } catch (e: any) {
       set({ error: e.message || 'Failed to fetch all executions', loading: false });
     }

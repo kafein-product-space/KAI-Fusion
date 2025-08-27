@@ -10,8 +10,9 @@ export const getExecution = async (execution_id: string) => {
   return apiClient.get<WorkflowExecution>(API_ENDPOINTS.EXECUTIONS.GET(execution_id));
 };
 
-export const listExecutions = async (workflow_id: string, params?: { skip?: number; limit?: number }) => {
-  return apiClient.get<WorkflowExecution[]>(API_ENDPOINTS.EXECUTIONS.LIST, { params: { workflow_id, ...params } });
+export const listExecutions = async (workflow_id?: string, params?: { skip?: number; limit?: number }) => {
+  const requestParams = workflow_id ? { workflow_id, ...params } : params;
+  return apiClient.get<WorkflowExecution[]>(API_ENDPOINTS.EXECUTIONS.LIST, { params: requestParams });
 };
 
 // New function for workflow execution

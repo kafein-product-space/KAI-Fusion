@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Play, Clock, Check, X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
+import React, { useEffect, useState, useMemo } from "react";
+import { Play, Clock, Check, X, ChevronLeft, ChevronRight, Trash2, Filter, Search, RotateCcw } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
@@ -29,28 +29,80 @@ function ExecutionsPage() {
     isOpen: false,
     executionId: null,
   });
+  
+  // Filter states
+  const [filters, setFilters] = useState({
+    status: "all",
+    workflowId: "all",
+    searchTerm: "",
+    dateRange: "all", // all, today, week, month
+  });
 
-  const { executions, loading, error, fetchExecutions, deleteExecution } = useExecutionsStore();
+  const { executions, loading, error, fetchAllExecutions, deleteExecution } = useExecutionsStore();
   const { workflows, fetchWorkflows } = useWorkflows();
 
   useEffect(() => {
     fetchWorkflows();
-  }, []);
+    fetchAllExecutions(); // Tüm executions'ları getir
+  }, [fetchWorkflows, fetchAllExecutions]);
 
-  useEffect(() => {
-    if (workflows.length > 0) {
-      // İlk workflow'dan executions'ları getir (demo için)
-      // Gelecekte tüm executions endpoint'i eklendiğinde değiştirilecek
-      fetchExecutions(workflows[0].id);
-    }
-  }, [workflows, fetchExecutions]);
+  // Filter executions
+  const filteredExecutions = useMemo(() => {
+    return executions.filter((execution) => {
+      // Status filter
+      if (filters.status !== "all" && execution.status !== filters.status) {
+        return false;
+      }
+      
+      // Workflow filter
+      if (filters.workflowId !== "all" && execution.workflow_id !== filters.workflowId) {
+        return false;
+      }
+      
+      // Date range filter
+      if (filters.dateRange !== "all" && execution.started_at) {
+        const executionDate = new Date(execution.started_at);
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        switch (filters.dateRange) {
+          case "today":
+            if (executionDate < today) return false;
+            break;
+          case "week":
+            const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+            if (executionDate < weekAgo) return false;
+            break;
+          case "month":
+            const monthAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
+            if (executionDate < monthAgo) return false;
+            break;
+        }
+      }
+      
+      // Search filter
+      if (filters.searchTerm) {
+        const searchLower = filters.searchTerm.toLowerCase();
+        const inputText = getInputText(execution).toLowerCase();
+        const workflowName = getWorkflowName(execution.workflow_id).toLowerCase();
+        
+        if (!inputText.includes(searchLower) && !workflowName.includes(searchLower)) {
+          return false;
+        }
+      }
+      
+      return true;
+    });
+  }, [executions, filters, workflows]);
 
-  const totalPages = Math.ceil(executions.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredExecutions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const currentExecutions = executions.slice(startIndex, startIndex + itemsPerPage);
+  const currentExecutions = filteredExecutions.slice(startIndex, startIndex + itemsPerPage);
 
-  // Debug için executions verilerini kontrol et
-  console.log('Executions data:', executions);
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [filters]);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -136,6 +188,24 @@ function ExecutionsPage() {
     });
   };
 
+  const handleFilterChange = (key: string, value: string) => {
+    setFilters(prev => ({
+      ...prev,
+      [key]: value
+    }));
+  };
+
+  const clearFilters = () => {
+    setFilters({
+      status: "all",
+      workflowId: "all",
+      searchTerm: "",
+      dateRange: "all",
+    });
+  };
+
+  const hasActiveFilters = filters.status !== "all" || filters.workflowId !== "all" || filters.searchTerm !== "" || filters.dateRange !== "all";
+
   if (loading) {
     return (
       <div className="flex h-screen bg-background text-foreground">
@@ -155,8 +225,81 @@ function ExecutionsPage() {
           <div className="max-w-7xl mx-auto">
             {/* Header */}
             <div className="mb-8">
-              <h1 className="text-3xl font-bold mb-2">Executions</h1>
-              <p className="text-gray-600">Monitor your workflow execution history</p>
+              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+                <div>
+                  <h1 className="text-3xl font-bold mb-2">Executions</h1>
+                  <p className="text-gray-600">Monitor your workflow execution history</p>
+                </div>
+                
+                {/* Filter Controls */}
+                <div className="flex flex-col sm:flex-row gap-3">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <input
+                      type="text"
+                      placeholder="Search executions..."
+                      className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 text-sm"
+                      value={filters.searchTerm}
+                      onChange={(e) => handleFilterChange("searchTerm", e.target.value)}
+                    />
+                  </div>
+
+                  {/* Status Filter */}
+                  <div className="relative">
+                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                    <select
+                      className="pl-10 pr-4 py-2 w-40 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                      value={filters.status}
+                      onChange={(e) => handleFilterChange("status", e.target.value)}
+                    >
+                      <option value="all">All Status</option>
+                      <option value="completed">Completed</option>
+                      <option value="failed">Failed</option>
+                      <option value="running">Running</option>
+                      <option value="pending">Pending</option>
+                    </select>
+                  </div>
+
+                  {/* Workflow Filter */}
+                  <select
+                    className="px-4 py-2 w-48 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                    value={filters.workflowId}
+                    onChange={(e) => handleFilterChange("workflowId", e.target.value)}
+                  >
+                    <option value="all">All Workflows</option>
+                    {workflows.map((workflow) => (
+                      <option key={workflow.id} value={workflow.id}>
+                        {workflow.name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {/* Date Range Filter */}
+                  <select
+                    className="px-4 py-2 w-32 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
+                    value={filters.dateRange}
+                    onChange={(e) => handleFilterChange("dateRange", e.target.value)}
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">Last Week</option>
+                    <option value="month">Last Month</option>
+                  </select>
+
+                  {/* Clear Filters */}
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-lg transition-all duration-200"
+                      title="Clear all filters"
+                    >
+                      <RotateCcw className="w-4 h-4" />
+                      Clear
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
 
             {/* Error State */}
@@ -168,12 +311,49 @@ function ExecutionsPage() {
               </div>
             )}
 
+            {/* Filter Results Info */}
+            {hasActiveFilters && !loading && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <p className="text-sm text-blue-700">
+                  <Filter className="inline w-4 h-4 mr-1" />
+                  Showing {filteredExecutions.length} of {executions.length} executions
+                  {filters.status !== "all" && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                      Status: {filters.status}
+                    </span>
+                  )}
+                  {filters.workflowId !== "all" && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                      Workflow: {getWorkflowName(filters.workflowId)}
+                    </span>
+                  )}
+                  {filters.searchTerm && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                      Search: "{filters.searchTerm}"
+                    </span>
+                  )}
+                  {filters.dateRange !== "all" && (
+                    <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
+                      Date: {filters.dateRange === "today" ? "Today" : filters.dateRange === "week" ? "Last Week" : "Last Month"}
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+
             {/* Empty State */}
-            {executions.length === 0 && !loading ? (
+            {filteredExecutions.length === 0 && !loading ? (
               <div className="text-center py-12">
                 <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-                <h3 className="text-xl font-semibold text-gray-600 mb-2">No executions yet</h3>
-                <p className="text-gray-500">Run a workflow to see execution history here</p>
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">
+                  {executions.length === 0 ? "No executions yet" : "No results found"}
+                </h3>
+                <p className="text-gray-500">
+                  {executions.length === 0 
+                    ? "Run a workflow to see execution history here" 
+                    : "Try adjusting your filters to see more results"
+                  }
+                </p>
               </div>
             ) : (
               <>
@@ -256,7 +436,10 @@ function ExecutionsPage() {
                 {totalPages > 1 && (
                   <div className="flex items-center justify-between mt-6">
                     <div className="text-sm text-gray-700">
-                      Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, executions.length)} of {executions.length} executions
+                      Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredExecutions.length)} of {filteredExecutions.length} executions
+                      {hasActiveFilters && (
+                        <span className="text-gray-500 ml-1">(filtered from {executions.length} total)</span>
+                      )}
                     </div>
                     <div className="flex items-center gap-2">
                       <button
