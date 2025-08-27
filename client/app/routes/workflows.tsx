@@ -41,6 +41,7 @@ import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import PinnedItemsSection from "~/components/common/PinnedItemsSection";
 import PinButton from "~/components/common/PinButton";
+import WorkflowEditModal from "~/components/modals/WorkflowEditModal";
 
 const ErrorMessageBlock = ({
   error,
@@ -124,6 +125,7 @@ function WorkflowsLayout() {
   >("all");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(
     null
   );
@@ -302,11 +304,9 @@ function WorkflowsLayout() {
 
   const validateWorkflow = (values: WorkflowFormValues) => {
     const errors: Partial<WorkflowFormValues> = {};
-
     if (!values.name) errors.name = "Workflow name is required";
     else if (values.name.length < 3)
       errors.name = "Workflow name must be at least 3 characters";
-
     if (!values.description)
       errors.description = "Workflow description is required";
     else if (values.description.length < 3)
@@ -315,29 +315,34 @@ function WorkflowsLayout() {
     return errors;
   };
 
-  // Edit modal submit fonksiyonu
-  const handleWorkflowEditSubmit = async (
-    values: WorkflowFormValues,
-    { setSubmitting }: any
-  ) => {
+  // Edit modal handlers
+  const handleEditClick = (workflow: Workflow) => {
+    setEditWorkflow(workflow);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setEditWorkflow(null);
+  };
+
+  const handleWorkflowEditSubmit = async (values: WorkflowFormValues) => {
     if (!editWorkflow) return;
+    
     const payload: WorkflowUpdateRequest = {
       name: values.name,
       description: values.description,
       is_public: values.is_public,
       flow_data: editWorkflow.flow_data, // flow_data'yı koru
     };
+    
     try {
       await updateWorkflow(editWorkflow.id, payload);
       enqueueSnackbar("Workflow updated successfully", { variant: "success" });
-      (
-        document.getElementById("modalEditWorkflow") as HTMLDialogElement
-      )?.close();
-      setEditWorkflow(null);
+      handleEditModalClose();
     } catch (e) {
       enqueueSnackbar("Failed to update workflow", { variant: "error" });
-    } finally {
-      setSubmitting(false);
+      throw e; // Re-throw to handle in modal
     }
   };
 
@@ -610,14 +615,7 @@ function WorkflowsLayout() {
 
                       <div className="flex items-center gap-1">
                         <button
-                          onClick={() => {
-                            setEditWorkflow(workflow);
-                            (
-                              document.getElementById(
-                                "modalEditWorkflow"
-                              ) as HTMLDialogElement
-                            )?.showModal();
-                          }}
+                          onClick={() => handleEditClick(workflow)}
                           className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                           title="Edit workflow"
                         >
@@ -1127,6 +1125,15 @@ function WorkflowsLayout() {
           }}
         />
       )}
+
+      {/* Workflow Edit Modal */}
+      <WorkflowEditModal
+        isOpen={isEditModalOpen}
+        workflow={editWorkflow}
+        onClose={handleEditModalClose}
+        onSubmit={handleWorkflowEditSubmit}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

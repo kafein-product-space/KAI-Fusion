@@ -407,7 +407,7 @@ const Sidebar = () => {
       <div className="space-y-4">
         {/* User Profile */}
         <button
-          onClick={() => router('/settings')}
+          onClick={() => router("/settings")}
           className="w-full p-3 bg-slate-800/30 rounded-lg border border-slate-600/30 hover:bg-slate-700/40 hover:border-slate-500/40 transition-all duration-200 group"
         >
           <div className="flex items-center space-x-3">
@@ -433,7 +433,7 @@ const Sidebar = () => {
           className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 group"
         >
           <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-          <span className="text-sm font-medium">Çıkış Yap</span>
+          <span className="text-sm font-medium">Log Out</span>
         </button>
       </div>
     </aside>
