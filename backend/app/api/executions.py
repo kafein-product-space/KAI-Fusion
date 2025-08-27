@@ -43,8 +43,8 @@ async def create_workflow_execution(
 
 
 @router.get("", response_model=List[WorkflowExecutionResponse])
-async def list_workflow_executions(
-    workflow_id: uuid.UUID,
+async def list_executions(
+    workflow_id: uuid.UUID = None,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     execution_service: ExecutionService = Depends(),
@@ -52,11 +52,17 @@ async def list_workflow_executions(
     limit: int = 100,
 ):
     """
-    List all executions for a specific workflow.
+    List executions. If workflow_id is provided, list executions for that workflow only.
+    If workflow_id is not provided, list all executions for the current user.
     """
-    executions = await execution_service.get_workflow_executions(
-        db, workflow_id=workflow_id, user_id=current_user.id, skip=skip, limit=limit
-    )
+    if workflow_id:
+        executions = await execution_service.get_workflow_executions(
+            db, workflow_id=workflow_id, user_id=current_user.id, skip=skip, limit=limit
+        )
+    else:
+        executions = await execution_service.get_all_user_executions(
+            db, user_id=current_user.id, skip=skip, limit=limit
+        )
     return executions
 
 
@@ -78,3 +84,25 @@ async def get_workflow_execution(
             status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found"
         )
     return execution
+
+
+@router.delete("/{execution_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow_execution(
+    execution_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    execution_service: ExecutionService = Depends(),
+):
+    """
+    Delete a specific workflow execution by its ID.
+    """
+    execution = await execution_service.get_execution(
+        db, execution_id=execution_id, user_id=current_user.id
+    )
+    if not execution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found"
+        )
+    
+    await execution_service.delete_execution(db, execution_id=execution_id, user_id=current_user.id)
+    return None

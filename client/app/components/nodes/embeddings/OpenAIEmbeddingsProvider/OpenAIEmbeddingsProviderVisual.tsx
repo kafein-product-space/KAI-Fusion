@@ -134,11 +134,6 @@ export default function OpenAIEmbeddingsProviderVisual({
         glow={isHandleConnected("embeddings", true)}
       />
 
-      {/* Right side label for output */}
-      <div className="absolute -right-20 top-1/2 transform -translate-y-1/2 text-xs text-gray-500 font-medium">
-        Embeddings
-      </div>
-
       {/* API Key Status Indicator */}
       {data?.api_key_configured && (
         <div className="absolute top-1 left-1 z-10">

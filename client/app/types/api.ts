@@ -2,8 +2,14 @@
 export interface User {
   id: string;
   email: string;
+  full_name?: string;
   created_at: string;
   updated_at?: string;
+}
+
+export interface UserInfo {
+  id: string;
+  full_name?: string;
 }
 
 export interface AuthResponse {
@@ -58,6 +64,7 @@ export interface Workflow {
   description?: string;
   flow_data: WorkflowData;
   user_id: string;
+  user?: UserInfo;
   created_at: string;
   updated_at: string;
   is_public: boolean;

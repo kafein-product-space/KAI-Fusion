@@ -14,6 +14,9 @@ export default [
   // Pinned Items
   route("pinned", "routes/pinned.tsx"),
 
+    // Settings
+    route("settings", "routes/settings.tsx"),
+
   // Canvas
   route("canvas", "routes/canvas.tsx"),
 
