@@ -336,16 +336,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                           children?.props?.ordered);
 
                       return isOrderedList ? (
-                        <li className="flex items-start justify-center  pl-2 leading-relaxed text-gray-700">
+                        <li className="flex items-start gap-3 pl-2 leading-relaxed text-gray-700">
                           <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5 shadow-sm counter-increment">
                             •
                           </span>
-                          <div className="flex-1 pt-0.5">{children}</div>
+                          <div className="flex-1 pt-0.5 text-left">{children}</div>
                         </li>
                       ) : (
                         <li className="flex items-start gap-3 pl-2 leading-relaxed text-gray-700">
                           <span className="flex-shrink-0 w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mt-2.5 shadow-sm"></span>
-                          <div className="flex-1">{children}</div>
+                          <div className="flex-1 text-left">{children}</div>
                         </li>
                       );
                     },
@@ -434,7 +434,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
                     // Vurgu metinleri
                     strong: ({ children }: any) => (
-                      <strong className="font-bold text-gray-900">
+                      <strong className="font-bold text-gray-900 inline">
                         {children}
                       </strong>
                     ),
