@@ -26,6 +26,10 @@ export const executeWorkflow = async (workflow_id: string, executionData: {
     workflow_id,
     ...executionData
   });
+};
+
+export const deleteExecution = async (execution_id: string) => {
+  return apiClient.delete(`/executions/${execution_id}`);
 }; 
 
 // Streaming execution (SSE via fetch). Returns ReadableStream of events.

@@ -78,3 +78,25 @@ async def get_workflow_execution(
             status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found"
         )
     return execution
+
+
+@router.delete("/{execution_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_workflow_execution(
+    execution_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user),
+    execution_service: ExecutionService = Depends(),
+):
+    """
+    Delete a specific workflow execution by its ID.
+    """
+    execution = await execution_service.get_execution(
+        db, execution_id=execution_id, user_id=current_user.id
+    )
+    if not execution:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Execution not found"
+        )
+    
+    await execution_service.delete_execution(db, execution_id=execution_id, user_id=current_user.id)
+    return None

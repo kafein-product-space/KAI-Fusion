@@ -1,107 +1,78 @@
-// DashboardLayout.jsx
-import {
-  Check,
-  ChevronLeft,
-  ChevronRight,
-  MoreVertical,
-  Filter,
-  Trash,
-  X,
-  Clock,
-  Play,
-  FileText,
-  RotateCcw,
-} from "lucide-react";
 import React, { useEffect, useState } from "react";
+import { Play, Clock, Check, X, ChevronLeft, ChevronRight, Trash2 } from "lucide-react";
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
+import AuthGuard from "~/components/AuthGuard";
+import Loading from "~/components/Loading";
+import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
 import { useExecutionsStore } from "~/stores/executions";
 import { useWorkflows } from "~/stores/workflows";
 import { timeAgo } from "~/lib/dateFormatter";
-import Loading from "~/components/Loading";
-import AuthGuard from "~/components/AuthGuard";
 
-function ExecutionsLayout() {
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [workflowFilter, setWorkflowFilter] = useState("all");
-  const { executions, loading, error, fetchExecutions } = useExecutionsStore();
-  const { workflows, currentWorkflow, fetchWorkflows, setCurrentWorkflow } =
-    useWorkflows();
-  const [itemsPerPage, setItemsPerPage] = useState(6);
-  const [page, setPage] = useState(1);
+interface Execution {
+  id: string;
+  workflow_id: string;
+  status: "pending" | "running" | "completed" | "failed";
+  input_text?: string;
+  output_text?: string;
+  started_at: string;
+  completed_at?: string;
+  error_message?: string;
+}
 
-  // Filtreleme hesaplamaları
-  const filteredExecutions = executions.filter((execution) => {
-    // Status filtresi
-    const statusMatches =
-      statusFilter === "all" || execution.status === statusFilter;
-
-    // Workflow filtresi
-    const workflowMatches =
-      workflowFilter === "all" || execution.workflow_id === workflowFilter;
-
-    return statusMatches && workflowMatches;
+function ExecutionsPage() {
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
+  const [deleteModal, setDeleteModal] = useState<{
+    isOpen: boolean;
+    executionId: string | null;
+  }>({
+    isOpen: false,
+    executionId: null,
   });
-  const totalItems = filteredExecutions.length;
-  const totalPages = Math.max(1, Math.ceil(totalItems / itemsPerPage));
-  const startIdx = (page - 1) * itemsPerPage;
-  const endIdx = Math.min(startIdx + itemsPerPage, totalItems);
-  const pagedExecutions = filteredExecutions.slice(startIdx, endIdx);
 
-  useEffect(() => {
-    if (page > totalPages) setPage(totalPages);
-  }, [totalPages, page]);
+  const { executions, loading, error, fetchExecutions, deleteExecution } = useExecutionsStore();
+  const { workflows, fetchWorkflows } = useWorkflows();
 
   useEffect(() => {
     fetchWorkflows();
-  }, [fetchWorkflows]);
+  }, []);
 
-  // Set currentWorkflow to first workflow after workflows are fetched, if not set
   useEffect(() => {
-    if (workflows.length > 0 && !currentWorkflow) {
-      setCurrentWorkflow(workflows[0]);
+    if (workflows.length > 0) {
+      // İlk workflow'dan executions'ları getir (demo için)
+      // Gelecekte tüm executions endpoint'i eklendiğinde değiştirilecek
+      fetchExecutions(workflows[0].id);
     }
-  }, [workflows, currentWorkflow, setCurrentWorkflow]);
+  }, [workflows, fetchExecutions]);
 
-  // Only fetch executions when currentWorkflow changes
-  useEffect(() => {
-    if (currentWorkflow?.id) {
-      fetchExecutions(currentWorkflow.id);
-    }
-  }, [currentWorkflow, fetchExecutions]);
+  const totalPages = Math.ceil(executions.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const currentExecutions = executions.slice(startIndex, startIndex + itemsPerPage);
 
-  // Get unique execution statuses for filter dropdown
-  const availableStatuses = [
-    "all",
-    ...new Set(executions.map((ex) => ex.status)),
-  ];
+  // Debug için executions verilerini kontrol et
+  console.log('Executions data:', executions);
 
-  // Get unique workflow names for filter dropdown
-  const availableWorkflows = [
-    { id: "all", name: "All Workflows" },
-    ...workflows.map((wf) => ({ id: wf.id, name: wf.name })),
-  ];
-
-  const getTagColor = (tag: string) => {
-    switch (tag) {
+  const getStatusColor = (status: string) => {
+    switch (status) {
       case "completed":
-        return "bg-green-100 text-green-800";
+        return "bg-green-100 text-green-800 border-green-200";
       case "failed":
-        return "bg-red-100 text-red-800";
+        return "bg-red-100 text-red-800 border-red-200";
+      case "running":
+        return "bg-blue-100 text-blue-800 border-blue-200";
       case "pending":
-        return "bg-yellow-100 text-yellow-800";
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "bg-gray-100 text-gray-800 border-gray-200";
     }
   };
 
-  // Helper function to truncate text
-  const truncateText = (text: string, maxLength: number = 60) => {
-    if (text.length <= maxLength) return text;
-    return text.substring(0, maxLength) + "...";
+  const getWorkflowName = (workflowId: string) => {
+    const workflow = workflows.find(w => w.id === workflowId);
+    return workflow ? workflow.name : "Unknown Workflow";
   };
 
-  // Helper function to get execution duration
-  const getExecutionDuration = (startedAt: string, completedAt?: string) => {
+  const formatDuration = (startedAt: string, completedAt?: string) => {
     if (!startedAt) return "-";
     if (!completedAt) return "Running...";
 
@@ -111,12 +82,70 @@ function ExecutionsLayout() {
 
     const seconds = Math.floor(duration / 1000);
     const minutes = Math.floor(seconds / 60);
-    const hours = Math.floor(minutes / 60);
-
-    if (hours > 0) return `${hours}h ${minutes % 60}m`;
+    
     if (minutes > 0) return `${minutes}m ${seconds % 60}s`;
     return `${seconds}s`;
   };
+
+  const getInputText = (execution: any) => {
+    // String değerleri kontrol et
+    if (execution.input_text && typeof execution.input_text === 'string') {
+      return execution.input_text;
+    }
+    
+    // Eğer inputs objesi varsa, içindeki input değerini al
+    if (execution.inputs && typeof execution.inputs === 'object') {
+      if (execution.inputs.input && typeof execution.inputs.input === 'string') {
+        return execution.inputs.input;
+      }
+    }
+    
+    // Eğer input objesi varsa, içindeki değeri al
+    if (execution.input) {
+      if (typeof execution.input === 'string') {
+        return execution.input;
+      } else if (typeof execution.input === 'object' && execution.input.input) {
+        return execution.input.input;
+      }
+    }
+    
+    return "No input provided";
+  };
+
+  const handleDeleteClick = (executionId: string) => {
+    setDeleteModal({
+      isOpen: true,
+      executionId,
+    });
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (deleteModal.executionId) {
+      await deleteExecution(deleteModal.executionId);
+      setDeleteModal({
+        isOpen: false,
+        executionId: null,
+      });
+    }
+  };
+
+  const handleDeleteCancel = () => {
+    setDeleteModal({
+      isOpen: false,
+      executionId: null,
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-background text-foreground">
+        <DashboardSidebar />
+        <main className="flex-1 flex items-center justify-center">
+          <Loading size="lg" />
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-background text-foreground">
@@ -124,292 +153,169 @@ function ExecutionsLayout() {
       <main className="flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
-            {/* Header Section */}
+            {/* Header */}
             <div className="mb-8">
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-                <div className="flex flex-col gap-2">
-                  <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-                    Executions
-                  </h1>
-                  <p className="text-gray-600 text-lg">
-                    View and monitor all your workflow executions with detailed
-                    logs and statuses.
-                  </p>
-                </div>
-
-                {/* Filter Controls */}
-                <div className="flex items-center gap-4">
-                  {/* Status Filter */}
-                  <div className="relative">
-                    <Filter className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-                    <select
-                      className="pl-10 pr-4 py-2 w-48 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 bg-white text-sm"
-                      value={statusFilter}
-                      onChange={(e) => {
-                        setStatusFilter(e.target.value);
-                        setPage(1); // Reset to first page when filtering
-                      }}
-                    >
-                      <option value="all">All Statuses</option>
-                      <option value="completed">Completed</option>
-                      <option value="failed">Failed</option>
-                      <option value="pending">Pending</option>
-                      <option value="running">Running</option>
-                    </select>
-                  </div>
-
-                  {/* Workflow Filter */}
-                  <div className="relative">
-                    <select
-                      className="border border-gray-300 rounded-xl px-4 py-2 text-sm bg-white focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 w-48"
-                      value={workflowFilter}
-                      onChange={(e) => {
-                        setWorkflowFilter(e.target.value);
-                        setPage(1); // Reset to first page when filtering
-                      }}
-                    >
-                      {availableWorkflows.map((wf) => (
-                        <option key={wf.id} value={wf.id}>
-                          {wf.name}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Clear Filters Button */}
-                  {(statusFilter !== "all" || workflowFilter !== "all") && (
-                    <button
-                      onClick={() => {
-                        setStatusFilter("all");
-                        setWorkflowFilter("all");
-                        setPage(1);
-                      }}
-                      className="flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-gray-100 hover:bg-gray-200 rounded-xl transition-all duration-200"
-                      title="Clear all filters"
-                    >
-                      <RotateCcw className="w-4 h-4" />
-                      Clear Filters
-                    </button>
-                  )}
-                </div>
-              </div>
+              <h1 className="text-3xl font-bold mb-2">Executions</h1>
+              <p className="text-gray-600">Monitor your workflow execution history</p>
             </div>
 
-            {/* Filter Results Info */}
-            {(statusFilter !== "all" || workflowFilter !== "all") &&
-              !loading && (
-                <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl">
-                  <p className="text-sm text-blue-700">
-                    <Filter className="inline w-4 h-4 mr-1" />
-                    Showing {filteredExecutions.length} of {executions.length}{" "}
-                    executions
-                    {statusFilter !== "all" && (
-                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
-                        Status: {statusFilter}
-                      </span>
-                    )}
-                    {workflowFilter !== "all" && (
-                      <span className="ml-2 px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-md">
-                        Workflow:{" "}
-                        {
-                          availableWorkflows.find(
-                            (w) => w.id === workflowFilter
-                          )?.name
-                        }
-                      </span>
-                    )}
-                  </p>
-                </div>
-              )}
-
-            {/* Executions Content */}
+            {/* Error State */}
             {error && (
-              <div className="p-6 bg-red-50 border border-red-200 rounded-xl text-red-600">
-                {error}
+              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+                <p className="text-red-800">
+                  {typeof error === 'string' ? error : 'An error occurred while loading executions'}
+                </p>
               </div>
             )}
 
-            {loading ? (
-              <div className="flex items-center justify-center py-12">
-                <Loading size="sm" />
-              </div>
-            ) : filteredExecutions.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-6 py-12">
-                <div className="flex items-center justify-center">
-                  <img
-                    src="/emptyexec.svg"
-                    alt="No executions"
-                    className="w-32 h-32 opacity-60"
-                  />
-                </div>
-                <div className="text-center">
-                  <h3 className="text-xl font-semibold text-gray-900 mb-2">
-                    {executions.length === 0
-                      ? "No Executions Yet"
-                      : "No Results Found"}
-                  </h3>
-                  <p className="text-gray-600">
-                    {executions.length === 0
-                      ? "Start a workflow to see execution history here."
-                      : "Try adjusting your filters to see more results."}
-                  </p>
-                </div>
+            {/* Empty State */}
+            {executions.length === 0 && !loading ? (
+              <div className="text-center py-12">
+                <Play className="w-16 h-16 text-gray-300 mx-auto mb-4" />
+                <h3 className="text-xl font-semibold text-gray-600 mb-2">No executions yet</h3>
+                <p className="text-gray-500">Run a workflow to see execution history here</p>
               </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {pagedExecutions.map((execution) => (
-                  <div
-                    key={execution.id}
-                    className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group"
-                  >
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Play className="w-4 h-4 text-purple-600" />
-                          <h3 className="text-lg font-semibold text-gray-900 group-hover:text-purple-600 transition-colors">
-                            {currentWorkflow?.name || "Unknown Workflow"}
-                          </h3>
-                        </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {execution.input_text
-                            ? truncateText(execution.input_text)
-                            : "No input provided"}
-                        </p>
-                      </div>
+              <>
+                {/* Executions Table */}
+                <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-gray-50">
+                        <tr>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Workflow
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Status
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Started
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Duration
+                          </th>
+                          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Input
+                          </th>
+                          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            Actions
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="bg-white divide-y divide-gray-200">
+                        {currentExecutions.map((execution) => (
+                          <tr key={execution.id} className="hover:bg-gray-50">
+                            <td className="px-6 py-4">
+                              <div className="flex items-center">
+                                <Play className="w-4 h-4 text-purple-600 mr-2" />
+                                <div>
+                                  <div className="text-sm font-medium text-gray-900">
+                                    {getWorkflowName(execution.workflow_id)}
+                                  </div>
+                                  <div className="text-xs text-gray-500">
+                                    #{execution.id.slice(0, 8)}
+                                  </div>
+                                </div>
+                              </div>
+                            </td>
+                            <td className="px-6 py-4">
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${getStatusColor(execution.status)}`}>
+                                {execution.status === "completed" && <Check className="w-3 h-3 mr-1" />}
+                                {execution.status === "failed" && <X className="w-3 h-3 mr-1" />}
+                                {execution.status === "running" && <Clock className="w-3 h-3 mr-1 animate-spin" />}
+                                {execution.status.charAt(0).toUpperCase() + execution.status.slice(1)}
+                              </span>
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {execution.started_at ? timeAgo(execution.started_at) : "-"}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900">
+                              {formatDuration(execution.started_at, execution.completed_at)}
+                            </td>
+                            <td className="px-6 py-4 text-sm text-gray-900 max-w-xs truncate">
+                              {getInputText(execution)}
+                            </td>
+                            <td className="px-6 py-4 text-right">
+                              <button
+                                onClick={() => handleDeleteClick(execution.id)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                title="Delete execution"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
 
-                      {/* Status Badge */}
-                      <span
-                        className={`inline-flex items-center px-3 py-1 text-xs font-semibold rounded-full border ${
-                          execution.status === "completed"
-                            ? "bg-green-100 text-green-800 border-green-200"
-                            : execution.status === "failed"
-                            ? "bg-red-100 text-red-800 border-red-200"
-                            : "bg-yellow-100 text-yellow-800 border-yellow-200"
-                        }`}
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-6">
+                    <div className="text-sm text-gray-700">
+                      Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, executions.length)} of {executions.length} executions
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
+                        disabled={currentPage === 1}
+                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
                       >
-                        {execution.status === "completed" ? (
-                          <Check className="w-3 h-3 mr-1" />
-                        ) : execution.status === "failed" ? (
-                          <X className="w-3 h-3 mr-1" />
-                        ) : null}
-                        {execution.status.charAt(0).toUpperCase() +
-                          execution.status.slice(1)}
-                      </span>
-                    </div>
-
-                    {/* Metadata */}
-                    <div className="space-y-3 mb-4">
-                      <div className="flex items-center text-xs text-gray-500">
-                        <Clock className="w-3 h-3 mr-2" />
-                        <span className="font-medium">Started:</span>
-                        <span className="ml-2">
-                          {execution.started_at
-                            ? timeAgo(execution.started_at)
-                            : "-"}
-                        </span>
+                        <ChevronLeft className="w-5 h-5" />
+                      </button>
+                      
+                      <div className="flex gap-1">
+                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                          <button
+                            key={page}
+                            onClick={() => setCurrentPage(page)}
+                            className={`px-3 py-1 rounded text-sm ${
+                              page === currentPage
+                                ? "bg-purple-600 text-white"
+                                : "text-gray-700 hover:bg-gray-100"
+                            }`}
+                          >
+                            {page}
+                          </button>
+                        ))}
                       </div>
 
-                      {execution.completed_at && (
-                        <div className="flex items-center text-xs text-gray-500">
-                          <Check className="w-3 h-3 mr-2" />
-                          <span className="font-medium">Completed:</span>
-                          <span className="ml-2">
-                            {timeAgo(execution.completed_at)}
-                          </span>
-                        </div>
-                      )}
-
-                      <div className="flex items-center text-xs text-gray-500">
-                        <FileText className="w-3 h-3 mr-2" />
-                        <span className="font-medium">Duration:</span>
-                        <span className="ml-2">
-                          {getExecutionDuration(
-                            execution.started_at,
-                            execution.completed_at
-                          )}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <span className="text-xs text-gray-400">
-                        #{execution.id.slice(0, 8)}...
-                      </span>
-
-                      <div className="flex items-center gap-1">
-                        <button
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          title="View details"
-                        >
-                          <ChevronRight className="w-4 h-4" />
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
+                        disabled={currentPage === totalPages}
+                        className="p-2 text-gray-400 hover:text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        <ChevronRight className="w-5 h-5" />
+                      </button>
                     </div>
                   </div>
-                ))}
-              </div>
+                )}
+              </>
             )}
           </div>
         </div>
-
-        {/* Pagination - Sayfanın altında */}
-        {!error && !loading && executions.length > 0 && (
-          <div className="mt-8">
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white  rounded-2xl ">
-              <div></div>
-              {/* Sayfa numaraları */}
-              <div className="flex items-center gap-2 justify-center">
-                <button
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setPage(page - 1)}
-                  disabled={page === 1}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </button>
-
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (p) => (
-                    <button
-                      key={p}
-                      onClick={() => setPage(p)}
-                      className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                        p === page
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
-                          : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                      }`}
-                    >
-                      {p}
-                    </button>
-                  )
-                )}
-
-                <button
-                  className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                  onClick={() => setPage(page + 1)}
-                  disabled={page === totalPages}
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </button>
-              </div>
-
-              {/* Items X to Y of Z */}
-              <div className="text-sm text-gray-500">
-                {startIdx + 1}-{endIdx} of {totalItems} executions
-              </div>
-            </div>
-          </div>
-        )}
       </main>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmationModal
+        isOpen={deleteModal.isOpen}
+        onClose={handleDeleteCancel}
+        onConfirm={handleDeleteConfirm}
+        isLoading={loading}
+        title="Delete Execution"
+        message="Are you sure you want to delete this execution? This action cannot be undone and all execution data will be permanently removed."
+      />
     </div>
   );
 }
 
-export default function ProtectedExecutionsLayout() {
+export default function ProtectedExecutionsPage() {
   return (
     <AuthGuard>
-      <ExecutionsLayout />
+      <ExecutionsPage />
     </AuthGuard>
   );
 }
