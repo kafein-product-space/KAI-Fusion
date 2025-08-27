@@ -31,6 +31,7 @@
     "@uiw/react-codemirror": "^4.24.0",
     "@xyflow/react": "^12.8.1",
     "axios": "^1.6.7",
+    "copy-to-clipboard": "^3.3.3",
     "date-fns": "^4.1.0",
     "formik": "^2.4.6",
     "highlight.js": "^11.11.1",

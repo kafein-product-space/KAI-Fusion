@@ -7,6 +7,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
+import { copyWithFeedback } from "~/lib/clipboard";
 
 interface ChatBubbleProps {
   message: string;
@@ -43,15 +44,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const isUser = from === "user";
 
   const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedCode(text);
-      setTimeout(() => {
-        setCopiedCode(null);
-      }, 2000);
-    } catch (err) {
-      console.error("Kopyalama başarısız:", err);
-    }
+    await copyWithFeedback(
+      text,
+      () => {
+        setCopiedCode(text);
+        setTimeout(() => {
+          setCopiedCode(null);
+        }, 2000);
+      },
+      (err) => {
+        console.error("Kopyalama başarısız:", err);
+      }
+    );
   };
 
   const formatTimestamp = (date: Date) => {
