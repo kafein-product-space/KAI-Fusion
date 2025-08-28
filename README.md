@@ -295,7 +295,7 @@ KAI-Fusion/
 ├─ docker/                  # (Optional) Docker files
 ├─ .vscode/
 │  └─ launch.json
-└─ ```
+```
 
 ---
 
@@ -305,14 +305,6 @@ KAI-Fusion/
 * **Observability**: Toggle **LangChain/LangSmith** tracing using the env flags provided (great for debugging prompts and tool calls).
 * **PostgreSQL Persistence**: Store workflows, runs, artifacts, and user data in Postgres.
 * **REST API**: The backend exposes API routes under `/api/v1` (see Swagger UI at `/docs`).
-
-**Sample Flow (like Flowise):**
-
-1. Drop an **LLM** node.
-2. Add a **Retriever** node (vector store) and connect to the LLM.
-3. Add a **Tool** node (e.g., Web Search or Custom Python tool).
-4. Wire outputs → inputs, set prompts, and click **Run**.
-5. Watch logs & traces; iterate quickly.
 
 ---
 
@@ -324,103 +316,19 @@ KAI-Fusion/
 
 ### ⬇️ Downloads — Badges & Table
 
-| Metric                     | Badge                                                                                                                                      |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
-| **All releases (total)**   | ![All Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/total?label=All%20downloads)                      |
-| **Latest release (total)** | ![Latest Release Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/latest/total?label=Latest%20downloads) |
-| **Stars (live)**           | ![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social)                                     |
-| **Forks (live)**           | ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)                                          |
+| Metric                   | Badge                                                                                                                                      |
+| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| **All releases (total)** | ![All Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/total?label=All%20downloads)                      |
+| **Latest release**       | ![Latest Release Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/latest/total?label=Latest%20downloads) |
+| **Stars (live)**         | ![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social)                                     |
+| **Forks (live)**         | ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)                                          |
 
-> If you don’t publish releases yet, the download badges will show `0` — that’s expected.
 
-#### 📈 Optional: Downloads Trend Chart (GitHub Action)
-
-Once you add the workflow below, embed:
-
-```md
-![Downloads Trend](./docs/media/downloads-trend.svg)
-```
-
-**.github/workflows/downloads-chart.yml**
-
-```yaml
-name: Generate Downloads Chart
-on:
-  schedule: [{ cron: "0 3 * * 1" }]  # every Monday 03:00 UTC
-  workflow_dispatch:
-permissions:
-  contents: write
-jobs:
-  build-chart:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-      - name: Install deps
-        run: pip install requests matplotlib
-      - name: Build chart
-        env:
-          GH_OWNER: kafein-product-space
-          GH_REPO: KAI-Fusion
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          python .github/scripts/build_downloads_chart.py
-      - name: Commit chart
-        uses: EndBug/add-and-commit@v9
-        with:
-          add: docs/media/downloads-trend.svg
-          message: "chore(stats): update downloads trend chart"
-```
-
-**.github/scripts/build\_downloads\_chart.py**
-
-```python
-import os, requests, datetime
-import matplotlib.pyplot as plt
-
-OWNER = os.environ["GH_OWNER"]
-REPO = os.environ["GH_REPO"]
-TOKEN = os.environ.get("GH_TOKEN")
-HEAD = {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
-
-releases = requests.get(
-    f"https://api.github.com/repos/{OWNER}/{REPO}/releases",
-    headers=HEAD
-).json()
-
-points = []
-for r in releases:
-    t = sum(a.get("download_count", 0) for a in r.get("assets", []))
-    created = r.get("created_at")
-    if created:
-        dt = datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).date()
-        points.append((dt, t))
-
-points.sort()
-if not points:
-    points = [(datetime.date.today(), 0)]
-
-dates = [p[0] for p in points]
-vals = [p[1] for p in points]
-
-plt.figure(figsize=(7,3))
-plt.plot(dates, vals, marker='o')
-plt.title('Release Downloads per Release')
-plt.xlabel('Release date')
-plt.ylabel('Downloads')
-plt.tight_layout()
-os.makedirs('docs/media', exist_ok=True)
-plt.savefig('docs/media/downloads-trend.svg')
-```
-
-#### 📊 Extra: Repo Activity (Repobeats)
+### 📊 Extra: Repo Activity (Repobeats)
 
 ```md
 ![Repobeats analytics](https://repobeats.axiom.co/api/embed/kafein-product-space/KAI-Fusion.svg)
 ```
-
 ---
 
 ## 🙌 Contributing (with user icons)
@@ -432,18 +340,16 @@ We welcome PRs! Please:
 3. Add/adjust tests where applicable.
 4. Open a PR with a clear description and screenshots/GIFs.
 
-### 👥 Contributors (facepile)
+### 👥 Contributors 
 
 <a href="https://github.com/kafein-product-space/KAI-Fusion/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=kafein-product-space/KAI-Fusion" alt="Contributors" />
 </a>
 
-### ⭐ Stargazers & 🍴 Forkers (user icons)
+### ⭐ Stargazers & 🍴 Forkers
 
 [![Stargazers repo roster for @kafein-product-space/KAI-Fusion](https://reporoster.com/stars/kafein-product-space/KAI-Fusion)](https://github.com/kafein-product-space/KAI-Fusion/stargazers)
 [![Forkers repo roster for @kafein-product-space/KAI-Fusion](https://reporoster.com/forks/kafein-product-space/KAI-Fusion)](https://github.com/kafein-product-space/KAI-Fusion/network/members)
-
-> The images above update automatically as your community grows.
 
 ---
 
@@ -484,13 +390,11 @@ Please follow our [Contributor Covenant Code of Conduct](./CODE_OF_CONDUCT.md) t
 
 ## 📝 License
 
-Source code is available under the **Apache License 2.0** (see [`LICENSE`](./LICENSE)).
+Source code is available under the **Apache License 2.0** (see `LICENSE`).
 
 ---
 
 ### ℹ️ Repo Meta (auto‑generated by GitHub)
-
-> The GitHub UI shows live stars, forks, contributors, deployments, and language breakdown.
 
 * Stars, watchers, forks: via badges above
 * Contributors facepile: auto‑updated via contrib.rocks
