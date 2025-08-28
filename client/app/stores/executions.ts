@@ -7,7 +7,8 @@ interface ExecutionsStore {
   currentExecution: WorkflowExecution | null;
   loading: boolean;
   error: string | null;
-  fetchExecutions: (workflow_id: string, params?: { skip?: number; limit?: number }) => Promise<void>;
+  fetchExecutions: (workflow_id?: string, params?: { skip?: number; limit?: number }) => Promise<void>;
+  fetchAllExecutions: () => Promise<void>;
   getExecution: (execution_id: string) => Promise<void>;
   createExecution: (workflow_id: string, inputs: Record<string, any>) => Promise<void>;
   executeWorkflow: (workflow_id: string, executionData: {
@@ -18,6 +19,7 @@ interface ExecutionsStore {
     trigger_source?: string;
   }) => Promise<void>;
   setCurrentExecution: (execution: WorkflowExecution) => void;
+  deleteExecution: (execution_id: string) => Promise<void>;
   clearError: () => void;
 }
 
@@ -27,12 +29,25 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
   loading: false,
   error: null,
   fetchExecutions: async (workflow_id, params) => {
+    if (!workflow_id) {
+      set({ executions: [], loading: false, error: null });
+      return;
+    }
     set({ loading: true, error: null });
     try {
       const executions = await executionService.listExecutions(workflow_id, params);
       set({ executions, loading: false });
     } catch (e: any) {
       set({ error: e.message || 'Failed to fetch executions', loading: false });
+    }
+  },
+  fetchAllExecutions: async () => {
+    set({ loading: true, error: null });
+    try {
+      const executions = await executionService.listExecutions(); // workflow_id olmadan çağır
+      set({ executions, loading: false });
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to fetch all executions', loading: false });
     }
   },
   getExecution: async (execution_id) => {
@@ -67,5 +82,17 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
     }
   },
   setCurrentExecution: (execution) => set({ currentExecution: execution }),
+  deleteExecution: async (execution_id) => {
+    set({ loading: true, error: null });
+    try {
+      await executionService.deleteExecution(execution_id);
+      set((state) => ({
+        executions: state.executions.filter(ex => ex.id !== execution_id),
+        loading: false
+      }));
+    } catch (e: any) {
+      set({ error: e.message || 'Failed to delete execution', loading: false });
+    }
+  },
   clearError: () => set({ error: null }),
 })); 

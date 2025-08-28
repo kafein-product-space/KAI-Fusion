@@ -406,23 +406,26 @@ const Sidebar = () => {
       {/* Footer Section */}
       <div className="space-y-4">
         {/* User Profile */}
-        <div className="p-3 bg-slate-800/30 rounded-lg border border-slate-600/30">
+        <button
+          onClick={() => router("/settings")}
+          className="w-full p-3 bg-slate-800/30 rounded-lg border border-slate-600/30 hover:bg-slate-700/40 hover:border-slate-500/40 transition-all duration-200 group"
+        >
           <div className="flex items-center space-x-3">
             <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg">
+              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-lg group-hover:shadow-blue-500/20 transition-all duration-200">
                 <User className="w-5 h-5 text-white" />
               </div>
               <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800" />
             </div>
 
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-white truncate">
+            <div className="flex-1 min-w-0 text-left">
+              <p className="text-sm font-medium text-white truncate group-hover:text-blue-300 transition-colors duration-200">
                 {user?.full_name || "Kullanıcı"}
               </p>
               <p className="text-xs text-slate-400 truncate">{user?.email}</p>
             </div>
           </div>
-        </div>
+        </button>
 
         {/* Logout Button */}
         <button

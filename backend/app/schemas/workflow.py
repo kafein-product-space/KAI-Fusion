@@ -3,6 +3,14 @@ from pydantic import BaseModel, Field
 from typing import Optional, Dict, Any
 from datetime import datetime
 
+# --- User Schema for Workflow Responses ---
+class UserInfo(BaseModel):
+    id: uuid.UUID
+    full_name: Optional[str] = None
+    
+    class Config:
+        from_attributes = True
+
 # --- Workflow Schemas ---
 
 # Base schema for workflow fields
@@ -27,6 +35,7 @@ class WorkflowUpdate(BaseModel):
 class WorkflowResponse(WorkflowBase):
     id: uuid.UUID
     user_id: uuid.UUID
+    user: Optional[UserInfo] = None
     version: int
     created_at: datetime
     updated_at: datetime

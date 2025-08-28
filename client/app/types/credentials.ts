@@ -86,8 +86,8 @@ export interface ServiceField {
     },
     {
       id: 'postgresql_vectorstore',
-      name: 'PostgreSQL Vector Store',
-      description: 'PostgreSQL database with vector extension for storing embeddings',
+      name: 'Postgres',
+      description: 'PostgreSQL database with vector extension for storing embeddings and retrieving',
       icon: '🐘',
       category: 'database',
       color: 'from-indigo-500 to-purple-600',
