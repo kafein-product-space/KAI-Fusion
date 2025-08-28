@@ -43,10 +43,6 @@ import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
 
-import OpenAIEmbeddingsNode from "../nodes/embeddings/OpenaiEmbeddingsNode/index";
-
-import RedisCacheNode from "../nodes/cache/RedisCacheNode";
-import ConditionalChainNode from "../nodes/chains/ConditionalChainNode";
 import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
 import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
 import TavilyWebSearchNode from "../nodes/tools/TavilyWebSearch";
@@ -54,23 +50,17 @@ import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
 import { useChatStore } from "../../stores/chat";
-import RouterChainNode from "../nodes/chains/RouterChainNode";
 import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
-import TextLoaderNode from "../nodes/document_loaders/TextLoaderNode";
 import WebScraperNode from "../nodes/document_loaders/WebScraper";
 import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
-import RetrievalQANode from "../nodes/chains/RetrievalQANode";
-import OpenAIDocumentEmbedderNode from "../nodes/embeddings/OpenAIDocumentEmbedder";
 import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
 import HTTPClientNode from "../nodes/tools/HTTPClient/index";
 import DocumentRerankerNode from "../nodes/tools/DocumentReranker/index";
 import TimerStartNode from "../nodes/triggers/TimerStartNode";
 import WebhookTriggerNode from "../nodes/triggers/WebhookTrigger";
-import PostgreSQLVectorStoreNode from "../nodes/vectorstores/PostgreSQLVectorStoreNode";
 import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
 import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
 import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
-import IntelligentVectorStoreNode from "../nodes/vectorstores/IntelligentVectorStoreNode";
 import RetrieverNode from "../nodes/tools/RetrieverNode";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
@@ -93,8 +83,6 @@ import TimerStartConfigForm from "../nodes/triggers/TimerStartNode/TimerStartCon
 import WebhookTriggerConfigForm from "../nodes/triggers/WebhookTrigger/WebhookTriggerConfigForm";
 import VectorStoreOrchestratorConfigForm from "../nodes/vectorstores/VectorStoreOrchestrator/VectorStoreOrchestratorConfigForm";
 import OpenAIEmbeddingsProviderConfigForm from "../nodes/embeddings/OpenAIEmbeddingsProvider/OpenAIEmbeddingsProviderConfigForm";
-import OpenAIDocumentEmbedderConfigForm from "../nodes/embeddings/OpenAIDocumentEmbedder/OpenAIDocumentEmbedderConfigForm";
-import EmbeddingsConfigForm from "../nodes/embeddings/OpenaiEmbeddingsNode/EmbeddingsConfigForm";
 import RetrieverConfigForm from "../nodes/tools/RetrieverConfigForm";
 
 // Node config component mapping
@@ -113,8 +101,6 @@ const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
   WebhookTrigger: WebhookTriggerConfigForm,
   VectorStoreOrchestrator: VectorStoreOrchestratorConfigForm,
   OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderConfigForm,
-  OpenAIEmbedder: OpenAIDocumentEmbedderConfigForm,
-  OpenAIEmbeddings: EmbeddingsConfigForm,
   RetrieverProvider: RetrieverConfigForm,
 };
 
@@ -123,10 +109,6 @@ const baseNodeTypes = {
   Agent: ToolAgentNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
-  TextDataLoader: TextLoaderNode,
-  OpenAIEmbeddings: OpenAIEmbeddingsNode,
-  RedisCache: RedisCacheNode,
-  ConditionalChain: ConditionalChainNode,
   CohereEmbeddings: CohereEmbeddingsNode,
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
@@ -134,20 +116,15 @@ const baseNodeTypes = {
   WebScraper: WebScraperNode,
   DocumentLoader: DocumentLoaderNode,
   EndNode: EndNode,
-  RouterChain: RouterChainNode,
-  RetrievalQA: RetrievalQANode,
-  OpenAIEmbedder: OpenAIDocumentEmbedderNode,
   ChunkSplitter: DocumentChunkSplitterNode,
   HttpRequest: HTTPClientNode,
   Reranker: DocumentRerankerNode,
   TimerStartNode: TimerStartNode,
   WebhookTrigger: WebhookTriggerNode,
-  PGVectorStore: PostgreSQLVectorStoreNode,
   OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderNode,
   CohereRerankerProvider: CohereRerankerNode,
   VectorStoreOrchestrator: VectorStoreOrchestratorNode,
   RetrieverProvider: RetrieverNode,
-  IntelligentVectorStore: IntelligentVectorStoreNode,
 };
 
 interface FlowCanvasProps {
@@ -179,7 +156,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   >({});
 
   // Listen for chat execution events to update node status
-  useChatExecutionListener(nodes, setNodeStatus, edges, setEdgeStatus, setActiveEdges, setActiveNodes);
+  useChatExecutionListener(
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes
+  );
 
   // Auto-save state
   const [autoSaveEnabled, setAutoSaveEnabled] = useState(true);
@@ -746,15 +730,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                       executed_nodes: evt.executed_nodes,
                       node_outputs: evt.node_outputs,
                       session_id: evt.session_id,
-                      status: 'completed' as const,
+                      status: "completed" as const,
                     },
                     started_at: new Date().toISOString(),
                     completed_at: new Date().toISOString(),
-                    status: 'completed' as const,
+                    status: "completed" as const,
                   };
-                  
+
                   setCurrentExecution(executionResult);
-                  
+
                   setTimeout(() => {
                     setActiveEdges([]);
                     setActiveNodes([]);
@@ -1051,44 +1035,50 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   };
 
   // Handle node click for fullscreen modal
-  const handleNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
-    // Don't open modal if it's already in config mode or a double click
-    if (node.data?.isConfigMode || event.detail === 2) {
-      return;
-    }
+  const handleNodeClick = useCallback(
+    (event: React.MouseEvent, node: Node) => {
+      // Don't open modal if it's already in config mode or a double click
+      if (node.data?.isConfigMode || event.detail === 2) {
+        return;
+      }
 
-    const nodeMetadata = node.data?.metadata || availableNodes.find(
-      (n: NodeMetadata) => n.name === node.type
-    );
+      const nodeMetadata =
+        node.data?.metadata ||
+        availableNodes.find((n: NodeMetadata) => n.name === node.type);
 
-    const configComponent = nodeConfigComponents[node.type!];
+      const configComponent = nodeConfigComponents[node.type!];
 
-    if (nodeMetadata && configComponent) {
-      setFullscreenModal({
-        isOpen: true,
-        nodeData: node,
-        nodeMetadata,
-        configComponent,
-      });
-    }
-  }, [availableNodes]);
+      if (nodeMetadata && configComponent) {
+        setFullscreenModal({
+          isOpen: true,
+          nodeData: node,
+          nodeMetadata,
+          configComponent,
+        });
+      }
+    },
+    [availableNodes]
+  );
 
   // Handle fullscreen modal save
-  const handleFullscreenModalSave = useCallback((values: any) => {
-    if (fullscreenModal.nodeData) {
-      setNodes((nodes) =>
-        nodes.map((node) =>
-          node.id === fullscreenModal.nodeData.id
-            ? {
-                ...node,
-                data: { ...node.data, ...values },
-              }
-            : node
-        )
-      );
-    }
-    setFullscreenModal({ isOpen: false });
-  }, [fullscreenModal.nodeData, setNodes]);
+  const handleFullscreenModalSave = useCallback(
+    (values: any) => {
+      if (fullscreenModal.nodeData) {
+        setNodes((nodes) =>
+          nodes.map((node) =>
+            node.id === fullscreenModal.nodeData.id
+              ? {
+                  ...node,
+                  data: { ...node.data, ...values },
+                }
+              : node
+          )
+        );
+      }
+      setFullscreenModal({ isOpen: false });
+    },
+    [fullscreenModal.nodeData, setNodes]
+  );
 
   // Handle fullscreen modal close
   const handleFullscreenModalClose = useCallback(() => {
@@ -1278,236 +1268,338 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       />
 
       {/* Fullscreen Node Configuration Modal */}
-      {fullscreenModal.isOpen && fullscreenModal.nodeMetadata && fullscreenModal.configComponent && (
-        <FullscreenNodeModal
-          isOpen={fullscreenModal.isOpen}
-          onClose={handleFullscreenModalClose}
-          nodeMetadata={fullscreenModal.nodeMetadata}
-          configData={fullscreenModal.nodeData?.data || {}}
-          onSave={handleFullscreenModalSave}
-          onExecute={() => handleStartNodeExecution(fullscreenModal.nodeData?.id || '')}
-          ConfigComponent={fullscreenModal.configComponent}
-          executionData={{
-            nodeId: fullscreenModal.nodeData?.id || '',
-            inputs: (() => {
-              const nodeId = fullscreenModal.nodeData?.id;
-              if (!nodeId || !currentExecution?.result?.node_outputs) return {};
-              
-              // First try to get tracked inputs from execution data
-              const nodeExecutionData = currentExecution.result.node_outputs?.[nodeId];
-              if (nodeExecutionData?.inputs && Object.keys(nodeExecutionData.inputs).length > 0) {
-                return nodeExecutionData.inputs;
-              }
-              
-              // Fallback to edge-based input construction for nodes without tracked inputs
-              const inputEdges = edges.filter(edge => edge.target === nodeId);
-              const inputs: Record<string, any> = {};
-              
-              inputEdges.forEach(edge => {
-                const sourceNodeOutput = currentExecution.result.node_outputs?.[edge.source];
-                if (sourceNodeOutput !== undefined) {
-                  const inputKey = edge.targetHandle || 'input';
-                  inputs[inputKey] = sourceNodeOutput;
+      {fullscreenModal.isOpen &&
+        fullscreenModal.nodeMetadata &&
+        fullscreenModal.configComponent && (
+          <FullscreenNodeModal
+            isOpen={fullscreenModal.isOpen}
+            onClose={handleFullscreenModalClose}
+            nodeMetadata={fullscreenModal.nodeMetadata}
+            configData={fullscreenModal.nodeData?.data || {}}
+            onSave={handleFullscreenModalSave}
+            onExecute={() =>
+              handleStartNodeExecution(fullscreenModal.nodeData?.id || "")
+            }
+            ConfigComponent={fullscreenModal.configComponent}
+            executionData={{
+              nodeId: fullscreenModal.nodeData?.id || "",
+              inputs: (() => {
+                const nodeId = fullscreenModal.nodeData?.id;
+                if (!nodeId || !currentExecution?.result?.node_outputs)
+                  return {};
+
+                // First try to get tracked inputs from execution data
+                const nodeExecutionData =
+                  currentExecution.result.node_outputs?.[nodeId];
+                if (
+                  nodeExecutionData?.inputs &&
+                  Object.keys(nodeExecutionData.inputs).length > 0
+                ) {
+                  return nodeExecutionData.inputs;
                 }
-              });
-              
-              return inputs;
-            })(),
-            outputs: currentExecution?.result?.node_outputs?.[fullscreenModal.nodeData?.id || ''],
-            status: currentExecution?.status === 'completed' ? 'completed' : 
-                    currentExecution?.status === 'running' ? 'running' : 
-                    currentExecution?.status === 'failed' ? 'failed' : 'pending'
-          }}
-        />
-      )}
+
+                // Fallback to edge-based input construction for nodes without tracked inputs
+                const inputEdges = edges.filter(
+                  (edge) => edge.target === nodeId
+                );
+                const inputs: Record<string, any> = {};
+
+                inputEdges.forEach((edge) => {
+                  const sourceNodeOutput =
+                    currentExecution.result.node_outputs?.[edge.source];
+                  if (sourceNodeOutput !== undefined) {
+                    const inputKey = edge.targetHandle || "input";
+                    inputs[inputKey] = sourceNodeOutput;
+                  }
+                });
+
+                return inputs;
+              })(),
+              outputs:
+                currentExecution?.result?.node_outputs?.[
+                  fullscreenModal.nodeData?.id || ""
+                ],
+              status:
+                currentExecution?.status === "completed"
+                  ? "completed"
+                  : currentExecution?.status === "running"
+                  ? "running"
+                  : currentExecution?.status === "failed"
+                  ? "failed"
+                  : "pending",
+            }}
+          />
+        )}
     </>
   );
 }
 
 // Add chat execution event listener for node and edge status updates
 function useChatExecutionListener(
-  nodes: Node[], 
-  setNodeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  nodes: Node[],
+  setNodeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
   edges: Edge[],
-  setEdgeStatus: React.Dispatch<React.SetStateAction<Record<string, NodeStatus>>>,
+  setEdgeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
   setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
   setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>
 ) {
   useEffect(() => {
     const handleChatExecutionStart = () => {
-      console.log('🔄 Resetting node/edge/active status for chat execution');
+      console.log("🔄 Resetting node/edge/active status for chat execution");
       setNodeStatus({});
       setEdgeStatus({});
       setActiveEdges([]);
       setActiveNodes([]);
     };
-    
+
     const handleChatExecutionComplete = () => {
-      console.log('✅ Chat execution complete - clearing active edges/nodes');
+      console.log("✅ Chat execution complete - clearing active edges/nodes");
       setActiveEdges([]);
       setActiveNodes([]);
     };
-    
+
     const handleChatExecutionEvent = (event: CustomEvent) => {
       const { event: eventType, node_id, ...data } = event.detail;
-      
-      console.log('🚀 Chat execution event:', eventType, 'node_id:', node_id, 'data:', data);
-      
+
+      console.log(
+        "🚀 Chat execution event:",
+        eventType,
+        "node_id:",
+        node_id,
+        "data:",
+        data
+      );
+
       // Log provider events specifically
-      if (data.metadata?.node_type === 'provider' || data.metadata?.provider_type) {
-        console.log('🔧 Provider event details:', {
+      if (
+        data.metadata?.node_type === "provider" ||
+        data.metadata?.provider_type
+      ) {
+        console.log("🔧 Provider event details:", {
           eventType,
           node_id,
           provider_type: data.metadata?.provider_type,
           inputs: data.metadata?.inputs,
-          output: data.output
+          output: data.output,
         });
       }
-      
-      if (eventType === 'node_start' && node_id) {
-        
+
+      if (eventType === "node_start" && node_id) {
         // Enhanced node matching for different node types
-        const actualNode = nodes.find(n => {
+        const actualNode = nodes.find((n) => {
           // Direct matches
-          if (n.id === node_id || n.data.name === node_id || n.type === node_id) {
+          if (
+            n.id === node_id ||
+            n.data.name === node_id ||
+            n.type === node_id
+          ) {
             return true;
           }
-          
+
           // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, '');
-          if (n.type && (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))) {
+          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          if (
+            n.type &&
+            (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
+          ) {
             return true;
           }
-          
+
           // Special matching for embedding providers
-          if (node_id.includes('Embedding') || node_id.includes('embedding')) {
-            if (n.type && (n.type.includes('Embedding') || n.type.includes('OpenAI'))) {
+          if (node_id.includes("Embedding") || node_id.includes("embedding")) {
+            if (
+              n.type &&
+              (n.type.includes("Embedding") || n.type.includes("OpenAI"))
+            ) {
               return true;
             }
           }
-          
+
           // Special matching for rerankers
-          if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
-            if (n.type && (n.type.includes('Reranker') || n.type.includes('Cohere'))) {
+          if (
+            node_id.includes("Reranker") ||
+            node_id.includes("reranker") ||
+            node_id.includes("Cohere")
+          ) {
+            if (
+              n.type &&
+              (n.type.includes("Reranker") || n.type.includes("Cohere"))
+            ) {
               return true;
             }
           }
-          
+
           // Special matching for retrievers
-          if (node_id.includes('Retriever') || node_id.includes('retriever')) {
-            if (n.type && (n.type.includes('Retriever') || n.type.includes('VectorStore'))) {
+          if (node_id.includes("Retriever") || node_id.includes("retriever")) {
+            if (
+              n.type &&
+              (n.type.includes("Retriever") || n.type.includes("VectorStore"))
+            ) {
               return true;
             }
           }
-          
+
           // Match by data properties if available
           if (n.data?.node_name && n.data.node_name === node_id) {
             return true;
           }
-          
+
           return false;
         });
-        
+
         if (actualNode) {
-          
           // Set active node (for flow animation)
           setActiveNodes([actualNode.id]);
-          setNodeStatus(prev => ({
+          setNodeStatus((prev) => ({
             ...prev,
-            [actualNode.id]: 'pending'  // Start with pending like in start node execution
+            [actualNode.id]: "pending", // Start with pending like in start node execution
           }));
-          
+
           // Set incoming edges to pending and active (like in start node execution)
-          const incomingEdges = edges.filter(e => e.target === actualNode.id);
+          const incomingEdges = edges.filter((e) => e.target === actualNode.id);
           if (incomingEdges.length > 0) {
-            console.log('🔄 Setting edges as active/pending:', incomingEdges.map(e => e.id));
-            setActiveEdges(incomingEdges.map(e => e.id)); // This creates the flow animation!
-            setEdgeStatus(prev => ({
+            console.log(
+              "🔄 Setting edges as active/pending:",
+              incomingEdges.map((e) => e.id)
+            );
+            setActiveEdges(incomingEdges.map((e) => e.id)); // This creates the flow animation!
+            setEdgeStatus((prev) => ({
               ...prev,
               ...Object.fromEntries(
-                incomingEdges.map(e => [e.id, 'pending' as const])
-              )
+                incomingEdges.map((e) => [e.id, "pending" as const])
+              ),
             }));
           }
-          
         }
       }
-      
-      if (eventType === 'node_end' && node_id) {
+
+      if (eventType === "node_end" && node_id) {
         // Enhanced node matching for different node types
-        const actualNode = nodes.find(n => {
+        const actualNode = nodes.find((n) => {
           // Direct matches
-          if (n.id === node_id || n.data.name === node_id || n.type === node_id) {
+          if (
+            n.id === node_id ||
+            n.data.name === node_id ||
+            n.type === node_id
+          ) {
             return true;
           }
-          
+
           // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, '');
-          if (n.type && (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))) {
+          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          if (
+            n.type &&
+            (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
+          ) {
             return true;
           }
-          
+
           // Special matching for embedding providers
-          if (node_id.includes('Embedding') || node_id.includes('embedding')) {
-            if (n.type && (n.type.includes('Embedding') || n.type.includes('OpenAI'))) {
+          if (node_id.includes("Embedding") || node_id.includes("embedding")) {
+            if (
+              n.type &&
+              (n.type.includes("Embedding") || n.type.includes("OpenAI"))
+            ) {
               return true;
             }
           }
-          
+
           // Special matching for rerankers
-          if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
-            if (n.type && (n.type.includes('Reranker') || n.type.includes('Cohere'))) {
+          if (
+            node_id.includes("Reranker") ||
+            node_id.includes("reranker") ||
+            node_id.includes("Cohere")
+          ) {
+            if (
+              n.type &&
+              (n.type.includes("Reranker") || n.type.includes("Cohere"))
+            ) {
               return true;
             }
           }
-          
+
           // Special matching for retrievers
-          if (node_id.includes('Retriever') || node_id.includes('retriever')) {
-            if (n.type && (n.type.includes('Retriever') || n.type.includes('VectorStore'))) {
+          if (node_id.includes("Retriever") || node_id.includes("retriever")) {
+            if (
+              n.type &&
+              (n.type.includes("Retriever") || n.type.includes("VectorStore"))
+            ) {
               return true;
             }
           }
-          
+
           // Match by data properties if available
           if (n.data?.node_name && n.data.node_name === node_id) {
             return true;
           }
-          
+
           return false;
         });
-        
+
         if (actualNode) {
-          console.log('🟢 Setting node as success:', actualNode.id);
-          setNodeStatus(prev => ({
+          console.log("🟢 Setting node as success:", actualNode.id);
+          setNodeStatus((prev) => ({
             ...prev,
-            [actualNode.id]: 'success'
+            [actualNode.id]: "success",
           }));
-          
+
           // Set incoming edges to success (like in start node execution)
-          const incomingEdges = edges.filter(e => e.target === actualNode.id);
+          const incomingEdges = edges.filter((e) => e.target === actualNode.id);
           if (incomingEdges.length > 0) {
-            console.log('✅ Setting edges as success:', incomingEdges.map(e => e.id));
-            setEdgeStatus(prev => ({
+            console.log(
+              "✅ Setting edges as success:",
+              incomingEdges.map((e) => e.id)
+            );
+            setEdgeStatus((prev) => ({
               ...prev,
               ...Object.fromEntries(
-                incomingEdges.map(e => [e.id, 'success' as const])
-              )
+                incomingEdges.map((e) => [e.id, "success" as const])
+              ),
             }));
           }
         }
       }
     };
 
-    window.addEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
-    window.addEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
-    window.addEventListener('chat-execution-complete', handleChatExecutionComplete as EventListener);
-    
+    window.addEventListener(
+      "chat-execution-start",
+      handleChatExecutionStart as EventListener
+    );
+    window.addEventListener(
+      "chat-execution-event",
+      handleChatExecutionEvent as EventListener
+    );
+    window.addEventListener(
+      "chat-execution-complete",
+      handleChatExecutionComplete as EventListener
+    );
+
     return () => {
-      window.removeEventListener('chat-execution-start', handleChatExecutionStart as EventListener);
-      window.removeEventListener('chat-execution-event', handleChatExecutionEvent as EventListener);
-      window.removeEventListener('chat-execution-complete', handleChatExecutionComplete as EventListener);
+      window.removeEventListener(
+        "chat-execution-start",
+        handleChatExecutionStart as EventListener
+      );
+      window.removeEventListener(
+        "chat-execution-event",
+        handleChatExecutionEvent as EventListener
+      );
+      window.removeEventListener(
+        "chat-execution-complete",
+        handleChatExecutionComplete as EventListener
+      );
     };
-  }, [nodes, setNodeStatus, edges, setEdgeStatus, setActiveEdges, setActiveNodes]);
+  }, [
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
+  ]);
 }
 
 interface FlowCanvasWrapperProps {
