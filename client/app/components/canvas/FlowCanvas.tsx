@@ -34,6 +34,8 @@ import type {
   NodeMetadata,
 } from "~/types/api";
 
+type NodeStatus = "success" | "failed" | "pending";
+
 import { Loader } from "lucide-react";
 import ChatComponent from "./ChatComponent";
 import ChatHistorySidebar from "./ChatHistorySidebar";
@@ -1373,27 +1375,27 @@ function useChatExecutionListener(
           
           // Remove trailing numbers like Agent-2 -> Agent
           const cleanNodeId = node_id.replace(/\-\d+$/, '');
-          if (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type)) {
+          if (n.type && (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))) {
             return true;
           }
           
           // Special matching for embedding providers
           if (node_id.includes('Embedding') || node_id.includes('embedding')) {
-            if (n.type.includes('Embedding') || n.type.includes('OpenAI')) {
+            if (n.type && (n.type.includes('Embedding') || n.type.includes('OpenAI'))) {
               return true;
             }
           }
           
           // Special matching for rerankers
           if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
-            if (n.type.includes('Reranker') || n.type.includes('Cohere')) {
+            if (n.type && (n.type.includes('Reranker') || n.type.includes('Cohere'))) {
               return true;
             }
           }
           
           // Special matching for retrievers
           if (node_id.includes('Retriever') || node_id.includes('retriever')) {
-            if (n.type.includes('Retriever') || n.type.includes('VectorStore')) {
+            if (n.type && (n.type.includes('Retriever') || n.type.includes('VectorStore'))) {
               return true;
             }
           }
@@ -1441,27 +1443,27 @@ function useChatExecutionListener(
           
           // Remove trailing numbers like Agent-2 -> Agent
           const cleanNodeId = node_id.replace(/\-\d+$/, '');
-          if (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type)) {
+          if (n.type && (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))) {
             return true;
           }
           
           // Special matching for embedding providers
           if (node_id.includes('Embedding') || node_id.includes('embedding')) {
-            if (n.type.includes('Embedding') || n.type.includes('OpenAI')) {
+            if (n.type && (n.type.includes('Embedding') || n.type.includes('OpenAI'))) {
               return true;
             }
           }
           
           // Special matching for rerankers
           if (node_id.includes('Reranker') || node_id.includes('reranker') || node_id.includes('Cohere')) {
-            if (n.type.includes('Reranker') || n.type.includes('Cohere')) {
+            if (n.type && (n.type.includes('Reranker') || n.type.includes('Cohere'))) {
               return true;
             }
           }
           
           // Special matching for retrievers
           if (node_id.includes('Retriever') || node_id.includes('retriever')) {
-            if (n.type.includes('Retriever') || n.type.includes('VectorStore')) {
+            if (n.type && (n.type.includes('Retriever') || n.type.includes('VectorStore'))) {
               return true;
             }
           }
