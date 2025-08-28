@@ -218,17 +218,7 @@ export default function DocumentLoaderConfigForm({
   };
 
   return (
-    <div className="relative p-2 w-80 h-auto min-h-32 rounded-2xl flex flex-col items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900 shadow-2xl border border-white/20 backdrop-blur-sm">
-      <div className="flex items-center justify-between w-full px-3 py-2 border-b border-white/20">
-        <div className="flex items-center gap-2">
-          <Database className="w-4 h-4 text-white" />
-          <span className="text-white text-xs font-medium">
-            Google Drive Document Loader
-          </span>
-        </div>
-        <Settings className="w-4 h-4 text-white" />
-      </div>
-
+    <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
@@ -236,45 +226,50 @@ export default function DocumentLoaderConfigForm({
         enableReinitialize={true}
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
-          <Form className="space-y-3 w-full p-3">
+          <Form className="space-y-6 w-full p-6">
             {/* Google Drive Links */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Google Drive Links
               </label>
               <Field
                 as="textarea"
                 name="drive_links"
                 placeholder="https://drive.google.com/file/d/...&#10;https://drive.google.com/drive/folders/..."
-                className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none"
-                rows={3}
+                className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none"
+                rows={4}
+                onMouseDown={(e: any) => e.stopPropagation()}
+                onTouchStart={(e: any) => e.stopPropagation()}
               />
+              <div className="text-sm text-gray-400 mt-2">
+                Enter Google Drive file or folder URLs (one per line)
+              </div>
               <ErrorMessage
                 name="drive_links"
                 component="div"
-                className="text-red-400 text-xs mt-1"
+                className="text-red-400 text-sm mt-1"
               />
             </div>
 
             {/* Authentication Type */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Authentication Method
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-3">
                 <button
                   type="button"
                   onClick={() => {
                     setAuthType("service_account");
                     setFieldValue("google_drive_auth_type", "service_account");
                   }}
-                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                  className={`flex-1 p-3 text-sm rounded-lg border transition-colors ${
                     authType === "service_account"
                       ? "bg-blue-600 border-blue-500 text-white"
-                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                      : "bg-slate-900/80 border-gray-600 text-gray-300 hover:border-gray-500"
                   }`}
                 >
-                  <Key className="w-3 h-3 inline mr-1" />
+                  <Key className="w-4 h-4 inline mr-2" />
                   Service Account
                 </button>
                 <button
@@ -283,13 +278,13 @@ export default function DocumentLoaderConfigForm({
                     setAuthType("oauth2");
                     setFieldValue("google_drive_auth_type", "oauth2");
                   }}
-                  className={`flex-1 p-2 text-xs rounded border transition-colors ${
+                  className={`flex-1 p-3 text-sm rounded-lg border transition-colors ${
                     authType === "oauth2"
                       ? "bg-blue-600 border-blue-500 text-white"
-                      : "bg-slate-700/50 border-gray-600 text-gray-300 hover:border-gray-500"
+                      : "bg-slate-900/80 border-gray-600 text-gray-300 hover:border-gray-500"
                   }`}
                 >
-                  <Lock className="w-3 h-3 inline mr-1" />
+                  <Lock className="w-4 h-4 inline mr-2" />
                   OAuth2
                 </button>
               </div>
@@ -298,14 +293,16 @@ export default function DocumentLoaderConfigForm({
             {/* Service Account Configuration */}
             {authType === "service_account" && (
               <div>
-                <label className="text-white text-xs font-medium mb-1 block">
+                <label className="text-white text-sm font-medium mb-2 block">
                   Service Account JSON
                 </label>
                 <Field
                   as="textarea"
                   name="service_account_json"
                   placeholder='{"type": "service_account", "project_id": "...", ...}'
-                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400 resize-none font-mono"
+                  className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 resize-none font-mono"
+                  onMouseDown={(e: any) => e.stopPropagation()}
+                  onTouchStart={(e: any) => e.stopPropagation()}
                   rows={6}
                 />
                 <ErrorMessage
@@ -320,14 +317,16 @@ export default function DocumentLoaderConfigForm({
             {authType === "oauth2" && (
               <div className="space-y-2">
                 <div>
-                  <label className="text-white text-xs font-medium mb-1 block">
+                  <label className="text-white text-sm font-medium mb-2 block">
                     Client ID
                   </label>
                   <Field
                     type="password"
                     name="oauth2_client_id"
                     placeholder="Your Google OAuth2 Client ID"
-                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                    className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
                   />
                   <ErrorMessage
                     name="oauth2_client_id"
@@ -337,14 +336,16 @@ export default function DocumentLoaderConfigForm({
                 </div>
 
                 <div>
-                  <label className="text-white text-xs font-medium mb-1 block">
+                  <label className="text-white text-sm font-medium mb-2 block">
                     Client Secret
                   </label>
                   <Field
                     type="password"
                     name="oauth2_client_secret"
                     placeholder="Your Google OAuth2 Client Secret"
-                    className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white placeholder-gray-400"
+                    className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    onMouseDown={(e: any) => e.stopPropagation()}
+                    onTouchStart={(e: any) => e.stopPropagation()}
                   />
                   <ErrorMessage
                     name="oauth2_client_secret"
@@ -357,7 +358,7 @@ export default function DocumentLoaderConfigForm({
 
             {/* Supported Formats */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Supported Formats
               </label>
               <div className="grid grid-cols-2 gap-2">
@@ -407,13 +408,13 @@ export default function DocumentLoaderConfigForm({
             {/* Processing Options */}
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="text-white text-xs font-medium mb-1 block">
+                <label className="text-white text-sm font-medium mb-2 block">
                   Min Content Length
                 </label>
                 <Field
                   type="number"
                   name="min_content_length"
-                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                  className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 <ErrorMessage
                   name="min_content_length"
@@ -423,13 +424,13 @@ export default function DocumentLoaderConfigForm({
               </div>
 
               <div>
-                <label className="text-white text-xs font-medium mb-1 block">
+                <label className="text-white text-sm font-medium mb-2 block">
                   Max File Size (MB)
                 </label>
                 <Field
                   type="number"
                   name="max_file_size_mb"
-                  className="w-full p-2 text-xs bg-slate-700/50 border border-gray-600 rounded text-white"
+                  className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border border-gray-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
                 />
                 <ErrorMessage
                   name="max_file_size_mb"
@@ -441,7 +442,7 @@ export default function DocumentLoaderConfigForm({
 
             {/* Quality Settings */}
             <div>
-              <label className="text-white text-xs font-medium mb-1 block">
+              <label className="text-white text-sm font-medium mb-2 block">
                 Quality Threshold: {values.quality_threshold || 0.5}
               </label>
               <Field
@@ -482,23 +483,6 @@ export default function DocumentLoaderConfigForm({
               </label>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-2 pt-2">
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white text-xs font-medium py-2 px-3 rounded hover:from-blue-700 hover:to-blue-800 transition-all disabled:opacity-50"
-              >
-                {isSubmitting ? "Kaydediliyor..." : "Konfigürasyonu Kaydet"}
-              </button>
-              <button
-                type="button"
-                onClick={onCancel}
-                className="bg-slate-700 text-white text-xs font-medium py-2 px-3 rounded hover:bg-slate-600 transition-all"
-              >
-                İptal
-              </button>
-            </div>
           </Form>
         )}
       </Formik>

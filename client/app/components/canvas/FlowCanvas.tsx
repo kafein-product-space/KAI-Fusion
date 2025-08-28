@@ -42,8 +42,6 @@ import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
-
-import CohereEmbeddingsNode from "../nodes/embeddings/CohereEmbeddingsNode";
 import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
 import TavilyWebSearchNode from "../nodes/tools/TavilyWebSearch";
 import Navbar from "../common/Navbar";
@@ -109,7 +107,6 @@ const baseNodeTypes = {
   Agent: ToolAgentNode,
   StartNode: StartNode,
   OpenAIChat: OpenAIChatNode,
-  CohereEmbeddings: CohereEmbeddingsNode,
   BufferMemory: BufferMemoryNode,
   ConversationMemory: ConversationMemoryNode,
   TavilySearch: TavilyWebSearchNode,

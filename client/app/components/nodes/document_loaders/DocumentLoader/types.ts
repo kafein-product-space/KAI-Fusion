@@ -50,7 +50,6 @@ export interface DocumentLoaderConfigFormProps {
 export interface DocumentLoaderVisualProps {
   data: DocumentLoaderData;
   isHovered: boolean;
-  onDoubleClick: () => void;
   onMouseEnter: () => void;
   onMouseLeave: () => void;
   onDelete: (e: React.MouseEvent) => void;
