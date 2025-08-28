@@ -21,6 +21,7 @@ from .memory.buffer_memory import BufferMemoryNode
 from .tools.tavily_search import TavilySearchNode
 from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
+from .tools.python_code import PythonCodeNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -64,7 +65,7 @@ __all__ = [
     "ConversationMemoryNode", "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "PythonCodeNode",
     
     # Document Loaders
     "WebScraperNode",
