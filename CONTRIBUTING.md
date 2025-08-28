@@ -13,9 +13,9 @@ We appreciate **any** form of contribution — from starring the repo to deep co
 * Check the **Q\&A** in GitHub Discussions first. If you can’t find an answer, create a new post — others with the same question will benefit too.
 * Discussions (placeholders):
 
-  * Q\&A: `https://github.com/OWNER/REPO/discussions/categories/q-a`
-  * Ideas: `https://github.com/OWNER/REPO/discussions/categories/ideas`
-  * Show & Tell: `https://github.com/OWNER/REPO/discussions/categories/show-and-tell`
+  * Q\&A: `discussions/categories/q-a`
+  * Ideas: `iscussions/categories/ideas`
+  * Show & Tell: `discussions/categories/show-and-tell`
 
 ## 🙌 Share Workflows
 
