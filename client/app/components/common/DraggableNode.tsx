@@ -17,6 +17,7 @@ import {
   Search,
   Network,
   BookOpen,
+  Code,
 } from "lucide-react";
 
 interface NodeType {
@@ -152,6 +153,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
+  CodeNode: <Code className="w-6 h-6 text-blue-400" />,
 };
 
 function DraggableNode({ nodeType }: DraggableNodeProps) {
