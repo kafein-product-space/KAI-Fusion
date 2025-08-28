@@ -295,9 +295,7 @@ KAI-Fusion/
 ├─ docker/                  # (Optional) Docker files
 ├─ .vscode/
 │  └─ launch.json
-└─ docs/
-   └─ media/                # GIFs/screenshots (optional)
-```
+└─ ```
 
 ---
 
