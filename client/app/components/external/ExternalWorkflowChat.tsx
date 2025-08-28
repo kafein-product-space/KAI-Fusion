@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MessageCircle, Bot, User, Clock, Loader, Plus, History, RefreshCw, Trash2, ChevronDown } from 'lucide-react';
-import { externalWorkflowService } from '~/services/externalWorkflowService';
+import { externalWorkflowService, exportedWorkflowService } from '~/services/externalWorkflowService';
 import type { ExternalWorkflowInfo } from '~/types/external-workflows';
 
 interface ChatMessage {
@@ -12,6 +12,7 @@ interface ChatMessage {
 
 interface ExternalWorkflowChatProps {
   workflow: ExternalWorkflowInfo;
+  isExported?: boolean; // Whether this is an exported workflow instance
 }
 
 interface ChatSession {
@@ -20,7 +21,9 @@ interface ChatSession {
   last_activity?: string;
 }
 
-export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatProps) {
+export default function ExternalWorkflowChat({ workflow, isExported = false }: ExternalWorkflowChatProps) {
+  // For exported workflows, force direct connection
+  const effectiveIsExported = isExported || workflow.external_url?.includes('localhost:8001');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -73,10 +76,18 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
 
   const loadSessions = async () => {
     if (!workflow.capabilities?.memory) return;
-    
+
     setLoadingSessions(true);
     try {
-      const response = await externalWorkflowService.listExternalWorkflowSessions(workflow.workflow_id);
+      let response;
+      if (effectiveIsExported && workflow.external_url) {
+        response = await exportedWorkflowService.listExportedWorkflowSessions(
+          workflow.external_url,
+          workflow.api_key_required ? 'api-key-placeholder' : undefined
+        );
+      } else {
+        response = await externalWorkflowService.listExternalWorkflowSessions(workflow.workflow_id);
+      }
       setSessions(response.sessions || []);
     } catch (error) {
       console.error('Failed to load sessions:', error);
@@ -88,18 +99,27 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
   const loadSessionHistory = async (sessionIdToLoad: string) => {
     setLoadingHistory(true);
     try {
-      const response = await externalWorkflowService.getExternalWorkflowSessionHistory(
-        workflow.workflow_id,
-        sessionIdToLoad
-      );
-      
+      let response;
+      if (effectiveIsExported && workflow.external_url) {
+        response = await exportedWorkflowService.getExportedWorkflowSessionMemory(
+          workflow.external_url,
+          sessionIdToLoad,
+          workflow.api_key_required ? 'api-key-placeholder' : undefined
+        );
+      } else {
+        response = await externalWorkflowService.getExternalWorkflowSessionHistory(
+          workflow.workflow_id,
+          sessionIdToLoad
+        );
+      }
+
       const historyMessages: ChatMessage[] = response.messages.map((msg: any) => ({
         id: `${msg.role}_${msg.timestamp}`,
         role: msg.role,
         content: msg.content,
         timestamp: msg.timestamp,
       }));
-      
+
       setMessages(historyMessages);
       setSessionId(sessionIdToLoad);
     } catch (error) {
@@ -128,16 +148,24 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
 
   const clearSession = async (sessionIdToClear: string) => {
     try {
-      await externalWorkflowService.clearExternalWorkflowSession(
-        workflow.workflow_id,
-        sessionIdToClear
-      );
-      
+      if (effectiveIsExported && workflow.external_url) {
+        await exportedWorkflowService.clearExportedWorkflowSessionMemory(
+          workflow.external_url,
+          sessionIdToClear,
+          workflow.api_key_required ? 'api-key-placeholder' : undefined
+        );
+      } else {
+        await externalWorkflowService.clearExternalWorkflowSession(
+          workflow.workflow_id,
+          sessionIdToClear
+        );
+      }
+
       // If clearing current session, create new one
       if (sessionIdToClear === sessionId) {
         createNewSession();
       }
-      
+
       // Refresh sessions list
       loadSessions();
     } catch (error) {
@@ -161,17 +189,27 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
     setIsLoading(true);
 
     try {
-      const response = await externalWorkflowService.chatWithExternalWorkflow(
-        workflow.workflow_id,
-        input.trim(),
-        sessionId
-      );
+      let response;
+      if (effectiveIsExported && workflow.external_url) {
+        response = await exportedWorkflowService.executeExportedWorkflow(
+          workflow.external_url,
+          input.trim(),
+          sessionId,
+          workflow.api_key_required ? 'api-key-placeholder' : undefined
+        );
+      } else {
+        response = await externalWorkflowService.chatWithExternalWorkflow(
+          workflow.workflow_id,
+          input.trim(),
+          sessionId
+        );
+      }
 
       const assistantMessage: ChatMessage = {
         id: `assistant_${Date.now()}`,
         role: 'assistant',
-        content: response.response,
-        timestamp: response.timestamp,
+        content: response.result?.response || response.response,
+        timestamp: response.timestamp || new Date().toISOString(),
       };
 
       setMessages(prev => [...prev, assistantMessage]);
@@ -211,13 +249,13 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
             <div>
               <h4 className="font-medium text-gray-900">{workflow.name}</h4>
               <p className="text-sm text-gray-500">
-                Status: {workflow.connection_status} • Read-only chat
+                Status: {workflow.connection_status} • {effectiveIsExported ? 'Exported' : 'External'} workflow
               </p>
             </div>
           </div>
           
           {/* Session Management */}
-          {workflow.capabilities?.memory && (
+          {workflow.capabilities?.memory && effectiveIsExported && (
             <div className="flex items-center gap-2">
               <button
                 onClick={createNewSession}
@@ -227,7 +265,7 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
                 <Plus className="w-4 h-4" />
                 New
               </button>
-              
+
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowSessionDropdown(!showSessionDropdown)}
@@ -310,7 +348,7 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
         </div>
         
         {/* Current Session Info */}
-        {workflow.capabilities?.memory && sessionId && (
+        {workflow.capabilities?.memory && effectiveIsExported && sessionId && (
           <div className="mt-2 text-xs text-gray-500">
             Current session: <span className="font-mono">{sessionId.slice(-12)}</span>
           </div>
@@ -415,7 +453,7 @@ export default function ExternalWorkflowChat({ workflow }: ExternalWorkflowChatP
           </p>
         )}
         
-        {workflow.capabilities?.memory && (
+        {workflow.capabilities?.memory && effectiveIsExported && (
           <p className="text-xs text-gray-500 mt-2 text-center">
             This conversation has memory - the AI will remember our chat history
           </p>
