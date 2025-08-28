@@ -1,11 +1,15 @@
+# Contributor Covenant Code of Conduct
+
+
+---
 
 ## Our Pledge
 
-In the interest of fostering an open and welcoming environment, we as contributors and maintainers pledge to making participation in our project and our community a harassment-free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
+We as contributors and maintainers pledge to make participation in our project and community a harassment‑free experience for everyone, regardless of age, body size, disability, ethnicity, gender identity and expression, level of experience, nationality, personal appearance, race, religion, or sexual identity and orientation.
 
 ## Our Standards
 
-Examples of behavior that contributes to creating a positive environment include:
+**Examples of positive behavior:**
 
 * Using welcoming and inclusive language
 * Being respectful of differing viewpoints and experiences
@@ -13,74 +17,70 @@ Examples of behavior that contributes to creating a positive environment include
 * Focusing on what is best for the community
 * Showing empathy towards other community members
 
-Examples of unacceptable behavior by participants include:
+**Examples of unacceptable behavior:**
 
-* The use of sexualized language or imagery and unwelcome sexual attention or advances
+* Sexualized language or imagery and unwelcome sexual attention or advances
 * Trolling, insulting/derogatory comments, and personal or political attacks
 * Public or private harassment
-* Publishing others' private information, such as a physical or electronic address, without explicit permission
-* Other conduct which could reasonably be considered inappropriate in a professional setting
+* Publishing others' private information (such as addresses) without explicit permission
+* Other conduct that could reasonably be considered inappropriate in a professional setting
 
 ## Our Responsibilities
 
-Project maintainers are responsible for clarifying the standards of acceptable behavior and are expected to take appropriate and fair corrective action in response to any instances of unacceptable behavior.
+Project maintainers are responsible for clarifying acceptable behavior and are expected to take fair corrective action in response to unacceptable behavior.
 
-Project maintainers have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions that are not aligned to this Code of Conduct, or to ban temporarily or permanently any contributor for other behaviors that they deem inappropriate, threatening, offensive, or harmful.
+They have the right and responsibility to remove, edit, or reject comments, commits, code, wiki edits, issues, and other contributions not aligned with this Code of Conduct, or to ban temporarily or permanently any contributor for inappropriate, threatening, offensive, or harmful behavior.
 
 ## Scope
 
-This Code of Conduct applies both within project spaces and in public spaces when an individual is representing the project or its community. Examples of representing a project or community include using an official project e-mail address, posting via an official social media account, or acting as an appointed representative at an online or offline event. Representation of a project may be further defined and clarified by project maintainers.
+This Code of Conduct applies within project spaces and in public spaces when an individual is representing the project or its community. Representation examples include using an official project email, posting via an official social media account, or acting as an appointed representative at an event.
 
 ## Enforcement
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at **[contact@example.com](mailto:contact@example.com)**. All complaints will be reviewed and investigated and will result in a response that is deemed necessary and appropriate to the circumstances. The project team is obligated to maintain confidentiality with regard to the reporter of an incident. Further details of specific enforcement policies may be posted separately.
+Instances of abusive, harassing, or otherwise unacceptable behavior may be reported by contacting the project team at **[contact@example.com](mailto:contact@example.com)**. All complaints will be reviewed and investigated, resulting in a response appropriate to the circumstances. The team is obligated to maintain confidentiality regarding the reporter. Specific enforcement policies may be posted separately.
 
-Project maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions as determined by other members of the project's leadership.
+Maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions.
 
 ## Attribution
 
-This Code of Conduct is adapted from the **Contributor Covenant**, version 1.4, available at [http://contributor-covenant.org/version/1/4](http://contributor-covenant.org/version/1/4).
-
-You can find translations at [https://www.contributor-covenant.org/translations](https://www.contributor-covenant.org/translations).
+This Code of Conduct is adapted from the **Contributor Covenant**, version 1.4, available at [http://contributor-covenant.org/version/1/4](http://contributor-covenant.org/version/1/4). Translations are available at [https://www.contributor-covenant.org/translations](https://www.contributor-covenant.org/translations).
 
 ---
 
-## 📎 Footer — Project Directory & Stats
-
-> Replace `OWNER/REPO` and links with your actual repository path.
+## 📎 Project Directory & Stats
 
 ### About
 
-**KAI-Fusion** — Build AI Agents, Visually
+**KAI‑Fusion** — Build AI Agents, Visually
 
 ### Resources
 
 * [README](./README.md) · [Contributing](./CONTRIBUTING.md) · [Security Policy](./SECURITY.md) · [License](./LICENSE)
-* API Docs (local): [http://localhost:8000/docs](http://localhost:8000/docs)
+* API Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
 
 ### Topics
 
-`react` · `javascript` · `typescript` · `python` · `fastapi` · `postgresql` · `chatbot` · `artificial-intelligence` · `multiagent-systems` · `agents` · `workflow-automation` · `low-code` · `no-code` · `rag` · `langchain` · `agentic-workflow` · `agentic-ai`
+`react` · `javascript` · `typescript` · `python` · `fastapi` · `postgresql` · `chatbot` · `artificial‑intelligence` · `multiagent‑systems` · `agents` · `workflow‑automation` · `low‑code` · `no‑code` · `rag` · `langchain` · `agentic‑workflow` · `agentic‑ai`
 
 ### GitHub Statistics
 
-| Stars                                                                 | Watchers                                                                    | Forks                                                                 |
-| --------------------------------------------------------------------- | --------------------------------------------------------------------------- | --------------------------------------------------------------------- |
-| ![Stars](https://img.shields.io/github/stars/OWNER/REPO?style=social) | ![Watchers](https://img.shields.io/github/watchers/OWNER/REPO?style=social) | ![Forks](https://img.shields.io/github/forks/OWNER/REPO?style=social) |
+| Stars                                                                                      | Watchers                                                                                         | Forks                                                                                      |
+| ------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------ |
+| ![Stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social) | ![Watchers](https://img.shields.io/github/watchers/kafein-product-space/KAI-Fusion?style=social) | ![Forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social) |
 
-* **Star history**: [![Star History Chart](https://api.star-history.com/svg?repos=OWNER/REPO\&type=Date)](https://star-history.com/#OWNER/REPO)
-* **Contributors**: <a href="https://github.com/OWNER/REPO/graphs/contributors"><img src="https://contrib.rocks/image?repo=OWNER/REPO" alt="Contributors" /></a>
+* **Star history**: [![Star History Chart](https://api.star-history.com/svg?repos=kafein-product-space/KAI-Fusion\&type=Date)](https://star-history.com/#kafein-product-space/KAI-Fusion)
+* **Contributors**: <a href="https://github.com/kafein-product-space/KAI-Fusion/graphs/contributors"><img src="https://contrib.rocks/image?repo=kafein-product-space/KAI-Fusion" alt="Contributors" /></a>
 
 ### Releases & Downloads
 
-* Latest: ![Latest tag](https://img.shields.io/github/v/release/OWNER/REPO)
-* Downloads (all): ![All Downloads](https://img.shields.io/github/downloads/OWNER/REPO/total)
-* Downloads (latest): ![Latest Downloads](https://img.shields.io/github/downloads/OWNER/REPO/latest/total)
+* Latest: ![Latest tag](https://img.shields.io/github/v/release/kafein-product-space/KAI-Fusion)
+* Downloads (all): ![All Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/total)
+* Downloads (latest): ![Latest Downloads](https://img.shields.io/github/downloads/kafein-product-space/KAI-Fusion/latest/total)
 
 ### Sponsor
 
-* GitHub Sponsors: `OWNER` — *optional*
+* GitHub Sponsors: `kafein-product-space` *(optional)*
 
 ---
 
-> © KAI-Fusion contributors. This document lives at `CODE_OF_CONDUCT.md`.
+> © KAI‑Fusion contributors. This document lives at `CODE_OF_CONDUCT.md`.
