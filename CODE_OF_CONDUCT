@@ -33,19 +33,12 @@ Instances of abusive, harassing, or otherwise unacceptable behavior may be repor
 
 Maintainers who do not follow or enforce the Code of Conduct in good faith may face temporary or permanent repercussions.
 
-## Attribution
-This Code of Conduct is adapted from the **Contributor Covenant**, version 1.4, available at <http://contributor-covenant.org/version/1/4>. Translations are available at <https://www.contributor-covenant.org/translations>.
-
 ---
 
 ## 📎 Project Directory & Stats
 
 ### About
 **KAI-Fusion** — Build AI Agents, Visually
-
-### Resources
-- [README](./README.md) · [Contributing](./CONTRIBUTING.md) · [Security Policy](./SECURITY.md) · [License](./LICENSE)
-- API Docs: <http://localhost:8000/docs>
 
 ### Topics
 `react` · `javascript` · `typescript` · `python` · `fastapi` · `postgresql` · `chatbot` · `artificial-intelligence` · `multiagent-systems` · `agents` · `workflow-automation` · `low-code` · `no-code` · `rag` · `langchain` · `agentic-workflow` · `agentic-ai`
