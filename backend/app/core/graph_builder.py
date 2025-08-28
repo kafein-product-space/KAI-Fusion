@@ -1052,7 +1052,13 @@ class GraphBuilder:
                         "last_output": last_output,
                         "node_outputs": state.node_outputs  # Now contains only serializable data
                     }
-                    print(f"   ✅ Output: '{last_output[:80]}...' ({len(str(last_output))} chars)")
+                    # Safe output display with type checking
+                    try:
+                        output_str = str(last_output)
+                        output_preview = output_str[:80] + "..." if len(output_str) > 80 else output_str
+                        print(f"   ✅ Output: '{output_preview}' ({len(output_str)} chars)")
+                    except Exception:
+                        print(f"   ✅ Output: [Complex object of type {type(last_output).__name__}]")
                     print(f"   📊 State updated with output")
                     
                     # End node tracing for processor nodes
@@ -2012,7 +2018,14 @@ class GraphBuilder:
             if hasattr(final_state, 'values') and final_state.values:
                 last_output = final_state.values.get('last_output', 'No output')
                 executed_nodes = final_state.values.get('executed_nodes', [])
-                print(f"   ✅ Result: '{str(last_output)[:80]}...'")
+                
+                # Safe output display with type checking
+                try:
+                    output_str = str(last_output)
+                    output_preview = output_str[:80] + "..." if len(output_str) > 80 else output_str
+                    print(f"   ✅ Result: '{output_preview}'")
+                except Exception:
+                    print(f"   ✅ Result: [Complex object of type {type(last_output).__name__}]")
                 print(f"   📋 Executed: {', '.join(executed_nodes)}")
                 
                 # Convert FlowState to serializable format using helper

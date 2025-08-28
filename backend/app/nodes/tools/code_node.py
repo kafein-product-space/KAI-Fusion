@@ -89,6 +89,7 @@ SAFE_PYTHON_BUILTINS = {
     # Additional safe functions
     'hasattr', 'getattr', 'setattr', 'delattr', 'hash', 'id',
     'callable', 'classmethod', 'staticmethod', 'property',
+    'locals', 'globals', 'vars',  # Add these for variable access
 }
 
 SAFE_PYTHON_MODULES = {
@@ -178,6 +179,8 @@ class PythonSandbox:
         safe_globals['_json'] = json
         safe_globals['_now'] = datetime.now
         safe_globals['_utcnow'] = lambda: datetime.now(timezone.utc)
+        safe_globals['locals'] = lambda: safe_globals.copy()  # Safe locals implementation
+        safe_globals['globals'] = lambda: safe_globals  # Safe globals implementation
         
         return safe_globals
     
@@ -544,7 +547,7 @@ class CodeNode(ProcessorNode):
                     name="code",
                     type="code",
                     description="Code to execute. Use 'output' or 'result' variable to return data.",
-                    default="// JavaScript Example\noutput = {\n  message: 'Hello from Code Node!',\n  timestamp: new Date(),\n  items: items || []\n};\n\n# Python Example\n# output = {\n#     'message': 'Hello from Code Node!',\n#     'timestamp': str(_now()),\n#     'items': items if 'items' in locals() else []\n# }",
+                    default="// JavaScript Example\noutput = {\n  message: 'Hello from Code Node!',\n  timestamp: new Date(),\n  items: items || []\n};\n\n# Python Example\n# output = {\n#     'message': 'Hello from Code Node!',\n#     'timestamp': str(_now()),\n#     'items': items or []\n# }",
                     required=True,
                     ui_config={
                         "language": "javascript",  # Will be dynamic based on language selection
@@ -646,8 +649,56 @@ class CodeNode(ProcessorNode):
             # Get configuration
             language = inputs.get("language", "python")
             mode = inputs.get("mode", "all_items")
-            code = inputs.get("code", "")
+            raw_code = inputs.get("code", "")
             timeout = int(inputs.get("timeout", 30))
+            
+            # Handle mixed language default code - extract appropriate section
+            if "// JavaScript Example" in raw_code and "# Python Example" in raw_code:
+                if language == "python":
+                    # Extract Python code from the default template
+                    lines = raw_code.split('\n')
+                    python_lines = []
+                    in_python_section = False
+                    
+                    for line in lines:
+                        if line.strip().startswith("# Python Example"):
+                            in_python_section = True
+                            continue
+                        elif in_python_section and line.strip().startswith("#"):
+                            # Remove the comment prefix and add the line, fix locals()/globals() issue
+                            cleaned_line = line.replace("# ", "", 1)
+                            if "locals()" in cleaned_line:
+                                cleaned_line = cleaned_line.replace("if 'items' in locals() else", "or")
+                            if "globals()" in cleaned_line:
+                                cleaned_line = cleaned_line.replace("if 'items' in globals() else", "or")
+                            python_lines.append(cleaned_line)
+                        elif in_python_section and line.strip() and not line.strip().startswith("#"):
+                            # End of Python section
+                            break
+                    
+                    code = '\n'.join(python_lines) if python_lines else """output = {
+    'message': 'Hello from Code Node!',
+    'timestamp': str(__import__('datetime').datetime.now()),
+    'items': items or []
+}"""
+                else:  # javascript
+                    # Extract JavaScript code from the default template
+                    lines = raw_code.split('\n')
+                    js_lines = []
+                    
+                    for line in lines:
+                        if line.strip().startswith("# Python Example"):
+                            break
+                        if line.strip() and not line.strip().startswith("//"):
+                            js_lines.append(line)
+                    
+                    code = '\n'.join(js_lines) if js_lines else """output = {
+  message: 'Hello from Code Node!',
+  timestamp: new Date(),
+  items: items || []
+};"""
+            else:
+                code = raw_code
             continue_on_error = inputs.get("continue_on_error", False)
             
             # Get input data from connected nodes
