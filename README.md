@@ -1,385 +1,489 @@
-# 🚀 KAI-Fusion
+# KAI‑Fusion
 
-> **Enterprise AI Workflow Automation Platform**
+**Build AI Agents & Workflows, Visually — Python backend • React frontend • PostgreSQL**
 
-[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://python.org)
-[![React](https://img.shields.io/badge/React-18+-61DAFB.svg)](https://reactjs.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-Latest-green.svg)](https://fastapi.tiangolo.com)
-[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15+-blue.svg)](https://postgresql.org)
-[![Production](https://img.shields.io/badge/Status-Production%20Ready-brightgreen.svg)](./)
-
-**KAI-Fusion** is a production-ready AI workflow automation platform that enables enterprises to build, deploy, and manage sophisticated AI workflows through a visual interface. Built with modern technologies and enterprise-grade architecture.
-
-## ✨ Key Features
-
-### 🎨 **Visual Workflow Builder**
-- Drag-and-drop interface for creating AI workflows
-- Real-time collaboration and workflow sharing
-- Professional UI with ReactFlow and TypeScript
-
-### 🧩 **17 Production Nodes**
-- **Triggers**: Webhook, Timer, HTTP endpoints
-- **LLMs**: OpenAI GPT models with streaming
-- **Tools**: Web search, HTTP requests, document processing
-- **Memory**: Conversation history and context management
-- **RAG**: Vector storage, embeddings, retrieval systems
-
-### ⚡ **Real-time Execution**
-- LangGraph-based workflow engine
-- Streaming execution with live results
-- State management and checkpointing
-- Error handling and recovery
-
-### 🔒 **Enterprise Security**
-- JWT authentication with encrypted credentials
-- Row-level security and user isolation
-- HTTPS/TLS encryption
-- Comprehensive audit logging
-
-## 🏗️ Architecture
-
-```
-┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐
-│   Frontend      │    │    Backend      │    │   Database      │
-│                 │    │                 │    │                 │
-│ • React + TS    │◄──►│ • FastAPI       │◄──►│ • PostgreSQL    │
-│ • ReactFlow     │    │ • LangChain     │    │ • pgvector      │
-│ • Zustand       │    │ • Async/Await   │    │ • Supabase      │
-│ • Tailwind      │    │ • JWT Auth      │    │ • Encryption    │
-└─────────────────┘    └─────────────────┘    └─────────────────┘
-```
-
-## 🚀 Quick Start
-
-### Prerequisites
-- **Python 3.11+**
-- **Node.js 18+** 
-- **PostgreSQL 15+** (or Supabase)
-
-### 1. Clone Repository
-```bash
-git clone https://github.com/your-org/kai-fusion.git
-cd kai-fusion
-```
-
-### 2. Backend Setup
-```bash
-cd backend
-pip install -r requirements.txt
-cp .env.example .env
-# Configure your database and API keys in .env
-uvicorn app.main:app --reload --port 8001
-```
-
-### 3. Frontend Setup
-```bash
-cd frontend  # or aiagent/client
-npm install
-cp .env.example .env
-# Configure API endpoint
-npm run dev
-```
-
-### 4. Access Application
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8001
-- **API Docs**: http://localhost:8001/docs
-
-## 🧩 Available Nodes
-
-### 🚀 **Triggers (2 nodes)**
-```
-WebhookTrigger      # Unified webhook trigger (start workflows or mid-flow)
-TimerStartNode      # Schedule workflows with cron/intervals  
-```
-
-### 🧠 **AI & LLMs (1 node)**
-```
-OpenAIChat          # GPT-3.5, GPT-4, GPT-4o integration
-```
-
-### 🛠️ **Tools (3 nodes)**
-```
-HttpRequest         # Send HTTP requests to external APIs
-TavilySearch        # Advanced web search capabilities
-Reranker           # Document reranking with Cohere/Jina
-```
-
-### 💾 **Memory (2 nodes)**
-```
-BufferMemory        # Temporary conversation memory
-ConversationMemory  # Persistent chat history
-```
-
-### 📄 **Document Processing (2 nodes)**
-```
-WebScraper          # Extract content from web pages
-ChunkSplitter       # Split documents for processing
-```
-
-### 🔮 **Embeddings & Vector (3 nodes)**
-```
-OpenAIEmbedder      # Generate text embeddings
-PGVectorStore       # PostgreSQL vector storage
-RetrievalQA         # RAG question answering
-```
-
-### 🏠 **Core (3 nodes)**
-```
-StartNode           # Workflow entry point
-EndNode             # Workflow completion
-Agent               # AI agent orchestration
-```
-
-## 💡 Usage Examples
-
-### Simple Chatbot
-```json
-{
-  "nodes": [
-    {"type": "StartNode"},
-    {"type": "Agent", "data": {"system_prompt": "You are a helpful assistant"}},
-    {"type": "OpenAIChat", "data": {"model": "gpt-4o"}},
-    {"type": "EndNode"}
-  ],
-  "edges": [
-    {"source": "start", "target": "agent"},
-    {"source": "openai", "target": "agent", "targetHandle": "llm"},
-    {"source": "agent", "target": "end"}
-  ]
-}
-```
-
-### RAG System
-```json
-{
-  "nodes": [
-    {"type": "WebScraper", "data": {"url": "https://docs.company.com"}},
-    {"type": "ChunkSplitter", "data": {"chunk_size": 1000}},
-    {"type": "OpenAIEmbedder"},
-    {"type": "PGVectorStore", "data": {"collection": "docs"}},
-    {"type": "RetrievalQA"},
-    {"type": "Agent"}
-  ]
-}
-```
-
-### Webhook Integration
-```json
-{
-  "nodes": [
-    {"type": "WebhookTrigger"},
-    {"type": "Agent", "data": {"system_prompt": "Process webhook data"}},
-    {"type": "HttpRequest", "data": {"url": "https://api.slack.com/messages"}}
-  ]
-}
-```
-
-## 🔧 Configuration
-
-### Environment Variables
-
-#### Backend (.env)
-```env
-# Database
-DATABASE_URL=postgresql://user:pass@localhost:5432/kai_fusion
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your-anon-key
-
-# Security
-SECRET_KEY=your-secret-key-32-characters
-ACCESS_TOKEN_EXPIRE_MINUTES=30
-
-# API Keys (Optional)
-OPENAI_API_KEY=sk-your-openai-key
-TAVILY_API_KEY=tvly-your-tavily-key
-
-# Environment
-ENVIRONMENT=development
-LOG_LEVEL=INFO
-```
-
-#### Frontend (.env)
-```env
-VITE_API_BASE_URL=http://localhost:8001
-VITE_API_VERSION=/api/v1
-VITE_APP_NAME=KAI-Fusion
-```
-
-## 🐳 Docker Deployment
-
-```bash
-# Development
-docker-compose up -d
-
-# Production
-docker-compose -f docker-compose.prod.yml up -d
-```
-
-## 📁 Project Structure
-
-```
-kai-fusion/
-├── backend/                 # Python FastAPI backend
-│   ├── app/
-│   │   ├── api/            # REST API endpoints
-│   │   ├── core/           # Core engine & utilities
-│   │   ├── models/         # Database models
-│   │   ├── nodes/          # 17 workflow nodes
-│   │   │   ├── triggers/   # Webhook, Timer triggers
-│   │   │   ├── tools/      # HTTP, Search tools
-│   │   │   ├── llms/       # Language models
-│   │   │   ├── memory/     # Memory systems
-│   │   │   └── ...
-│   │   └── services/       # Business logic
-│   ├── docs/               # Technical documentation
-│   ├── tests/              # Test suite
-│   └── requirements.txt
-│
-├── frontend/               # React TypeScript frontend
-│   ├── src/
-│   │   ├── components/     # React components
-│   │   ├── pages/          # Page components
-│   │   ├── stores/         # State management
-│   │   └── services/       # API clients
-│   └── package.json
-│
-├── docker-compose.yml      # Development setup
-└── README.md              # This file
-```
-
-## 🧪 Testing
-
-### Backend Tests
-```bash
-cd backend
-python -m pytest tests/ -v
-python test_runner.py --list-nodes
-python api_test.py --test all
-```
-
-### Frontend Tests
-```bash
-cd frontend
-npm test
-npm run type-check
-npm run lint
-```
-
-## 📊 API Documentation
-
-Interactive API documentation available at:
-- **Swagger UI**: http://localhost:8001/docs
-- **ReDoc**: http://localhost:8001/redoc
-
-### Key Endpoints
-```
-POST /api/v1/auth/signin          # User authentication
-GET  /api/v1/nodes/               # Available node types
-POST /api/v1/workflows/execute    # Execute workflow
-GET  /api/v1/workflows/           # List workflows
-POST /api/v1/credentials/         # Manage API keys
-```
-
-## 🔒 Security
-
-- **Authentication**: JWT tokens with secure storage
-- **Authorization**: Role-based access control
-- **Encryption**: All sensitive data encrypted at rest
-- **HTTPS**: TLS encryption for all communications
-- **Audit**: Comprehensive logging and monitoring
-
-## 🎯 Use Cases
-
-### **Customer Support Automation**
-- Webhook triggers from support tickets
-- AI analysis and response generation
-- Integration with CRM systems
-
-### **Content Processing Pipeline**
-- Document ingestion and processing
-- Vector search and RAG systems
-- Automated content generation
-
-### **Business Process Automation**
-- Scheduled data processing
-- API integrations and workflows
-- Real-time decision making
-
-### **AI-Powered Analytics**
-- Data collection and analysis
-- Report generation and distribution
-- Predictive analytics workflows
-
-## 🔄 Workflow Patterns
-
-### **Linear Workflow**
-```
-StartNode → Agent → HttpRequest → EndNode
-```
-
-### **RAG Workflow**
-```
-WebScraper → ChunkSplitter → Embedder → VectorStore
-                                             ↓
-StartNode → Agent ← RetrievalQA ←──────────────┘
-    ↓
-EndNode
-```
-
-### **Conditional Workflow**
-```
-WebhookTrigger → Agent → [Condition] → HttpRequest A
-                             ↓
-                      HttpRequest B
-```
-
-## 🚀 Production Deployment
-
-### Prerequisites
-- **Kubernetes cluster** or **Docker Swarm**
-- **PostgreSQL database** with pgvector extension
-- **Redis** for caching (optional)
-- **Load balancer** for high availability
-
-### Deployment Steps
-1. Configure production environment variables
-2. Set up database with migrations
-3. Deploy backend services
-4. Deploy frontend with CDN
-5. Configure monitoring and logging
-
-## 📈 Monitoring
-
-### Health Checks
-```bash
-curl http://localhost:8001/health      # Basic health
-curl http://localhost:8001/health/db   # Database health
-```
-
-### Metrics
-- Request latency and throughput
-- Workflow execution times
-- Node success/failure rates
-- Database connection pooling
-
-### Logging
-- Structured JSON logging
-- Workflow execution traces
-- Error tracking and alerting
-- Performance monitoring
-
-
-
-
-## 📄 License
-
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
+> KAI‑Fusion is an open‑source, Flowise‑like visual workflow builder. It ships with a **Python FastAPI** backend, a **React (Vite)** frontend, and a **PostgreSQL** database. You can self‑host locally with Docker or run a classic dev stack (Python venv + Node + Postgres).
 
 ---
 
+### 🔗 Quick Links
 
-[![Stars](https://img.shields.io/github/stars/your-org/kai-fusion?style=social)](https://github.com/your-org/kai-fusion)
-[![Forks](https://img.shields.io/github/forks/your-org/kai-fusion?style=social)](https://github.com/your-org/kai-fusion)
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+* Release Notes · Discord · Twitter · Follow · GitHub ⭐ Star · GitHub Fork
+* **Demo GIFs & Screenshots**: see [`/docs/media`](./docs/media) (placeholders)
+* **API Docs** (local): [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI Swagger UI)
+
+> **Replace placeholders** `OWNER/REPO` below with your actual GitHub path (e.g. `your‑github‑user/KAI‑Fusion`).
+
+---
+
+## 📚 Table of Contents
+
+* ⚡ Quick Start (TL;DR)
+* 🐘 PostgreSQL (Docker)
+* 🔐 Environment Variables
+
+  * Backend **migrations** `.env`
+  * Backend runtime `.env`
+  * Frontend `.env`
+* 🧪 Local Development (Python venv / Conda)
+* 🧭 VS Code Debugging (`.vscode/launch.json`)
+* 🐳 Docker (Compose & Images)
+* 🧱 Project Structure
+* ✨ App Overview (What you can build)
+* 📊 Repository Stats (⭐ Stars & ⬇️ Downloads)
+* 🙌 Contributing (with user icons)
+* 🆘 Troubleshooting
+* 🤝 Code of Conduct
+* 📝 License
+
+---
+
+## ⚡ Quick Start (TL;DR)
+
+**Prerequisites**
+
+* **Python** ≥ 3.10
+* **Node.js** ≥ 18.15 (Vite)
+* **Docker** & **Docker Compose**
+
+```bash
+# 1) Start Postgres 15 in Docker (change values if you like)
+docker run --name kai \
+  -e POSTGRES_DB=kai \
+  -e POSTGRES_USER=kai \
+  -e POSTGRES_PASSWORD=kai \
+  -p 5432:5432 -d postgres:15
+
+# 2) Create env files (see sections below for full content)
+#    - backend/migrations/.env
+#    - backend/.env
+
+# 3) Create virtual environment & install backend deps
+python -m venv .venv && source .venv/bin/activate   # Windows: .venv\Scripts\activate
+pip install -r backend/requirements.txt
+
+# 4) Initialize DB schema (runs inside your local machine)
+python backend/migrations/database_setup.py
+
+# 5) Run backend (choose one)
+# a) VS Code debug (recommended) — see launch.json section below
+# b) Or direct
+python backend/app.py
+
+# 6) Frontend
+# create client/.env as shown below
+cd client && npm install && npm run dev
+# Open the printed Vite URL (e.g. http://localhost:5173)
+```
+
+> **Tip:** Replace all `kai` defaults (DB name/user/password) for your own environment in production.
+
+---
+
+## 🐘 PostgreSQL (Docker)
+
+Run a local Postgres 15 instance. Feel free to change container name/ports.
+
+```bash
+docker run --name kai \
+  -e POSTGRES_DB=kai \
+  -e POSTGRES_USER=kai \
+  -e POSTGRES_PASSWORD=kai \
+  -p 5432:5432 -d postgres:15
+```
+
+* Container: `kai`
+* Host port: `5432` → Container port: `5432`
+* Default DB: `kai` (change if you want)
+
+---
+
+## 🔐 Environment Variables
+
+KAI‑Fusion uses **two backend `.env` files** and **one frontend `.env`**.
+
+> **Path note:** In your editor, `${workspaceFolder}` refers to the repository root.
+
+### 1) Backend **migrations** `.env`
+
+Create: `backend/migrations/.env`
+
+```dotenv
+ASYNC_DATABASE_URL=postgresql+asyncpg://kai:kai@localhost:5432/kai
+DATABASE_URL=postgresql://kai:kai@localhost:5432/kai
+CREATE_DATABASE=true
+```
+
+### 2) Backend runtime `.env`
+
+Create: `backend/.env`
+
+```dotenv
+ASYNC_DATABASE_URL=postgresql+asyncpg://kai:kai@localhost:5432/kai
+DATABASE_URL=postgresql://kai:kai@localhost:5432/kai
+CREATE_DATABASE=false
+POSTGRES_DB=kai
+POSTGRES_PASSWORD=kai
+
+# LangSmith / LangChain tracing (optional but recommended for debugging)
+LANGCHAIN_TRACING_V2=true
+LANGCHAIN_API_KEY=your_langchain_api_key
+LANGCHAIN_PROJECT=kai-fusion-workflows
+LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
+ENABLE_WORKFLOW_TRACING=true
+TRACE_MEMORY_OPERATIONS=true
+TRACE_AGENT_REASONING=true
+```
+
+### 3) Frontend `.env`
+
+Create: `client/.env`
+
+```dotenv
+# Frontend env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_API_VERSION=/api/v1
+VITE_NODE_ENV=development
+VITE_ENABLE_LOGGING=true
+```
+
+---
+
+## 🧪 Local Development (Python venv / Conda)
+
+You can use **venv** or **conda**. Below are both options.
+
+### Option A — venv (recommended for simplicity)
+
+```bash
+python -m venv .venv
+# macOS/Linux
+source .venv/bin/activate
+# Windows (PowerShell)
+.venv\Scripts\Activate.ps1
+
+pip install --upgrade pip
+pip install -r backend/requirements.txt
+```
+
+### Option B — Conda
+
+```bash
+conda create -n kai-fusion python=3.10 -y
+conda activate kai-fusion
+pip install -r backend/requirements.txt
+```
+
+### Initialize the Database Schema
+
+Ensure your Postgres container is running, then:
+
+```bash
+python backend/migrations/database_setup.py
+```
+
+### Run the Backend
+
+* **Via VS Code Debugger** (see next section), or
+* **Directly**: `python backend/app.py`
+
+### Run the Frontend
+
+```bash
+cd client
+npm install
+npm run dev
+# Open the printed Vite URL (e.g. http://localhost:5173)
+```
+
+---
+
+## 🧭 VS Code Debugging (`.vscode/launch.json`)
+
+Create the folder: `.vscode/` at the repository root and add `launch.json`:
+
+```json
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Python: Backend Main",
+      "type": "python",
+      "request": "launch",
+      "program": "${workspaceFolder}/backend/app.py",
+      "console": "integratedTerminal",
+      "env": { "DOTENV_PATH": "${workspaceFolder}/backend/.env" }
+    }
+  ]
+}
+```
+
+> If you use the VS Code Python extension’s `envFile` feature instead, you can set `"envFile": "${workspaceFolder}/backend/.env"`.
+
+---
+
+## 🐳 Docker
+
+### Docker Compose (recommended)
+
+If your repo includes a `docker-compose.yml` at the root, simply run:
+
+```bash
+docker compose up -d
+```
+
+Then open the printed URLs:
+
+* Frontend: e.g. [http://localhost:5173](http://localhost:5173) or [http://localhost:3000](http://localhost:3000)
+* Backend: [http://localhost:8000](http://localhost:8000) (Swagger: `/docs`)
+
+Stop containers:
+
+```bash
+docker compose stop
+```
+
+### Build & Run Images Manually
+
+```bash
+# Build the app image from the project root
+docker build --no-cache -t kai-fusion:latest .
+
+# Run (example for backend image; adjust ports/envs to your Dockerfile)
+docker run -d --name kai-fusion \
+  -p 8000:8000 \
+  --env-file backend/.env \
+  kai-fusion:latest
+```
+
+---
+
+## 🧱 Project Structure
+
+```
+KAI-Fusion/
+├─ backend/
+│  ├─ app.py                # FastAPI entrypoint
+│  ├─ requirements.txt
+│  ├─ .env                  # Backend runtime env
+│  └─ migrations/
+│     ├─ database_setup.py  # Initializes DB schema
+│     └─ .env               # Migrations env
+├─ client/
+│  ├─ src/
+│  ├─ index.html
+│  └─ .env                  # Frontend env
+├─ docker/                  # (Optional) Docker files
+├─ .vscode/
+│  └─ launch.json
+
+   
+```
+
+---
+
+## ✨ App Overview (What you can build)
+
+* **Visual AI Workflows**: Drag‑and‑drop nodes (LLM, tools, retrievers, memory, agents). Wire inputs/outputs, set parameters, and persist runs.
+* **Observability**: Toggle **LangChain/LangSmith** tracing using the env flags provided (great for debugging prompts and tool calls).
+* **PostgreSQL Persistence**: Store workflows, runs, artifacts, and user data in Postgres.
+* **REST API**: The backend exposes API routes under `/api/v1` (see Swagger UI at `/docs`).
+
+**Sample Flow (like Flowise):**
+
+1. Drop an **LLM** node.
+2. Add a **Retriever** node (vector store) and connect to the LLM.
+3. Add a **Tool** node (e.g., Web Search or Custom Python tool).
+4. Wire outputs → inputs, set prompts, and click **Run**.
+5. Watch logs & traces; iterate quickly.
+
+**Media**
+
+* Add short **GIFs** to `/docs/media` such as:
+
+  * `01-create-workflow.gif` — creating a new canvas & adding nodes
+  * `02-connect-nodes.gif` — wiring LLM ↔ tools ↔ memory
+  * `03-run-and-trace.gif` — running the flow & inspecting traces
+
+```html
+<!-- Example embed in your docs -->
+<p><img src="./docs/media/01-create-workflow.gif" alt="Create workflow" width="720"></p>
+```
+
+---
+
+## 📊 Repository Stats (⭐ Stars & ⬇️ Downloads)
+
+### ⭐ Star History (auto‑updated)
+
+[![Star History Chart](https://api.star-history.com/svg?repos=OWNER/REPO\&type=Date)](https://star-history.com/#OWNER/REPO)
+
+> Replace `OWNER/REPO` with your GitHub path. The image above auto‑updates and requires no actions.
+
+### ⬇️ Downloads — Badges & Table
+
+| Metric                     | Badge                                                                                                                 |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| **All releases (total)**   | ![All Downloads](https://img.shields.io/github/downloads/OWNER/REPO/total?label=All%20downloads)                      |
+| **Latest release (total)** | ![Latest Release Downloads](https://img.shields.io/github/downloads/OWNER/REPO/latest/total?label=Latest%20downloads) |
+| **Stars (live)**           | ![GitHub Repo stars](https://img.shields.io/github/stars/OWNER/REPO?style=social)                                     |
+| **Forks (live)**           | ![GitHub forks](https://img.shields.io/github/forks/OWNER/REPO?style=social)                                          |
+
+> Optional: add rows for specific tags, e.g. `.../github/downloads/OWNER/REPO/v1.2.3/total`.
+
+### 📈 Optional: Downloads Trend Chart (generated by GitHub Action)
+
+Embed this (once generated) in README:
+
+```md
+![Downloads Trend](./docs/media/downloads-trend.svg)
+```
+
+Add the following workflow to generate the chart weekly (or on release):
+
+**.github/workflows/downloads-chart.yml**
+
+```yaml
+name: Generate Downloads Chart
+on:
+  schedule: [{ cron: "0 3 * * 1" }]  # every Monday 03:00 UTC
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build-chart:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install deps
+        run: pip install requests matplotlib
+      - name: Build chart
+        env:
+          GH_OWNER: OWNER
+          GH_REPO: REPO
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python .github/scripts/build_downloads_chart.py
+      - name: Commit chart
+        uses: EndBug/add-and-commit@v9
+        with:
+          add: docs/media/downloads-trend.svg
+          message: "chore(stats): update downloads trend chart"
+```
+
+**.github/scripts/build\_downloads\_chart.py**
+
+```python
+import os, requests, datetime
+import matplotlib.pyplot as plt
+
+OWNER = os.environ["GH_OWNER"]
+REPO = os.environ["GH_REPO"]
+TOKEN = os.environ.get("GH_TOKEN")
+HEAD = {"Authorization": f"Bearer {TOKEN}"} if TOKEN else {}
+
+releases = requests.get(
+    f"https://api.github.com/repos/{OWNER}/{REPO}/releases",
+    headers=HEAD
+).json()
+
+points = []
+for r in releases:
+    t = sum(a.get("download_count", 0) for a in r.get("assets", []))
+    created = r.get("created_at")
+    if created:
+        dt = datetime.datetime.fromisoformat(created.replace("Z", "+00:00")).date()
+        points.append((dt, t))
+
+points.sort()
+if not points:
+    points = [(datetime.date.today(), 0)]
+
+dates = [p[0] for p in points]
+vals = [p[1] for p in points]
+
+plt.figure(figsize=(7,3))
+plt.plot(dates, vals, marker='o')
+plt.title('Release Downloads per Release')
+plt.xlabel('Release date')
+plt.ylabel('Downloads')
+plt.tight_layout()
+os.makedirs('docs/media', exist_ok=True)
+plt.savefig('docs/media/downloads-trend.svg')
+```
+
+> Once merged to `main`, the action will create/update `docs/media/downloads-trend.svg`, which your README displays.
+
+### 📊 Extra: Repo Activity (Repobeats)
+
+```md
+![Repobeats analytics](https://repobeats.axiom.co/api/embed/OWNER/REPO.svg)
+```
+
+---
+
+## 🙌 Contributing (with user icons)
+
+We welcome PRs! Please:
+
+1. Open an issue describing the change/bug.
+2. Fork → create a feature branch.
+3. Add/adjust tests where applicable.
+4. Open a PR with a clear description and screenshots/GIFs.
+
+### 👥 Contributors (facepile)
+
+<a href="https://github.com/OWNER/REPO/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=OWNER/REPO" alt="Contributors" />
+</a>
+
+### ⭐ Stargazers & 🍴 Forkers (user icons)
+
+[![Stargazers repo roster for @OWNER/REPO](https://reporoster.com/stars/OWNER/REPO)](https://github.com/OWNER/REPO/stargazers)
+[![Forkers repo roster for @OWNER/REPO](https://reporoster.com/forks/OWNER/REPO)](https://github.com/OWNER/REPO/network/members)
+
+> The images above update automatically as your community grows.
+
+---
+
+## 🆘 Troubleshooting
+
+**Port 5432 already in use**
+
+* Stop any existing Postgres: `docker ps`, then `docker stop <container>`
+* Or change the host port mapping: `-p 5433:5432`
+
+**Cannot connect to Postgres**
+
+* Verify envs in both `backend/.env` and `backend/migrations/.env`
+* Ensure container is healthy: `docker logs kai`
+
+**Migrations didn’t run / tables missing**
+
+* Re-run: `python backend/migrations/database_setup.py`
+* Ensure `CREATE_DATABASE=true` in **migrations** `.env` (and `false` in runtime `.env`)
+
+**Frontend cannot reach backend**
+
+* Check `client/.env` → `VITE_API_BASE_URL=http://localhost:8000`
+* CORS: ensure backend CORS is configured for your dev origin
+
+**VS Code doesn’t load env**
+
+* Using our snippet? Make sure your app reads `DOTENV_PATH`
+* Alternative: VS Code `"envFile": "${workspaceFolder}/backend/.env"`
+
+---
+
+## 🤝 Code of Conduct
+
+Please follow the [Contributor Covenant](https://www.contributor-covenant.org/) (or your own policy) to keep the community welcoming.
+
+---
+
+## 📝 License
+
+Source code is available under the **Apache License 2.0** (see `LICENSE`).
