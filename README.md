@@ -324,13 +324,6 @@ KAI-Fusion/
 | **Forks (live)**         | ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)                                          |
 
 
-### 📊 Extra: Repo Activity (Repobeats)
-
-```md
-![Repobeats analytics](https://repobeats.axiom.co/api/embed/kafein-product-space/KAI-Fusion.svg)
-```
----
-
 ## 🙌 Contributing (with user icons)
 
 We welcome PRs! Please:
