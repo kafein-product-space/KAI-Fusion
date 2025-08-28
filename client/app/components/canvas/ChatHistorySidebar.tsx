@@ -62,7 +62,7 @@ export default function ChatHistorySidebar({
           firstMessage?.role === "user"
             ? firstMessage.content.slice(0, 50) +
               (firstMessage.content.length > 50 ? "..." : "")
-            : "Yeni Konuşma";
+            : "New Conversation";
 
         return {
           chatflowId,
@@ -100,11 +100,11 @@ export default function ChatHistorySidebar({
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
     if (diffInHours < 1) {
-      return "Az önce";
+      return "Just now";
     } else if (diffInHours < 24) {
-      return `${Math.floor(diffInHours)} saat önce`;
+      return `${Math.floor(diffInHours)} hours ago`;
     } else {
-      return date.toLocaleDateString("tr-TR");
+      return date.toLocaleDateString("en-US");
     }
   };
 
@@ -154,7 +154,7 @@ export default function ChatHistorySidebar({
             className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-4 h-4" />
-            Yeni Konuşma
+            New Conversation
           </button>
         </div>
 
@@ -167,9 +167,9 @@ export default function ChatHistorySidebar({
           ) : chatSummaries.length === 0 ? (
             <div className="flex flex-col items-center justify-center p-8 text-gray-400">
               <MessageSquare className="w-12 h-12 mb-4 opacity-50" />
-              <p className="text-center">Henüz konuşma geçmişi yok</p>
+              <p className="text-center">No conversation history</p>
               <p className="text-sm text-center mt-2">
-                Yeni bir konuşma başlatın
+                Start a new conversation
               </p>
             </div>
           ) : (
@@ -216,7 +216,7 @@ export default function ChatHistorySidebar({
                               {formatTimestamp(chat.timestamp)}
                             </span>
                             <span className="text-xs">
-                              • {chat.messageCount} mesaj
+                              • {chat.messageCount} messages
                             </span>
                           </div>
                         </div>
@@ -296,7 +296,7 @@ export default function ChatHistorySidebar({
                               {formatTimestamp(chat.timestamp)}
                             </span>
                             <span className="text-xs">
-                              • {chat.messageCount} mesaj
+                              • {chat.messageCount} messages
                             </span>
                           </div>
                         </div>

@@ -147,7 +147,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ></div>
             </div>
             <span className="italic text-gray-600 font-medium">
-              Düşünüyor...
+              Thinking...
             </span>
           </div>
         ) : (
@@ -166,13 +166,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                     onClick={handleSaveEdit}
                     className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
                   >
-                    Kaydet
+                    Save
                   </button>
                   <button
                     onClick={handleCancelEdit}
                     className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
                   >
-                    İptal
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -210,8 +210,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                               )}
                               <span className="text-xs">
                                 {copiedCode === codeContent
-                                  ? "Kopyalandı!"
-                                  : "Kopyala"}
+                                  ? "Copied!"
+                                  : "Copy"}
                               </span>
                             </button>
                           </div>

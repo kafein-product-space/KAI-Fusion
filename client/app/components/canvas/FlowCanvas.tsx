@@ -48,7 +48,7 @@ import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
 import EndNode from "../nodes/special/EndNode";
 import { useChatStore } from "../../stores/chat";
-import ConversationMemoryNode from "../nodes/memory/ConversationMemoryNode";
+import ConversationMemoryNode from "../nodes/memory/ConversationMemory/index";
 import WebScraperNode from "../nodes/document_loaders/WebScraper";
 import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
 import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
@@ -70,6 +70,7 @@ import { executeWorkflowStream } from "~/services/executionService";
 import ChatConfigForm from "../nodes/llms/OpenAI/ChatConfigForm";
 import ToolAgentConfigForm from "../nodes/agents/ToolAgent/ToolAgentConfigForm";
 import BufferMemoryConfigForm from "../nodes/memory/BufferMemory/BufferMemoryConfigForm";
+import ConversationMemoryConfigForm from "../nodes/memory/ConversationMemory/ConversationMemoryConfigForm";
 import WebScraperConfigForm from "../nodes/document_loaders/WebScraper/WebScraperConfigForm";
 import DocumentLoaderConfigForm from "../nodes/document_loaders/DocumentLoader/DocumentLoaderConfigForm";
 import DocumentChunkSplitterConfigForm from "../nodes/splitters/DocumentChunkSplitter/DocumentChunkSplitterConfigForm";
@@ -88,6 +89,7 @@ const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
   OpenAIChat: ChatConfigForm,
   Agent: ToolAgentConfigForm,
   BufferMemory: BufferMemoryConfigForm,
+  ConversationMemory: ConversationMemoryConfigForm,
   WebScraper: WebScraperConfigForm,
   DocumentLoader: DocumentLoaderConfigForm,
   ChunkSplitter: DocumentChunkSplitterConfigForm,
