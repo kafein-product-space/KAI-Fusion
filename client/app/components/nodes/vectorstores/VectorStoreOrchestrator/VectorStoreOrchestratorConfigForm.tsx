@@ -19,18 +19,24 @@ import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 // Standard props interface matching other config forms
 interface VectorStoreOrchestratorConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 export default function VectorStoreOrchestratorConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
 }: VectorStoreOrchestratorConfigFormProps) {
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     credential_id: configData?.credential_id || "",
     connection_string: configData?.connection_string || "",
     collection_name: configData?.collection_name || "",
@@ -47,7 +53,7 @@ export default function VectorStoreOrchestratorConfigForm({
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
 
     if (!values.collection_name) {
@@ -66,7 +72,11 @@ export default function VectorStoreOrchestratorConfigForm({
     }
 
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave;
+  
   const [activeTab, setActiveTab] = useState("data");
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
@@ -102,7 +112,9 @@ export default function VectorStoreOrchestratorConfigForm({
         initialValues={initialValues}
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
-          onSave(values);
+          if (handleSubmit) {
+            handleSubmit(values);
+          }
           setSubmitting(false);
         }}
         enableReinitialize

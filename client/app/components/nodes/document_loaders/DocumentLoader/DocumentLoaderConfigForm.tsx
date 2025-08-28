@@ -6,9 +6,12 @@ import { Settings, Database, Key, Lock } from "lucide-react";
 
 // Standard props interface matching other config forms
 interface DocumentLoaderConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 interface FileItem {
@@ -22,11 +25,14 @@ export default function DocumentLoaderConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
 }: DocumentLoaderConfigFormProps) {
   const { enqueueSnackbar } = useSnackbar();
   
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     drive_links: configData?.drive_links || "",
     google_drive_auth_type: configData?.google_drive_auth_type || "service_account",
     service_account_json: configData?.service_account_json || "",
@@ -46,7 +52,7 @@ export default function DocumentLoaderConfigForm({
   );
   
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.drive_links) {
       errors.drive_links = "At least one Google Drive link is required";
@@ -69,7 +75,7 @@ export default function DocumentLoaderConfigForm({
       }
     }
     return errors;
-  };
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,6 +186,9 @@ export default function DocumentLoaderConfigForm({
     }
   };
 
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave;
+
   const handleSaveConfig = async (values: any) => {
     try {
       // Show loading message
@@ -190,8 +199,10 @@ export default function DocumentLoaderConfigForm({
         }
       );
 
-      // Call the original onSave
-      await onSave(values);
+      // Call the provided submit handler
+      if (handleSubmit) {
+        await handleSubmit(values);
+      }
 
       // Show success message
       enqueueSnackbar("Google Drive Document Loader başarıyla kaydedildi! 🎉", {

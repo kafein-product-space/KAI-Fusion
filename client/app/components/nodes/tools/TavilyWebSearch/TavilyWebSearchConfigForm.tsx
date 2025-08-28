@@ -15,19 +15,25 @@ import { getUserCredentialSecret } from "~/services/userCredentialService";
 import CredentialSelector from "~/components/credentials/CredentialSelector";
 // Standard props interface matching other config forms
 interface TavilyWebSearchConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 export default function TavilyWebSearchConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
 }: TavilyWebSearchConfigFormProps) {
   
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     search_type: configData?.search_type || "basic",
     credential_id: configData?.credential_id || "",
     tavily_api_key: configData?.tavily_api_key || "",
@@ -39,7 +45,7 @@ export default function TavilyWebSearchConfigForm({
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.tavily_api_key) {
       errors.tavily_api_key = "API key is required";
@@ -54,7 +60,10 @@ export default function TavilyWebSearchConfigForm({
       errors.search_depth = "Search depth is required";
     }
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave || (() => {});
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
   const [loadingCredential, setLoadingCredential] = useState(false);
 
@@ -68,7 +77,7 @@ export default function TavilyWebSearchConfigForm({
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSave}
+        onSubmit={handleSubmit}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (

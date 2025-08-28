@@ -52,7 +52,7 @@ export default function DocumentChunkSplitterConfigForm({
           console.log("DocumentChunkSplitter form submitting with values:", values);
           try {
             if (typeof actualOnSubmit === 'function') {
-              actualOnSubmit(values, actions);
+              actualOnSubmit(values);
             } else {
               console.error("actualOnSubmit is not a function:", actualOnSubmit);
             }
@@ -149,8 +149,8 @@ export default function DocumentChunkSplitterConfigForm({
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                <option value={true}>Yes</option>
-                <option value={false}>No</option>
+                <option value="true">Yes</option>
+                <option value="false">No</option>
               </Field>
               <div className="text-sm text-gray-400 mt-2">
                 Whether to keep the separator in the chunks
@@ -200,8 +200,8 @@ export default function DocumentChunkSplitterConfigForm({
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
               >
-                <option value={false}>No</option>
-                <option value={true}>Yes</option>
+                <option value="false">No</option>
+                <option value="true">Yes</option>
               </Field>
               <div className="text-sm text-gray-400 mt-2">
                 Treat separator as regular expression

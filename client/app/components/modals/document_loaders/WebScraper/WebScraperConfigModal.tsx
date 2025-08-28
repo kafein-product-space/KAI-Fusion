@@ -9,7 +9,7 @@ import { Formik, Form, Field, ErrorMessage } from "formik";
 import { useUserCredentialStore } from "~/stores/userCredential";
 import { getUserCredentialSecret } from "~/services/userCredentialService";
 import { Globe, Key, Lock, Settings, Trash2 } from "lucide-react";
-import { WebScraperConfig } from "../../../nodes/document_loaders/WebScraper/types";
+import type { WebScraperConfig } from "../../../nodes/document_loaders/WebScraper/types";
 
 interface WebScraperConfigModalProps {
   nodeData: any;

@@ -56,7 +56,7 @@ const savePinnedItems = (items: PinnedItem[]): void => {
   }
 };
 
-const pinnedItemsStateCreator = (set, get) => ({
+const pinnedItemsStateCreator = (set: any, get: any) => ({
   pinnedItems: loadPinnedItems(),
 
   addPinnedItem: (item: Omit<PinnedItem, 'pinnedAt'>) => {
@@ -65,10 +65,10 @@ const pinnedItemsStateCreator = (set, get) => ({
       pinnedAt: new Date().toISOString(),
     };
 
-    set((state) => {
+    set((state: PinnedItemsState) => {
       // Check if item already exists
       const exists = state.pinnedItems.some(
-        (pinned) => pinned.id === item.id && pinned.type === item.type
+        (pinned: PinnedItem) => pinned.id === item.id && pinned.type === item.type
       );
 
       if (exists) {
@@ -82,9 +82,9 @@ const pinnedItemsStateCreator = (set, get) => ({
   },
 
   removePinnedItem: (id: string, type: 'workflow' | 'chat') => {
-    set((state) => {
+    set((state: PinnedItemsState) => {
       const newPinnedItems = state.pinnedItems.filter(
-        (item) => !(item.id === id && item.type === type)
+        (item: PinnedItem) => !(item.id === id && item.type === type)
       );
       savePinnedItems(newPinnedItems);
       return { pinnedItems: newPinnedItems };
@@ -94,14 +94,14 @@ const pinnedItemsStateCreator = (set, get) => ({
   isPinned: (id: string, type: 'workflow' | 'chat') => {
     const state = get();
     return state.pinnedItems.some(
-      (item) => item.id === id && item.type === type
+      (item: PinnedItem) => item.id === id && item.type === type
     );
   },
 
   getPinnedItems: (type?: 'workflow' | 'chat') => {
     const state = get();
     if (type) {
-      return state.pinnedItems.filter((item) => item.type === type);
+      return state.pinnedItems.filter((item: PinnedItem) => item.type === type);
     }
     return state.pinnedItems;
   },
@@ -112,8 +112,8 @@ const pinnedItemsStateCreator = (set, get) => ({
   },
 
   updatePinnedItem: (id: string, type: 'workflow' | 'chat', updates: Partial<PinnedItem>) => {
-    set((state) => {
-      const newPinnedItems = state.pinnedItems.map((item) =>
+    set((state: PinnedItemsState) => {
+      const newPinnedItems = state.pinnedItems.map((item: PinnedItem) =>
         item.id === id && item.type === type
           ? { ...item, ...updates }
           : item

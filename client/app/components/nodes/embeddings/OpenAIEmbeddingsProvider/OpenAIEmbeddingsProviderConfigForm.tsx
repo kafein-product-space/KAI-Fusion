@@ -18,26 +18,25 @@ import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 // Standard props interface matching other config forms
 interface OpenAIEmbeddingsProviderConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 export default function OpenAIEmbeddingsProviderConfigForm({
   configData,
   onSave,
   onCancel,
-  initialValues,
-  validate,
-  onSubmit,
-}: OpenAIEmbeddingsProviderConfigFormProps & { 
-  initialValues?: any; 
-  validate?: any; 
-  onSubmit?: any; 
-}) {
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
+}: OpenAIEmbeddingsProviderConfigFormProps) {
   
   // Default values for missing fields
-  const defaultInitialValues = {
+  const defaultInitialValues = propInitialValues || {
     credential_id: configData?.credential_id || "",
     openai_api_key: configData?.openai_api_key || "",
     model: configData?.model || "text-embedding-3-small",
@@ -46,11 +45,10 @@ export default function OpenAIEmbeddingsProviderConfigForm({
     max_retries: configData?.max_retries || 3,
     request_timeout: configData?.request_timeout || 30,
     dimensions: configData?.dimensions || 1536,
-    ...(initialValues || {}),
   };
 
   // Validation function
-  const defaultValidate = validate || ((values: any) => {
+  const defaultValidate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.openai_api_key) {
       errors.openai_api_key = "API key is required";
@@ -67,7 +65,7 @@ export default function OpenAIEmbeddingsProviderConfigForm({
     return errors;
   });
 
-  const actualOnSubmit = onSubmit || onSave;
+  const actualOnSubmit = propOnSubmit || onSave;
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
   const [loadingCredential, setLoadingCredential] = useState(false);
 
@@ -85,7 +83,7 @@ export default function OpenAIEmbeddingsProviderConfigForm({
           console.log("OpenAIEmbeddings form submitting with values:", values);
           try {
             if (typeof actualOnSubmit === 'function') {
-              actualOnSubmit(values, actions);
+              actualOnSubmit(values);
             } else {
               console.error("actualOnSubmit is not a function:", actualOnSubmit);
             }
