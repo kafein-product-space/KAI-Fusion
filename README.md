@@ -15,7 +15,9 @@ KAI‑Fusion is an open‑source, Flowise‑like visual workflow builder. It shi
 
 <!-- Inline demo video (GitHub renders HTML) -->
 
-<video src="https://github.com/kafein-product-space/KAI-Fusion/blob/readme/gif.mov?raw=1" width="100%" autoplay loop muted playsinline controls></video>
+<p>
+  <img src="./demo.gif" alt="KAI-Fusion Demo" width="100%" />
+</p>
 
 <!-- Screenshot -->
 
