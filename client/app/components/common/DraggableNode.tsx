@@ -152,6 +152,22 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
+  KafkaProducer: (
+    <img
+      src="/icons/kafka.svg"
+      alt="Kafka"
+      className="w-20 h-20 drop-shadow-lg"
+      style={{ filter: "brightness(0) invert(1)" }}
+    />
+  ),
+  KafkaConsumer: (
+    <img
+      src="/icons/kafka.svg"
+      alt="Kafka"
+      className="w-20 h-20 drop-shadow-lg"
+      style={{ filter: "brightness(0) invert(1)" }}
+    />
+  ),
 };
 
 function DraggableNode({ nodeType }: DraggableNodeProps) {

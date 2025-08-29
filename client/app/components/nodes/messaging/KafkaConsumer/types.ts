@@ -8,60 +8,114 @@ export interface KafkaConsumerData {
   displayName?: string;
   description?: string;
   validationStatus?: "success" | "error" | "pending";
-  
+
   // Connection settings
   bootstrap_servers?: string;
   topic?: string;
+
+  // Consumer group settings
   group_id?: string;
-  
+  auto_offset_reset?: string;
+
   // Message processing
-  message_format?: "json" | "text" | "binary";
+  message_format?: string;
   batch_size?: number;
-  auto_offset_reset?: "earliest" | "latest";
-  
+
   // Performance settings
   timeout_ms?: number;
   max_poll_records?: number;
-  max_messages?: number;
-  
+
   // Security settings
-  security_protocol?: "PLAINTEXT" | "SSL" | "SASL_PLAINTEXT" | "SASL_SSL";
+  security_protocol?: string;
   username?: string;
   password?: string;
-  
+
   // Advanced features
   message_filter?: string;
   transform_template?: string;
   enable_auto_commit?: boolean;
+  max_messages?: number;
+
+  // Kafka-specific consumer settings
+  auto_commit_interval_ms?: number;
+  session_timeout_ms?: number;
+  heartbeat_interval_ms?: number;
+  max_poll_interval_ms?: number;
+  fetch_min_bytes?: number;
+  fetch_max_wait_ms?: number;
+
+  // SSL/TLS settings
+  ssl_cert_path?: string;
+  ssl_key_path?: string;
+  ssl_ca_path?: string;
+
+  // Monitoring
+  logging_enabled?: boolean;
+  debug_mode?: boolean;
 }
 
 export interface KafkaConsumerConfig {
+  // Connection settings
   bootstrap_servers: string;
   topic: string;
+
+  // Consumer group settings
   group_id: string;
-  message_format: "json" | "text" | "binary";
+  auto_offset_reset: string;
+
+  // Message processing
+  message_format: string;
   batch_size: number;
-  auto_offset_reset: "earliest" | "latest";
+
+  // Performance settings
   timeout_ms: number;
   max_poll_records: number;
-  max_messages: number;
-  security_protocol: "PLAINTEXT" | "SSL" | "SASL_PLAINTEXT" | "SASL_SSL";
+
+  // Security settings
+  security_protocol: string;
   username: string;
   password: string;
+
+  // Advanced features
   message_filter: string;
   transform_template: string;
   enable_auto_commit: boolean;
+  max_messages: number;
+
+  // Kafka-specific consumer settings
+  auto_commit_interval_ms: number;
+  session_timeout_ms: number;
+  heartbeat_interval_ms: number;
+  max_poll_interval_ms: number;
+  fetch_min_bytes: number;
+  fetch_max_wait_ms: number;
+
+  // SSL/TLS settings
+  ssl_cert_path: string;
+  ssl_key_path: string;
+  ssl_ca_path: string;
+
+  // Monitoring
+  logging_enabled: boolean;
+  debug_mode: boolean;
 }
 
 export interface KafkaMessage {
-  id: string;
   topic: string;
   key?: string;
   value: any;
   headers: Record<string, string>;
   timestamp: string;
-  partition?: number;
-  offset?: number;
+  partition: number;
+  offset: number;
+}
+
+export interface KafkaConsumerResponse {
+  success: boolean;
+  messages: KafkaMessage[];
+  consumer_stats: KafkaConsumerStats;
+  last_message?: KafkaMessage;
+  error?: string;
 }
 
 export interface KafkaConsumerStats {
@@ -77,23 +131,45 @@ export interface KafkaConsumerStats {
     security_protocol: string;
   };
   metrics: {
-    messages_sent: number;
-    messages_received: number;
-    errors: number;
-    connections: number;
-    last_activity: string | null;
+    total_messages: number;
+    successful_messages: number;
+    failed_messages: number;
+    average_processing_time: number;
+    last_message_at: string | null;
+    error_rate: number;
+  };
+  partition_assignments?: Array<{
+    topic: string;
+    partition: number;
+    current_offset: number;
+    high_water_mark: number;
+    lag: number;
+  }>;
+}
+
+export interface KafkaTestResult {
+  success: boolean;
+  response?: KafkaConsumerResponse;
+  error?: string;
+  stats?: {
+    duration_ms: number;
+    messages_count: number;
+    timestamp: string;
   };
 }
 
-export interface KafkaConsumerResponse {
-  messages: KafkaMessage[];
-  message_stream: any;
-  consumer_stats: KafkaConsumerStats;
-  last_message: KafkaMessage | null;
-  consumer_config: {
-    topic: string;
-    group_id: string;
-    bootstrap_servers: string;
-    consumer_id: string;
-  };
+export interface ConsumerGroupInfo {
+  group_id: string;
+  state: string;
+  protocol_type: string;
+  protocol: string;
+  members: Array<{
+    member_id: string;
+    client_id: string;
+    client_host: string;
+    assignments: Array<{
+      topic: string;
+      partitions: number[];
+    }>;
+  }>;
 }

@@ -1,273 +1,292 @@
 import React from "react";
-import { Handle, Position } from "@xyflow/react";
+import { Position } from "@xyflow/react";
 import {
-  Activity,
-  Database,
-  Settings,
-  Copy,
-  TestTube,
-  Play,
-  Trash2,
+  Download,
+  Trash,
   CheckCircle,
-  AlertCircle,
-  Clock,
+  Settings,
+  Play,
+  Copy,
+  Zap,
   MessageSquare,
+  Database,
+  AlertTriangle,
+  Users,
+  Activity,
+  Pause,
 } from "lucide-react";
-import type { KafkaConsumerData, KafkaMessage, KafkaConsumerStats } from "./types";
+import NeonHandle from "~/components/common/NeonHandle";
+import type { KafkaConsumerData } from "./types";
 
 interface KafkaConsumerVisualProps {
   data: KafkaConsumerData;
-  isSelected: boolean;
-  isHovered: boolean;
-  isConnected: boolean;
-  onDoubleClick: () => void;
-  onOpenConfig: () => void;
-  onDeleteNode: (e: React.MouseEvent) => void;
-  onTestConnection: () => void;
-  onCopyToClipboard: (text: string, type: string) => void;
-  generateKafkaCliCommand: () => string;
-  isTesting: boolean;
-  testMessages: KafkaMessage[];
-  testError: string | null;
-  stats: KafkaConsumerStats | null;
-  isHandleConnected: (handleId: string, isSource?: boolean) => boolean;
+  isSelected?: boolean;
+  isHovered?: boolean;
+  onDoubleClick?: (e: React.MouseEvent) => void;
+  onOpenConfig?: () => void;
+  onDeleteNode?: (e: React.MouseEvent) => void;
+  onStartConsumer?: () => void;
+  onStopConsumer?: () => void;
+  onTestConsumer?: () => void;
+  onCopyToClipboard?: (text: string, type: string) => void;
+  generateKafkaCommand?: () => string;
+  isConsuming?: boolean;
+  isTesting?: boolean;
+  testResponse?: any;
+  testError?: string | null;
+  testStats?: any;
+  isHandleConnected?: (handleId: string, isSource?: boolean) => boolean;
 }
 
 export default function KafkaConsumerVisual({
   data,
-  isSelected,
-  isHovered,
-  isConnected,
+  isSelected = false,
+  isHovered = false,
   onDoubleClick,
   onOpenConfig,
   onDeleteNode,
-  onTestConnection,
+  onStartConsumer,
+  onStopConsumer,
+  onTestConsumer,
   onCopyToClipboard,
-  generateKafkaCliCommand,
-  isTesting,
-  testMessages,
+  generateKafkaCommand,
+  isConsuming = false,
+  isTesting = false,
+  testResponse,
   testError,
-  stats,
-  isHandleConnected,
+  testStats,
+  isHandleConnected: isHandleConnectedProp,
 }: KafkaConsumerVisualProps) {
   const getStatusColor = () => {
-    if (testError) return "border-red-500 bg-red-900/20";
-    if (isConnected) return "border-green-500 bg-green-900/20";
-    if (isTesting) return "border-yellow-500 bg-yellow-900/20";
-    return "border-gray-600 bg-slate-900/80";
+    if (isConsuming) return "from-green-500 to-emerald-600";
+    if (isTesting) return "from-yellow-500 to-orange-600";
+    if (testResponse?.success) return "from-blue-500 to-cyan-600";
+    if (testError) return "from-red-500 to-rose-600";
+
+    switch (data.validationStatus) {
+      case "success":
+        return "from-blue-500 to-cyan-600";
+      case "error":
+        return "from-red-500 to-rose-600";
+      default:
+        return "from-indigo-500 to-purple-600";
+    }
   };
 
-  const getStatusIcon = () => {
-    if (testError) return <AlertCircle className="w-4 h-4 text-red-400" />;
-    if (isConnected) return <CheckCircle className="w-4 h-4 text-green-400" />;
-    if (isTesting) return <Clock className="w-4 h-4 text-yellow-400 animate-spin" />;
-    return <Database className="w-4 h-4 text-gray-400" />;
+  const getGlowColor = () => {
+    if (isConsuming) return "shadow-green-500/50";
+    if (isTesting) return "shadow-yellow-500/50";
+    if (testResponse?.success) return "shadow-blue-500/30";
+    if (testError) return "shadow-red-500/30";
+
+    switch (data.validationStatus) {
+      case "success":
+        return "shadow-blue-500/30";
+      case "error":
+        return "shadow-red-500/30";
+      default:
+        return "shadow-indigo-500/30";
+    }
+  };
+
+  const isHandleConnected = (handleId: string, isSource = false) => {
+    return isHandleConnectedProp
+      ? isHandleConnectedProp(handleId, isSource)
+      : false;
   };
 
   return (
-    <div className="relative">
-      {/* Input Handle */}
-      <Handle
-        type="target"
-        position={Position.Left}
-        id="input"
-        className={`w-3 h-3 border-2 ${
-          isHandleConnected("input") ? "bg-blue-500 border-blue-500" : "bg-gray-600 border-gray-400"
-        }`}
-        style={{ left: -6 }}
-      />
+    <div
+      className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
+        cursor-pointer transition-all duration-300 transform
+        ${isHovered ? "scale-105" : "scale-100"}
+        bg-gradient-to-br ${getStatusColor()}
+        ${
+          isHovered
+            ? `shadow-2xl ${getGlowColor()}`
+            : "shadow-lg shadow-black/50"
+        }
+        border border-white/20 backdrop-blur-sm
+        hover:border-white/40`}
+      onDoubleClick={onDoubleClick}
+      title="Double click to configure Kafka Consumer"
+    >
+      {/* Background pattern */}
+      <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>
 
-      {/* Main Node */}
-      <div
-        className={`
-          relative min-w-64 rounded-lg border-2 transition-all duration-200 backdrop-blur-sm
-          ${getStatusColor()}
-          ${isHovered ? "shadow-lg scale-105" : "shadow-md"}
-          ${isSelected ? "ring-2 ring-blue-400" : ""}
-        `}
-        onDoubleClick={onDoubleClick}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-3 border-b border-gray-600/50">
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
-              {getStatusIcon()}
-              <span className="text-white font-medium text-sm">
-                Kafka Consumer
-              </span>
-            </div>
-          </div>
-
-          {/* Action Buttons */}
-          <div className="flex items-center gap-1">
-            <button
-              onClick={onTestConnection}
-              disabled={isTesting}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors disabled:opacity-50"
-              title="Test Connection"
-            >
-              <TestTube className="w-3.5 h-3.5 text-gray-300" />
-            </button>
-            <button
-              onClick={onOpenConfig}
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
-              title="Configure"
-            >
-              <Settings className="w-3.5 h-3.5 text-gray-300" />
-            </button>
-            <button
-              onClick={() =>
-                onCopyToClipboard(generateKafkaCliCommand(), "Kafka CLI Command")
-              }
-              className="p-1.5 rounded hover:bg-white/10 transition-colors"
-              title="Copy CLI Command"
-            >
-              <Copy className="w-3.5 h-3.5 text-gray-300" />
-            </button>
-            <button
-              onClick={onDeleteNode}
-              className="p-1.5 rounded hover:bg-red-500/20 transition-colors"
-              title="Delete Node"
-            >
-              <Trash2 className="w-3.5 h-3.5 text-red-400" />
-            </button>
+      {/* Main icon */}
+      <div className="relative z-10 mb-2">
+        <div className="relative">
+          <img
+            src="/icons/kafka.svg"
+            alt="Kafka"
+            className="w-10 h-10 drop-shadow-lg"
+            style={{ filter: "brightness(0) invert(1)" }}
+          />
+          {/* Consumer indicator */}
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full flex items-center justify-center">
+            {isConsuming ? (
+              <div className="w-2 h-2 bg-white rounded-full animate-pulse"></div>
+            ) : isTesting ? (
+              <div className="w-2 h-2 bg-white rounded-full animate-spin"></div>
+            ) : testResponse ? (
+              <CheckCircle className="w-2 h-2 text-white" />
+            ) : (
+              <Download className="w-2 h-2 text-white" />
+            )}
           </div>
         </div>
-
-        {/* Content */}
-        <div className="p-3 space-y-3">
-          {/* Configuration Info */}
-          <div className="space-y-2 text-xs">
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Bootstrap Servers:</span>
-              <span className="text-white font-mono truncate max-w-32">
-                {data.bootstrap_servers || "Not configured"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Topic:</span>
-              <span className="text-white font-mono truncate max-w-32">
-                {data.topic || "Not configured"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Group ID:</span>
-              <span className="text-white font-mono truncate max-w-32">
-                {data.group_id || "Auto-generated"}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-gray-400">Format:</span>
-              <span className="text-white uppercase">
-                {data.message_format || "JSON"}
-              </span>
-            </div>
-          </div>
-
-          {/* Status Messages */}
-          {testError && (
-            <div className="text-xs text-red-300 bg-red-900/30 rounded p-2 border border-red-500/30">
-              <div className="font-medium">Connection Error:</div>
-              <div className="mt-1 break-words">{testError}</div>
-            </div>
-          )}
-
-          {/* Test Results */}
-          {testMessages.length > 0 && (
-            <div className="text-xs">
-              <div className="flex items-center gap-2 mb-2">
-                <MessageSquare className="w-3 h-3 text-green-400" />
-                <span className="text-green-400 font-medium">
-                  {testMessages.length} Messages Consumed
-                </span>
-              </div>
-              <div className="bg-green-900/30 rounded p-2 border border-green-500/30 max-h-24 overflow-y-auto">
-                {testMessages.slice(0, 3).map((message, index) => (
-                  <div key={index} className="text-green-300 mb-1 break-words">
-                    <div className="font-mono text-xs">
-                      {message.key ? `${message.key}: ` : ""}
-                      {typeof message.value === "object"
-                        ? JSON.stringify(message.value).substring(0, 50) + "..."
-                        : String(message.value).substring(0, 50) + (String(message.value).length > 50 ? "..." : "")}
-                    </div>
-                  </div>
-                ))}
-                {testMessages.length > 3 && (
-                  <div className="text-green-400 text-xs">
-                    +{testMessages.length - 3} more messages...
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {/* Statistics */}
-          {stats && (
-            <div className="text-xs">
-              <div className="flex items-center gap-2 mb-2">
-                <Activity className="w-3 h-3 text-blue-400" />
-                <span className="text-blue-400 font-medium">Statistics</span>
-              </div>
-              <div className="space-y-1 text-gray-300">
-                <div className="flex justify-between">
-                  <span>Messages:</span>
-                  <span>{stats.messages_received}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Group ID:</span>
-                  <span className="font-mono truncate max-w-24">{stats.group_id}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>Errors:</span>
-                  <span className={stats.metrics.errors > 0 ? "text-red-400" : ""}>
-                    {stats.metrics.errors}
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Security Indicator */}
-          {data.security_protocol && data.security_protocol !== "PLAINTEXT" && (
-            <div className="flex items-center gap-2 text-xs">
-              <div className="flex items-center gap-1 text-green-400">
-                <CheckCircle className="w-3 h-3" />
-                <span>Secured ({data.security_protocol})</span>
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Loading Overlay */}
-        {isTesting && (
-          <div className="absolute inset-0 bg-black/20 rounded-lg flex items-center justify-center">
-            <div className="bg-slate-800 px-3 py-2 rounded-md flex items-center gap-2">
-              <Clock className="w-4 h-4 text-yellow-400 animate-spin" />
-              <span className="text-white text-sm">Testing Connection...</span>
-            </div>
-          </div>
-        )}
       </div>
 
-      {/* Output Handles */}
-      <Handle
+      {/* Node title */}
+      <div className="text-white text-xs font-semibold text-center drop-shadow-lg z-10">
+        {data?.displayName || data?.name || "Consumer"}
+      </div>
+
+      {/* Consuming status */}
+      {isConsuming && (
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="px-2 py-1 rounded bg-green-600 text-white text-xs font-bold shadow-lg animate-pulse">
+            📡 CONSUMING
+          </div>
+        </div>
+      )}
+
+      {/* Testing status */}
+      {isTesting && (
+        <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 z-10">
+          <div className="px-2 py-1 rounded bg-yellow-600 text-white text-xs font-bold shadow-lg animate-pulse">
+            🔍 TESTING
+          </div>
+        </div>
+      )}
+
+      {/* Hover effects */}
+      {isHovered && (
+        <>
+          {/* Delete button */}
+          <button
+            className="absolute -top-3 -right-3 w-8 h-8 
+              bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500
+              text-white rounded-full border border-white/30 shadow-xl 
+              transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+              backdrop-blur-sm"
+            onClick={onDeleteNode}
+            title="Delete Node"
+          >
+            <Trash size={14} />
+          </button>
+
+          {/* Copy Kafka command button */}
+          {generateKafkaCommand && onCopyToClipboard && (
+            <button
+              className="absolute -bottom-3 -left-3 w-8 h-8 
+                bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-400 hover:to-indigo-500
+                text-white rounded-full border border-white/30 shadow-xl 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onCopyToClipboard(generateKafkaCommand(), "Kafka Command");
+              }}
+              title="Copy Kafka Command"
+            >
+              <Copy size={14} />
+            </button>
+          )}
+
+          {/* Start/Stop consumer button */}
+          {onStartConsumer && onStopConsumer && (
+            <button
+              className="absolute -bottom-3 -right-3 w-8 h-8 
+                bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500
+                text-white rounded-full border border-white/30 shadow-xl 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                if (isConsuming) {
+                  onStopConsumer();
+                } else {
+                  onStartConsumer();
+                }
+              }}
+              title={isConsuming ? "Stop Consumer" : "Start Consumer"}
+            >
+              {isConsuming ? <Pause size={14} /> : <Play size={14} />}
+            </button>
+          )}
+
+          {/* Test consumer button */}
+          {onTestConsumer && (
+            <button
+              className="absolute -top-3 -left-3 w-8 h-8 
+                bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-400 hover:to-blue-500
+                text-white rounded-full border border-white/30 shadow-xl 
+                transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
+                backdrop-blur-sm"
+              onClick={(e) => {
+                e.stopPropagation();
+                onTestConsumer();
+              }}
+              title="Test Consumer"
+              disabled={isTesting || isConsuming}
+            >
+              {isTesting ? (
+                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+              ) : (
+                <Activity size={14} />
+              )}
+            </button>
+          )}
+        </>
+      )}
+
+      <NeonHandle
         type="source"
         position={Position.Right}
         id="messages"
-        className={`w-3 h-3 border-2 ${
-          isHandleConnected("messages", true) ? "bg-green-500 border-green-500" : "bg-gray-600 border-gray-400"
-        }`}
-        style={{ right: -6, top: "30%" }}
+        isConnectable={true}
+        size={10}
+        color1="#10b981"
+        glow={isHandleConnected("messages", true)}
       />
-      <Handle
-        type="source"
-        position={Position.Right}
-        id="stats"
-        className={`w-3 h-3 border-2 ${
-          isHandleConnected("stats", true) ? "bg-blue-500 border-blue-500" : "bg-gray-600 border-gray-400"
-        }`}
-        style={{ right: -6, top: "70%" }}
-      />
+
+      {/* Topic Badge */}
+      {data?.topic && (
+        <div className="absolute top-1 left-1 z-10">
+          <div className="w-4 h-4 bg-gradient-to-r from-indigo-400 to-purple-500 rounded-full flex items-center justify-center shadow-lg">
+            <Database className="w-2 h-2 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Consumer Group Badge */}
+      {data?.group_id && (
+        <div className="absolute top-1 right-1 z-10">
+          <div className="w-4 h-4 bg-gradient-to-r from-blue-400 to-cyan-500 rounded-full flex items-center justify-center shadow-lg">
+            <Users className="w-2 h-2 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Connection Status Badge */}
+      {data?.bootstrap_servers && (
+        <div className="absolute bottom-1 left-1 z-10">
+          <div className="w-4 h-4 bg-gradient-to-r from-green-400 to-emerald-500 rounded-full flex items-center justify-center shadow-lg">
+            <Zap className="w-2 h-2 text-white" />
+          </div>
+        </div>
+      )}
+
+      {/* Error Badge */}
+      {testError && (
+        <div className="absolute bottom-1 right-1 z-10">
+          <div className="w-4 h-4 bg-gradient-to-r from-red-400 to-red-500 rounded-full flex items-center justify-center shadow-lg">
+            <AlertTriangle className="w-2 h-2 text-white" />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
