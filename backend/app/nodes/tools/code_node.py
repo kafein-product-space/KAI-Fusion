@@ -643,6 +643,33 @@ class CodeNode(ProcessorNode):
         """
         logger.info("🚀 Executing Code Node")
         
+        # Log all input parameters in detail
+        logger.info("=" * 80)
+        logger.info("📋 CODE NODE INPUT LOGGING")
+        logger.info("=" * 80)
+        
+        # Log user inputs
+        logger.info("👤 USER INPUTS:")
+        for key, value in inputs.items():
+            if key == "code":
+                logger.info(f"  📝 {key}: \n{value}")
+            else:
+                logger.info(f"  🔧 {key}: {value}")
+        
+        # Log connected node data
+        logger.info("🔗 CONNECTED NODE DATA:")
+        for key, value in connected_nodes.items():
+            if isinstance(value, list) and len(value) > 0:
+                logger.info(f"  📊 {key}: [{len(value)} items]")
+                for idx, item in enumerate(value[:3]):  # Log first 3 items
+                    logger.info(f"    [{idx}]: {json.dumps(item, default=str, ensure_ascii=False)[:500]}{'...' if len(str(item)) > 500 else ''}")
+                if len(value) > 3:
+                    logger.info(f"    ... and {len(value) - 3} more items")
+            else:
+                logger.info(f"  📊 {key}: {json.dumps(value, default=str, ensure_ascii=False)[:500]}{'...' if len(str(value)) > 500 else ''}")
+        
+        logger.info("=" * 80)
+        
         start_time = time.time()
         
         try:
@@ -651,6 +678,8 @@ class CodeNode(ProcessorNode):
             mode = inputs.get("mode", "all_items")
             raw_code = inputs.get("code", "")
             timeout = int(inputs.get("timeout", 30))
+            
+            logger.info(f"⚙️ EXECUTION CONFIG: Language={language}, Mode={mode}, Timeout={timeout}s")
             
             # Handle mixed language default code - extract appropriate section
             if "// JavaScript Example" in raw_code and "# Python Example" in raw_code:
@@ -699,6 +728,12 @@ class CodeNode(ProcessorNode):
 };"""
             else:
                 code = raw_code
+            
+            logger.info("🔍 ACTUAL CODE TO EXECUTE:")
+            logger.info(f"```{language}")
+            logger.info(code)
+            logger.info("```")
+            
             continue_on_error = inputs.get("continue_on_error", False)
             
             # Get input data from connected nodes
@@ -710,6 +745,12 @@ class CodeNode(ProcessorNode):
                 "inputs": inputs,
                 **additional_context
             }
+            
+            logger.info("🌍 EXECUTION CONTEXT:")
+            logger.info(f"  📝 Context keys: {list(context.keys())}")
+            logger.info(f"  📊 Input data type: {type(input_data)}")
+            if isinstance(input_data, list):
+                logger.info(f"  📊 Input data length: {len(input_data)}")
             
             # Helper function to serialize output safely
             def serialize_output(output_data):
@@ -730,6 +771,8 @@ class CodeNode(ProcessorNode):
                 # Run once for all items
                 context["items"] = input_data if isinstance(input_data, list) else [input_data]
                 
+                logger.info(f"🎯 EXECUTING {language.upper()} CODE (ALL ITEMS MODE)")
+                
                 # Execute code based on language
                 if language == "python":
                     sandbox = PythonSandbox(code, context, timeout)
@@ -742,7 +785,21 @@ class CodeNode(ProcessorNode):
                 
                 execution_time = (time.time() - start_time) * 1000
                 
+                # Log execution result details
+                logger.info("=" * 80)
+                logger.info("📤 CODE EXECUTION RESULT LOGGING")
+                logger.info("=" * 80)
+                logger.info(f"✅ Success: {result['success']}")
+                logger.info(f"⏱️  Execution time: {execution_time:.2f}ms")
+                
                 if result['success']:
+                    logger.info("🎉 EXECUTION OUTPUT:")
+                    logger.info(json.dumps(result['output'], default=str, ensure_ascii=False, indent=2))
+                    
+                    if result['stdout']:
+                        logger.info("📟 CONSOLE OUTPUT:")
+                        logger.info(result['stdout'])
+                    
                     output = result['output']
                     serialized_output = serialize_output(output)
                     
@@ -774,7 +831,9 @@ class CodeNode(ProcessorNode):
                             )
                             documents = [doc]
                     
+                    logger.info(f"📄 Generated {len(documents)} documents")
                     logger.info(f"✅ {language.title()} code executed successfully in {execution_time:.1f}ms")
+                    logger.info("=" * 80)
                     
                     return {
                         "output": serialized_output,
@@ -785,7 +844,15 @@ class CodeNode(ProcessorNode):
                         "documents": documents
                     }
                 else:
+                    logger.error("❌ EXECUTION ERROR:")
+                    logger.error(result['error'])
+                    
+                    if result['stdout']:
+                        logger.error("📟 CONSOLE OUTPUT (ERROR):")
+                        logger.error(result['stdout'])
+                    
                     logger.error(f"❌ {language.title()} code execution failed: {result['error']}")
+                    logger.info("=" * 80)
                     
                     if continue_on_error:
                         return {
@@ -806,7 +873,13 @@ class CodeNode(ProcessorNode):
                 all_stdout = []
                 documents = []
                 
+                logger.info(f"🎯 EXECUTING {language.upper()} CODE (EACH ITEM MODE)")
+                logger.info(f"📊 Processing {len(items)} items")
+                
                 for idx, item in enumerate(items):
+                    logger.info(f"🔄 Processing item {idx + 1}/{len(items)}")
+                    logger.info(f"  📊 Item data: {json.dumps(item, default=str, ensure_ascii=False)[:300]}{'...' if len(str(item)) > 300 else ''}")
+                    
                     context["item"] = item
                     context["item_index"] = idx
                     
@@ -821,6 +894,12 @@ class CodeNode(ProcessorNode):
                     result = sandbox.execute()
                     
                     if result['success']:
+                        logger.info(f"  ✅ Item {idx + 1} processed successfully")
+                        logger.info(f"  📤 Output: {json.dumps(result['output'], default=str, ensure_ascii=False)[:200]}{'...' if len(str(result['output'])) > 200 else ''}")
+                        
+                        if result['stdout']:
+                            logger.info(f"  📟 Console: {result['stdout'][:100]}{'...' if len(result['stdout']) > 100 else ''}")
+                        
                         outputs.append(result['output'])
                         all_stdout.append(result['stdout'])
                         
@@ -838,13 +917,24 @@ class CodeNode(ProcessorNode):
                             )
                             documents.append(doc)
                     elif continue_on_error:
+                        logger.warning(f"  ⚠️ Item {idx + 1} failed (continuing): {result['error'][:100]}...")
                         outputs.append(None)
                         all_stdout.append(result['stdout'])
                     else:
+                        logger.error(f"  ❌ Item {idx + 1} failed: {result['error']}")
                         raise ValueError(f"Code execution failed for item {idx}: {result['error']}")
                 
                 execution_time = (time.time() - start_time) * 1000
                 serialized_outputs = serialize_output(outputs)
+                
+                # Log final results
+                logger.info("=" * 80)
+                logger.info("📤 EACH ITEM MODE FINAL RESULTS")
+                logger.info("=" * 80)
+                logger.info(f"✅ Processed {len(items)} items in {execution_time:.2f}ms")
+                logger.info(f"📊 Successful outputs: {len([o for o in outputs if o is not None])}")
+                logger.info(f"📄 Generated {len(documents)} documents")
+                logger.info("=" * 80)
                 
                 logger.info(f"✅ {language.title()} code executed for {len(items)} items in {execution_time:.1f}ms")
                 
@@ -860,7 +950,17 @@ class CodeNode(ProcessorNode):
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000
             error_msg = f"Code execution failed: {str(e)}"
-            logger.error(error_msg)
+            
+            # Log error details
+            logger.error("=" * 80)
+            logger.error("💥 CODE NODE EXECUTION ERROR")
+            logger.error("=" * 80)
+            logger.error(f"❌ Error message: {error_msg}")
+            logger.error(f"⏱️  Failed after: {execution_time:.2f}ms")
+            logger.error(f"📝 Exception type: {type(e).__name__}")
+            logger.error("📚 Full traceback:")
+            logger.error(traceback.format_exc())
+            logger.error("=" * 80)
             
             if inputs.get("continue_on_error", False):
                 return {
