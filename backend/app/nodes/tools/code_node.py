@@ -711,6 +711,20 @@ class CodeNode(ProcessorNode):
                 **additional_context
             }
             
+            # Helper function to serialize output safely
+            def serialize_output(output_data):
+                """Serialize output to JSON string for state compatibility"""
+                try:
+                    if output_data is None:
+                        return "null"
+                    elif isinstance(output_data, str):
+                        return output_data
+                    else:
+                        return json.dumps(output_data, default=str, ensure_ascii=False)
+                except Exception as e:
+                    logger.warning(f"Failed to serialize output: {e}")
+                    return str(output_data)
+            
             # Process based on mode
             if mode == "all_items":
                 # Run once for all items
@@ -730,6 +744,7 @@ class CodeNode(ProcessorNode):
                 
                 if result['success']:
                     output = result['output']
+                    serialized_output = serialize_output(output)
                     
                     # Convert to documents if needed
                     documents = []
@@ -737,7 +752,7 @@ class CodeNode(ProcessorNode):
                         if isinstance(output, list):
                             for idx, item in enumerate(output):
                                 doc = Document(
-                                    page_content=json.dumps(item) if not isinstance(item, str) else item,
+                                    page_content=json.dumps(item, default=str) if not isinstance(item, str) else item,
                                     metadata={
                                         "source": "code_node",
                                         "language": language,
@@ -749,7 +764,7 @@ class CodeNode(ProcessorNode):
                                 documents.append(doc)
                         else:
                             doc = Document(
-                                page_content=json.dumps(output) if not isinstance(output, str) else output,
+                                page_content=json.dumps(output, default=str) if not isinstance(output, str) else str(output),
                                 metadata={
                                     "source": "code_node",
                                     "language": language,
@@ -762,7 +777,7 @@ class CodeNode(ProcessorNode):
                     logger.info(f"✅ {language.title()} code executed successfully in {execution_time:.1f}ms")
                     
                     return {
-                        "output": output,
+                        "output": serialized_output,
                         "success": True,
                         "error": None,
                         "stdout": result['stdout'],
@@ -774,7 +789,7 @@ class CodeNode(ProcessorNode):
                     
                     if continue_on_error:
                         return {
-                            "output": None,
+                            "output": "null",
                             "success": False,
                             "error": result['error'],
                             "stdout": result['stdout'],
@@ -812,7 +827,7 @@ class CodeNode(ProcessorNode):
                         # Create document for this item
                         if result['output']:
                             doc = Document(
-                                page_content=json.dumps(result['output']) if not isinstance(result['output'], str) else result['output'],
+                                page_content=json.dumps(result['output'], default=str) if not isinstance(result['output'], str) else str(result['output']),
                                 metadata={
                                     "source": "code_node",
                                     "language": language,
@@ -829,11 +844,12 @@ class CodeNode(ProcessorNode):
                         raise ValueError(f"Code execution failed for item {idx}: {result['error']}")
                 
                 execution_time = (time.time() - start_time) * 1000
+                serialized_outputs = serialize_output(outputs)
                 
                 logger.info(f"✅ {language.title()} code executed for {len(items)} items in {execution_time:.1f}ms")
                 
                 return {
-                    "output": outputs,
+                    "output": serialized_outputs,
                     "success": True,
                     "error": None,
                     "stdout": '\n'.join(all_stdout),
@@ -848,7 +864,7 @@ class CodeNode(ProcessorNode):
             
             if inputs.get("continue_on_error", False):
                 return {
-                    "output": None,
+                    "output": "null",
                     "success": False,
                     "error": error_msg,
                     "stdout": "",
