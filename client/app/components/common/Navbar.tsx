@@ -86,10 +86,10 @@ const Navbar: React.FC<NavbarProps> = ({
 
   const handleBlur = () => {
     if (workflowName.trim() === "") {
-      setWorkflowName("isimsiz dosya");
+      setWorkflowName("New Workflow");
     }
 
-    enqueueSnackbar("Dosya adı güncellendi", { variant: "success" });
+    enqueueSnackbar("Workflow name updated", { variant: "success" });
   };
 
   // Load handler
@@ -108,13 +108,13 @@ const Navbar: React.FC<NavbarProps> = ({
           if (json.name) {
             setWorkflowName(json.name);
           }
-          enqueueSnackbar("Workflow başarıyla yüklendi!", {
+          enqueueSnackbar("Workflow loaded successfully!", {
             variant: "success",
           });
         }
       } catch (err) {
         console.error("Load error:", err);
-        enqueueSnackbar("Geçersiz JSON dosyası!", { variant: "error" });
+        enqueueSnackbar("Invalid JSON file!", { variant: "error" });
       }
     };
     reader.readAsText(file);
@@ -125,7 +125,7 @@ const Navbar: React.FC<NavbarProps> = ({
   // Export handler
   const handleExport = () => {
     if (!currentWorkflow) {
-      enqueueSnackbar("Export edilecek workflow yok!", { variant: "warning" });
+      enqueueSnackbar("No workflow to export!", { variant: "warning" });
       return;
     }
     const dataStr =
@@ -148,17 +148,17 @@ const Navbar: React.FC<NavbarProps> = ({
     if (!currentWorkflow || !deleteWorkflow) return;
     try {
       await deleteWorkflow(currentWorkflow.id);
-      enqueueSnackbar("Workflow başarıyla silindi!", { variant: "success" });
+      enqueueSnackbar("Workflow deleted successfully!", { variant: "success" });
       setCurrentWorkflow && setCurrentWorkflow(null);
       setNodes && setNodes([]);
       setEdges && setEdges([]);
       // Workflow name'ini de sıfırla
-      setWorkflowName("isimsiz dosya");
+      setWorkflowName("New Workflow");
       // Workflows sayfasına yönlendir
       navigate("/workflows");
     } catch (err) {
       console.error("Delete error:", err);
-      enqueueSnackbar("Workflow silinemedi!", { variant: "error" });
+      enqueueSnackbar("Workflow deleted successfully!", { variant: "error" });
     }
     deleteDialogRef.current?.close();
   };
@@ -166,14 +166,12 @@ const Navbar: React.FC<NavbarProps> = ({
   // Docker export handler
   const handleDockerExport = () => {
     if (!currentWorkflow) {
-      enqueueSnackbar("Export edilecek workflow yok!", { variant: "warning" });
+      enqueueSnackbar("No workflow to export!", { variant: "warning" });
       return;
     }
     setShowExportModal(true);
     setIsDropdownOpen(false);
   };
-
-
 
   return (
     <>
@@ -207,20 +205,20 @@ const Navbar: React.FC<NavbarProps> = ({
                     try {
                       await updateWorkflowStatus(currentWorkflow.id, isActive);
                       enqueueSnackbar(
-                        `Workflow ${
-                          isActive ? "aktif" : "pasif"
-                        } hale getirildi`,
+                        `Workflow ${isActive ? "activated" : "deactivated"}`,
                         { variant: "success" }
                       );
                     } catch (error) {
-                      enqueueSnackbar("Workflow durumu güncellenemedi", {
+                      enqueueSnackbar("Workflow status could not be updated", {
                         variant: "error",
                       });
                     }
                   }}
                   size="sm"
-                  label="Workflow Durumu"
-                  description={currentWorkflow.is_active ? "Aktif" : "Pasif"}
+                  label="Workflow Status"
+                  description={
+                    currentWorkflow.is_active ? "Active" : "Inactive"
+                  }
                 />
               </div>
             )}

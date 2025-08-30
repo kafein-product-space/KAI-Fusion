@@ -21,19 +21,37 @@ import { getUserCredentialSecret } from "~/services/userCredentialService";
 
 // Standard props interface matching other config forms
 interface WebScraperConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
+  onScrapeUrls?: () => void;
+  onPreviewUrl?: (url: string) => void;
+  onCopyToClipboard?: (text: string, type: string) => void;
+  isScraping?: boolean;
+  scrapedDocuments?: any[];
+  progress?: any;
 }
 
 export default function WebScraperConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
+  onScrapeUrls,
+  onPreviewUrl,
+  onCopyToClipboard,
+  isScraping,
+  scrapedDocuments,
+  progress,
 }: WebScraperConfigFormProps) {
   
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     credential_id: configData?.credential_id || "",
     proxy_url: configData?.proxy_url || "",
     proxy_username: configData?.proxy_username || "",
@@ -56,7 +74,7 @@ export default function WebScraperConfigForm({
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.urls || values.urls.length === 0 || !values.urls[0]) {
       errors.urls = "At least one URL is required";
@@ -71,7 +89,10 @@ export default function WebScraperConfigForm({
       errors.timeout = "Timeout must be between 5 and 300 seconds";
     }
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave;
   const [activeTab, setActiveTab] = useState("basic");
 
   const tabs = [
@@ -102,7 +123,9 @@ export default function WebScraperConfigForm({
         validate={validate}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSave(values);
+          if (handleSubmit) {
+            handleSubmit(values);
+          }
           setSubmitting(false);
         }}
         enableReinitialize

@@ -17,7 +17,6 @@ import type { DocumentLoaderVisualProps } from "./types";
 export default function DocumentLoaderVisual({
   data,
   isHovered,
-  onDoubleClick,
   onMouseEnter,
   onMouseLeave,
   onDelete,
@@ -83,10 +82,9 @@ export default function DocumentLoaderVisual({
         }
         border border-white/20 backdrop-blur-sm
         hover:border-white/40`}
-      onDoubleClick={onDoubleClick}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
-      title="Double click to configure"
+      title="Click to configure"
     >
       {/* Background pattern */}
       <div className="absolute inset-0 rounded-2xl bg-gradient-to-br from-white/10 to-transparent opacity-50"></div>

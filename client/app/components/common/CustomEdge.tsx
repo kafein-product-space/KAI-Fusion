@@ -27,7 +27,6 @@ function CustomAnimatedEdge({
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
   // read status that ReactFlowCanvas injected into edge.data
-  // @ts-expect-error edge data provided at runtime
   const status: 'success' | 'failed' | 'pending' | undefined = (style as any)?.__status;
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({

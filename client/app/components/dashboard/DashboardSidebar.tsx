@@ -433,7 +433,7 @@ const Sidebar = () => {
           className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 group"
         >
           <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-          <span className="text-sm font-medium">Log Out</span>
+          <span className="text-sm font-medium">Logout</span>
         </button>
       </div>
     </aside>

@@ -8,18 +8,24 @@ import CredentialSelector from "~/components/credentials/CredentialSelector";
 
 // Standard props interface matching other config forms
 interface CohereRerankerConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 export default function CohereRerankerConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
 }: CohereRerankerConfigFormProps) {
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     credential_id: configData?.credential_id || "",
     cohere_api_key: configData?.cohere_api_key || "",
     model: configData?.model || "rerank-english-v3.0",
@@ -28,7 +34,7 @@ export default function CohereRerankerConfigForm({
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.cohere_api_key) {
       errors.cohere_api_key = "API key is required";
@@ -43,7 +49,10 @@ export default function CohereRerankerConfigForm({
       errors.max_chunks_per_doc = "Max chunks per doc must be between 1 and 50";
     }
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave || (() => {});
   const { userCredentials, fetchCredentials } = useUserCredentialStore();
 
   // Fetch credentials on component mount
@@ -56,7 +65,7 @@ export default function CohereRerankerConfigForm({
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSave}
+        onSubmit={handleSubmit}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
