@@ -1740,51 +1740,417 @@ async def export_nodes():
 
 
 def generate_workflow_api_code() -> str:
-    """Generate workflow API endpoints code."""
+    """Generate main application code based on main.py structure."""
     return '''# -*- coding: utf-8 -*-
-"""Workflow execution API endpoints."""
-
-from fastapi import APIRouter, HTTPException, Depends
-from typing import Dict, Any, Optional
-from pydantic import BaseModel
-import logging
-import uuid
+"""KAI-Fusion Workflow Runtime with OpenAI Integration"""
+import asyncio
+import asyncpg
 import json
+import logging
 import os
+import sqlite3
+import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime
+from typing import Dict, Any, Optional
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
 
-from app.models.workflow import WorkflowExecution, WorkflowExecutionRequest
-from app.core.database import get_db_session
-
+# Configure logging
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-router = APIRouter()
-
-class ExecuteWorkflowRequest(BaseModel):
-    """Request model for workflow execution."""
-    input_data: Optional[Dict[str, Any]] = None
-    execution_config: Optional[Dict[str, Any]] = None
-
-class ExecuteWorkflowResponse(BaseModel):
-    """Response model for workflow execution."""
-    execution_id: str
-    status: str
-    result: Optional[Dict[str, Any]] = None
-    error: Optional[str] = None
 
 # Load workflow definition
-def load_workflow_definition():
-    try:
-        with open('workflow-definition.json', 'r', encoding='utf-8') as f:
-            return json.load(f)
-    except Exception as e:
-        logger.error(f"Failed to load workflow definition: {e}")
-        return {"nodes": [], "edges": []}
+try:
+    with open('workflow-definition.json', 'r', encoding='utf-8') as f:
+        WORKFLOW_DEF = json.load(f)
+    logger.info("Workflow definition loaded")
+except Exception as e:
+    logger.error(f"Failed to load workflow: {e}")
+    WORKFLOW_DEF = {"nodes": [], "edges": []}
 
-WORKFLOW_DEF = load_workflow_definition()
+# Security configuration
+API_KEYS = [k.strip() for k in (os.getenv("API_KEYS", "") or "").split(",") if k.strip()]
+REQUIRE_API_KEY = os.getenv("REQUIRE_API_KEY", "false").lower() == "true"
+
+# Database setup
+async def init_database():
+    """Initialize database and create tables if they don't exist."""
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            logger.warning("No DATABASE_URL provided, using SQLite")
+            database_url = "sqlite:///./workflow.db"
+        
+        logger.info(f"Initializing database: {database_url[:50]}...")
+        
+        # Handle different database types
+        if database_url.startswith("sqlite"):
+            # For SQLite, create simple JSON storage
+            import sqlite3
+            
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Create basic execution tracking table
+            conn.execute("""
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    execution_id TEXT PRIMARY KEY,
+    status TEXT NOT NULL,
+    input_data TEXT,
+    result_data TEXT,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+            """)
+            
+            # Create session memory table
+            conn.execute("""
+CREATE TABLE IF NOT EXISTS session_memory (
+    session_id TEXT NOT NULL,
+    message_order INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    content TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, message_order)
+)
+            """)
+            
+            conn.commit()
+            conn.close()
+            logger.info("SQLite database initialized successfully")
+            
+        elif database_url.startswith("postgresql"):
+            # For PostgreSQL, create tables using asyncpg
+            try:
+                import asyncpg
+                
+                # Parse connection URL
+                conn = await asyncpg.connect(database_url)
+                
+                # Create execution tracking table
+                await conn.execute("""
+CREATE TABLE IF NOT EXISTS workflow_executions (
+    execution_id VARCHAR(255) PRIMARY KEY,
+    status VARCHAR(50) NOT NULL,
+    input_data JSONB,
+    result_data JSONB,
+    error_message TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+                """)
+                
+                # Create session memory table
+                await conn.execute("""
+CREATE TABLE IF NOT EXISTS session_memory (
+    session_id VARCHAR(255) NOT NULL,
+    message_order INTEGER NOT NULL,
+    role VARCHAR(20) NOT NULL,
+    content TEXT NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (session_id, message_order)
+)
+                """)
+                
+                await conn.close()
+                logger.info("PostgreSQL database initialized successfully")
+                
+            except ImportError:
+                logger.error("asyncpg not installed for PostgreSQL support")
+                logger.warning("Continuing with file-based storage")
+            except Exception as e:
+                logger.error(f"PostgreSQL initialization failed: {e}")
+                logger.warning("Continuing with file-based storage")
+        else:
+            logger.warning(f"Unsupported database type: {database_url[:10]}, using file-based storage")
+            
+    except Exception as e:
+        logger.error(f"Database initialization failed: {e}")
+        logger.warning("Continuing with file-based storage only")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Manage application lifespan events."""
+    # Startup
+    try:
+        await init_database()
+        logger.info("✅ Workflow runtime started successfully")
+    except Exception as e:
+        logger.error(f"❌ Database startup failed: {e}")
+        logger.info("✅ Workflow runtime started with file-based storage")
+    
+    yield
+    
+    # Shutdown
+    logger.info("🔄 Shutting down workflow runtime")
+
+# Initialize FastAPI
+app = FastAPI(
+    title="KAI-Fusion Workflow Runtime",
+    description=f"Runtime for workflow: {os.getenv('WORKFLOW_ID', 'unknown')}",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Request/Response models
+class WorkflowRequest(BaseModel):
+    input: str
+    parameters: Optional[Dict[str, Any]] = None
+    session_id: Optional[str] = None
+
+class WorkflowResponse(BaseModel):
+    execution_id: str
+    status: str
+    result: Optional[Any] = None
+    error: Optional[str] = None
+    timestamp: str
+
+# In-memory execution storage (fallback)
+EXECUTIONS = {}
+
+# Database persistence functions
+async def save_execution_to_db(execution_data: Dict[str, Any]):
+    """Save execution to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            conn.execute("""
+                INSERT OR REPLACE INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+            """, (
+                execution_data["execution_id"],
+                execution_data["status"],
+                json.dumps(execution_data.get("input")),
+                json.dumps(execution_data.get("result")),
+                execution_data.get("error")
+            ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            await conn.execute("""
+                INSERT INTO workflow_executions
+                (execution_id, status, input_data, result_data, error_message, updated_at)
+                VALUES ($1, $2, $3, $4, $5, CURRENT_TIMESTAMP)
+                ON CONFLICT (execution_id) DO UPDATE SET
+                    status = EXCLUDED.status,
+                    result_data = EXCLUDED.result_data,
+                    error_message = EXCLUDED.error_message,
+                    updated_at = EXCLUDED.updated_at
+            """,
+                execution_data["execution_id"],
+                execution_data["status"],
+                execution_data.get("input"),
+                execution_data.get("result"),
+                execution_data.get("error")
+            )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save to database: {e}")
+        # Continue with in-memory storage
+
+async def get_execution_from_db(execution_id: str) -> Optional[Dict[str, Any]]:
+    """Get execution from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = ?
+            """, (execution_id,))
+            
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                return {
+                    "execution_id": row[0],
+                    "status": row[1],
+                    "input": json.loads(row[2]) if row[2] else None,
+                    "result": json.loads(row[3]) if row[3] else None,
+                    "error": row[4],
+                    "timestamp": row[5]
+                }
+                
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            row = await conn.fetchrow("""
+                SELECT execution_id, status, input_data, result_data, error_message, created_at
+                FROM workflow_executions WHERE execution_id = $1
+            """, execution_id)
+            
+            await conn.close()
+            
+            if row:
+                return {
+                    "execution_id": row["execution_id"],
+                    "status": row["status"],
+                    "input": row["input_data"],
+                    "result": row["result_data"],
+                    "error": row["error_message"],
+                    "timestamp": row["created_at"].isoformat()
+                }
+                
+    except Exception as e:
+        logger.error(f"Failed to get from database: {e}")
+        
+    return None
+
+async def save_session_memory_to_db(session_id: str, messages: list):
+    """Save session memory to database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            # Clear existing session messages
+            conn.execute('DELETE FROM session_memory WHERE session_id = ?', (session_id,))
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES (?, ?, ?, ?, ?)
+                """, (
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                ))
+            
+            conn.commit()
+            conn.close()
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            # Clear existing session messages
+            await conn.execute('DELETE FROM session_memory WHERE session_id = $1', session_id)
+            
+            # Insert new messages
+            for i, message in enumerate(messages):
+                await conn.execute("""
+                    INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
+                    VALUES ($1, $2, $3, $4, $5)
+                """,
+                    session_id,
+                    i,
+                    message.get("role"),
+                    message.get("content"),
+                    message.get("timestamp", datetime.now().isoformat())
+                )
+            
+            await conn.close()
+            
+    except Exception as e:
+        logger.error(f"Failed to save session memory to database: {e}")
+
+async def load_session_memory_from_db(session_id: str) -> list:
+    """Load session memory from database if available."""
+    try:
+        database_url = os.getenv("DATABASE_URL", "")
+        
+        if database_url.startswith("sqlite"):
+            import sqlite3
+            db_path = database_url.replace("sqlite:///", "")
+            conn = sqlite3.connect(db_path)
+            
+            cursor = conn.execute("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = ? ORDER BY message_order
+            """, (session_id,))
+            
+            messages = []
+            for row in cursor.fetchall():
+                messages.append({
+                    "role": row[0],
+                    "content": row[1],
+                    "timestamp": row[2]
+                })
+            
+            conn.close()
+            return messages
+            
+        elif database_url.startswith("postgresql"):
+            import asyncpg
+            conn = await asyncpg.connect(database_url)
+            
+            rows = await conn.fetch("""
+                SELECT role, content, timestamp FROM session_memory
+                WHERE session_id = $1 ORDER BY message_order
+            """, session_id)
+            
+            messages = []
+            for row in rows:
+                messages.append({
+                    "role": row["role"],
+                    "content": row["content"],
+                    "timestamp": row["timestamp"].isoformat()
+                })
+            
+            await conn.close()
+            return messages
+            
+    except Exception as e:
+        logger.error(f"Failed to load session memory from database: {e}")
+        
+    return []
+
+# Security middleware
+@app.middleware("http")
+async def security_middleware(request: Request, call_next):
+    if REQUIRE_API_KEY and request.url.path.startswith("/api/"):
+        api_key = request.headers.get("X-API-Key") or (
+            request.headers.get("Authorization", "").replace("Bearer ", "")
+        )
+        if not api_key or api_key not in API_KEYS:
+            raise HTTPException(status_code=401, detail="Invalid API key")
+    
+    return await call_next(request)
 
 def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Dict[str, Any] = None) -> Dict[str, Any]:
     """Execute LLM workflow with user input and session memory."""
     try:
+        # Validate user input
+        if not user_input or not user_input.strip():
+            return {"response": "Input is required and cannot be empty", "type": "error"}
+            
         # Find LLM and Memory nodes in workflow
         llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
         memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
@@ -1797,7 +2163,7 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
         if session_id and memory_nodes:
             session_memory = load_session_memory(session_id)
         
-        # Simple LLM integration - use OpenAI if available
+        # OpenAI integration
         try:
             import openai
             
@@ -1810,14 +2176,14 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
             client = openai.OpenAI(api_key=api_key)
             
             # Get model from workflow or use default
-            model = "gpt-3.5-turbo"
+            model = "gpt-4o-mini"
             temperature = 0.7
             max_tokens = 2048
             
             # Extract model config from first LLM node
             if llm_nodes:
                 node_data = llm_nodes[0].get("data", {})
-                model = node_data.get("model", model)
+                model = node_data.get("model_name", model)
                 temperature = float(node_data.get("temperature", temperature))
                 max_tokens = int(node_data.get("max_tokens", max_tokens))
             
@@ -1834,6 +2200,8 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
             
             # Add current user input
             messages.append({"role": "user", "content": user_input})
+            
+            logger.info(f"Calling OpenAI with model {model} for input: {user_input[:50]}...")
             
             # Create chat completion
             response = client.chat.completions.create(
@@ -1875,10 +2243,23 @@ def execute_llm_workflow(user_input: str, session_id: str = None, parameters: Di
 def load_session_memory(session_id: str) -> list:
     """Load conversation memory for a session."""
     try:
+        # Try database first (async safe)
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            memory = loop.run_until_complete(load_session_memory_from_db(session_id))
+            loop.close()
+            if memory:
+                return memory
+        except Exception as db_e:
+            logger.warning(f"Failed to load from database, falling back to file: {db_e}")
+            
+        # Fallback to file storage
         memory_file = f"memory/session_{session_id}.json"
         if os.path.exists(memory_file):
             with open(memory_file, 'r', encoding='utf-8') as f:
                 return json.load(f)
+                    
     except Exception as e:
         logger.error(f"Failed to load session memory: {e}")
     return []
@@ -1886,117 +2267,259 @@ def load_session_memory(session_id: str) -> list:
 def save_to_session_memory(session_id: str, user_input: str, assistant_response: str):
     """Save conversation to session memory."""
     try:
-        # Create memory directory if it doesn't exist
-        os.makedirs("memory", exist_ok=True)
-        
-        memory_file = f"memory/session_{session_id}.json"
-        
         # Load existing memory
         memory = load_session_memory(session_id)
         
         # Add new conversation
         timestamp = datetime.now().isoformat()
-        memory.extend([
+        new_messages = [
             {"role": "user", "content": user_input, "timestamp": timestamp},
             {"role": "assistant", "content": assistant_response, "timestamp": timestamp}
-        ])
+        ]
+        memory.extend(new_messages)
         
-        # Keep only last 100 messages to prevent memory file from growing too large
+        # Keep only last 100 messages to prevent memory from growing too large
         if len(memory) > 100:
             memory = memory[-100:]
         
-        # Save updated memory
-        with open(memory_file, 'w', encoding='utf-8') as f:
-            json.dump(memory, f, indent=2, ensure_ascii=False)
+        # Try to save to database first (async safe)
+        try:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            loop.run_until_complete(save_session_memory_to_db(session_id, memory))
+            loop.close()
+        except Exception as db_e:
+            logger.warning(f"Failed to save to database, falling back to file: {db_e}")
+            
+            # Fallback to file storage
+            os.makedirs("memory", exist_ok=True)
+            memory_file = f"memory/session_{session_id}.json"
+            with open(memory_file, 'w', encoding='utf-8') as f:
+                json.dump(memory, f, indent=2, ensure_ascii=False)
             
     except Exception as e:
         logger.error(f"Failed to save session memory: {e}")
 
-@router.post("/execute", response_model=ExecuteWorkflowResponse)
-async def execute_workflow(
-    request: ExecuteWorkflowRequest,
-    db = Depends(get_db_session)
-):
-    """Execute the workflow with provided input data."""
+# API Endpoints
+@app.get("/")
+async def root():
+    return {
+        "service": "KAI-Fusion Workflow Runtime",
+        "workflow_id": os.getenv("WORKFLOW_ID"),
+        "status": "running"
+    }
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+
+@app.post("/api/workflow/execute")
+async def execute_workflow(request: WorkflowRequest):
+    execution_id = str(uuid.uuid4())
+    
     try:
-        execution_id = str(uuid.uuid4())
+        # Generate session ID if not provided
+        session_id = request.session_id or f"session_{str(uuid.uuid4())[:8]}"
         
-        # Get user input from request
-        user_input = ""
-        session_id = None
+        print(f"Executing workflow with input: {request.input}, session: {session_id}")
         
-        if hasattr(request, 'input_data') and request.input_data:
-            user_input = request.input_data.get("input", "") or request.input_data.get("message", "")
-            session_id = request.input_data.get("session_id")
-        
-        # If no session_id provided, generate one for memory tracking
-        if not session_id:
-            session_id = f"session_{str(uuid.uuid4())[:8]}"
-        
-        if not user_input:
-            return ExecuteWorkflowResponse(
+        # Validate input
+        if not request.input or not request.input.strip():
+            return WorkflowResponse(
                 execution_id=execution_id,
                 status="failed",
-                error="No input provided",
-                result=None
+                error="Input is required and cannot be empty",
+                result=None,
+                timestamp=datetime.now().isoformat()
             )
         
-        logger.info(f"Executing workflow with input: {user_input}, session: {session_id}")
-        
         # Execute LLM workflow with session memory
-        result = execute_llm_workflow(user_input, session_id, request.execution_config or {})
+        result = execute_llm_workflow(request.input, session_id, request.parameters or {})
         
-        return ExecuteWorkflowResponse(
+        # Store execution result for status/result endpoints
+        EXECUTIONS[execution_id] = {
+            "execution_id": execution_id,
+            "status": "completed" if result.get("type") == "success" else "failed",
+            "result": result,
+            "error": None if result.get("type") == "success" else result.get("response"),
+            "timestamp": datetime.now().isoformat(),
+            "session_id": session_id
+        }
+        
+        return WorkflowResponse(
             execution_id=execution_id,
             status="completed" if result.get("type") == "success" else "failed",
             result=result,
-            error=None if result.get("type") == "success" else result.get("response")
+            error=None if result.get("type") == "success" else result.get("response"),
+            timestamp=datetime.now().isoformat()
         )
         
     except Exception as e:
         logger.error(f"Workflow execution failed: {e}")
-        return ExecuteWorkflowResponse(
-            execution_id=str(uuid.uuid4()),
-            status="failed",
-            error=str(e),
-            result=None
-        )
-
-@router.get("/executions/{execution_id}")
-async def get_execution_status(execution_id: str):
-    """Get execution status and results."""
-    try:
-        return {
+        execution_data = {
             "execution_id": execution_id,
-            "status": "completed",
-            "result": {"message": "Execution completed"},
+            "status": "failed",
+            "error": str(e),
+            "result": None,
             "timestamp": datetime.now().isoformat()
         }
+        EXECUTIONS[execution_id] = execution_data
+        return WorkflowResponse(**execution_data)
+
+@app.get("/api/workflow/status/{execution_id}")
+async def get_execution_status(execution_id: str):
+    """Get execution status."""
+    try:
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "timestamp": execution["timestamp"]
+        }
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get execution status: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/info")
-async def get_workflow_info():
-    """Get workflow information."""
+@app.get("/api/workflow/result/{execution_id}")
+async def get_execution_result(execution_id: str):
+    """Get execution result."""
     try:
-        llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
-        memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+        if execution_id not in EXECUTIONS:
+            raise HTTPException(status_code=404, detail="Execution not found")
         
+        execution = EXECUTIONS[execution_id]
         return {
-            "workflow": WORKFLOW_DEF,
-            "nodes_count": len(WORKFLOW_DEF.get("nodes", [])),
-            "edges_count": len(WORKFLOW_DEF.get("edges", [])),
-            "llm_nodes": llm_nodes,
-            "memory_nodes": memory_nodes,
-            "memory_enabled": len(memory_nodes) > 0,
-            "status": "ready"
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution["result"],
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
         }
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"Failed to get workflow info: {e}")
+        logger.error(f"Failed to get execution result: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/memory/{session_id}")
+@app.get("/api/workflow/executions/{execution_id}")
+async def get_execution_details(execution_id: str):
+    """Get execution status and details (legacy endpoint for compatibility)."""
+    try:
+        if execution_id not in EXECUTIONS:
+            # Try to get from database
+            db_execution = await get_execution_from_db(execution_id)
+            if db_execution:
+                return db_execution
+            raise HTTPException(status_code=404, detail="Execution not found")
+        
+        execution = EXECUTIONS[execution_id]
+        return {
+            "execution_id": execution_id,
+            "status": execution["status"],
+            "result": execution.get("result"),
+            "error": execution.get("error"),
+            "timestamp": execution["timestamp"]
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get execution details: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/info")
+async def workflow_info():
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
+    return {
+        "workflow": WORKFLOW_DEF,
+        "nodes_count": len(WORKFLOW_DEF.get("nodes", [])),
+        "edges_count": len(WORKFLOW_DEF.get("edges", [])),
+        "llm_nodes": llm_nodes,
+        "memory_nodes": memory_nodes,
+        "memory_enabled": len(memory_nodes) > 0,
+        "status": "ready"
+    }
+
+# External workflow compatibility endpoints
+@app.get("/api/workflow/external/info")
+async def external_workflow_info():
+    """External workflow compatibility endpoint"""
+    llm_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "openai" in node.get("type", "").lower() or "chat" in node.get("type", "").lower()]
+    memory_nodes = [node for node in WORKFLOW_DEF.get("nodes", []) if "memory" in node.get("type", "").lower()]
+    
+    return {
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown"),
+        "name": "Exported Workflow",
+        "description": "KAI-Fusion exported workflow runtime",
+        "external_url": f"http://localhost:{os.getenv('API_PORT', '8001')}",
+        "api_key_required": REQUIRE_API_KEY,
+        "connection_status": "online",
+        "capabilities": {
+            "chat": len(llm_nodes) > 0,
+            "memory": len(memory_nodes) > 0,
+            "info_access": True,
+            "modification": False
+        },
+        "created_at": datetime.now().isoformat(),
+        "last_health_check": datetime.now().isoformat()
+    }
+
+@app.post("/api/workflow/external/ping")
+async def external_ping():
+    """External workflow ping endpoint"""
+    return {
+        "status": "online",
+        "timestamp": datetime.now().isoformat(),
+        "workflow_id": os.getenv("WORKFLOW_ID", "unknown")
+    }
+
+@app.get("/api/workflow/external/metrics")
+async def external_metrics():
+    """External workflow metrics endpoint"""
+    return {
+        "uptime": "running",
+        "requests_processed": 0,
+        "last_activity": datetime.now().isoformat(),
+        "memory_usage": "N/A",
+        "status": "healthy"
+    }
+
+@app.get("/api/workflow/sessions")
+async def list_sessions():
+    """List all chat sessions with memory."""
+    try:
+        sessions = []
+        memory_dir = "memory"
+        
+        if os.path.exists(memory_dir):
+            for filename in os.listdir(memory_dir):
+                if filename.startswith("session_") and filename.endswith(".json"):
+                    session_id = filename[8:-5]  # Remove "session_" and ".json"
+                    try:
+                        memory = load_session_memory(session_id)
+                        sessions.append({
+                            "session_id": session_id,
+                            "message_count": len(memory),
+                            "last_activity": memory[-1].get("timestamp") if memory else None
+                        })
+                    except Exception:
+                        continue
+        
+        return {
+            "sessions": sessions,
+            "total_sessions": len(sessions)
+        }
+    except Exception as e:
+        logger.error(f"Failed to list sessions: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@app.get("/api/workflow/memory/{session_id}")
 async def get_session_memory(session_id: str):
     """Get conversation memory for a session."""
     try:
@@ -2011,7 +2534,7 @@ async def get_session_memory(session_id: str):
         logger.error(f"Failed to get session memory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.delete("/memory/{session_id}")
+@app.delete("/api/workflow/memory/{session_id}")
 async def clear_session_memory(session_id: str):
     """Clear conversation memory for a session."""
     try:
@@ -2028,40 +2551,54 @@ async def clear_session_memory(session_id: str):
         logger.error(f"Failed to clear session memory: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.get("/sessions")
-async def list_active_sessions():
-    """List all active sessions with memory."""
-    try:
-        sessions = []
-        memory_dir = "memory"
-        
-        if os.path.exists(memory_dir):
-            for filename in os.listdir(memory_dir):
-                if filename.startswith("session_") and filename.endswith(".json"):
-                    session_id = filename.replace("session_", "").replace(".json", "")
-                    memory = load_session_memory(session_id)
-                    
-                    # Get last message timestamp
-                    last_timestamp = None
-                    if memory:
-                        last_message = memory[-1]
-                        last_timestamp = last_message.get("timestamp")
-                    
-                    sessions.append({
-                        "session_id": session_id,
-                        "message_count": len(memory),
-                        "last_activity": last_timestamp
-                    })
-        
-        return {
-            "sessions": sessions,
-            "total_sessions": len(sessions)
-        }
-    except Exception as e:
-        logger.error(f"Failed to list sessions: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("API_PORT", "8001")))
 '''
 
+
+
+@router.get("/export/download/{filename}", tags=["Export"])
+async def download_exported_workflow(filename: str):
+    """Download exported workflow package."""
+    try:
+        file_path = os.path.join(tempfile.gettempdir(), filename)
+        if not os.path.exists(file_path):
+            raise HTTPException(status_code=404, detail="File not found")
+        
+        return FileResponse(
+            file_path,
+            media_type="application/zip",
+            filename=filename
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Download failed: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/export/workflows", tags=["Export"])
+async def list_exported_workflows(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session)
+):
+    """List exported workflows for current user."""
+    try:
+        # Implementation placeholder
+        return {"exported_workflows": []}
+    except Exception as e:
+        logger.error(f"Failed to list exported workflows: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/export/nodes", tags=["Export"])
+async def get_exportable_nodes():
+    """Get list of exportable node types."""
+    try:
+        # Implementation placeholder
+        return {"exportable_nodes": []}
+    except Exception as e:
+        logger.error(f"Failed to get exportable nodes: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 def generate_health_api_code() -> str:
     """Generate health check API code."""
@@ -2291,11 +2828,22 @@ async def init_database():
         logger.error(f"Database initialization failed: {e}")
         raise
 
-async def close_database():
-    """Close database connections."""
-    try:
-        await engine.dispose()
-        logger.info("Database connections closed")
-    except Exception as e:
-        logger.error(f"Error closing database: {e}")
-'''
+def generate_health_api_code() -> str:
+    """Generate health check endpoints code."""
+    return '''# No additional health API code needed - included in main app'''
+
+def generate_workflow_models_code() -> str:
+    """Generate workflow model definitions code."""
+    return '''# No additional workflow models needed - included in main app'''
+
+def generate_execution_models_code() -> str:
+    """Generate execution model definitions code."""
+    return '''# No additional execution models needed - included in main app'''
+
+def generate_core_config_code() -> str:
+    """Generate core configuration code."""
+    return '''# No additional core config needed - included in main app'''
+
+def generate_core_database_code() -> str:
+    """Generate core database utilities code."""
+    return '''# No additional database code needed - included in main app'''

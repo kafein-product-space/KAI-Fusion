@@ -1,5 +1,5 @@
 import { apiClient } from '~/lib/api-client';
-import type { 
+import type {
   ExternalWorkflowConfig,
   ExternalWorkflowInfo,
   ExternalWorkflowRegistration,
@@ -91,6 +91,161 @@ export const externalWorkflowService = {
     return await apiClient.delete(
       `/external/${workflowId}`
     );
+  }
+};
+
+/**
+ * Service for managing exported workflow instances
+ * These are direct API connections to exported workflow containers
+ */
+export const exportedWorkflowService = {
+  /**
+   * Execute exported workflow directly
+   */
+  async executeExportedWorkflow(baseUrl: string, input: string, sessionId?: string, apiKey?: string): Promise<any> {
+    // Fix for exported workflow URL - use localhost:8001 directly
+    const fixedBaseUrl = baseUrl.includes('localhost:8001') ? baseUrl : 'http://localhost:8001';
+
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+
+    if (apiKey && apiKey !== 'api-key-placeholder') {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const requestBody: { input: string; session_id?: string } = {
+      input: input.trim()
+    };
+
+    // Only add session_id if it exists and is not empty
+    if (sessionId && sessionId.trim()) {
+      requestBody.session_id = sessionId.trim();
+    }
+
+    const response = await fetch(`${fixedBaseUrl}/api/workflow/execute`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(requestBody)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`Workflow execution failed: ${response.status} - ${errorText}`);
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Get exported workflow info
+   */
+  async getExportedWorkflowInfo(baseUrl: string, apiKey?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${baseUrl}/api/workflow/external/info`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get workflow info: ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * List chat sessions for exported workflow
+   */
+  async listExportedWorkflowSessions(baseUrl: string, apiKey?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${baseUrl}/api/workflow/sessions`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to list sessions: ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Get session memory for exported workflow
+   */
+  async getExportedWorkflowSessionMemory(baseUrl: string, sessionId: string, apiKey?: string): Promise<any> {
+    const fixedBaseUrl = baseUrl.includes('localhost:8001') ? baseUrl : 'http://localhost:8001';
+    const headers: Record<string, string> = {};
+
+    if (apiKey && apiKey !== 'api-key-placeholder') {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${fixedBaseUrl}/api/workflow/memory/${sessionId}`, {
+      method: 'GET',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to get session memory: ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Clear session memory for exported workflow
+   */
+  async clearExportedWorkflowSessionMemory(baseUrl: string, sessionId: string, apiKey?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${baseUrl}/api/workflow/memory/${sessionId}`, {
+      method: 'DELETE',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to clear session memory: ${response.statusText}`);
+    }
+
+    return await response.json();
+  },
+
+  /**
+   * Ping exported workflow
+   */
+  async pingExportedWorkflow(baseUrl: string, apiKey?: string): Promise<any> {
+    const headers: Record<string, string> = {};
+
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey;
+    }
+
+    const response = await fetch(`${baseUrl}/api/workflow/external/ping`, {
+      method: 'POST',
+      headers
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to ping workflow: ${response.statusText}`);
+    }
+
+    return await response.json();
   }
 };
 
