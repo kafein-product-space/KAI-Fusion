@@ -265,8 +265,59 @@ const WorkflowExportModal: React.FC<WorkflowExportModalProps> = ({
           </div>
         )}
         
-        {/* Optional Monitoring */}
+        {/* Optional Configuration Variables */}
         {exportData.required_env_vars.optional.length > 0 && (
+          <div className="bg-gradient-to-r from-indigo-50 to-purple-50 border border-indigo-200 rounded-lg p-4">
+            <h4 className="text-lg font-semibold text-gray-900 mb-3 flex items-center gap-2">
+              <Key className="w-5 h-5 text-indigo-600" />
+              Optional Configuration
+            </h4>
+            <div className="text-xs text-indigo-700 mb-4 p-2 bg-indigo-100 rounded border border-indigo-200">
+              <Key className="w-4 h-4 inline mr-1" />
+              These are optional settings with default values. You can customize them or leave defaults.
+            </div>
+            <div className="space-y-4 max-h-96 overflow-y-auto">
+              {exportData.required_env_vars.optional.map((envVar) => {
+                // Skip monitoring variables, they'll be in their own section
+                if (envVar.name.toLowerCase().includes('langchain') || envVar.name.toLowerCase().includes('langsmith')) {
+                  return null;
+                }
+                
+                return (
+                  <div key={envVar.name} className="space-y-2 p-3 rounded-lg border bg-white border-indigo-100">
+                    <div className="flex items-center justify-between">
+                      <label className="block text-sm font-medium text-gray-700">
+                        {envVar.name}
+                        <span className="text-xs text-indigo-600 ml-2">({envVar.node_type || 'System'})</span>
+                      </label>
+                      {envVar.default && (
+                        <span className="text-xs bg-indigo-100 text-indigo-800 px-2 py-1 rounded">
+                          Default: {envVar.default}
+                        </span>
+                      )}
+                    </div>
+                    <input
+                      type={envVar.name.toLowerCase().includes('api_key') ? 'password' : 'text'}
+                      value={envVars[envVar.name] || envVar.default || ''}
+                      onChange={(e) => setEnvVars(prev => ({ ...prev, [envVar.name]: e.target.value }))}
+                      placeholder={envVar.example || envVar.default}
+                      className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 ${
+                        envErrors[envVar.name] ? 'border-red-300' : 'border-gray-300'
+                      }`}
+                    />
+                    {envErrors[envVar.name] && (
+                      <p className="text-sm text-red-600">{envErrors[envVar.name]}</p>
+                    )}
+                    <p className="text-xs text-gray-500">{envVar.description}</p>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Optional Monitoring */}
+        {exportData.required_env_vars.optional.some(env => env.name.toLowerCase().includes('langchain') || env.name.toLowerCase().includes('langsmith')) && (
           <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center justify-between mb-4">
               <h4 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
@@ -293,7 +344,9 @@ const WorkflowExportModal: React.FC<WorkflowExportModalProps> = ({
             
             {monitoringConfig.enable_langsmith && (
               <div className="bg-white rounded-lg p-3 border border-green-100 space-y-4">
-                {exportData.required_env_vars.optional.map((envVar) => (
+                {exportData.required_env_vars.optional.filter(env =>
+                  env.name.toLowerCase().includes('langchain') || env.name.toLowerCase().includes('langsmith')
+                ).map((envVar) => (
                   <div key={envVar.name} className="space-y-2">
                     <label className="block text-sm font-medium text-gray-700">
                       {envVar.name}

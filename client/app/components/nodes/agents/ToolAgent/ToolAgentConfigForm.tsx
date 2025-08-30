@@ -5,18 +5,24 @@ import { Settings, Bot } from "lucide-react";
 
 // Standard props interface matching other config forms
 interface ToolAgentConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
 }
 
 export default function ToolAgentConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
 }: ToolAgentConfigFormProps) {
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     agent_type: configData?.agent_type || "react",
     system_prompt: configData?.system_prompt || "You are a helpful assistant. Use tools to answer: {input}",
     max_iterations: configData?.max_iterations || 5,
@@ -26,7 +32,7 @@ export default function ToolAgentConfigForm({
   };
 
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.agent_type) {
       errors.agent_type = "Agent type is required";
@@ -49,13 +55,16 @@ export default function ToolAgentConfigForm({
       errors.temperature = "Temperature must be between 0 and 2";
     }
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave || (() => {});
   return (
     <div className="w-full h-full">
       <Formik
         initialValues={initialValues}
         validate={validate}
-        onSubmit={onSave}
+        onSubmit={handleSubmit}
         enableReinitialize
       >
         {({ values, errors, touched, isSubmitting }) => (

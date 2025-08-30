@@ -1,6 +1,6 @@
-import React, { useRef, useState } from "react";
-import { useReactFlow, Handle, Position } from "@xyflow/react";
-import ConversationMemoryConfigModal from "../../modals/memory/ConversationMemoryConfigModal";
+// ConversationMemoryVisual.tsx
+import React from "react";
+import { Position } from "@xyflow/react";
 import {
   MessageCircle,
   Trash,
@@ -14,46 +14,16 @@ import {
   History,
 } from "lucide-react";
 import NeonHandle from "~/components/common/NeonHandle";
+import type { ConversationMemoryVisualProps } from "./types";
 
-interface ConversationMemoryNodeProps {
-  data: any;
-  id: string;
-}
-
-function ConversationMemoryNode({ data, id }: ConversationMemoryNodeProps) {
-  const { setNodes, getEdges } = useReactFlow();
-  const [isHovered, setIsHovered] = useState(false);
-
-  const modalRef = useRef<HTMLDialogElement>(null);
-
-  const handleOpenModal = () => {
-    modalRef.current?.showModal();
-  };
-
-  const handleConfigSave = (newConfig: any) => {
-    setNodes((nodes: any[]) =>
-      nodes.map((node) =>
-        node.id === id
-          ? { ...node, data: { ...node.data, ...newConfig } }
-          : node
-      )
-    );
-  };
-
-  const handleDeleteNode = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setNodes((nodes) => nodes.filter((node) => node.id !== id));
-  };
-
-  const edges = getEdges ? getEdges() : [];
-
-  const isHandleConnected = (handleId: string, isSource = false) =>
-    edges.some((edge) =>
-      isSource
-        ? edge.source === id && edge.sourceHandle === handleId
-        : edge.target === id && edge.targetHandle === handleId
-    );
-
+export default function ConversationMemoryVisual({
+  data,
+  isHovered,
+  onMouseEnter,
+  onMouseLeave,
+  onDelete,
+  isHandleConnected,
+}: ConversationMemoryVisualProps) {
   const getStatusColor = () => {
     switch (data.validationStatus) {
       case "success":
@@ -91,9 +61,8 @@ function ConversationMemoryNode({ data, id }: ConversationMemoryNodeProps) {
           }
           border border-white/20 backdrop-blur-sm
           hover:border-white/40`}
-        onDoubleClick={handleOpenModal}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        onMouseEnter={onMouseEnter}
+        onMouseLeave={onMouseLeave}
         title="Double click to configure"
       >
         {/* Background pattern */}
@@ -125,7 +94,7 @@ function ConversationMemoryNode({ data, id }: ConversationMemoryNodeProps) {
                 text-white rounded-full border border-white/30 shadow-xl 
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm"
-              onClick={handleDeleteNode}
+              onClick={onDelete}
               title="Delete Node"
             >
               <Trash size={14} />
@@ -159,7 +128,7 @@ function ConversationMemoryNode({ data, id }: ConversationMemoryNodeProps) {
                 ? "Buffer"
                 : data.memory_type === "summary"
                 ? "Summary"
-                : data.memory_type?.toUpperCase() || "MEMORY"}
+                : (data.memory_type as string)?.toUpperCase() || "MEMORY"}
             </div>
           </div>
         )}
@@ -277,16 +246,6 @@ function ConversationMemoryNode({ data, id }: ConversationMemoryNodeProps) {
           </div>
         )}
       </div>
-
-      {/* DaisyUI dialog modal */}
-      <ConversationMemoryConfigModal
-        ref={modalRef}
-        nodeData={data}
-        onSave={handleConfigSave}
-        nodeId={id}
-      />
     </>
   );
 }
-
-export default ConversationMemoryNode;

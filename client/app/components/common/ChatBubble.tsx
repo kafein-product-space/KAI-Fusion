@@ -1,13 +1,25 @@
 import React, { useState } from "react";
-import { Bot, Copy, Check, ExternalLink, Edit, Trash2 } from "lucide-react";
+import {
+  Bot,
+  Copy,
+  Check,
+  ExternalLink,
+  Edit,
+  Trash2,
+  Terminal,
+  FileText,
+  Quote,
+  CheckCircle,
+} from "lucide-react";
 import { useAuth } from "~/stores/auth";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
-import rehypeHighlight from "rehype-highlight";
 import rehypeRaw from "rehype-raw";
-
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
+import { copyWithFeedback } from "~/lib/clipboard";
 interface ChatBubbleProps {
   message: string;
   from: "user" | "assistant";
@@ -43,15 +55,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const isUser = from === "user";
 
   const copyToClipboard = async (text: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedCode(text);
-      setTimeout(() => {
-        setCopiedCode(null);
-      }, 2000);
-    } catch (err) {
-      console.error("Kopyalama başarısız:", err);
-    }
+    await copyWithFeedback(
+      text,
+      () => {
+        setCopiedCode(text);
+        setTimeout(() => {
+          setCopiedCode(null);
+        }, 2000);
+      },
+      (err) => {
+        console.error("Kopyalama başarısız:", err);
+      }
+    );
   };
 
   const formatTimestamp = (date: Date) => {
@@ -88,16 +103,18 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
   return (
     <div
-      className={`flex w-full my-3 ${isUser ? "justify-end" : "justify-start"}`}
+      className={`flex w-full my-3 px-2 sm:px-4 ${
+        isUser ? "justify-end" : "justify-start"
+      }`}
     >
       {/* Assistant Avatar */}
       {!isUser && (
-        <div className="flex flex-col items-center mr-3">
-          <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
-            <Bot className="w-5 h-5 text-white" />
+        <div className="flex flex-col items-center mr-2 sm:mr-3 flex-shrink-0">
+          <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center shadow-lg border-2 border-white">
+            <Bot className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
           </div>
           {timestamp && (
-            <span className="text-xs text-gray-400 mt-1">
+            <span className="text-xs text-gray-400 mt-1 hidden sm:block">
               {formatTimestamp(timestamp)}
             </span>
           )}
@@ -105,7 +122,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
       )}
 
       <div
-        className={`max-w-[75%] px-4 py-3 rounded-2xl shadow-lg text-sm
+        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
         ${
           isUser
             ? "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
@@ -147,7 +164,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ></div>
             </div>
             <span className="italic text-gray-600 font-medium">
-              Düşünüyor...
+              Thinking...
             </span>
           </div>
         ) : (
@@ -166,13 +183,13 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                     onClick={handleSaveEdit}
                     className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
                   >
-                    Kaydet
+                    Save
                   </button>
                   <button
                     onClick={handleCancelEdit}
                     className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
                   >
-                    İptal
+                    Cancel
                   </button>
                 </div>
               </div>
@@ -181,12 +198,12 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                 {message}
               </div>
             ) : (
-              <div className="prose prose-sm max-w-none prose-slate">
+              <div className="prose prose-sm max-w-none prose-slate break-words">
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm, remarkMath]}
-                  rehypePlugins={[rehypeKatex, rehypeHighlight, rehypeRaw]}
+                  rehypePlugins={[rehypeKatex, rehypeRaw]}
                   components={{
-                    // Kod blokları - kopyala butonu ile
+                    // Kod blokları - modern tasarım ile
                     code: ({ className, children, ...props }: any) => {
                       const match = /language-(\w+)/.exec(className || "");
                       const language = match ? match[1] : "";
@@ -194,36 +211,81 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       const codeContent = String(children).replace(/\n$/, "");
 
                       return !isInline ? (
-                        <div className="relative group my-4 ">
-                          <div className="flex items-center justify-between bg-gray-800 text-gray-300 px-4 py-2 rounded-t-lg text-xs font-medium">
-                            <span className="capitalize">
-                              {language || "text"}
-                            </span>
+                        <div className="relative group my-4 sm:my-6 rounded-xl shadow-lg border border-gray-200 w-full overflow-hidden">
+                          {/* Header with language and copy button */}
+                          <div className="flex items-center justify-between bg-gradient-to-r from-gray-800 to-gray-900 text-gray-100 px-3 sm:px-4 py-2 sm:py-3 border-b border-gray-700">
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <Terminal className="w-4 h-4 text-blue-400 flex-shrink-0" />
+                              <span className="text-sm font-medium capitalize text-gray-200 truncate">
+                                {language || "plaintext"}
+                              </span>
+                              {language && (
+                                <span className="hidden sm:inline text-xs px-2 py-1 bg-gray-700 text-gray-300 rounded-full">
+                                  {language}
+                                </span>
+                              )}
+                            </div>
                             <button
                               onClick={() => copyToClipboard(codeContent)}
-                              className="flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors duration-200"
+                              className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium group-hover:shadow-md flex-shrink-0"
                             >
                               {copiedCode === codeContent ? (
-                                <Check className="w-3 h-3 text-green-400" />
+                                <>
+                                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
+                                  <span className="hidden sm:inline">
+                                    Kopyalandı!
+                                  </span>
+                                  <span className="sm:hidden">✓</span>
+                                </>
                               ) : (
-                                <Copy className="w-3 h-3" />
+                                <>
+                                  <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
+                                  <span className="hidden sm:inline">
+                                    Kopyala
+                                  </span>
+                                </>
                               )}
+
                               <span className="text-xs">
                                 {copiedCode === codeContent
-                                  ? "Kopyalandı!"
-                                  : "Kopyala"}
+                                  ? "Copied!"
+                                  : "Copy"}
                               </span>
+
                             </button>
                           </div>
-                          <pre className="bg-gray-900 text-gray-100 p-4 rounded-b-lg overflow-x-auto text-sm border-t border-gray-700">
-                            <code className={className} {...props}>
-                              {children}
-                            </code>
-                          </pre>
+
+                          {/* Syntax highlighted code */}
+                          <div className="bg-gray-950 overflow-x-auto">
+                            <SyntaxHighlighter
+                              style={vscDarkPlus}
+                              language={language || "text"}
+                              customStyle={{
+                                margin: 0,
+                                padding: "1rem",
+                                fontSize: "0.75rem",
+                                lineHeight: "1.4",
+                                background: "transparent",
+                                borderRadius: 0,
+                              }}
+                              showLineNumbers={
+                                codeContent.split("\n").length > 5
+                              }
+                              lineNumberStyle={{
+                                color: "#6b7280",
+                                fontSize: "0.7rem",
+                                marginRight: "0.5rem",
+                                userSelect: "none",
+                              }}
+                              wrapLongLines={false}
+                            >
+                              {codeContent}
+                            </SyntaxHighlighter>
+                          </div>
                         </div>
                       ) : (
                         <code
-                          className="bg-gray-100 text-red-600 px-1.5 py-0.5 rounded text-xs font-mono border font-semibold"
+                          className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-sm font-mono border border-blue-200 font-medium"
                           {...props}
                         >
                           {children}
@@ -231,95 +293,155 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       );
                     },
 
-                    // Başlıklar - daha iyi hiyerarşi
-                    h1: ({ children }: any) => (
-                      <h1 className="text-xl font-bold mb-3 text-gray-900 border-b-2 border-gray-200 pb-2">
+                    // Pre etiketleri için beyaz arka plan
+                    pre: ({ children }: any) => (
+                      <pre className="bg-white max-w-full overflow-x-auto p-3 rounded-lg text-sm ">
                         {children}
+                      </pre>
+                    ),
+
+                    // Başlıklar - modern hiyerarşi
+                    h1: ({ children }: any) => (
+                      <h1 className="text-xl font-bold mb-4 text-gray-900 pb-3 border-b-2 border-gradient-to-r from-blue-500 to-purple-600 relative">
+                        <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                          {children}
+                        </span>
                       </h1>
                     ),
                     h2: ({ children }: any) => (
-                      <h2 className="text-lg font-bold mb-2 text-gray-900 mt-4">
+                      <h2 className="text-lg font-bold mb-3 text-gray-900 mt-6 flex items-center gap-2">
+                        <span className="w-1 h-6 bg-gradient-to-b from-blue-500 to-purple-600 rounded-full"></span>
                         {children}
                       </h2>
                     ),
                     h3: ({ children }: any) => (
-                      <h3 className="text-base font-semibold mb-2 text-gray-800 mt-3">
+                      <h3 className="text-md font-semibold mb-3 text-gray-800 mt-5 flex items-center gap-2">
+                        <span className="w-1 h-5 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full"></span>
                         {children}
                       </h3>
                     ),
                     h4: ({ children }: any) => (
-                      <h4 className="text-sm font-semibold mb-1 text-gray-700">
+                      <h4 className="text-md font-semibold mb-2 text-gray-700 mt-4 flex items-center gap-2">
+                        <span className="w-0.5 h-4 bg-gradient-to-b from-blue-400 to-purple-500 rounded-full"></span>
                         {children}
                       </h4>
                     ),
 
-                    // Listeler - daha iyi styling
+                    // Listeler - modern tasarım ile
                     ul: ({ children }: any) => (
-                      <ul className="list-disc list-inside mb-3 space-y-1 text-gray-700 ml-2">
-                        {children}
-                      </ul>
+                      <ul className="mb-4 space-y-1">{children}</ul>
                     ),
                     ol: ({ children }: any) => (
-                      <ol className="list-decimal list-inside mb-3 space-y-1 text-gray-700 ml-2">
+                      <ol className="mb-4 space-y-1 counter-reset-list">
                         {children}
                       </ol>
                     ),
-                    li: ({ children }: any) => (
-                      <li className="leading-relaxed">{children}</li>
-                    ),
+                    li: ({ children, ...props }: any) => {
+                      const isOrderedList =
+                        props.className?.includes("ordered") ||
+                        (typeof children === "object" &&
+                          children?.props?.ordered);
+
+                      return isOrderedList ? (
+                        <li className="flex items-start gap-3 pl-2 leading-relaxed text-gray-700">
+                          <span className="flex-shrink-0 w-6 h-6 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5 shadow-sm counter-increment">
+                            •
+                          </span>
+                          <div className="flex-1 pt-0.5 text-left">{children}</div>
+                        </li>
+                      ) : (
+                        <li className="flex items-start gap-3 pl-2 leading-relaxed text-gray-700">
+                          <span className="flex-shrink-0 w-2 h-2 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mt-2.5 shadow-sm"></span>
+                          <div className="flex-1 text-left">{children}</div>
+                        </li>
+                      );
+                    },
 
                     // Linkler - dış bağlantı ikonu ile
                     a: ({ href, children }: any) => (
                       <a
                         href={href}
-                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 transition-colors duration-200"
+                        className="text-blue-600 hover:text-blue-800 underline inline-flex items-center gap-1 transition-colors duration-200 break-all max-w-full"
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        {children}
-                        <ExternalLink className="w-3 h-3" />
+                        <span className="break-all">{children}</span>
+                        <ExternalLink className="w-3 h-3 flex-shrink-0" />
                       </a>
                     ),
 
-                    // Alıntılar - daha şık tasarım
+                    // Alıntılar - modern tasarım
                     blockquote: ({ children }: any) => (
-                      <blockquote className="border-l-4 border-blue-400 pl-4 italic text-gray-600 my-3 bg-blue-50 py-3 rounded-r-lg shadow-sm">
-                        <div className="not-italic text-blue-600 text-xs font-semibold mb-1">
-                          Alıntı
+                      <blockquote className="relative my-4 sm:my-6 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm -mx-2 sm:mx-0">
+                        <div className="absolute top-3 sm:top-4 left-3 sm:left-4">
+                          <Quote className="w-4 h-4 sm:w-6 sm:h-6 text-blue-400 opacity-60" />
                         </div>
-                        {children}
+                        <div className="pl-6 sm:pl-8">
+                          <div className="text-blue-600 text-xs sm:text-sm font-semibold mb-2 uppercase tracking-wide">
+                            Alıntı
+                          </div>
+                          <div className="text-gray-700 italic leading-relaxed text-sm sm:text-base">
+                            {children}
+                          </div>
+                        </div>
+                        <div className="absolute bottom-3 sm:bottom-4 right-3 sm:right-4">
+                          <Quote className="w-3 h-3 sm:w-4 sm:h-4 text-blue-300 opacity-40 rotate-180" />
+                        </div>
                       </blockquote>
                     ),
 
-                    // Tablolar - daha responsive
+                    // Tablolar - modern responsive tasarım
                     table: ({ children }: any) => (
-                      <div className="overflow-x-auto my-4 rounded-lg border border-gray-200 shadow-sm">
-                        <table className="min-w-full text-xs bg-white">
+                      <div className="overflow-x-auto my-4 sm:my-6 rounded-xl border border-gray-200 shadow-lg bg-white -mx-2 sm:mx-0">
+                        <table className="min-w-full text-xs sm:text-sm">
                           {children}
                         </table>
                       </div>
                     ),
-                    th: ({ children }: any) => (
-                      <th className="border-b-2 border-gray-200 px-4 py-3 bg-gray-50 font-semibold text-gray-900 text-left">
+                    thead: ({ children }: any) => (
+                      <thead className="bg-gradient-to-r from-gray-50 to-gray-100">
                         {children}
+                      </thead>
+                    ),
+                    th: ({ children }: any) => (
+                      <th className="px-3 sm:px-6 py-2 sm:py-4 text-left font-semibold text-gray-900 border-b border-gray-200 first:rounded-tl-xl last:rounded-tr-xl">
+                        <div className="flex items-center gap-1 sm:gap-2">
+                          <FileText className="w-3 h-3 sm:w-4 sm:h-4 text-gray-500 hidden sm:block" />
+                          <span className="truncate">{children}</span>
+                        </div>
                       </th>
                     ),
-                    td: ({ children }: any) => (
-                      <td className="border-b border-gray-200 px-4 py-3 text-gray-700">
+                    tbody: ({ children }: any) => (
+                      <tbody className="divide-y divide-gray-100">
                         {children}
+                      </tbody>
+                    ),
+                    tr: ({ children }: any) => (
+                      <tr className="hover:bg-gray-50 transition-colors duration-150">
+                        {children}
+                      </tr>
+                    ),
+                    td: ({ children }: any) => (
+                      <td className="px-3 sm:px-6 py-2 sm:py-4 text-gray-700 leading-relaxed text-xs sm:text-sm">
+                        <div
+                          className="truncate max-w-[200px] sm:max-w-none"
+                          title={typeof children === "string" ? children : ""}
+                        >
+                          {children}
+                        </div>
                       </td>
                     ),
 
                     // Paragraflar - daha iyi spacing
                     p: ({ children }: any) => (
-                      <p className="mb-3 last:mb-0 text-gray-700 leading-relaxed">
+                      <p className="mb-3 last:mb-0 text-gray-700 leading-relaxed break-words overflow-wrap-anywhere">
                         {children}
                       </p>
                     ),
 
                     // Vurgu metinleri
                     strong: ({ children }: any) => (
-                      <strong className="font-bold text-gray-900">
+                      <strong className="font-bold text-gray-900 inline">
                         {children}
                       </strong>
                     ),
@@ -387,22 +509,22 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
 
       {/* User Avatar */}
       {isUser && (
-        <div className="flex flex-col items-center ml-3">
+        <div className="flex flex-col items-center ml-2 sm:ml-3 flex-shrink-0">
           {userAvatarUrl ? (
             <img
               src={userAvatarUrl}
               alt="User"
-              className="w-9 h-9 rounded-full object-cover shadow-lg border-2 border-white"
+              className="w-8 h-8 sm:w-9 sm:h-9 rounded-full object-cover shadow-lg border-2 border-white"
             />
           ) : (
-            <div className="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white">
+            <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center text-white font-bold shadow-lg border-2 border-white text-xs sm:text-sm">
               {user?.full_name?.[0]?.toUpperCase() ||
                 userInitial?.toUpperCase() ||
                 "U"}
             </div>
           )}
           {timestamp && (
-            <span className="text-xs text-gray-400 mt-1">
+            <span className="text-xs text-gray-400 mt-1 hidden sm:block">
               {formatTimestamp(timestamp)}
             </span>
           )}

@@ -33,18 +33,15 @@ const UnsavedChangesModal = forwardRef<
             </svg>
           </div>
           <div>
-            <h3 className="font-bold text-lg text-white">
-              Kaydedilmemiş Değişiklikler
-            </h3>
+            <h3 className="font-bold text-lg text-white">Unsaved Changes</h3>
             <p className="text-sm text-gray-400">
-              Değişiklikleriniz kaydedilmedi
+              Your changes have not been saved
             </p>
           </div>
         </div>
 
         <p className="text-gray-300 mb-6">
-          Workflow'unuzda kaydedilmemiş değişiklikler var. Bu sayfadan
-          ayrılmadan önce değişikliklerinizi kaydetmek ister misiniz?
+          Do you want to save your changes before leaving this page?
         </p>
 
         <div className="modal-action gap-2">
@@ -55,7 +52,7 @@ const UnsavedChangesModal = forwardRef<
               dialogRef.current?.close();
             }}
           >
-            İptal
+            Cancel
           </button>
           <button
             className="btn btn-outline btn-sm text-red-400 border-red-600 hover:bg-red-900/20 hover:text-red-300"
@@ -64,7 +61,7 @@ const UnsavedChangesModal = forwardRef<
               dialogRef.current?.close();
             }}
           >
-            Değişiklikleri Sil
+            Discard Changes
           </button>
           <button
             className="btn btn-primary btn-sm bg-blue-600 hover:bg-blue-700 text-white"
@@ -73,7 +70,7 @@ const UnsavedChangesModal = forwardRef<
               dialogRef.current?.close();
             }}
           >
-            Kaydet
+            Save
           </button>
         </div>
       </div>

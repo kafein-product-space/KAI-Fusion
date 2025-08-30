@@ -301,9 +301,11 @@ IMPLEMENTATION DETAILS:
 """
 
 from app.models.workflow import Workflow, WorkflowTemplate
+from app.models.user import User
 from app.services.base import BaseService
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy import desc, or_, and_, func
 from typing import Optional, List
 import uuid
@@ -361,9 +363,9 @@ class WorkflowService(BaseService[Workflow]):
         search: Optional[str] = None
     ) -> List[Workflow]:
         """
-        Get all public workflows with optional search.
+        Get all public workflows with optional search, including user information.
         """
-        query = select(self.model).filter_by(is_public=True)
+        query = select(self.model).options(selectinload(self.model.user)).filter_by(is_public=True)
         
         # Add search filter if provided
         if search:

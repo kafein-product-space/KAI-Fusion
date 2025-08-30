@@ -5,7 +5,8 @@ import type {
   UserResponse, 
   SignUpRequest, 
   SignInRequest,
-  AuthResponse 
+  AuthResponse,
+  UserUpdateProfile
 } from '~/services/authService';
 
 interface AuthState {
@@ -21,6 +22,7 @@ interface AuthState {
   signIn: (data: SignInRequest) => Promise<void>;
   signOut: () => Promise<void>;
   getProfile: () => Promise<void>;
+  updateProfile: (data: UserUpdateProfile) => Promise<void>;
   clearError: () => void;
   setUser: (user: UserResponse | null) => void;
   setIsAuthenticated: (auth: boolean) => void;
@@ -163,6 +165,27 @@ export const useAuthStore = create<AuthState>()(
       }
     },
 
+    updateProfile: async (data: UserUpdateProfile) => {
+      const currentState = get();
+      set({ isLoading: true, error: null });
+      
+      try {
+        const updatedUser = await AuthService.updateProfile(data);
+        set({ 
+          user: updatedUser,
+          isLoading: false,
+          error: null
+        });
+      } catch (error: any) {
+        set({ 
+          user: currentState.user, // Revert to current user on error
+          isLoading: false,
+          error: error.response?.data?.detail || error.message || 'Failed to update profile'
+        });
+        throw error;
+      }
+    },
+
     clearError: () => {
       set({ error: null });
     },
@@ -194,6 +217,7 @@ export const useAuth = () => {
     signIn: store.signIn,
     signOut: store.signOut,
     getProfile: store.getProfile,
+    updateProfile: store.updateProfile,
     clearError: store.clearError,
     setUser: store.setUser,
     setIsAuthenticated: store.setIsAuthenticated,

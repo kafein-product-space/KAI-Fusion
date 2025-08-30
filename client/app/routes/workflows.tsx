@@ -29,7 +29,10 @@ import type {
   WorkflowCreateRequest,
   WorkflowUpdateRequest,
 } from "~/types/api";
-import type { ExternalWorkflowInfo, ExternalWorkflowConfig } from "~/types/external-workflows";
+import type {
+  ExternalWorkflowInfo,
+  ExternalWorkflowConfig,
+} from "~/types/external-workflows";
 import { externalWorkflowService } from "~/services/externalWorkflowService";
 import ExternalWorkflowChat from "~/components/external/ExternalWorkflowChat";
 import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
@@ -41,6 +44,7 @@ import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import PinnedItemsSection from "~/components/common/PinnedItemsSection";
 import PinButton from "~/components/common/PinButton";
+import WorkflowEditModal from "~/components/modals/WorkflowEditModal";
 
 const ErrorMessageBlock = ({
   error,
@@ -115,8 +119,10 @@ function WorkflowsLayout() {
   } = useWorkflows();
 
   // Tab state
-  const [activeTab, setActiveTab] = useState<"my-workflows" | "external-workflows">("my-workflows");
-  
+  const [activeTab, setActiveTab] = useState<
+    "my-workflows" | "external-workflows"
+  >("my-workflows");
+
   // My workflows state
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<
@@ -124,22 +130,28 @@ function WorkflowsLayout() {
   >("all");
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
   const [editWorkflow, setEditWorkflow] = useState<Workflow | null>(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [workflowToDelete, setWorkflowToDelete] = useState<Workflow | null>(
     null
   );
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [itemsPerPage, setItemsPerPage] = useState(6);
-  
+
   // External workflows state
-  const [externalWorkflows, setExternalWorkflows] = useState<ExternalWorkflowInfo[]>([]);
+  const [externalWorkflows, setExternalWorkflows] = useState<
+    ExternalWorkflowInfo[]
+  >([]);
   const [externalLoading, setExternalLoading] = useState(false);
   const [externalError, setExternalError] = useState<string | null>(null);
   const [showAddExternalModal, setShowAddExternalModal] = useState(false);
-  const [selectedExternalWorkflow, setSelectedExternalWorkflow] = useState<ExternalWorkflowInfo | null>(null);
+  const [selectedExternalWorkflow, setSelectedExternalWorkflow] =
+    useState<ExternalWorkflowInfo | null>(null);
   const [showExternalChatModal, setShowExternalChatModal] = useState(false);
   const [showExternalViewerModal, setShowExternalViewerModal] = useState(false);
-  const [externalWorkflowToRemove, setExternalWorkflowToRemove] = useState<ExternalWorkflowInfo | null>(null);
-  const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] = useState(false);
+  const [externalWorkflowToRemove, setExternalWorkflowToRemove] =
+    useState<ExternalWorkflowInfo | null>(null);
+  const [showRemoveExternalConfirm, setShowRemoveExternalConfirm] =
+    useState(false);
   const [page, setPage] = useState(1);
 
   // Sayfalama hesaplamaları
@@ -244,20 +256,33 @@ function WorkflowsLayout() {
       const data = await externalWorkflowService.listExternalWorkflows();
       setExternalWorkflows(data);
     } catch (error) {
-      setExternalError(error instanceof Error ? error.message : 'Failed to fetch external workflows');
+      setExternalError(
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch external workflows"
+      );
     } finally {
       setExternalLoading(false);
     }
   };
 
-  const handleRegisterExternalWorkflow = async (config: ExternalWorkflowConfig) => {
+  const handleRegisterExternalWorkflow = async (
+    config: ExternalWorkflowConfig
+  ) => {
     try {
       await externalWorkflowService.registerExternalWorkflow(config);
-      enqueueSnackbar('External workflow registered successfully!', { variant: 'success' });
+      enqueueSnackbar("External workflow registered successfully!", {
+        variant: "success",
+      });
       setShowAddExternalModal(false);
       fetchExternalWorkflows();
     } catch (error) {
-      enqueueSnackbar(error instanceof Error ? error.message : 'Failed to register external workflow', { variant: 'error' });
+      enqueueSnackbar(
+        error instanceof Error
+          ? error.message
+          : "Failed to register external workflow",
+        { variant: "error" }
+      );
     }
   };
 
@@ -280,14 +305,23 @@ function WorkflowsLayout() {
     if (!externalWorkflowToRemove) return;
 
     try {
-      await externalWorkflowService.unregisterExternalWorkflow(externalWorkflowToRemove.workflow_id);
-      enqueueSnackbar("External workflow removed successfully", { variant: "success" });
-      
+      await externalWorkflowService.unregisterExternalWorkflow(
+        externalWorkflowToRemove.workflow_id
+      );
+      enqueueSnackbar("External workflow removed successfully", {
+        variant: "success",
+      });
+
       // Remove from local state
-      setExternalWorkflows(prev => prev.filter(w => w.workflow_id !== externalWorkflowToRemove.workflow_id));
+      setExternalWorkflows((prev) =>
+        prev.filter(
+          (w) => w.workflow_id !== externalWorkflowToRemove.workflow_id
+        )
+      );
     } catch (error: any) {
       console.error("Remove external workflow error:", error);
-      const errorMessage = error?.message || error?.detail || "Failed to remove external workflow";
+      const errorMessage =
+        error?.message || error?.detail || "Failed to remove external workflow";
       enqueueSnackbar(errorMessage, { variant: "error" });
     } finally {
       setExternalWorkflowToRemove(null);
@@ -302,11 +336,9 @@ function WorkflowsLayout() {
 
   const validateWorkflow = (values: WorkflowFormValues) => {
     const errors: Partial<WorkflowFormValues> = {};
-
     if (!values.name) errors.name = "Workflow name is required";
     else if (values.name.length < 3)
       errors.name = "Workflow name must be at least 3 characters";
-
     if (!values.description)
       errors.description = "Workflow description is required";
     else if (values.description.length < 3)
@@ -315,29 +347,34 @@ function WorkflowsLayout() {
     return errors;
   };
 
-  // Edit modal submit fonksiyonu
-  const handleWorkflowEditSubmit = async (
-    values: WorkflowFormValues,
-    { setSubmitting }: any
-  ) => {
+  // Edit modal handlers
+  const handleEditClick = (workflow: Workflow) => {
+    setEditWorkflow(workflow);
+    setIsEditModalOpen(true);
+  };
+
+  const handleEditModalClose = () => {
+    setIsEditModalOpen(false);
+    setEditWorkflow(null);
+  };
+
+  const handleWorkflowEditSubmit = async (values: WorkflowFormValues) => {
     if (!editWorkflow) return;
+
     const payload: WorkflowUpdateRequest = {
       name: values.name,
       description: values.description,
       is_public: values.is_public,
       flow_data: editWorkflow.flow_data, // flow_data'yı koru
     };
+
     try {
       await updateWorkflow(editWorkflow.id, payload);
       enqueueSnackbar("Workflow updated successfully", { variant: "success" });
-      (
-        document.getElementById("modalEditWorkflow") as HTMLDialogElement
-      )?.close();
-      setEditWorkflow(null);
+      handleEditModalClose();
     } catch (e) {
       enqueueSnackbar("Failed to update workflow", { variant: "error" });
-    } finally {
-      setSubmitting(false);
+      throw e; // Re-throw to handle in modal
     }
   };
 
@@ -418,15 +455,15 @@ function WorkflowsLayout() {
                       onClick={() => setStatusFilter("inactive")}
                       className={`px-3 py-2 text-sm font-medium rounded-md transition-all duration-200 ${
                         statusFilter === "inactive"
-                        ? "bg-white text-gray-900 shadow-sm"
-                        : "text-gray-600 hover:text-gray-900"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
-                      Inactive
-                    </div>
-                  </button>
+                          ? "bg-white text-gray-900 shadow-sm"
+                          : "text-gray-600 hover:text-gray-900"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 bg-gray-400 rounded-full"></div>
+                        Inactive
+                      </div>
+                    </button>
                   </div>
                 )}
 
@@ -448,7 +485,7 @@ function WorkflowsLayout() {
                     {/* Create Workflow Button */}
                     <Link
                       to="/canvas"
-                      className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
+                      className="flex items-center justify-center gap-2 px-6 py-2 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-full sm:w-auto"
                     >
                       <Plus className="w-5 h-5" />
                       Create Workflow
@@ -487,215 +524,216 @@ function WorkflowsLayout() {
                 ) : filteredWorkflows.length === 0 ? (
                   <EmptyState />
                 ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredWorkflows.slice(startIdx, endIdx).map((workflow) => (
-                  <div
-                    key={workflow.id}
-                    className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden"
-                  >
-                    {/* Status Indicator Bar */}
-                    <div
-                      className={`absolute top-0 left-0 right-0 h-1 ${
-                        workflow.is_active
-                          ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                          : "bg-gradient-to-r from-gray-400 to-gray-500"
-                      }`}
-                    />
-
-                    {/* Header */}
-                    <div className="flex items-start justify-between mb-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2 mb-2">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {filteredWorkflows
+                      .slice(startIdx, endIdx)
+                      .map((workflow) => (
+                        <div
+                          key={workflow.id}
+                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-purple-200 group relative overflow-hidden"
+                        >
+                          {/* Status Indicator Bar */}
                           <div
-                            className={`w-2 h-2 rounded-full ${
+                            className={`absolute top-0 left-0 right-0 h-1 ${
                               workflow.is_active
-                                ? "bg-green-500 animate-pulse"
-                                : "bg-gray-400"
+                                ? "bg-gradient-to-r from-green-500 to-emerald-500"
+                                : "bg-gradient-to-r from-gray-400 to-gray-500"
                             }`}
                           />
-                          <Link
-                            to={`/canvas?workflow=${workflow.id}`}
-                            className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
-                          >
-                            {workflow.name}
-                          </Link>
+
+                          {/* Header */}
+                          <div className="flex items-start justify-between mb-4">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <div
+                                  className={`w-2 h-2 rounded-full ${
+                                    workflow.is_active
+                                      ? "bg-green-500 animate-pulse"
+                                      : "bg-gray-400"
+                                  }`}
+                                />
+                                <Link
+                                  to={`/canvas?workflow=${workflow.id}`}
+                                  className="text-lg font-semibold text-gray-900 hover:text-purple-600 transition-colors group-hover:text-purple-600"
+                                >
+                                  {workflow.name}
+                                </Link>
+                              </div>
+                              <p className="text-sm text-gray-600 line-clamp-2">
+                                {workflow.description || "No description"}
+                              </p>
+                            </div>
+
+                            {/* Pin Button */}
+                            <div className="flex items-center gap-2">
+                              <PinButton
+                                id={workflow.id}
+                                type="workflow"
+                                title={workflow.name}
+                                description={workflow.description}
+                                metadata={{
+                                  status: workflow.is_public
+                                    ? "Public"
+                                    : "Private",
+                                  lastActivity: workflow.updated_at,
+                                }}
+                                size="sm"
+                                variant="minimal"
+                              />
+                            </div>
+                          </div>
+
+                          {/* Status and Visibility Badges */}
+                          <div className="flex items-center justify-between mb-4">
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                                  workflow.is_public
+                                    ? "bg-blue-100 text-blue-800 border border-blue-200"
+                                    : "bg-gray-100 text-gray-800 border border-gray-200"
+                                }`}
+                              >
+                                {workflow.is_public ? "Public" : "Private"}
+                              </span>
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
+                                  workflow.is_active
+                                    ? "bg-green-100 text-green-800 border border-green-200"
+                                    : "bg-gray-100 text-gray-600 border border-gray-200"
+                                }`}
+                              >
+                                {workflow.is_active ? (
+                                  <>
+                                    <Activity className="w-3 h-3" />
+                                    Active
+                                  </>
+                                ) : (
+                                  <>
+                                    <Pause className="w-3 h-3" />
+                                    Inactive
+                                  </>
+                                )}
+                              </span>
+                            </div>
+
+                            {/* Active/Inactive Toggle */}
+                            <CompactToggleSwitch
+                              isActive={workflow.is_active || false}
+                              onToggle={(isActive) =>
+                                handleToggleWorkflowStatus(
+                                  workflow.id,
+                                  isActive
+                                )
+                              }
+                            />
+                          </div>
+
+                          {/* Metadata */}
+                          <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Calendar className="w-3 h-3" />
+                              <span className="font-medium">Created:</span>
+                              <span>{timeAgo(workflow.created_at)}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs text-gray-600">
+                              <Clock className="w-3 h-3" />
+                              <span className="font-medium">Updated:</span>
+                              <span>{timeAgo(workflow.updated_at)}</span>
+                            </div>
+                          </div>
+
+                          {/* Actions */}
+                          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                            <Link
+                              to={`/canvas?workflow=${workflow.id}`}
+                              className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium hover:bg-purple-50 px-3 py-2 rounded-lg transition-all duration-200"
+                            >
+                              <Play className="w-4 h-4" />
+                              Open Workflow
+                            </Link>
+
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleEditClick(workflow)}
+                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                title="Edit workflow"
+                              >
+                                <Pencil className="w-4 h-4" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(workflow)}
+                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                title="Delete workflow"
+                              >
+                                <Trash className="w-4 h-4" />
+                              </button>
+                            </div>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-600 line-clamp-2">
-                          {workflow.description || "No description"}
-                        </p>
-                      </div>
+                      ))}
+                  </div>
+                )}
 
-                      {/* Pin Button */}
-                      <div className="flex items-center gap-2">
-                        <PinButton
-                          id={workflow.id}
-                          type="workflow"
-                          title={workflow.name}
-                          description={workflow.description}
-                          metadata={{
-                            status: workflow.is_public ? "Public" : "Private",
-                            lastActivity: workflow.updated_at,
-                          }}
-                          size="sm"
-                          variant="minimal"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Status and Visibility Badges */}
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center gap-2">
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                            workflow.is_public
-                              ? "bg-blue-100 text-blue-800 border border-blue-200"
-                              : "bg-gray-100 text-gray-800 border border-gray-200"
-                          }`}
-                        >
-                          {workflow.is_public ? "Public" : "Private"}
-                        </span>
-                        <span
-                          className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${
-                            workflow.is_active
-                              ? "bg-green-100 text-green-800 border border-green-200"
-                              : "bg-gray-100 text-gray-600 border border-gray-200"
-                          }`}
-                        >
-                          {workflow.is_active ? (
-                            <>
-                              <Activity className="w-3 h-3" />
-                              Active
-                            </>
-                          ) : (
-                            <>
-                              <Pause className="w-3 h-3" />
-                              Inactive
-                            </>
-                          )}
-                        </span>
-                      </div>
-
-                      {/* Active/Inactive Toggle */}
-                      <CompactToggleSwitch
-                        isActive={workflow.is_active || false}
-                        onToggle={(isActive) =>
-                          handleToggleWorkflowStatus(workflow.id, isActive)
-                        }
-                      />
-                    </div>
-
-                    {/* Metadata */}
-                    <div className="grid grid-cols-2 gap-4 mb-4 p-3 bg-gray-50 rounded-lg">
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Calendar className="w-3 h-3" />
-                        <span className="font-medium">Created:</span>
-                        <span>{timeAgo(workflow.created_at)}</span>
-                      </div>
-                      <div className="flex items-center gap-2 text-xs text-gray-600">
-                        <Clock className="w-3 h-3" />
-                        <span className="font-medium">Updated:</span>
-                        <span>{timeAgo(workflow.updated_at)}</span>
-                      </div>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center justify-between pt-4 border-t border-gray-100">
-                      <Link
-                        to={`/canvas?workflow=${workflow.id}`}
-                        className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium hover:bg-purple-50 px-3 py-2 rounded-lg transition-all duration-200"
-                      >
-                        <Play className="w-4 h-4" />
-                        Open Workflow
-                      </Link>
-
-                      <div className="flex items-center gap-1">
+                {/* Pagination */}
+                {!error && !isLoading && filteredWorkflows.length > 0 && (
+                  <div className="mt-8">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white rounded-2xl">
+                      <div></div>
+                      <div className="flex items-center gap-2 justify-center">
                         <button
-                          onClick={() => {
-                            setEditWorkflow(workflow);
-                            (
-                              document.getElementById(
-                                "modalEditWorkflow"
-                              ) as HTMLDialogElement
-                            )?.showModal();
-                          }}
-                          className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
-                          title="Edit workflow"
+                          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setPage(page - 1)}
+                          disabled={page === 1}
                         >
-                          <Pencil className="w-4 h-4" />
+                          <ChevronLeft className="w-5 h-5" />
                         </button>
+
+                        {Array.from(
+                          { length: totalPages },
+                          (_, i) => i + 1
+                        ).map((p) => (
+                          <button
+                            key={p}
+                            onClick={() => setPage(p)}
+                            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
+                              p === page
+                                ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                                : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
+                            }`}
+                          >
+                            {p}
+                          </button>
+                        ))}
+
                         <button
-                          onClick={() => handleDelete(workflow)}
-                          className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
-                          title="Delete workflow"
+                          className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                          onClick={() => setPage(page + 1)}
+                          disabled={page === totalPages}
                         >
-                          <Trash className="w-4 h-4" />
+                          <ChevronRight className="w-5 h-5" />
                         </button>
                       </div>
+
+                      <div className="text-sm text-gray-600 text-right">
+                        Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx}{" "}
+                        of {totalItems}
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            )}
 
-            {/* Pagination */}
-            {!error && !isLoading && filteredWorkflows.length > 0 && (
-              <div className="mt-8">
-                <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white rounded-2xl">
-                  <div></div>
-                  <div className="flex items-center gap-2 justify-center">
-                    <button
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => setPage(page - 1)}
-                      disabled={page === 1}
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                      (p) => (
-                        <button
-                          key={p}
-                          onClick={() => setPage(p)}
-                          className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
-                            p === page
-                              ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
-                              : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
-                          }`}
-                        >
-                          {p}
-                        </button>
-                      )
-                    )}
-
-                    <button
-                      className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                      onClick={() => setPage(page + 1)}
-                      disabled={page === totalPages}
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  <div className="text-sm text-gray-600 text-right">
-                    Items {totalItems === 0 ? 0 : startIdx + 1} to {endIdx} of{" "}
-                    {totalItems}
-                  </div>
-                </div>
-
-                {/* Search Results Info */}
-                {searchQuery && (
-                  <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
-                    Showing {filteredWorkflows.length} of {workflows.length}{" "}
-                    workflows
-                    {filteredWorkflows.length === 0 && (
-                      <span className="ml-2 text-gray-500">
-                        - No workflows match "{searchQuery}"
-                      </span>
+                    {/* Search Results Info */}
+                    {searchQuery && (
+                      <div className="mt-4 p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-600">
+                        Showing {filteredWorkflows.length} of {workflows.length}{" "}
+                        workflows
+                        {filteredWorkflows.length === 0 && (
+                          <span className="ml-2 text-gray-500">
+                            - No workflows match "{searchQuery}"
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
-              </div>
-            )}
               </>
             ) : (
               /* External Workflows Content */
@@ -728,7 +766,8 @@ function WorkflowsLayout() {
                       No External Workflows
                     </h3>
                     <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                      You haven't registered any external workflows yet. Add an external Docker workflow to get started.
+                      You haven't registered any external workflows yet. Add an
+                      external Docker workflow to get started.
                     </p>
                     <button
                       onClick={() => setShowAddExternalModal(true)}
@@ -774,7 +813,8 @@ function WorkflowsLayout() {
                               </h3>
                             </div>
                             <p className="text-sm text-gray-600 mb-3 line-clamp-2">
-                              {workflow.description || "No description available"}
+                              {workflow.description ||
+                                "No description available"}
                             </p>
                           </div>
                         </div>
@@ -814,32 +854,47 @@ function WorkflowsLayout() {
                         {/* Status and Actions */}
                         <div className="flex items-center justify-between">
                           <div className="text-xs text-gray-500">
-                            Status: <span className={`font-medium ${
-                              workflow.connection_status === "online" ? "text-green-600" :
-                              workflow.connection_status === "offline" ? "text-red-600" : "text-yellow-600"
-                            }`}>
+                            Status:{" "}
+                            <span
+                              className={`font-medium ${
+                                workflow.connection_status === "online"
+                                  ? "text-green-600"
+                                  : workflow.connection_status === "offline"
+                                  ? "text-red-600"
+                                  : "text-yellow-600"
+                              }`}
+                            >
                               {workflow.connection_status}
                             </span>
                           </div>
-                          
+
                           <div className="flex items-center gap-2">
                             <button
-                              onClick={() => handleChatWithExternalWorkflow(workflow)}
-                              disabled={!workflow.capabilities?.chat || workflow.connection_status !== "online"}
+                              onClick={() =>
+                                handleChatWithExternalWorkflow(workflow)
+                              }
+                              disabled={
+                                !workflow.capabilities?.chat ||
+                                workflow.connection_status !== "online"
+                              }
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:bg-gray-400 disabled:cursor-not-allowed"
                             >
                               <MessageCircle className="w-3 h-3" />
                               Chat
                             </button>
                             <button
-                              onClick={() => handleViewExternalWorkflow(workflow)}
+                              onClick={() =>
+                                handleViewExternalWorkflow(workflow)
+                              }
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
                             >
                               <Eye className="w-3 h-3" />
                               View
                             </button>
                             <button
-                              onClick={() => handleRemoveExternalWorkflow(workflow)}
+                              onClick={() =>
+                                handleRemoveExternalWorkflow(workflow)
+                              }
                               className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
                               title="Remove external workflow"
                             >
@@ -979,10 +1034,14 @@ function WorkflowsLayout() {
         <div className="modal-box">
           <h3 className="font-bold text-lg">Remove External Workflow</h3>
           <p className="py-4">
-            Are you sure you want to remove "{externalWorkflowToRemove?.name}"? This action cannot be undone.
+            Are you sure you want to remove "{externalWorkflowToRemove?.name}"?
+            This action cannot be undone.
           </p>
           <div className="modal-action">
-            <button className="btn btn-outline" onClick={handleCancelRemoveExternal}>
+            <button
+              className="btn btn-outline"
+              onClick={handleCancelRemoveExternal}
+            >
               Cancel
             </button>
             <button
@@ -999,23 +1058,29 @@ function WorkflowsLayout() {
       {showAddExternalModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md mx-4">
-            <h3 className="text-xl font-bold text-gray-900 mb-4">Add External Workflow</h3>
-            <form onSubmit={async (e) => {
-              e.preventDefault();
-              const formData = new FormData(e.currentTarget);
-              const config = {
-                name: formData.get('name') as string,
-                description: formData.get('description') as string,
-                host: formData.get('host') as string,
-                port: parseInt(formData.get('port') as string),
-                is_secure: formData.get('is_secure') === 'on',
-                api_key: formData.get('api_key') as string || undefined,
-              };
-              await handleRegisterExternalWorkflow(config);
-            }}>
+            <h3 className="text-xl font-bold text-gray-900 mb-4">
+              Add External Workflow
+            </h3>
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                const formData = new FormData(e.currentTarget);
+                const config = {
+                  name: formData.get("name") as string,
+                  description: formData.get("description") as string,
+                  host: formData.get("host") as string,
+                  port: parseInt(formData.get("port") as string),
+                  is_secure: formData.get("is_secure") === "on",
+                  api_key: (formData.get("api_key") as string) || undefined,
+                };
+                await handleRegisterExternalWorkflow(config);
+              }}
+            >
               <div className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Name
+                  </label>
                   <input
                     type="text"
                     name="name"
@@ -1025,7 +1090,9 @@ function WorkflowsLayout() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Description
+                  </label>
                   <textarea
                     name="description"
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
@@ -1034,7 +1101,9 @@ function WorkflowsLayout() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Host</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Host
+                  </label>
                   <input
                     type="text"
                     name="host"
@@ -1044,7 +1113,9 @@ function WorkflowsLayout() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Port</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Port
+                  </label>
                   <input
                     type="number"
                     name="port"
@@ -1057,12 +1128,18 @@ function WorkflowsLayout() {
                 </div>
                 <div>
                   <label className="flex items-center gap-2">
-                    <input type="checkbox" name="is_secure" className="rounded" />
+                    <input
+                      type="checkbox"
+                      name="is_secure"
+                      className="rounded"
+                    />
                     <span className="text-sm text-gray-700">Use HTTPS</span>
                   </label>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">API Key (Optional)</label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    API Key (Optional)
+                  </label>
                   <input
                     type="password"
                     name="api_key"
@@ -1127,6 +1204,15 @@ function WorkflowsLayout() {
           }}
         />
       )}
+
+      {/* Workflow Edit Modal */}
+      <WorkflowEditModal
+        isOpen={isEditModalOpen}
+        workflow={editWorkflow}
+        onClose={handleEditModalClose}
+        onSubmit={handleWorkflowEditSubmit}
+        isLoading={isLoading}
+      />
     </div>
   );
 }

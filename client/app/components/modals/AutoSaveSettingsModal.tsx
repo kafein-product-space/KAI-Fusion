@@ -62,10 +62,10 @@ const AutoSaveSettingsModal = forwardRef<
             </div>
             <div>
               <h3 className="font-bold text-lg text-white">
-                Auto-Save Ayarları
+                Auto-Save Settings
               </h3>
               <p className="text-sm text-gray-400">
-                Otomatik kaydetme ayarlarını yapılandırın
+                Configure auto-save settings
               </p>
             </div>
           </div>
@@ -84,7 +84,7 @@ const AutoSaveSettingsModal = forwardRef<
                 <div>
                   <h4 className="font-medium text-white">Auto-Save</h4>
                   <p className="text-xs text-gray-400">
-                    Değişiklikleri otomatik olarak kaydet
+                    Automatically save changes
                   </p>
                 </div>
               </div>
@@ -109,7 +109,7 @@ const AutoSaveSettingsModal = forwardRef<
                   <Clock className="w-4 h-4 text-green-500" />
                 </div>
                 <div>
-                  <h4 className="font-medium text-white">Kaydetme Sıklığı</h4>
+                  <h4 className="font-medium text-white">Save Interval</h4>
                   <p className="text-xs text-gray-400">
                     {formatInterval(localAutoSaveInterval)}
                   </p>
@@ -122,11 +122,11 @@ const AutoSaveSettingsModal = forwardRef<
                 }
                 className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1 border border-gray-600 focus:border-blue-500 focus:outline-none"
               >
-                <option value={10000}>10 saniye</option>
-                <option value={30000}>30 saniye</option>
-                <option value={60000}>1 dakika</option>
-                <option value={300000}>5 dakika</option>
-                <option value={600000}>10 dakika</option>
+                <option value={10000}>10 seconds</option>
+                <option value={30000}>30 seconds</option>
+                <option value={60000}>1 minute</option>
+                <option value={300000}>5 minutes</option>
+                <option value={600000}>10 minutes</option>
               </select>
             </div>
 
@@ -136,7 +136,7 @@ const AutoSaveSettingsModal = forwardRef<
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-green-400 rounded-full"></div>
                   <span className="text-sm text-gray-300">
-                    Son kaydetme: {lastAutoSave.toLocaleString("tr-TR")}
+                    Last save: {lastAutoSave.toLocaleString("tr-TR")}
                   </span>
                 </div>
               </div>
@@ -145,8 +145,8 @@ const AutoSaveSettingsModal = forwardRef<
             {/* Info */}
             <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
               <p className="text-xs text-blue-300">
-                💡 Auto-save özelliği sadece mevcut workflow'lar için çalışır.
-                Yeni workflow'lar için manuel kaydetme gereklidir.
+                💡 Auto-save feature only works for current workflows. Manual
+                saving is required for new workflows.
               </p>
             </div>
           </div>
@@ -156,13 +156,13 @@ const AutoSaveSettingsModal = forwardRef<
               className="btn btn-outline btn-sm text-gray-400 border-gray-600 hover:bg-gray-800 hover:text-white"
               onClick={handleCancel}
             >
-              İptal
+              Cancel
             </button>
             <button
               className="btn btn-primary btn-sm bg-blue-600 hover:bg-blue-700 text-white"
               onClick={handleSave}
             >
-              Kaydet
+              Save
             </button>
           </div>
         </div>

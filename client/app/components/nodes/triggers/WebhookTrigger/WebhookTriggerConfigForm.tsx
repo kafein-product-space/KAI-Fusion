@@ -24,20 +24,42 @@ import TabNavigation from "~/components/common/TabNavigation";
 
 // Standard props interface matching other config forms
 interface WebhookTriggerConfigFormProps {
-  configData: any;
-  onSave: (values: any) => void;
+  configData?: any;
+  onSave?: (values: any) => void;
   onCancel: () => void;
+  initialValues?: any;
+  validate?: (values: any) => any;
+  onSubmit?: (values: any) => void;
+  webhookEndpoint?: string;
+  webhookToken?: string;
+  events?: any[];
+  stats?: any;
+  isListening?: boolean;
+  onTestEvent?: () => void;
+  onStopListening?: () => void;
+  onCopyToClipboard?: (text: string, type: string) => void;
 }
 
 export default function WebhookTriggerConfigForm({
   configData,
   onSave,
   onCancel,
+  initialValues: propInitialValues,
+  validate: propValidate,
+  onSubmit: propOnSubmit,
+  webhookEndpoint,
+  webhookToken,
+  events,
+  stats,
+  isListening,
+  onTestEvent,
+  onStopListening,
+  onCopyToClipboard,
 }: WebhookTriggerConfigFormProps) {
   const [activeTab, setActiveTab] = useState("basic");
   
   // Default values for missing fields
-  const initialValues = {
+  const initialValues = propInitialValues || {
     http_method: configData?.http_method || "POST",
     authentication_required: configData?.authentication_required ?? false,
     webhook_token: configData?.webhook_token || "",
@@ -61,7 +83,7 @@ export default function WebhookTriggerConfigForm({
   const [currentValues, setCurrentValues] = useState(initialValues);
   
   // Validation function
-  const validate = (values: any) => {
+  const validate = propValidate || ((values: any) => {
     const errors: any = {};
     if (!values.max_payload_size || values.max_payload_size < 1) {
       errors.max_payload_size = "Max payload size must be at least 1 KB";
@@ -73,20 +95,23 @@ export default function WebhookTriggerConfigForm({
       errors.webhook_timeout = "Webhook timeout must be between 5 and 300 seconds";
     }
     return errors;
-  };
+  });
+
+  // Use the provided onSubmit or fallback to onSave
+  const handleSubmit = propOnSubmit || onSave;
   
-  // Mock data for testing features since these would come from backend
-  const webhookEndpoint = "http://localhost:8000/api/webhooks/trigger/123";
-  const events: any[] = [];
-  const stats: any = { total_events: 0 };
-  const isListening = false;
+  // Use passed props or fallback to mock data for testing features
+  const finalWebhookEndpoint = webhookEndpoint || "http://localhost:8000/api/webhooks/trigger/123";
+  const finalEvents = events || [];
+  const finalStats = stats || { total_events: 0 };
+  const finalIsListening = isListening || false;
   
-  // Mock functions for testing features
-  const onTestEvent = () => {};
-  const onStopListening = () => {};
-  const onCopyToClipboard = (text: string, type: string) => {
+  // Mock functions for testing features if not provided
+  const finalOnTestEvent = onTestEvent || (() => {});
+  const finalOnStopListening = onStopListening || (() => {});
+  const finalOnCopyToClipboard = onCopyToClipboard || ((text: string, type: string) => {
     navigator.clipboard.writeText(text);
-  };
+  });
 
   const tabs = [
     {
@@ -116,7 +141,7 @@ export default function WebhookTriggerConfigForm({
   ];
 
   const generateCurlCommand = () => {
-    if (!webhookEndpoint) return "";
+    if (!finalWebhookEndpoint) return "";
 
     const method = currentValues.http_method || "POST";
     const timestamp = new Date().toISOString();
@@ -127,34 +152,34 @@ export default function WebhookTriggerConfigForm({
 
     switch (method) {
       case "GET":
-        return `curl -X GET "${webhookEndpoint}?event_type=test.event&data=test&timestamp=${timestamp}" \\
+        return `curl -X GET "${finalWebhookEndpoint}?event_type=test.event&data=test&timestamp=${timestamp}" \\
   ${authHeader}`;
 
       case "POST":
-        return `curl -X POST "${webhookEndpoint}" \\
+        return `curl -X POST "${finalWebhookEndpoint}" \\
   -H "Content-Type: application/json" \\
   ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
 
       case "PUT":
-        return `curl -X PUT "${webhookEndpoint}" \\
+        return `curl -X PUT "${finalWebhookEndpoint}" \\
   -H "Content-Type: application/json" \\
   ${authHeader}-d '{"event_type": "test.update", "data": {"id": 123, "status": "updated"}, "timestamp": "${timestamp}"}'`;
 
       case "PATCH":
-        return `curl -X PATCH "${webhookEndpoint}" \\
+        return `curl -X PATCH "${finalWebhookEndpoint}" \\
   -H "Content-Type: application/json" \\
   ${authHeader}-d '{"event_type": "test.partial_update", "data": {"status": "active"}, "timestamp": "${timestamp}"}'`;
 
       case "DELETE":
-        return `curl -X DELETE "${webhookEndpoint}?event_type=test.delete&id=123&timestamp=${timestamp}" \\
+        return `curl -X DELETE "${finalWebhookEndpoint}?event_type=test.delete&id=123&timestamp=${timestamp}" \\
   ${authHeader}`;
 
       case "HEAD":
-        return `curl -X HEAD "${webhookEndpoint}" \\
+        return `curl -X HEAD "${finalWebhookEndpoint}" \\
   ${authHeader}`;
 
       default:
-        return `curl -X POST "${webhookEndpoint}" \\
+        return `curl -X POST "${finalWebhookEndpoint}" \\
   -H "Content-Type: application/json" \\
   ${authHeader}-d '{"event_type": "test.event", "data": {"message": "Hello World"}, "timestamp": "${timestamp}"}'`;
     }
@@ -178,7 +203,9 @@ export default function WebhookTriggerConfigForm({
         }}
         onSubmit={(values, { setSubmitting }) => {
           console.log("Form submitted with values:", values);
-          onSave(values);
+          if (handleSubmit) {
+            handleSubmit(values);
+          }
           setSubmitting(false);
         }}
         enableReinitialize
@@ -579,15 +606,15 @@ export default function WebhookTriggerConfigForm({
                         <div className="flex gap-2">
                           <input
                             type="text"
-                            value={webhookEndpoint || "Loading..."}
+                            value={finalWebhookEndpoint || "Loading..."}
                             readOnly
                             className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 font-mono"
                           />
                           <button
                             type="button"
                             onClick={() =>
-                              onCopyToClipboard?.(
-                                webhookEndpoint || "",
+                              finalOnCopyToClipboard?.(
+                                finalWebhookEndpoint || "",
                                 "endpoint"
                               )
                             }
@@ -608,17 +635,17 @@ export default function WebhookTriggerConfigForm({
                     <div className="flex gap-2 mb-3">
                       <button
                         type="button"
-                        onClick={onTestEvent}
-                        disabled={isListening}
+                        onClick={finalOnTestEvent}
+                        disabled={finalIsListening}
                         className="btn btn-sm flex-1 bg-gradient-to-r from-yellow-500 to-orange-600 hover:from-yellow-400 hover:to-orange-500 text-white border-0"
                       >
                         <Radio className="w-3 h-3 mr-1" />
-                        {isListening ? "Listening..." : "Start Listening"}
+                        {finalIsListening ? "Listening..." : "Start Listening"}
                       </button>
-                      {isListening && (
+                      {finalIsListening && (
                         <button
                           type="button"
-                          onClick={onStopListening}
+                          onClick={finalOnStopListening}
                           className="btn btn-sm bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500 text-white border-0"
                         >
                           <Activity className="w-3 h-3 mr-1" />
@@ -632,10 +659,10 @@ export default function WebhookTriggerConfigForm({
                       <div className="flex items-center gap-1 mb-1">
                         <Activity className="w-2 h-2 text-blue-400" />
                         <span>
-                          Stream Status: {isListening ? "Active" : "Inactive"}
+                          Stream Status: {finalIsListening ? "Active" : "Inactive"}
                         </span>
                       </div>
-                      {isListening && (
+                      {finalIsListening && (
                         <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
                           <span className="text-green-400">
@@ -643,7 +670,7 @@ export default function WebhookTriggerConfigForm({
                           </span>
                         </div>
                       )}
-                      {!isListening && (
+                      {!finalIsListening && (
                         <div className="flex items-center gap-1">
                           <div className="w-2 h-2 bg-red-400 rounded-full"></div>
                           <span className="text-red-400">Not listening</span>
@@ -652,7 +679,7 @@ export default function WebhookTriggerConfigForm({
                     </div>
 
                     {/* cURL Command */}
-                    {webhookEndpoint && (
+                    {finalWebhookEndpoint && (
                       <div className="mb-3">
                         <label className="text-white text-sm font-medium mb-2 block">
                           cURL Command
@@ -667,7 +694,7 @@ export default function WebhookTriggerConfigForm({
                           <button
                             type="button"
                             onClick={() =>
-                              onCopyToClipboard?.(generateCurlCommand(), "curl")
+                              finalOnCopyToClipboard?.(generateCurlCommand(), "curl")
                             }
                             className="btn btn-sm btn-ghost text-white"
                           >
@@ -678,14 +705,14 @@ export default function WebhookTriggerConfigForm({
                     )}
 
                     {/* Recent Events */}
-                    {events && events.length > 0 && (
+                    {finalEvents && finalEvents.length > 0 && (
                       <div>
                         <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
                           <FileText className="w-3 h-3" />
-                          Recent Events ({events.length})
+                          Recent Events ({finalEvents.length})
                         </label>
                         <div className="max-h-32 overflow-y-auto space-y-1">
-                          {events.slice(0, 3).map((event, index) => (
+                          {finalEvents.slice(0, 3).map((event, index) => (
                             <div
                               key={index}
                               className="bg-slate-800/50 p-2 rounded text-sm text-white"
@@ -713,7 +740,7 @@ export default function WebhookTriggerConfigForm({
                     )}
 
                     {/* Statistics */}
-                    {stats && (
+                    {finalStats && (
                       <div>
                         <label className="text-white text-sm font-medium mb-2 block flex items-center gap-2">
                           <BarChart3 className="w-3 h-3" />
@@ -725,16 +752,16 @@ export default function WebhookTriggerConfigForm({
                               Total Events:
                             </span>
                             <span className="text-white font-semibold">
-                              {stats.total_events || 0}
+                              {finalStats.total_events || 0}
                             </span>
                           </div>
-                          {stats.last_event_at && (
+                          {finalStats.last_event_at && (
                             <div className="flex justify-between">
                               <span className="text-slate-400">
                                 Last Event:
                               </span>
                               <span className="text-white">
-                                {formatTime(stats.last_event_at)}
+                                {formatTime(finalStats.last_event_at)}
                               </span>
                             </div>
                           )}

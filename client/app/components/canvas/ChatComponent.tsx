@@ -58,7 +58,7 @@ export default function ChatComponent({
   // Get chat title from first user message
   const getChatTitle = () => {
     if (!activeChatflowId || chatHistory.length === 0) {
-      return "Yeni Konuşma";
+      return "New Conversation";
     }
 
     const firstUserMessage = chatHistory.find((msg) => msg.role === "user");
@@ -69,7 +69,7 @@ export default function ChatComponent({
         : title;
     }
 
-    return "Yeni Konuşma";
+    return "New Conversation";
   };
 
   const handleEditMessage = (messageId: string, currentContent: string) => {
@@ -152,7 +152,7 @@ export default function ChatComponent({
       className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${
         isExpanded
           ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
-          : "w-124 h-[620px]"
+          : "w-148 h-[600px]"
       }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
@@ -166,7 +166,7 @@ export default function ChatComponent({
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="text-gray-400 hover:text-gray-300 p-1 rounded hover:bg-gray-700"
-            title={isExpanded ? "Küçült" : "Büyüt"}
+            title={isExpanded ? "Minimize" : "Maximize"}
           >
             {isExpanded ? (
               <Minimize2 className="w-4 h-4" />
@@ -177,14 +177,14 @@ export default function ChatComponent({
           <button
             onClick={onShowHistory}
             className="text-gray-400 hover:text-gray-300 p-1 rounded hover:bg-gray-700"
-            title="Konuşma geçmişi"
+            title="Conversation history"
           >
             <History className="w-4 h-4" />
           </button>
           <button
             onClick={onClearChat}
             className="text-red-400 hover:text-red-300 p-1 rounded hover:bg-gray-700"
-            title="Konuşmayı temizle"
+            title="Clear conversation"
           >
             <Eraser className="w-4 h-4" />
           </button>
@@ -238,7 +238,7 @@ export default function ChatComponent({
           className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50"
           disabled={chatLoading || !chatInput.trim()}
         >
-          Gönder
+          Send
         </button>
       </div>
     </div>

@@ -120,15 +120,16 @@ export default function FullscreenNodeModal({
         Object.entries(data).forEach(([key, value]) => {
           if (keepFields.includes(key)) {
             filtered[key] = value;
-          } else if (key === "generationInfo" && typeof value === "object") {
+          } else if (key === "generationInfo" && typeof value === "object" && value !== null) {
             // Extract important fields from generationInfo
             const genInfo: any = {};
-            if (value.prompt !== undefined) genInfo.promptTokens = value.prompt;
-            if (value.completion !== undefined)
-              genInfo.completionTokens = value.completion;
-            if (value.finish_reason)
-              genInfo.finish_reason = value.finish_reason;
-            if (value.model_name) genInfo.model_name = value.model_name;
+            const valueObj = value as any;
+            if (valueObj.prompt !== undefined) genInfo.promptTokens = valueObj.prompt;
+            if (valueObj.completion !== undefined)
+              genInfo.completionTokens = valueObj.completion;
+            if (valueObj.finish_reason)
+              genInfo.finish_reason = valueObj.finish_reason;
+            if (valueObj.model_name) genInfo.model_name = valueObj.model_name;
             if (Object.keys(genInfo).length > 0) {
               filtered.generationInfo = genInfo;
             }
