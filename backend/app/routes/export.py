@@ -789,6 +789,20 @@ async def save_session_memory_to_db(session_id: str, messages: list):
             
             # Insert new messages
             for i, message in enumerate(messages):
+                # Convert string timestamp to datetime object for PostgreSQL
+                timestamp_str = message.get("timestamp")
+                if timestamp_str is None:
+                    timestamp = datetime.now()
+                elif isinstance(timestamp_str, str):
+                    try:
+                        # Parse ISO format timestamp string to datetime object
+                        timestamp = datetime.fromisoformat(timestamp_str)
+                    except ValueError:
+                        # Fallback to current time if parsing fails
+                        timestamp = datetime.now()
+                else:
+                    timestamp = timestamp_str  # Already a datetime object
+                
                 await conn.execute("""
                     INSERT INTO session_memory (session_id, message_order, role, content, timestamp)
                     VALUES ($1, $2, $3, $4, $5)
@@ -797,13 +811,13 @@ async def save_session_memory_to_db(session_id: str, messages: list):
                     i,
                     message.get("role"),
                     message.get("content"),
-                    message.get("timestamp", datetime.now().isoformat())
+                    timestamp  # Burada artık string değil, datetime nesnesi gönderiyoruz
                 )
             
             await conn.close()
             
     except Exception as e:
-        logger.error(f"Failed to save session memory to database: {{e}}")
+        logger.error(f"Failed to save session memory to database")
 
 async def load_session_memory_from_db(session_id: str) -> list:
     """Load session memory from database if available."""
