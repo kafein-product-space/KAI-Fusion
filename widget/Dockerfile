@@ -1,31 +1,43 @@
-# KAI-Fusion Standalone Chatbot Widget
-FROM python:3.11-slim
+# Simple nginx-based Dockerfile for serving KAI-Fusion Widget
+FROM nginx:alpine
 
-WORKDIR /app
+# Remove default nginx website
+RUN rm -rf /usr/share/nginx/html/*
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+# Copy widget files to nginx html directory
+COPY index.html /usr/share/nginx/html/
+COPY widget.js /usr/share/nginx/html/
+COPY README.md /usr/share/nginx/html/
 
-# Copy requirements first for better caching
-COPY requirements.txt .
+# Create nginx configuration for widget serving
+RUN echo 'server { \
+    listen 80; \
+    server_name localhost; \
+    root /usr/share/nginx/html; \
+    index index.html; \
+    \
+    # Enable CORS for widget.js \
+    location ~* \.(js)$ { \
+        add_header Access-Control-Allow-Origin "*"; \
+        add_header Access-Control-Allow-Methods "GET, OPTIONS"; \
+        add_header Access-Control-Allow-Headers "Content-Type"; \
+        expires 1d; \
+    } \
+    \
+    # Serve index.html for root and any path \
+    location / { \
+        try_files $uri $uri/ /index.html; \
+    } \
+    \
+    # Health check endpoint \
+    location /health { \
+        return 200 "healthy"; \
+        add_header Content-Type text/plain; \
+    } \
+}' > /etc/nginx/conf.d/default.conf
 
-# Install Python dependencies
-RUN pip install --no-cache-dir -r requirements.txt
+# Expose port 80
+EXPOSE 80
 
-# Copy application code
-COPY . .
-
-# Create static directory
-RUN mkdir -p static
-
-# Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8000/health || exit 1
-
-# Expose port
-EXPOSE 8000
-
-# Run the application
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+# Start nginx
+CMD ["nginx", "-g", "daemon off;"]

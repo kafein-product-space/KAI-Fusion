@@ -1,22 +1,19 @@
-version: "3.8"
+version: '3.8'
 
 services:
-  widget:
+  kai-widget:
     build: .
     ports:
-      - "8002:8000"
-    environment:
-      - OPENAI_API_KEY=${OPENAI_API_KEY:-demo-key}
-    volumes:
-      - ./logs:/app/logs
+      - "8080:80"
+    container_name: kai-fusion-widget
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      test: ["CMD", "curl", "-f", "http://localhost/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
 
 networks:
   default:
-    name: kai-fusion-widget-network
+    name: kai-widget-network
