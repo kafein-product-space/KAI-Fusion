@@ -466,6 +466,138 @@ def create_minimal_backend(dependencies: WorkflowDependencies) -> Dict[str, str]
     """Create minimal backend components for workflow runtime."""
     logger.info("Creating minimal backend components")
     
+    # Check if WebhookTrigger nodes are present
+    has_webhook_nodes = any("WebhookTrigger" in node_type for node_type in dependencies.nodes)
+    webhook_imports = ""
+    webhook_router_setup = ""
+    
+    if has_webhook_nodes:
+        logger.info("🔗 WebhookTrigger nodes detected - adding webhook router support")
+        webhook_imports = """
+# Webhook router setup for WebhookTrigger nodes
+from fastapi import APIRouter, BackgroundTasks, Request as FastAPIRequest
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.responses import StreamingResponse"""
+        
+        webhook_router_setup = """
+# Initialize webhook support for WebhookTrigger nodes
+webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
+webhook_events = {}
+webhook_subscribers = {}
+
+@webhook_router.get("/")
+async def webhook_health():
+    return {"status": "healthy", "router": "webhook_trigger", "active_webhooks": len(webhook_events)}
+
+# Generic webhook handler for all HTTP methods
+async def handle_webhook_request(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    try:
+        if webhook_id not in webhook_events:
+            if webhook_id.startswith("wh_") and len(webhook_id) > 5:
+                webhook_events[webhook_id] = []
+                webhook_subscribers[webhook_id] = []
+            else:
+                raise HTTPException(status_code=404, detail=f"Invalid webhook ID: {webhook_id}")
+        
+        correlation_id = str(uuid.uuid4())
+        received_at = datetime.now()
+        
+        # Parse request body
+        payload_data = {}
+        if request.method in ["POST", "PUT", "PATCH"]:
+            try:
+                if request.headers.get("content-type", "").startswith("application/json"):
+                    payload_data = await request.json()
+                else:
+                    body_bytes = await request.body()
+                    if body_bytes:
+                        payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
+            except Exception:
+                payload_data = {"message": "webhook_triggered"}
+        elif request.method == "GET":
+            payload_data = dict(request.query_params)
+        
+        # Store webhook event
+        webhook_event = {
+            "webhook_id": webhook_id,
+            "correlation_id": correlation_id,
+            "http_method": request.method,
+            "data": payload_data,
+            "received_at": received_at.isoformat(),
+            "client_ip": request.client.host if request.client else "unknown",
+            "headers": dict(request.headers),
+            "url": str(request.url),
+        }
+        
+        webhook_events[webhook_id].append(webhook_event)
+        if len(webhook_events[webhook_id]) > 1000:
+            webhook_events[webhook_id] = webhook_events[webhook_id][-1000:]
+        
+        # Try to execute workflow if we can
+        async def execute_webhook_workflow():
+            try:
+                logger.info(f"🚀 Webhook {webhook_id} triggered workflow execution")
+                # Simple workflow execution with webhook data
+                execution_result = execute_llm_workflow(
+                    user_input=f"Webhook triggered: {payload_data.get('message', 'External webhook event')}",
+                    session_id=f"webhook_{webhook_id}_{int(datetime.now().timestamp())}",
+                    parameters={"webhook_data": webhook_event}
+                )
+                logger.info(f"✅ Webhook workflow execution completed: {execution_result.get('type', 'unknown')}")
+            except Exception as e:
+                logger.error(f"❌ Webhook workflow execution failed: {e}")
+        
+        background_tasks.add_task(execute_webhook_workflow)
+        
+        return {
+            "success": True,
+            "message": f"Webhook received and workflow started via {request.method}",
+            "webhook_id": webhook_id,
+            "received_at": received_at.isoformat(),
+            "correlation_id": correlation_id
+        }
+    except Exception as e:
+        logger.error(f"❌ Webhook processing error: {e}")
+        raise HTTPException(status_code=500, detail=f"Webhook processing failed: {str(e)}")
+
+# Register webhook routes for all HTTP methods
+@webhook_router.get("/{webhook_id}")
+async def get_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.post("/{webhook_id}")
+async def post_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.put("/{webhook_id}")
+async def put_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.patch("/{webhook_id}")
+async def patch_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.delete("/{webhook_id}")
+async def delete_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.head("/{webhook_id}")
+async def head_webhook(webhook_id: str, request: FastAPIRequest, background_tasks: BackgroundTasks):
+    return await handle_webhook_request(webhook_id, request, background_tasks)
+
+@webhook_router.get("/{webhook_id}/stats")
+async def webhook_stats(webhook_id: str):
+    if webhook_id not in webhook_events:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    events = webhook_events[webhook_id]
+    return {
+        "webhook_id": webhook_id,
+        "total_events": len(events),
+        "last_event_at": events[-1]["received_at"] if events else None,
+        "timestamp": datetime.now().isoformat()
+    }
+"""
+    
     # Full-featured workflow runtime with OpenAI integration
     main_py = f'''# -*- coding: utf-8 -*-
 """KAI-Fusion Workflow Runtime with OpenAI Integration"""
@@ -479,7 +611,7 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import json
-import uuid
+import uuid{webhook_imports}
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -603,6 +735,11 @@ app = FastAPI(
     version="1.0.0"
 )
 
+{webhook_router_setup}
+
+# Register webhook router if WebhookTrigger nodes are present
+{'app.include_router(webhook_router)' if has_webhook_nodes else '# No webhook nodes detected'}
+
 # Startup event to initialize database
 @app.on_event("startup")
 async def startup_event():
@@ -610,6 +747,7 @@ async def startup_event():
     try:
         await init_database()
         logger.info("✅ Workflow runtime started successfully")
+        {'logger.info("🔗 Webhook router registered for WebhookTrigger nodes")' if has_webhook_nodes else ''}
     except Exception as e:
         logger.error(f"❌ Database startup failed: {{e}}")
         logger.info("✅ Workflow runtime started with file-based storage")
@@ -1294,27 +1432,42 @@ if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=int(os.getenv("API_PORT", "8000")))
 '''
     
-    # Simplified Dockerfile
-    dockerfile = '''FROM python:3.11-slim
+    # Enhanced Dockerfile with node-specific optimizations
+    dockerfile = f'''FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install dependencies
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Set container-friendly UTF-8 environment (fixes ReactAgent encoding)
+ENV PYTHONIOENCODING=utf-8
+ENV LANG=C.UTF-8
+ENV LC_ALL=C.UTF-8
+ENV PYTHONUNBUFFERED=1
 
+# Install system dependencies
+RUN apt-get update && apt-get install -y \\
+    curl \\
+    {'postgresql-client' if has_webhook_nodes or 'VectorStore' in str(dependencies.nodes) else ''} \\
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir --upgrade pip && \\
+    pip install --no-cache-dir -r requirements.txt
 
-# Copy application
+# Copy application files
 COPY . .
 
-# Health check
+# Create necessary directories
+RUN mkdir -p /app/logs /app/memory /app/exports
+
+# Health check with proper port variable
 HEALTHCHECK --interval=30s --timeout=10s --retries=3 \\
-    CMD curl -f http://localhost:$API_PORT/health || exit 1
+    CMD curl -f http://localhost:${{API_PORT:-8000}}/health || exit 1
 
 EXPOSE 8000
 
-CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Enhanced startup command with proper signal handling
+CMD ["python", "-m", "uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--access-log"]
 '''
     
     return {
@@ -1549,11 +1702,16 @@ def create_ready_to_run_docker_context(
     pre_configured_env: str,
     docker_config: DockerConfig
 ) -> Dict[str, str]:
-    """Create ready-to-run Docker context files."""
+    """Create ready-to-run Docker context files with node-specific services."""
     logger.info("Creating Docker context")
     
-    docker_compose = f'''services:
-  workflow-api:
+    # Check for VectorStoreOrchestrator nodes
+    nodes = workflow.flow_data.get("nodes", [])
+    node_types = [node.get("type", "") for node in nodes]
+    has_vector_store = any("VectorStore" in node_type for node_type in node_types)
+    
+    # Base service configuration
+    services_config = f'''  workflow-api:
     build: .
     env_file:
       - .env
@@ -1566,13 +1724,82 @@ def create_ready_to_run_docker_context(
       interval: 30s
       timeout: 10s
       retries: 3
-    restart: unless-stopped
+    restart: unless-stopped'''
+    
+    # Add PostgreSQL + pgvector service if VectorStore nodes are present
+    if has_vector_store:
+        logger.info("🗄️ VectorStore nodes detected - adding PostgreSQL + pgvector service")
+        services_config += '''
+    depends_on:
+      - postgresql
 
-volumes:
-  logs:
+  postgresql:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: workflow_vectors
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-vector-db.sql:/docker-entrypoint-initdb.d/init-vector-db.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped'''
+    
+    # Volumes configuration
+    volumes_config = '''volumes:
+  logs:'''
+    
+    if has_vector_store:
+        volumes_config += '''
+  postgres_data:'''
+    
+    docker_compose = f'''services:
+{services_config}
+
+{volumes_config}
 '''
     
-    return {"docker-compose.yml": docker_compose}
+    # Create PostgreSQL initialization script if needed
+    result_files = {"docker-compose.yml": docker_compose}
+    
+    if has_vector_store:
+        init_db_sql = '''-- Initialize pgvector extension and required tables
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Create LangChain tables for vector storage
+CREATE TABLE IF NOT EXISTS langchain_pg_collection (
+    name VARCHAR(50) PRIMARY KEY,
+    cmetadata JSON,
+    uuid UUID NOT NULL DEFAULT gen_random_uuid()
+);
+
+CREATE TABLE IF NOT EXISTS langchain_pg_embedding (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    collection_id UUID REFERENCES langchain_pg_collection(uuid) ON DELETE CASCADE,
+    embedding VECTOR(1536),
+    document VARCHAR,
+    cmetadata JSON,
+    custom_id VARCHAR
+);
+
+-- Create indexes for performance
+CREATE INDEX IF NOT EXISTS langchain_pg_embedding_embedding_idx ON langchain_pg_embedding
+USING hnsw (embedding vector_cosine_ops) WITH (m = 16, ef_construction = 64);
+
+CREATE INDEX IF NOT EXISTS langchain_pg_embedding_collection_idx ON langchain_pg_embedding (collection_id);
+
+GRANT ALL ON ALL TABLES IN SCHEMA public TO postgres;
+'''
+        result_files["init-vector-db.sql"] = init_db_sql
+    
+    return result_files
 
 def generate_ready_to_run_readme(workflow_name: str, env_config: WorkflowEnvironmentConfig) -> str:
     """Generate README for exported workflow."""
@@ -1643,6 +1870,11 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
             "main.py": components['backend']['main.py'],
             "workflow-definition.json": json.dumps(workflow.flow_data, indent=2, ensure_ascii=False)
         }
+        
+        # Add PostgreSQL initialization script if VectorStore nodes are present
+        if 'init-vector-db.sql' in components['docker_configs']:
+            files_to_write["init-vector-db.sql"] = components['docker_configs']['init-vector-db.sql']
+            logger.info("📦 Added PostgreSQL initialization script for VectorStore nodes")
         
         for filename, content in files_to_write.items():
             with open(os.path.join(package_dir, filename), 'w', encoding='utf-8') as f:

@@ -1174,19 +1174,13 @@ class ReactAgentNode(ProcessorNode):
                 if hasattr(sys.stderr, 'reconfigure'):
                     sys.stderr.reconfigure(encoding='utf-8')
 
-                # Set environment variables for UTF-8
-                os.environ['PYTHONIOENCODING'] = 'utf-8'
-                os.environ['LANG'] = 'tr_TR.UTF-8'
-                os.environ['LC_ALL'] = 'tr_TR.UTF-8'
+                # Set environment variables for UTF-8 (Docker-compatible)
+                os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+                os.environ.setdefault('LANG', 'C.UTF-8')
+                os.environ.setdefault('LC_ALL', 'C.UTF-8')
 
-                # Force locale to handle Turkish characters properly
-                try:
-                    locale.setlocale(locale.LC_ALL, 'Turkish_Türkiye.utf8')
-                except locale.Error:
-                    try:
-                        locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
-                    except locale.Error:
-                        pass  # If locale setting fails, continue anyway
+                # Docker containers handle UTF-8 by default, no locale setup needed
+                # This ensures Turkish characters work without system-specific locale requirements
 
                 print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
 
