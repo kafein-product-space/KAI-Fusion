@@ -318,6 +318,7 @@ from app.services.chat_service import ChatService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 from app.core.execution_queue import execution_queue
+from app.core.workflow_enhancer import get_workflow_enhancer
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -940,6 +941,12 @@ async def execute_adhoc_workflow(
     engine = get_engine()
     chat_service = ChatService(db)
     
+    # Enhanced workflow capabilities
+    workflow_enhancer = get_workflow_enhancer()
+    enhancer_context = workflow_enhancer.create_context_from_request(
+        req, current_user, is_internal_call
+    )
+    
     # Use chatflow_id as session_id for memory persistence
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
@@ -1072,25 +1079,28 @@ async def execute_adhoc_workflow(
             )
         except Exception as e:
             logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
-            # Create new session for error handling after rollback
+            # Use existing db session instead of creating new one to avoid connection leaks
             try:
-                async with get_db_session_context() as new_db:
-                    await execution_service.update_execution(
-                        new_db,
-                        execution_id,
-                        WorkflowExecutionUpdate(
-                            status="failed",
-                            error_message=f"Failed to start execution: {str(e)}",
-                            completed_at=datetime.utcnow()
-                        )
+                await db.rollback()  # Ensure clean state
+                await execution_service.update_execution(
+                    db,
+                    execution_id,
+                    WorkflowExecutionUpdate(
+                        status="failed",
+                        error_message=f"Failed to start execution: {str(e)}",
+                        completed_at=datetime.utcnow()
                     )
+                )
             except Exception as update_error:
                 logger.error(f"Failed to update execution status after start failure: {update_error}", exc_info=True)
             return  # Early return to avoid further execution
 
     try:
-        engine.build(flow_data=req.flow_data, user_context=user_context)
-        result_stream = await engine.execute(
+        # Use enhanced build with dynamic capabilities
+        workflow_enhancer.enhanced_build(flow_data=req.flow_data, user_context=user_context)
+        
+        # Use enhanced execute with dynamic capabilities
+        result_stream = await workflow_enhancer.enhanced_execute(
             inputs={"input": req.input_text},
             stream=True,
             user_context=user_context,
@@ -1157,20 +1167,19 @@ async def execute_adhoc_workflow(
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
             
-            # Execution hatası kaydet - Use cached execution_id to avoid detached instance issues
+            # Execution hatası kaydet - Reuse existing session to avoid connection leaks
             if execution_id:
                 try:
-                    # Create new session for error handling to avoid session state issues
-                    async with get_db_session_context() as error_db:
-                        await execution_service.update_execution(
-                            error_db,
-                            execution_id,
-                            WorkflowExecutionUpdate(
-                                status="failed",
-                                error_message=str(e),
-                                completed_at=datetime.utcnow()
-                            )
+                    # Use existing db session instead of creating new one
+                    await execution_service.update_execution(
+                        db,
+                        execution_id,
+                        WorkflowExecutionUpdate(
+                            status="failed",
+                            error_message=str(e),
+                            completed_at=datetime.utcnow()
                         )
+                    )
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to failed during streaming: {update_e}", exc_info=True)
         finally:
@@ -1189,20 +1198,19 @@ async def execute_adhoc_workflow(
                 except Exception as chat_error:
                     logger.warning(f"Failed to create assistant chat message: {chat_error}")
             
-            # Execution başarıyla tamamlandığını kaydet - Use proper session management
+            # Execution başarıyla tamamlandığını kaydet - Reuse existing session to avoid connection leaks
             if execution_id and execution_completed:
                 try:
-                    # Use proper session context manager
-                    async with get_db_session_context() as completion_db:
-                        await execution_service.update_execution(
-                            completion_db,
-                            execution_id,
-                            WorkflowExecutionUpdate(
-                                status="completed",
-                                outputs=final_outputs,
-                                completed_at=datetime.utcnow()
-                            )
+                    # Use existing db session instead of creating new one
+                    await execution_service.update_execution(
+                        db,
+                        execution_id,
+                        WorkflowExecutionUpdate(
+                            status="completed",
+                            outputs=final_outputs,
+                            completed_at=datetime.utcnow()
                         )
+                    )
                     logger.info(f"Execution {execution_id} completed successfully")
                 except Exception as update_e:
                     logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
