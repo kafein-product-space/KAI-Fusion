@@ -574,7 +574,26 @@ class DocumentLoaderNode(ProcessorNode):
             ],
         }
 
-    def _get_google_drive_service(self, auth_type: str, service_account_json: str = None, 
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: DocumentLoaderNode'un ihtiyaç duyduğu Python packages'ini döndür.
+
+        Bu method dynamic export sisteminin çalışması için kritik!
+        Document loader için gereken format ve API dependencies.
+        """
+        return [
+            "google-api-python-client>=2.70.0",  # Google Drive API client
+            "google-auth>=2.15.0",               # Google authentication
+            "google-auth-oauthlib>=0.8.0",       # OAuth2 support
+            "google-auth-httplib2>=0.1.0",       # HTTP transport for Google APIs
+            "python-docx>=0.8.11",               # Word document processing
+            "PyPDF2>=3.0.1",                     # PDF text extraction
+            "pdfplumber>=0.9.0",                 # Alternative PDF processing
+            "langchain-core>=0.1.0",             # Core document classes
+            "typing-extensions>=4.8.0"           # Advanced typing support
+        ]
+
+    def _get_google_drive_service(self, auth_type: str, service_account_json: str = None,
                                   oauth2_client_id: str = None, oauth2_client_secret: str = None, 
                                   oauth2_refresh_token: str = None):
         """Get authenticated Google Drive service using provided credentials."""

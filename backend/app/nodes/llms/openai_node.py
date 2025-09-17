@@ -243,7 +243,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
-from app.nodes.base import BaseNode, NodeType, NodeInput, NodeOutput
+from ..base import BaseNode, NodeType, NodeInput, NodeOutput
 
 
 # ================================================================================
@@ -704,6 +704,22 @@ class OpenAINode(BaseNode):
                 "supports_vision": False
             }
         }
+    
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: OpenAINode'un ihtiyaç duyduğu Python packages'ini döndür.
+        
+        Bu method dynamic export sisteminin çalışması için kritik!
+        OpenAI LLM için gereken API ve LangChain dependencies.
+        """
+        return [
+            "langchain-openai>=0.0.5",  # OpenAI LangChain integration
+            "openai>=1.0.0",            # OpenAI Python SDK
+            "httpx>=0.25.0",            # HTTP client for API calls
+            "pydantic>=2.5.0",          # Data validation and SecretStr
+            "tiktoken>=0.5.0",          # Token counting and encoding
+            "typing-extensions>=4.8.0"  # Advanced typing support
+        ]
     
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""

@@ -2,7 +2,7 @@
 # Enables clean imports like: from nodes import OpenAINode, ReactAgentNode
 
 # Base Classes
-from .base import BaseNode, ProviderNode, ProcessorNode, TerminatorNode
+from .base import BaseNode, ProviderNode, ProcessorNode, TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 
 # LLM Nodes
 from .llms.openai_node import OpenAINode, OpenAIChatNode
@@ -21,6 +21,7 @@ from .memory.buffer_memory import BufferMemoryNode
 from .tools.tavily_search import TavilySearchNode
 from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
+from .tools.retriever import RetrieverProvider
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -50,6 +51,7 @@ from .triggers.timer_start_node import TimerStartNode
 __all__ = [
     # Base
     "BaseNode", "ProviderNode", "ProcessorNode", "TerminatorNode",
+    "NodeMetadata", "NodeInput", "NodeOutput", "NodeType",
     
     # LLM
     "OpenAINode", "OpenAIChatNode",
@@ -64,7 +66,7 @@ __all__ = [
     "ConversationMemoryNode", "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider",
     
     # Document Loaders
     "WebScraperNode",

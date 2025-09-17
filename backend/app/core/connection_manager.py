@@ -12,6 +12,8 @@ import logging
 from collections import defaultdict
 import time
 
+from .connection_pool import ConnectionPool, PooledConnection
+
 logger = logging.getLogger(__name__)
 
 
@@ -67,6 +69,11 @@ class ConnectionManager:
         self._validation_cache: Dict[str, Tuple[bool, List[str]]] = {}
         self._cache_hits = 0
         self._cache_misses = 0
+        
+        # CHANGED: Auto-enable connection pool by default
+        self._pool_enabled = True
+        self._connection_pool = ConnectionPool()
+        logger.info("🚀 Connection Pool auto-enabled - Many-to-many connections now active by default")
     
     def build_connection_mappings(
         self, 
@@ -89,6 +96,11 @@ class ConnectionManager:
         self._connection_cache.clear()
         self._connection_graph.clear()
         self._reverse_graph.clear()
+        
+        # Clear connection pool to prevent duplicates
+        if self._pool_enabled and self._connection_pool is not None:
+            self._connection_pool.clear()
+            logger.debug("🧹 Connection pool cleared to prevent duplicates")
         
         # Initialize node mappings
         for node_id in nodes.keys():
@@ -264,9 +276,17 @@ class ConnectionManager:
         """Add validated connection to mappings."""
         # Add to target node's input connections
         target_map = self._connection_cache[conn_info.target_node_id]
-        target_map.input_connections[conn_info.target_handle] = conn_info
         
-        # Add to source node's output connections
+        # Handle input connections: support many-to-many when pool enabled
+        if self._pool_enabled:
+            # When pool is enabled, we still keep one connection in traditional mapping for backward compatibility
+            # The pool will handle the many-to-many aspect
+            target_map.input_connections[conn_info.target_handle] = conn_info
+        else:
+            # Traditional one-to-one behavior when pool is disabled
+            target_map.input_connections[conn_info.target_handle] = conn_info
+        
+        # Add to source node's output connections (always supports multiple)
         source_map = self._connection_cache[conn_info.source_node_id]
         if conn_info.source_handle not in source_map.output_connections:
             source_map.output_connections[conn_info.source_handle] = []
@@ -275,6 +295,27 @@ class ConnectionManager:
         # Update graph structures
         self._connection_graph[conn_info.source_node_id].add(conn_info.target_node_id)
         self._reverse_graph[conn_info.target_node_id].add(conn_info.source_node_id)
+        
+        # Add to connection pool if enabled
+        if self._pool_enabled and self._connection_pool is not None:
+            logger.debug(f"🔗 Attempting to add connection to pool: {conn_info.source_node_id}:{conn_info.source_handle} -> {conn_info.target_node_id}:{conn_info.target_handle}")
+            try:
+                pool_conn_id = self._connection_pool.add_connection(
+                    source_node_id=conn_info.source_node_id,
+                    source_handle=conn_info.source_handle,
+                    target_node_id=conn_info.target_node_id,
+                    target_handle=conn_info.target_handle,
+                    data_type=conn_info.data_type,
+                    priority=0  # Default priority
+                )
+                logger.info(f"🔗 Connection added to pool: {pool_conn_id}")
+            except Exception as e:
+                logger.warning(f"❌ Failed to add connection to pool: {e}")
+                # Log the detailed error for debugging
+                import traceback
+                logger.warning(f"Pool add error details: {traceback.format_exc()}")
+        else:
+            logger.debug(f"🔗 Pool not enabled or not initialized: enabled={self._pool_enabled}, pool={self._connection_pool is not None}")
         
         # Update timestamps
         target_map.last_updated = time.time()
@@ -323,9 +364,168 @@ class ConnectionManager:
             "cache_hit_rate": self._cache_hits / (self._cache_hits + self._cache_misses) if (self._cache_hits + self._cache_misses) > 0 else 0
         }
     
+    def enable_connection_pool(self) -> None:
+        """
+        Initialize and enable connection pool for many-to-many support.
+        
+        This method creates a new ConnectionPool instance and enables pool features.
+        All future connections will be added to the pool alongside existing functionality.
+        """
+        try:
+            if self._pool_enabled:
+                logger.info("Connection Pool already enabled")
+                return
+                
+            self._connection_pool = ConnectionPool()
+            self._pool_enabled = True
+            logger.info("🚀 Connection Pool enabled - Many-to-many connections now active")
+        except Exception as e:
+            logger.error(f"Failed to enable connection pool: {e}")
+            raise
+
+    def disable_connection_pool(self) -> None:
+        """
+        Disable connection pool while maintaining backward compatibility.
+        
+        This method disables the pool feature but keeps all existing functionality intact.
+        The pool instance is cleared but not destroyed to preserve statistics.
+        """
+        try:
+            if self._pool_enabled:
+                self._pool_enabled = False
+                if self._connection_pool:
+                    self._connection_pool.clear()
+                logger.info("🔗 Connection pool disabled - reverted to one-to-one connections")
+            else:
+                logger.info("Connection pool is already disabled")
+        except Exception as e:
+            logger.error(f"Failed to disable connection pool: {e}")
+
+    def get_multiple_input_connections(self, node_id: str, handle: str) -> List[ConnectionInfo]:
+        """
+        Get all input connections for a specific node handle (many-to-many support).
+        
+        This method returns multiple connections when pool is enabled, otherwise
+        returns the single connection from traditional mapping for backward compatibility.
+        
+        Args:
+            node_id: ID of the target node
+            handle: Input handle name
+            
+        Returns:
+            List[ConnectionInfo]: All input connections for the handle
+        """
+        try:
+            if self._pool_enabled and self._connection_pool:
+                # Use pool for many-to-many connections
+                pooled_connections = self._connection_pool.get_input_connections(node_id, handle)
+                
+                # Convert PooledConnection to ConnectionInfo for compatibility
+                connection_infos = []
+                for pooled_conn in pooled_connections:
+                    conn_info = ConnectionInfo(
+                        source_node_id=pooled_conn.source_node_id,
+                        source_handle=pooled_conn.source_handle,
+                        target_node_id=pooled_conn.target_node_id,
+                        target_handle=pooled_conn.target_handle,
+                        data_type=pooled_conn.data_type,
+                        status=ConnectionStatus.VALID if pooled_conn.status == "valid" else ConnectionStatus.INVALID,
+                        created_at=pooled_conn.created_at
+                    )
+                    connection_infos.append(conn_info)
+                
+                logger.debug(f"Retrieved {len(connection_infos)} pooled input connections for {node_id}:{handle}")
+                return connection_infos
+            else:
+                # Fallback to traditional single connection mapping
+                if node_id in self._connection_cache:
+                    node_map = self._connection_cache[node_id]
+                    if handle in node_map.input_connections:
+                        return [node_map.input_connections[handle]]
+                
+                return []
+                
+        except Exception as e:
+            logger.error(f"Error getting multiple input connections: {e}")
+            return []
+
+    def has_multiple_input_connections(self, node_id: str, handle: str) -> bool:
+        """
+        Check if a node handle has multiple input connections.
+        
+        Args:
+            node_id: ID of the target node
+            handle: Input handle name
+            
+        Returns:
+            bool: True if multiple connections exist, False otherwise
+        """
+        try:
+            connections = self.get_multiple_input_connections(node_id, handle)
+            has_multiple = len(connections) > 1
+            
+            logger.debug(f"Node {node_id}:{handle} has {'multiple' if has_multiple else 'single/no'} input connections ({len(connections)} total)")
+            return has_multiple
+            
+        except Exception as e:
+            logger.error(f"Error checking multiple input connections: {e}")
+            return False
+
+    def get_connection_stats(self) -> Dict[str, Any]:
+        """Get connection management statistics with optional pool stats."""
+        # Get traditional stats
+        total_connections = sum(
+            len(node_map.input_connections)
+            for node_map in self._connection_cache.values()
+        )
+        
+        valid_connections = sum(
+            1 for node_map in self._connection_cache.values()
+            for conn in node_map.input_connections.values()
+            if conn.status == ConnectionStatus.VALID
+        )
+        
+        stats = {
+            "total_nodes": len(self._connection_cache),
+            "total_connections": total_connections,
+            "valid_connections": valid_connections,
+            "invalid_connections": total_connections - valid_connections,
+            "cache_hits": self._cache_hits,
+            "cache_misses": self._cache_misses,
+            "cache_hit_rate": self._cache_hits / (self._cache_hits + self._cache_misses) if (self._cache_hits + self._cache_misses) > 0 else 0,
+            "pool_enabled": self._pool_enabled
+        }
+        
+        # Add pool statistics if enabled
+        if self._pool_enabled and self._connection_pool:
+            try:
+                pool_stats = self._connection_pool.get_stats()
+                stats["pool_stats"] = pool_stats
+                stats["pool_total_connections"] = pool_stats.get("total_connections", 0)
+                stats["pool_unique_nodes"] = pool_stats.get("unique_nodes", 0)
+                logger.debug("Added connection pool statistics to manager stats")
+            except Exception as e:
+                logger.warning(f"Failed to get pool statistics: {e}")
+                stats["pool_stats"] = {"error": str(e)}
+        elif self._pool_enabled:
+            # Pool is enabled but not initialized - provide empty stats
+            stats["pool_stats"] = {
+                "total_connections": 0,
+                "unique_nodes": 0,
+                "error": "Pool not initialized"
+            }
+        
+        return stats
+
     def clear_cache(self):
-        """Clear validation cache."""
+        """Clear validation cache and connection pool to prevent duplicates."""
         self._validation_cache.clear()
         self._cache_hits = 0
         self._cache_misses = 0
+        
+        # Clear connection pool when clearing cache to prevent duplicates
+        if self._pool_enabled and self._connection_pool is not None:
+            self._connection_pool.clear()
+            logger.debug("🧹 Connection pool cleared with cache")
+        
         logger.info("🧹 Connection validation cache cleared")

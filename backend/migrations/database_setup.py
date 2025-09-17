@@ -80,7 +80,6 @@ logger = logging.getLogger(__name__)
 
 # Environment variables
 DATABASE_URL = os.getenv("DATABASE_URL")
-ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
 CREATE_DATABASE = os.getenv("CREATE_DATABASE", "true").lower() in ("true", "1", "t")
 
 class DatabaseSetup:
@@ -127,14 +126,15 @@ class DatabaseSetup:
             logger.error("CREATE_DATABASE environment variable is not set to 'true'")
             return False
             
-        if not ASYNC_DATABASE_URL:
-            logger.error("ASYNC_DATABASE_URL environment variable is not set")
+        if not DATABASE_URL:
+            logger.error("DATABASE_URL environment variable is not set")
             return False
             
         try:
             # Async engine oluştur
+            async_url = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://') if DATABASE_URL.startswith('postgresql://') else DATABASE_URL
             self.engine = create_async_engine(
-                ASYNC_DATABASE_URL,
+                async_url,
                 echo=False,
                 pool_pre_ping=True,
                 pool_recycle=3600,
@@ -760,9 +760,9 @@ async def main():
         logger.info("💡 Çözüm: export CREATE_DATABASE=true")
         sys.exit(1)
     
-    if not ASYNC_DATABASE_URL:
-        logger.error("❌ ASYNC_DATABASE_URL environment variable ayarlanmamış")
-        logger.info("💡 Çözüm: export ASYNC_DATABASE_URL='your_database_url'")
+    if not DATABASE_URL:
+        logger.error("❌ DATABASE_URL environment variable ayarlanmamış")
+        logger.info("💡 Çözüm: export DATABASE_URL='your_database_url'")
         sys.exit(1)
     
     # Sütun silme uyarısı
