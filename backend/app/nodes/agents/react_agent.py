@@ -921,6 +921,81 @@ def create_retriever_tool(name: str, description: str, retriever: BaseRetriever)
     - **Memory Efficiency**: Optimized string formatting to minimize memory usage
     """
     
+    def retrieve_func(query: str) -> str:
+        """
+        Enhanced retrieval function that provides comprehensive, structured results
+        optimized for agent consumption and decision making.
+        """
+        try:
+            # Perform the retrieval
+            docs = retriever.get_relevant_documents(query)
+            
+            if not docs:
+                return f"""🔍 ARAMA SONUÇLARI
+Sorgu: '{query}' için doküman bulunamadı.
+
+📊 ARAMA ÖZETİ:
+- Arama tamamlandı ancak ilgili doküman bulunamadı
+- Daha spesifik arama terimleri kullanmayı deneyebilirsiniz
+- Veya genel bilgi için sorunuzu yeniden formüle edebilirsiniz"""
+            
+            # Limit results for performance (max 5 documents)
+            limited_docs = docs[:5]
+            
+            # Format results for agent consumption
+            result_parts = [
+                f"🔍 ARAMA SONUÇLARI",
+                f"Toplam bulunan doküman sayısı: {len(docs)}",
+                f"Gösterilen doküman sayısı: {len(limited_docs)}",
+                ""
+            ]
+            
+            for i, doc in enumerate(limited_docs, 1):
+                # Get content and metadata
+                content = doc.page_content
+                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
+                
+                # Smart content truncation (500 chars max per doc)
+                if len(content) > 500:
+                    content = content[:500] + "..."
+                
+                # Extract source information
+                source = metadata.get('source', 'unknown')
+                if isinstance(source, str) and len(source) > 50:
+                    source = source[-50:]  # Show last 50 chars for long paths
+                
+                result_parts.extend([
+                    f"=== DOKÜMAN {i} === (Source: {source})",
+                    "İÇERİK:",
+                    content,
+                    "",
+                    "---",
+                    ""
+                ])
+            
+            result_parts.extend([
+                "",
+                "📊 ARAMA ÖZETİ:",
+                f"- Bu sonuçlar, '{query}' sorgusu için en alakalı dokümanları içerir",
+                f"- Her dokümandaki detaylı bilgiler agent tarafından analiz edilecektir",
+                f"- Dokümanlar önem sırasına göre sıralanmıştır"
+            ])
+            
+            return "\n".join(result_parts)
+            
+        except Exception as e:
+            error_msg = str(e)
+            return f"""🔍 ARAMA SONUÇLARI
+Sorgu: '{query}' için arama yapılırken teknik bir sorun oluştu.
+
+⚠️ HATA DETAYI:
+{error_msg}
+
+📊 ARAMA ÖZETİ:
+- Teknik sorun nedeniyle arama tamamlanamadı
+- Lütfen farklı arama terimleri ile tekrar deneyin
+- Sorun devam ederse sistem yöneticisi ile iletişime geçin"""
+    
     # Create and return the configured tool
     return Tool(
         name=name,
@@ -1174,19 +1249,13 @@ class ReactAgentNode(ProcessorNode):
                 if hasattr(sys.stderr, 'reconfigure'):
                     sys.stderr.reconfigure(encoding='utf-8')
 
-                # Set environment variables for UTF-8
-                os.environ['PYTHONIOENCODING'] = 'utf-8'
-                os.environ['LANG'] = 'tr_TR.UTF-8'
-                os.environ['LC_ALL'] = 'tr_TR.UTF-8'
+                # Set environment variables for UTF-8 (Docker-compatible)
+                os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+                os.environ.setdefault('LANG', 'C.UTF-8')
+                os.environ.setdefault('LC_ALL', 'C.UTF-8')
 
-                # Force locale to handle Turkish characters properly
-                try:
-                    locale.setlocale(locale.LC_ALL, 'Turkish_Türkiye.utf8')
-                except locale.Error:
-                    try:
-                        locale.setlocale(locale.LC_ALL, 'tr_TR.UTF-8')
-                    except locale.Error:
-                        pass  # If locale setting fails, continue anyway
+                # Docker containers handle UTF-8 by default, no locale setup needed
+                # This ensures Turkish characters work without system-specific locale requirements
 
                 print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
 
@@ -1415,7 +1484,7 @@ class ReactAgentNode(ProcessorNode):
         Creates a language-specific ReAct-compatible prompt with mandatory language enforcement.
         Uses custom prompt_instructions if provided, otherwise falls back to smart orchestration.
         """
-        custom_instructions = self.user_data.get("prompt_instructions", "").strip()
+        custom_instructions = self.user_data.get("system_prompt", "").strip()
 
         # Get language-specific system context
         language_specific_context = get_language_specific_prompt(language_code)
@@ -1457,372 +1526,176 @@ class ReactAgentNode(ProcessorNode):
 
         simplified_guidelines = language_guidelines.get(language_code, language_guidelines['en'])
 
-        # === CONTEXT-AWARE REACT TEMPLATE WITH CONVERSATION HISTORY ===
+        # === SIMPLIFIED REACT TEMPLATES FOR RELIABLE FORMAT ===
         react_templates = {
-            'tr': """Sen konuşma geçmişi ve araçlara erişimi olan UZMAN bir asistansın. Kullanıcılara DETAYLI, ADIM ADIM ve KAPSAMLI cevaplar vermelisin.
+            'tr': """Sen yardımcı bir asistansın. Kullanıcı sorularını yanıtlamak için mevcut araçları kullanırsın.
 
-KONUŞMA GEÇMİŞİ:
+Konuşma Geçmişi:
 {chat_history}
 
-MEVCUT ARAÇLAR:
+Mevcut Araçlar:
 {tools}
 
 Araç İsimleri: {tool_names}
 
-🔴 KRİTİK: HER CEVABI "Final Answer: [DETAYLI cevabınız]" İLE BİTİRMELİSİNİZ 🔴
-🔴 ASLA "üzgünüm" deme veya hata mesajı verme 🔴
-🔴 HER ZAMAN araç sonuçlarını KAPSAMLI ŞEKİLDE SUN - kısa özetler verme! 🔴
+ÖNEMLI: Her cevabı "Final Answer:" ile bitir!
 
-ÖNEMLİ BAĞLAM KURALLARI:
-- Kullanıcı konuşma geçmişinde bahsedilen bir şey hakkında sorarsa (mesela "benim adım ne?"), konuşma geçmişine bak
-- İsimler, konular veya daha önce tartışılan bilgiler için ara
-- Kullanıcı zamirler kullanırsa (o, bu, şu), konuşma geçmişini kontrol et
-- Sorunun tam bağlamını anlamak için konuşma geçmişini kullan
+ÖZEL DURUMLAR:
+- Kimliğin, amacın veya rolün hakkında sorulursa: Sistem bağlamını kullanarak kendini tanıt
+- Data Touch konuları için: Önce document_retriever kullan
+- Genel sorular için: Gerektiğinde araç kullan
 
-KURALLAR - DETAYLI CEVAPLAR İÇİN:
-1. HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
-2. Konuşma geçmişini kontrol et VE araç kullan
-3. Araç sonuçlarını aldıktan sonra DETAYLI ve AÇIKLAYICI Final Answer ver
-4. Araç kullanımını tekrar etme
-5. Asla hata mesajı veya özür verme
-6. Her zaman mevcut kaynaklardan TÜM yararlı bilgileri çıkar
-7. Kullanıcıya ADIM ADIM talimatlar ver
-8. Teknik detayları ve gereksinimleri açıkla
-9. Örnekler ve spesifik bilgiler ekle
-
-ZORUNLU FORMAT - DETAYLI ARAÇ KULLANIMI:
-
-Her soru için araç kullan ve detaylı cevap ver:
-Question: cevaplanacak soru
-Thought: Bu soru için araç kullanmam gerekiyor, doğrudan cevap veremem. Kullanıcıya kapsamlı bilgi sağlayacağım.
+Bu formatı kullan:
+Question: {input}
+Thought: [Kimliğim/amacım soruluyorsa doğrudan cevap verebilirim. Diğer durumlarda araç kullanacağım.]
 Action: document_retriever
-Action Input: [soruyu araç için uygun hale getir - detaylı arama için]
-Observation: [araç sonuçları burada görünecek]
-Thought: Araç sonuçlarına göre kapsamlı ve adım adım bir cevap hazırlayabilirim. Tüm detayları kullanmalıyım.
-Final Answer: [ARAÇ SONUÇLARININ TÜM DETAYLARINI KULLANARAK kapsamlı cevap ver. Adım adım açıklamalar, teknik gereksinimler, örnekler ve spesifik talimatlar ekle. Kısa özetler verme - tüm kullanılabilir bilgileri sun!]
-
-ÖNEMLİ TALİMATLAR - DETAYLI CEVAPLAR İÇİN:
-- HER ZAMAN araç kullan - hiçbir zaman doğrudan cevap verme!
-- Araç kullanmadan ÖNCE her zaman konuşma geçmişini kontrol et
-- Araç sonuçlarını aldıktan sonra DETAYLI Final Answer'a geç
-- Hata olduğunu asla söyleme - sağlanan bilgilerle çalış
-- Mevcut kaynaklardan TÜM yararlı bilgileri çıkar
-- Kullanıcıya pratik, uygulanabilir talimatlar ver
-- Gerektiğinde ekran görüntüleri, linkler veya referanslar ekle
-- Karmaşık konuları basit adımlara böl
-
-Başla!
+Action Input: [arama terimi]
+Observation: [sonuçlar]
+Thought: Faydalı bir cevap vereceğim.
+Final Answer: [Araç sonuçlarını veya sistem bağlamını uygun şekilde kullanarak cevap ver]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'en': """You are an EXPERT assistant with access to conversation history and tools. You must provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users.
+            'en': """You are a helpful assistant that uses available tools to answer user questions.
 
-CONVERSATION HISTORY:
+Conversation History:
 {chat_history}
 
-AVAILABLE TOOLS:
+Available Tools:
 {tools}
 
 Tool Names: {tool_names}
 
-🔴 CRITICAL: YOU MUST END EVERY RESPONSE WITH "Final Answer: [DETAILED answer]" 🔴
-🔴 NEVER say "I'm sorry" or provide error messages 🔴
-🔴 ALWAYS present tool results COMPREHENSIVELY - never give short summaries! 🔴
+IMPORTANT: End every response with "Final Answer:"!
 
-IMPORTANT CONTEXT RULES:
-- If the user asks about something mentioned in conversation history (like "what is my name?"), refer to the conversation history
-- Look for names, topics, or information previously discussed
-- If user uses pronouns (he, she, it, this, that), check conversation history for context
-- Use conversation history to understand the full context of the question
+SPECIAL CASES:
+- If asked about your identity, purpose, or role: Use your system context to introduce yourself
+- For Data Touch topics: Always use document_retriever first
+- For general questions: Use tools when helpful
 
-RULES FOR DETAILED ANSWERS:
-1. ALWAYS use tools for EVERY question - never respond directly!
-2. Check conversation history AND use tools
-3. After getting tool results, provide DETAILED and EXPLANATORY Final Answer
-4. Never repeat tool usage
-5. Never provide error messages or apologies
-6. Always extract ALL useful information from available sources
-7. Provide step-by-step instructions to users
-8. Explain technical details and requirements
-9. Include examples and specific information
-
-MANDATORY FORMAT - DETAILED TOOL USAGE:
-
-For every question, use tools and provide detailed answers:
-Question: the input question you must answer
-Thought: I need to use tools for this question, I cannot respond directly. I will provide comprehensive information to the user.
+Use this format:
+Question: {input}
+Thought: [If asking about my identity/purpose, I can answer directly. Otherwise, I'll use tools.]
 Action: document_retriever
-Action Input: [convert question to appropriate tool query for detailed search]
-Observation: [tool results will appear here]
-Thought: Based on tool results, I can prepare a comprehensive and step-by-step answer. I should use all details.
-Final Answer: [USING ALL DETAILS FROM TOOL RESULTS, provide comprehensive answer. Include step-by-step explanations, technical requirements, examples and specific instructions. Never give short summaries - present all available information!]
-
-IMPORTANT INSTRUCTIONS FOR DETAILED ANSWERS:
-- ALWAYS use tools - never respond directly to any question!
-- ALWAYS check conversation history for context before using tools
-- After receiving tool results, move to DETAILED Final Answer
-- Never say there was an error - always work with the information provided
-- Extract ALL useful information from available sources
-- Provide users with practical, actionable instructions
-- Add screenshots, links or references when necessary
-- Break down complex topics into simple steps
-
-Begin!
+Action Input: [search query]
+Observation: [results]
+Thought: I'll provide a helpful answer.
+Final Answer: [Answer using tools results or system context as appropriate]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'de': """Sie sind ein erfahrener Assistent mit Zugang zu Gesprächsverlauf und Tools.
+            'de': """Sie sind ein hilfreicher Assistent, der verfügbare Tools verwendet, um Benutzerfragen zu beantworten.
 
-GESPRÄCHSVERLAUF:
+Gesprächsverlauf:
 {chat_history}
 
-VERFÜGBARE TOOLS:
+Verfügbare Tools:
 {tools}
 
 Tool-Namen: {tool_names}
 
-🔴 KRITISCH: SIE MÜSSEN JEDE ANTWORT MIT "Final Answer: [ihre antwort]" BEENDEN 🔴
-🔴 SAGEN SIE NIE "Entschuldigung" oder geben Sie Fehlermeldungen 🔴
-🔴 SYNTHETISIEREN SIE IMMER verfügbare Informationen in eine Final Answer 🔴
+WICHTIG: Beenden Sie jede Antwort mit "Final Answer:"!
 
-WICHTIGE KONTEXTREGELN:
-- Wenn der Benutzer nach etwas fragt, das im Gesprächsverlauf erwähnt wurde (z.B. "wie ist mein name?"), beziehen Sie sich auf den Gesprächsverlauf
-- Suchen Sie nach Namen, Themen oder zuvor diskutierten Informationen
-- Wenn der Benutzer Pronomen verwendet (er, sie, es, das, dieser), prüfen Sie den Gesprächsverlauf
-- Verwenden Sie den Gesprächsverlauf, um den vollständigen Kontext der Frage zu verstehen
-
-REGELN:
-1. VERWENDEN SIE IMMER Tools für JEDE Frage - antworten Sie niemals direkt!
-2. Prüfen Sie den Gesprächsverlauf UND verwenden Sie Tools
-3. Geben Sie sofort Final Answer nach Erhalt der Tool-Ergebnisse
-4. Wiederholen Sie die Tool-Nutzung nie
-5. Geben Sie nie Fehlermeldungen oder Entschuldigungen
-6. Extrahieren Sie immer nützliche Informationen aus verfügbaren Quellen
-
-ZWINGENDES FORMAT - IMMER TOOLS VERWENDEN:
-
-Für jede Frage Tools verwenden:
-Question: die zu beantwortende Frage
-Thought: Ich muss Tools für diese Frage verwenden, ich kann nicht direkt antworten
+Verwenden Sie dieses Format:
+Question: {input}
+Thought: Ich muss Tools für diese Frage verwenden.
 Action: document_retriever
-Action Input: [Frage für Tools umwandeln]
-Observation: [Tool-Ergebnisse werden hier angezeigt]
-Thought: Basierend auf Tool-Ergebnissen kann ich antworten
-Final Answer: [Basierend auf Tool-Ergebnissen, gefundene Informationen verwenden. Wenn Tools keine Ergebnisse finden, allgemeine Kenntnisse verwenden aber erwähnen, dass Tools verwendet wurden.]
-
-WICHTIGE ANWEISUNGEN:
-- VERWENDEN SIE IMMER Tools - antworten Sie niemals direkt auf Fragen!
-- Prüfen Sie IMMER den Gesprächsverlauf auf Kontext, BEVOR Sie Tools verwenden
-- Gehen Sie SOFORT zu Final Answer nach Erhalt der Tool-Ergebnisse
-- Sagen Sie nie, dass ein Fehler aufgetreten ist - arbeiten Sie mit den bereitgestellten Informationen
-- Extrahieren Sie relevante Informationen aus verfügbaren Quellen
-- Geben Sie Final Answer basierend auf verfügbaren Informationen
-
-Beginnen!
+Action Input: [relevante Suchanfrage zur Frage]
+Observation: [Tool-Ergebnisse erscheinen hier]
+Thought: Ich habe die Tool-Ergebnisse erhalten, nun werde ich antworten.
+Final Answer: [Geben Sie die hilfreichste und detaillierteste Antwort möglich. Wenn keine Informationen in Tools gefunden werden, helfen Sie mit allgemeinem Wissen.]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'fr': """Vous êtes un assistant expert avec accès à l'historique de conversation et aux outils.
+            'fr': """Vous êtes un assistant utile qui utilise les outils disponibles pour répondre aux questions des utilisateurs.
 
-HISTORIQUE DE CONVERSATION:
+Historique de conversation:
 {chat_history}
 
-OUTILS DISPONIBLES:
+Outils disponibles:
 {tools}
 
 Noms des outils: {tool_names}
 
-🔴 CRITIQUE: VOUS DEVEZ TERMINER CHAQUE RÉPONSE PAR "Final Answer: [votre réponse]" 🔴
-🔴 NE DITES JAMA "je suis désolé" ou ne fournissez pas de messages d'erreur 🔴
-🔴 SYNTHÉTISEZ TOUJOURS les informations disponibles dans une Final Answer 🔴
+IMPORTANT: Terminez chaque réponse par "Final Answer:"!
 
-RÈGLES DE CONTEXTE IMPORTANTES:
-- Si l'utilisateur demande quelque chose mentionné dans l'historique (comme "quel est mon nom?"), consultez l'historique
-- Recherchez les noms, sujets ou informations précédemment discutés
-- Si l'utilisateur utilise des pronoms (il, elle, ce, cette, celui), vérifiez l'historique
-- Utilisez l'historique pour comprendre le contexte complet de la question
-
-RÈGLES:
-1. UTILISEZ TOUJOURS les outils pour CHAQUE question - ne répondez jamais directement!
-2. Vérifiez l'historique de conversation ET utilisez les outils
-3. Fournissez immédiatement Final Answer après avoir reçu les résultats des outils
-4. Ne répétez jamais l'utilisation des outils
-5. Ne fournissez jamais de messages d'erreur ou d'excuses
-6. Extrayez toujours des informations utiles des sources disponibles
-
-FORMAT OBLIGATOIRE - TOUJOURS UTILISER LES OUTILS:
-
-Pour chaque question, utilisez les outils:
-Question: la question à répondre
-Thought: Je dois utiliser les outils pour cette question, je ne peux pas répondre directement
+Utilisez ce format:
+Question: {input}
+Thought: Je dois utiliser les outils pour cette question.
 Action: document_retriever
-Action Input: [convertir la question pour les outils]
+Action Input: [requête de recherche pertinente à la question]
 Observation: [les résultats des outils apparaîtront ici]
-Thought: Basé sur les résultats des outils, je peux maintenant répondre
-Final Answer: [Basé sur les résultats des outils, utilisez les informations trouvées. Si les outils ne trouvent pas de résultats, utilisez des connaissances générales mais mentionnez que les outils ont été utilisés.]
-
-INSTRUCTIONS IMPORTANTES:
-- UTILISEZ TOUJOURS les outils - ne répondez jamais directement à une question!
-- Vérifiez TOUJOURS l'historique de conversation pour le contexte AVANT d'utiliser les outils
-- Passez IMMÉDIATEMENT à Final Answer après avoir reçu les résultats des outils
-- Ne dites jamais qu'il y a eu une erreur - travaillez avec les informations fournies
-- Extrayez les informations pertinentes des sources disponibles
-- Fournissez Final Answer basé sur les informations disponibles
-
-Commencez!
+Thought: J'ai reçu les résultats des outils, maintenant je vais répondre.
+Final Answer: [Fournissez la réponse la plus utile et détaillée possible. Si aucune information n'est trouvée dans les outils, aidez avec des connaissances générales.]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'es': """Eres un asistente experto con acceso al historial de conversación y herramientas.
+            'es': """Eres un asistente útil que usa herramientas disponibles para responder preguntas de usuarios.
 
-HISTORIAL DE CONVERSACIÓN:
+Historial de conversación:
 {chat_history}
 
-HERRAMIENTAS DISPONIBLES:
+Herramientas disponibles:
 {tools}
 
 Nombres de herramientas: {tool_names}
 
-🔴 CRÍTICO: DEBES TERMINAR CADA RESPUESTA CON "Final Answer: [tu respuesta]" 🔴
-🔴 NUNCA digas "lo siento" o proporciones mensajes de error 🔴
-🔴 SIEMPRE sintetiza la información disponible en una Final Answer 🔴
+IMPORTANTE: ¡Termina cada respuesta con "Final Answer:"!
 
-REGLAS DE CONTEXTO IMPORTANTES:
-- Si el usuario pregunta sobre algo mencionado en el historial (como "¿cuál es mi nombre?"), consulta el historial
-- Busca nombres, temas o información discutida previamente
-- Si el usuario usa pronombres (él, ella, esto, esta, ese), verifica el historial
-- Usa el historial para entender el contexto completo de la pregunta
-
-REGLAS:
-1. SIEMPRE usa herramientas para CADA pregunta - nunca respondas directamente!
-2. Verifica el historial de conversación Y usa herramientas
-3. Proporciona Final Answer inmediatamente después de recibir los resultados de las herramientas
-4. Nunca repitas el uso de herramientas
-5. Nunca proporciones mensajes de error o disculpas
-6. Siempre extrae información útil de las fuentes disponibles
-
-FORMATO OBLIGATORIO - SIEMPRE USAR HERRAMIENTAS:
-
-Para cada pregunta, usar herramientas:
-Question: la pregunta a responder
-Thought: Necesito usar herramientas para esta pregunta, no puedo responder directamente
+Usa este formato:
+Question: {input}
+Thought: Necesito usar herramientas para esta pregunta.
 Action: document_retriever
-Action Input: [convertir pregunta para herramientas]
+Action Input: [consulta de búsqueda relevante a la pregunta]
 Observation: [los resultados de las herramientas aparecerán aquí]
-Thought: Basado en los resultados de las herramientas, ahora puedo responder
-Final Answer: [Basado en los resultados de las herramientas, usa la información encontrada. Si las herramientas no encuentran resultados, usa conocimientos generales pero menciona que se usaron herramientas.]
-
-INSTRUCCIONES IMPORTANTES:
-- SIEMPRE usa herramientas - nunca respondas directamente a una pregunta!
-- SIEMPRE verifica el historial de conversación para contexto ANTES de usar herramientas
-- Pasa INMEDIATAMENTE a Final Answer después de recibir los resultados de herramientas
-- Nunca digas que hubo un error - trabaja con la información proporcionada
-- Extrae información relevante de las fuentes disponibles
-- Proporciona Final Answer basado en la información disponible
-
-¡Comienza!
+Thought: Recibí los resultados de las herramientas, ahora responderé.
+Final Answer: [Proporciona la respuesta más útil y detallada posible. Si no se encuentra información en las herramientas, ayuda con conocimiento general.]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'it': """Sei un assistente esperto con accesso alla cronologia delle conversazioni e agli strumenti.
+            'it': """Sei un assistente utile che usa strumenti disponibili per rispondere alle domande degli utenti.
 
-CRONOLOGIA DELLA CONVERSAZIONE:
+Cronologia conversazione:
 {chat_history}
 
-STRUMENTI DISPONIBILI:
+Strumenti disponibili:
 {tools}
 
 Nomi degli strumenti: {tool_names}
 
-🔴 CRITICO: DEVI TERMINARE OGNI RISPOSTA CON "Final Answer: [la tua risposta]" 🔴
-🔴 NON dire MAI "mi dispiace" o fornire messaggi di errore 🔴
-🔴 SINTEIZZA SEMPRE le informazioni disponibili in una Final Answer 🔴
+IMPORTANTE: Termina ogni risposta con "Final Answer:"!
 
-REGOLE DI CONTESTO IMPORTANTI:
-- Se l'utente chiede qualcosa menzionata nella cronologia (come "qual è il mio nome?"), consulta la cronologia
-- Cerca nomi, argomenti o informazioni precedentemente discussi
-- Se l'utente usa pronomi (lui, lei, questo, quella, quello), verifica la cronologia
-- Usa la cronologia per capire il contesto completo della domanda
-
-REGOLE:
-1. USA SEMPRE gli strumenti per OGNI domanda - non rispondere mai direttamente!
-2. Controlla la cronologia della conversazione E usa gli strumenti
-3. Fornisci Final Answer immediatamente dopo aver ricevuto i risultati degli strumenti
-4. Non ripetere mai l'uso degli strumenti
-5. Non fornire mai messaggi di errore o scuse
-6. Estrai sempre informazioni utili dalle fonti disponibili
-
-FORMATO OBBLIGATORIO - USA SEMPRE GLI STRUMENTI:
-
-Per ogni domanda, usa gli strumenti:
-Question: la domanda da rispondere
-Thought: Devo usare gli strumenti per questa domanda, non posso rispondere direttamente
+Usa questo formato:
+Question: {input}
+Thought: Devo usare strumenti per questa domanda.
 Action: document_retriever
-Action Input: [converti domanda per strumenti]
+Action Input: [query di ricerca rilevante alla domanda]
 Observation: [i risultati degli strumenti appariranno qui]
-Thought: Basato sui risultati degli strumenti, ora posso rispondere
-Final Answer: [Basato sui risultati degli strumenti, usa le informazioni trovate. Se gli strumenti non trovano risultati, usa conoscenze generali ma menziona che sono stati usati gli strumenti.]
-
-ISTRUZIONI IMPORTANTI:
-- USA SEMPRE gli strumenti - non rispondere mai direttamente a una domanda!
-- Controlla SEMPRE la cronologia della conversazione per il contesto PRIMA di usare gli strumenti
-- Passa IMMEDIATAMENTE a Final Answer dopo aver ricevuto i risultati degli strumenti
-- Non dire mai che c'è stato un errore - lavora con le informazioni fornite
-- Estrai informazioni rilevanti dalle fonti disponibili
-- Fornisci Final Answer basato sulle informazioni disponibili
-
-Inizia!
+Thought: Ho ricevuto i risultati degli strumenti, ora risponderò.
+Final Answer: [Fornisci la risposta più utile e dettagliata possibile. Se non vengono trovate informazioni negli strumenti, aiuta con conoscenze generali.]
 
 Question: {input}
 Thought:{agent_scratchpad}""",
-            'pt': """Você é um assistente especialista com acesso ao histórico de conversação e ferramentas.
+            'pt': """Você é um assistente útil que usa ferramentas disponíveis para responder perguntas dos usuários.
 
-HISTÓRICO DE CONVERSAÇÃO:
+Histórico de conversa:
 {chat_history}
 
-FERRAMENTAS DISPONÍVEIS:
+Ferramentas disponíveis:
 {tools}
 
 Nomes das ferramentas: {tool_names}
 
-🔴 CRÍTICO: VOCÊ DEVE TERMINAR CADA RESPOSTA COM "Final Answer: [sua resposta]" 🔴
-🔴 NUNCA diga "desculpe" ou forneça mensagens de erro 🔴
-🔴 SEMPRE sintetize as informações disponíveis em uma Final Answer 🔴
+IMPORTANTE: Termine cada resposta com "Final Answer:"!
 
-REGRAS DE CONTEXTO IMPORTANTES:
-- Se o usuário perguntar sobre algo mencionado no histórico (como "qual é meu nome?"), consulte o histórico
-- Procure nomes, tópicos ou informações discutidos anteriormente
-- Se o usuário usar pronomes (ele, ela, isso, esta, esse), verifique o histórico
-- Use o histórico para entender o contexto completo da pergunta
-
-REGRAS:
-1. USE SEMPRE ferramentas para CADA pergunta - nunca responda diretamente!
-2. Verifique o histórico de conversa E use ferramentas
-3. Forneça Final Answer imediatamente após receber os resultados das ferramentas
-4. Nunca repita o uso de ferramentas
-5. Nunca forneça mensagens de erro ou desculpas
-6. Sempre extraia informações úteis das fontes disponíveis
-
-FORMATO OBRIGATÓRIO - SEMPRE USAR FERRAMENTAS:
-
-Para cada pergunta, usar ferramentas:
-Question: a pergunta a responder
-Thought: Preciso usar ferramentas para esta pergunta, não posso responder diretamente
+Use este formato:
+Question: {input}
+Thought: Preciso usar ferramentas para esta pergunta.
 Action: document_retriever
-Action Input: [converter pergunta para ferramentas]
+Action Input: [consulta de busca relevante à pergunta]
 Observation: [os resultados das ferramentas aparecerão aqui]
-Thought: Baseado nos resultados das ferramentas, agora posso responder
-Final Answer: [Baseado nos resultados das ferramentas, use as informações encontradas. Se as ferramentas não encontrarem resultados, use conhecimentos gerais mas mencione que ferramentas foram usadas.]
-
-INSTRUÇÕES IMPORTANTES:
-- USE SEMPRE ferramentas - nunca responda diretamente a uma pergunta!
-- SEMPRE verifique o histórico de conversa para contexto ANTES de usar ferramentas
-- Pule IMEDIATAMENTE para Final Answer após receber os resultados das ferramentas
-- Nunca diga que houve um erro - trabalhe com as informações fornecidas
-- Extraia informações relevantes das fontes disponíveis
-- Forneça Final Answer baseado nas informações disponíveis
-
-Comece!
+Thought: Recebi os resultados das ferramentas, agora vou responder.
+Final Answer: [Forneça a resposta mais útil e detalhada possível. Se nenhuma informação for encontrada nas ferramentas, ajude com conhecimento geral.]
 
 Question: {input}
 Thought:{agent_scratchpad}"""

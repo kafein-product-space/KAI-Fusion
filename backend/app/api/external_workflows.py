@@ -436,10 +436,10 @@ async def chat_with_external_workflow(
         
         # Prepare chat request
         chat_request = {
-            "input_data": {
-                "input": request.input,
-                "session_id": session_id
-            }
+
+            "input": request.input,
+            "session_id": session_id
+
         }
         
         # Check if the external workflow requires API key but we don't have one
