@@ -9,7 +9,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
-from app.core.constants import ASYNC_DATABASE_URL
+from app.core.constants import DATABASE_URL
 from app.models.webhook import WebhookEndpoint, WebhookEvent
 from app.models.base import Base
 
@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 async def create_webhook_tables():
     """Create webhook-related database tables"""
     
-    if not ASYNC_DATABASE_URL:
-        logger.error("❌ ASYNC_DATABASE_URL not found in environment")
+    if not DATABASE_URL:
+        logger.error("❌ DATABASE_URL not found in environment")
         return False
     
     try:
         # Create async engine
         engine = create_async_engine(
-            ASYNC_DATABASE_URL,
+            DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://') if DATABASE_URL.startswith('postgresql://') else DATABASE_URL,
             pool_size=5,
             max_overflow=10,
             echo=True  # Show SQL commands
@@ -82,12 +82,13 @@ async def create_webhook_tables():
 async def insert_test_webhook_endpoints():
     """Insert test webhook endpoints for existing webhook IDs"""
     
-    if not ASYNC_DATABASE_URL:
-        logger.error("❌ ASYNC_DATABASE_URL not found")
+    if not DATABASE_URL:
+        logger.error("❌ DATABASE_URL not found")
         return False
     
     try:
-        engine = create_async_engine(ASYNC_DATABASE_URL, echo=False)
+        async_url = DATABASE_URL.replace('postgresql://', 'postgresql+asyncpg://') if DATABASE_URL.startswith('postgresql://') else DATABASE_URL
+        engine = create_async_engine(async_url, echo=False)
         async_session = sessionmaker(
             autocommit=False,
             autoflush=False,

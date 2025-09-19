@@ -8,163 +8,8 @@ management, and comprehensive configuration validation. Built for production dep
 environments with advanced security, monitoring, and scalability configuration patterns
 designed for enterprise-scale AI workflow automation platforms.
 
-ARCHITECTURAL OVERVIEW:
-======================
 
-The Configuration Management system serves as the central configuration hub for the
-KAI-Fusion platform, managing all environment variables, application constants, and
-runtime configuration parameters with enterprise-grade security, validation, and
-monitoring capabilities for production deployment environments.
 
-┌─────────────────────────────────────────────────────────────────┐
-│              Configuration Management Architecture              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Environment Files → [Loader] → [Validator] → [Processor]     │
-│        ↓               ↓           ↓             ↓            │
-│  [Security Scanner] → [Type Cast] → [Default Set] → [Cache]   │
-│        ↓               ↓           ↓             ↓            │
-│  [Access Control] → [Audit Log] → [Monitor] → [Application]   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-KEY INNOVATIONS:
-===============
-
-1. **Centralized Configuration Management**:
-   - Single source of truth for all environment variables and constants
-   - Hierarchical configuration loading with environment-specific overrides
-   - Secure credential management with encryption and access control
-   - Configuration validation with type checking and constraint enforcement
-
-2. **Enterprise Security Framework**:
-   - Secure environment variable loading with validation and sanitization
-   - Credential encryption and secure storage with access logging
-   - Security-aware default values with production-grade recommendations
-   - Access control and audit trails for configuration modifications
-
-3. **Production Deployment Support**:
-   - Environment-specific configuration with development/staging/production modes
-   - Database connection management with pooling and performance optimization
-   - Service integration configuration with health monitoring and failover
-   - Performance tuning parameters with intelligent defaults and scaling
-
-4. **Advanced Monitoring Integration**:
-   - Configuration change tracking with audit trails and version control
-   - Performance impact monitoring with optimization recommendations
-   - Security compliance validation with policy enforcement
-   - Resource utilization tracking with capacity planning insights
-
-5. **Scalable Architecture Support**:
-   - Microservice configuration with service discovery integration
-   - Load balancing and scaling configuration with performance optimization
-   - Container orchestration support with environment-aware configuration
-   - Cloud deployment integration with managed service configuration
-
-CONFIGURATION CATEGORIES:
-=========================
-
-Core Application Configuration:
-- **Security**: Authentication, encryption, and access control parameters
-- **Database**: Connection pooling, performance tuning, and reliability settings
-- **API**: Endpoint configuration, rate limiting, and CORS policies
-- **Monitoring**: Logging, tracing, and performance monitoring configuration
-- **Services**: External service integration and dependency management
-
-Performance and Scaling:
-- **Database Pooling**: Connection management with optimization parameters
-- **Rate Limiting**: Request throttling with adaptive scaling configuration
-- **Session Management**: User session handling with performance optimization
-- **File Handling**: Upload limits and storage configuration
-- **Memory Management**: Resource allocation and garbage collection tuning
-
-Security and Compliance:
-- **Authentication**: JWT configuration with secure token management
-- **Encryption**: Data encryption keys and algorithm specifications
-- **Access Control**: Permission management and role-based security
-- **Audit**: Logging and monitoring configuration for compliance
-- **Network Security**: CORS, rate limiting, and threat protection
-
-INTEGRATION PATTERNS:
-====================
-
-Basic Configuration Usage:
-```python
-# Simple configuration access with validation
-from app.core.constants import DATABASE_URL, SECRET_KEY, DEBUG
-
-# Database configuration with validation
-if not DATABASE_URL:
-    raise ValueError("DATABASE_URL must be configured for production")
-
-# Security configuration validation
-if SECRET_KEY == "your-secret-key-here-change-in-production":
-    if not DEBUG:
-        raise ValueError("Production SECRET_KEY must be configured")
-```
-
-Enterprise Configuration Management:
-```python
-# Advanced configuration with environment detection
-import os
-from app.core.constants import *
-
-class ConfigurationManager:
-    def __init__(self):
-        self.environment = self.detect_environment()
-        self.validate_configuration()
-        
-    def detect_environment(self) -> str:
-        # Intelligent environment detection
-        if DATABASE_URL and "localhost" not in DATABASE_URL:
-            return "production"
-        elif os.getenv("STAGING"):
-            return "staging"
-        return "development"
-    
-    def validate_configuration(self):
-        # Comprehensive configuration validation
-        if self.environment == "production":
-            self.validate_production_config()
-        
-    def validate_production_config(self):
-        # Production-specific validation
-        required_configs = [
-            ("DATABASE_URL", DATABASE_URL),
-            ("SECRET_KEY", SECRET_KEY),
-            ("LANGCHAIN_API_KEY", LANGCHAIN_API_KEY)
-        ]
-        
-        for config_name, config_value in required_configs:
-            if not config_value or config_value in ["", "your-secret-key-here-change-in-production"]:
-                raise ValueError(f"Production configuration missing: {config_name}")
-```
-
-Security Configuration Patterns:
-```python
-# Enterprise security configuration management
-class SecurityConfigurationManager:
-    def __init__(self):
-        self.validate_security_config()
-        self.setup_encryption()
-        
-    def validate_security_config(self):
-        # Security parameter validation
-        if len(SECRET_KEY) < 32:
-            raise ValueError("SECRET_KEY must be at least 32 characters for production")
-        
-        # Token expiration validation
-        if ACCESS_TOKEN_EXPIRE_MINUTES > 480:  # 8 hours
-            warnings.warn("Long token expiration may pose security risks")
-        
-    def setup_encryption(self):
-        # Advanced encryption configuration
-        return {
-            "algorithm": ALGORITHM,
-            "secret_key": SECRET_KEY,
-            "token_expiry": ACCESS_TOKEN_EXPIRE_MINUTES,
-            "refresh_expiry": REFRESH_TOKEN_EXPIRE_DAYS
-        }
 ```
 
 ENVIRONMENT MANAGEMENT:
@@ -264,24 +109,25 @@ import os
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
-PORT = "8000"
+PORT = int(os.getenv("BACKEND_PORT"))
 
 # Database Settings
 DATABASE_URL = os.getenv("DATABASE_URL")
-POSTGRES_DB = os.getenv("POSTGRES_DB")
+POSTGRES_USERNAME = os.getenv("POSTGRES_USERNAME")
 POSTGRES_PASSWORD = os.getenv("POSTGRES_PASSWORD")
-DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false")
-# Database Pool Settings
-DB_POOL_SIZE = "30"
-DB_MAX_OVERFLOW = "10"
-DB_POOL_TIMEOUT = "10"
-DB_POOL_RECYCLE = "1800"
-DB_POOL_PRE_PING = "true"
+DISABLE_DATABASE = os.getenv("DISABLE_DATABASE", "false").lower() == "true"
+
+# Database Pool Settings - Clean integer/boolean types
+DB_POOL_SIZE = int(os.getenv("DB_POOL_SIZE", "5"))
+DB_MAX_OVERFLOW = int(os.getenv("DB_MAX_OVERFLOW", "10"))
+DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
+DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
+DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 
 CREDENTIAL_MASTER_KEY = "1234567890"
 # Logging
 LOG_LEVEL = "DEBUG"
-DEBUG = os.getenv("DEBUG", "false").lower() in ("true", "1", "t")
+DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")
 
 # CORS Settings
 ALLOWED_ORIGINS = os.getenv("ALLOWED_ORIGINS", "*")
@@ -297,7 +143,7 @@ TRACE_MEMORY_OPERATIONS = "true"
 
 ALGORITHM = "HS256"
 
-# Session Management
+# Session Managements
 SESSION_TTL_MINUTES = "30"
 MAX_SESSIONS = "1000"
 # File Upload Settings
@@ -309,7 +155,6 @@ RATE_LIMIT_WINDOW = "60"
 # Engine Settings
 AF_USE_STUB_ENGINE = "false"
 
-ASYNC_DATABASE_URL = os.getenv("ASYNC_DATABASE_URL")
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7

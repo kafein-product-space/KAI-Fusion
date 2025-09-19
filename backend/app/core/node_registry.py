@@ -221,8 +221,7 @@ IMPLEMENTATION DETAILS:
 """
 
 from typing import Dict, Type, List, Optional
-from app.nodes.base import BaseNode
-from app.nodes.base import NodeMetadata
+from app.nodes import BaseNode, NodeMetadata
 import importlib
 import inspect
 import logging
@@ -520,7 +519,17 @@ class NodeRegistry:
     def __init__(self):
         self.nodes: Dict[str, Type[BaseNode]] = {}
         self.node_configs: Dict[str, NodeMetadata] = {}
-        self.hidden_aliases: set = set()  # Track aliases that shouldn't be shown in UI
+        self.hidden_aliases: set = set(('ProcessorNode', 'TerminatorNode', 'ProviderNode'))  # Track aliases that shouldn't be shown in UI
+        
+        # Explicitly register the fundamental, non-abstract base nodes
+        try:
+            from app.nodes.base import ProcessorNode, TerminatorNode, ProviderNode
+            self.register_node(ProcessorNode)
+            self.register_node(TerminatorNode)
+            self.register_node(ProviderNode)
+        except ImportError as e:
+            logger.error(f"Could not import base nodes for registration: {e}")
+
     
     def register_node(self, node_class: Type[BaseNode]):
         """Register a node class if it provides valid metadata."""
@@ -591,9 +600,9 @@ class NodeRegistry:
                         
                         # Find all BaseNode subclasses, excluding abstract base classes
                         for name, obj in inspect.getmembers(module):
-                            if (inspect.isclass(obj) and 
-                                issubclass(obj, BaseNode) and 
-                                obj != BaseNode and 
+                            if (inspect.isclass(obj) and
+                                issubclass(obj, BaseNode) and
+                                obj != BaseNode and
                                 not inspect.isabstract(obj) and
                                 obj.__name__ not in {"ProviderNode", "ProcessorNode", "TerminatorNode"}):
                                 self.register_node(obj)

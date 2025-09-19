@@ -214,7 +214,10 @@ class EnvVarNameGenerator:
 class PackageAnalyzer:
     """Node tiplerinden package dependencies çıkar"""
     
-    def __init__(self):
+    def __init__(self, node_registry=None):
+        # Set node registry reference
+        self.node_registry = node_registry or globals().get('node_registry')
+        
         # Category-based package mapping
         self.category_packages = {
             "LLM": ["langchain-openai>=0.0.5", "openai>=1.0.0", "langchain>=0.1.0"],
@@ -229,15 +232,104 @@ class PackageAnalyzer:
         
         # Node-specific package mapping
         self.node_packages = {
+            # === LLM NODES ===
             "OpenAIChat": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
             "OpenAINode": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
+            
+            # === AGENT NODES ===
+            "ReactAgent": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ReactAgentNode": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "Agent": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
+            
+            # === SEARCH & WEB TOOLS ===
             "TavilyWebSearch": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
             "TavilyWebSearchNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
+            "TavilySearch": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
+            "TavilyNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
+            "WebScraper": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
+            "WebScraperNode": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
+            
+            # === RETRIEVER & RAG TOOLS ===
+            "RetrieverNode": [
+                "langchain-postgres>=0.0.15",  # For PGVector support
+                "pgvector>=0.2.0",             # Vector similarity operations
+                "psycopg2-binary>=2.9.0",      # PostgreSQL database connection
+                "langchain-community>=0.0.10", # Community retrievers
+                "langchain-core>=0.1.0",       # Core retriever classes
+                "sentence-transformers>=2.0.0" # For embeddings (if needed)
+            ],
+            "RetrieverProvider": [
+                "langchain-postgres>=0.0.15",  # For PGVector support
+                "pgvector>=0.2.0",             # Vector similarity operations
+                "psycopg2-binary>=2.9.0",      # PostgreSQL database connection
+                "langchain-community>=0.0.10", # Community retrievers
+                "langchain-core>=0.1.0"        # Core retriever classes
+            ],
+            
+            # === RERANKER TOOLS ===
             "CohereRerankerProvider": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
             "CohereRerankerNode": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
-            "VectorStoreOrchestrator": ["langchain-postgres>=0.0.15", "pgvector>=0.2.0"],
-            "ReactAgent": ["langgraph>=0.0.30", "langchain>=0.1.0"],
-            "ReactAgentNode": ["langgraph>=0.0.30", "langchain>=0.1.0"]
+            "CohereReranker": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
+            
+            # === MEMORY NODES ===
+            "BufferMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "BufferMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ConversationMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ConversationMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            
+            # === EMBEDDINGS PROVIDERS ===
+            "OpenAIEmbeddingsProvider": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
+            "OpenAIEmbeddings": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
+            
+            # === DOCUMENT PROCESSING ===
+            "DocumentLoaderNode": ["langchain-community>=0.0.10", "python-magic>=0.4.0", "pypdf>=3.0.0"],
+            "DocumentLoader": ["langchain-community>=0.0.10", "python-magic>=0.4.0", "pypdf>=3.0.0"],
+            "ChunkSplitterNode": ["langchain-text-splitters>=0.3.0"],
+            "ChunkSplitter": ["langchain-text-splitters>=0.3.0"],
+            
+            # === HTTP & API TOOLS ===
+            "HttpClientNode": ["httpx>=0.25.0", "requests>=2.31.0", "aiohttp>=3.9.0"],
+            "HttpClient": ["httpx>=0.25.0", "requests>=2.31.0", "aiohttp>=3.9.0"],
+            
+            # === TRIGGER NODES ===
+            "TimerStartNode": ["fastapi>=0.104.0", "python-crontab>=3.0.0", "schedule>=1.2.0"],
+            "TimerStart": ["fastapi>=0.104.0", "python-crontab>=3.0.0", "schedule>=1.2.0"],
+            "WebhookTriggerNode": ["fastapi>=0.104.0", "httpx>=0.25.0", "pydantic>=2.5.0"],
+            "WebhookTrigger": ["fastapi>=0.104.0", "httpx>=0.25.0", "pydantic>=2.5.0"],
+            
+            # === VECTOR STORAGE ===
+            "VectorStoreOrchestrator": ["langchain-postgres>=0.0.15", "pgvector>=0.2.0", "psycopg2-binary>=2.9.0"],
+            "VectorStore": ["langchain-postgres>=0.0.15", "pgvector>=0.2.0", "psycopg2-binary>=2.9.0"],
+            
+            # === WORKFLOW CONTROL NODES ===
+            "StartNode": ["langchain-core>=0.1.0"],
+            "EndNode": ["langchain-core>=0.1.0"],
+            
+            # === MESSAGING NODES (if they exist) ===
+            "KafkaProducer": ["kafka-python>=2.0.0", "aiokafka>=0.8.0"],
+            "KafkaConsumer": ["kafka-python>=2.0.0", "aiokafka>=0.8.0"],
+            "KafkaProducerNode": ["kafka-python>=2.0.0", "aiokafka>=0.8.0"],
+            "KafkaConsumerNode": ["kafka-python>=2.0.0", "aiokafka>=0.8.0"],
+            
+            # === ADDITIONAL LLMS (if they exist) ===
+            "AnthropicNode": ["langchain-anthropic>=0.1.0", "anthropic>=0.18.0"],
+            "CohereNode": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
+            "HuggingFaceNode": ["langchain-huggingface>=0.0.1", "transformers>=4.35.0"],
+            
+            # === DATABASE NODES ===
+            "PostgresNode": ["asyncpg>=0.28.0", "psycopg2-binary>=2.9.0"],
+            "SqliteNode": ["aiosqlite>=0.19.0"],
+            
+            # === ADDITIONAL TOOLS ===
+            "CalculatorNode": ["numexpr>=2.8.0", "numpy>=1.24.0"],
+            "DateTimeNode": ["python-dateutil>=2.8.0"],
+            "JsonProcessorNode": ["jsonpath-ng>=1.6.0"],
+            "XmlProcessorNode": ["lxml>=4.9.0", "xmltodict>=0.13.0"],
+            
+            # === EMAIL & COMMUNICATION ===
+            "EmailNode": ["aiosmtplib>=2.0.0", "email-validator>=2.1.0"],
+            "SlackNode": ["slack-sdk>=3.23.0"],
+            "DiscordNode": ["discord.py>=2.3.0"]
         }
         
         # Base packages için her workflow
@@ -256,7 +348,7 @@ class PackageAnalyzer:
         
         all_packages = set(self.base_packages)
         package_dependencies = []
-        
+
         # Base packages'ları ekle
         for package in self.base_packages:
             name, version = self._parse_package_spec(package)
@@ -270,45 +362,166 @@ class PackageAnalyzer:
         
         # Node-specific packages
         for node_type in node_types:
-            # Direct node mapping
-            if node_type in self.node_packages:
-                node_packages = self.node_packages[node_type]
-                for package in node_packages:
-                    if package not in all_packages:
-                        all_packages.add(package)
-                        name, version = self._parse_package_spec(package)
-                        package_dependencies.append(PackageDependency(
-                            name=name,
-                            version=version,
-                            category="Node-Specific",
-                            source_node=node_type,
-                            required=True
-                        ))
+            logger.info(f"🔍 DYNAMIC: Extracting packages for {node_type}")
             
-            # Category-based packages
             try:
-                node_class = node_registry.get_node(node_type)
+                # 1. Node registry'den actual class al
+                node_class = self.node_registry.get_node(node_type)
+                
                 if node_class:
-                    metadata = node_class().metadata
-                    category = metadata.category
+                    logger.info(f"✅ Found {node_type} in registry")
                     
-                    if category in self.category_packages:
-                        category_packages = self.category_packages[category]
-                        for package in category_packages:
+                    # 2. 🔥 DYNAMIC: Node'dan actual packages çek
+                    node_packages = self._extract_packages_from_node(node_class, node_type)
+                    
+                    # 3. Extract edilen packages'ları ekle
+                    for package in node_packages:
+                        if package not in all_packages:
+                            all_packages.add(package)
+                            name, version = self._parse_package_spec(package)
+                            package_dependencies.append(PackageDependency(
+                                name=name,
+                                version=version,
+                                category="Dynamic-From-Node",
+                                source_node=node_type,
+                                required=True
+                            ))
+                            logger.info(f"   📦 DYNAMIC: Added {package} from {node_type}")
+                    
+                    # 4. Category-based fallback (if node doesn't have get_required_packages)
+                    try:
+                        metadata = node_class().metadata
+                        category = metadata.category
+                        
+                        if category in self.category_packages:
+                            category_packages = self.category_packages[category]
+                            for package in category_packages:
+                                if package not in all_packages:
+                                    all_packages.add(package)
+                                    name, version = self._parse_package_spec(package)
+                                    package_dependencies.append(PackageDependency(
+                                        name=name,
+                                        version=version,
+                                        category=f"Category-{category}",
+                                        source_node=node_type,
+                                        required=True
+                                    ))
+                                    logger.info(f"   📦 CATEGORY: Added {package} from {category}")
+                    except Exception as metadata_error:
+                        logger.warning(f"Could not get metadata for {node_type}: {metadata_error}")
+                
+                else:
+                    logger.warning(f"❌ {node_type} not found in registry, using static fallback")
+                    # Final fallback to static mapping (temporary while migrating)
+                    if node_type in self.node_packages:
+                        node_packages = self.node_packages[node_type]
+                        for package in node_packages:
                             if package not in all_packages:
                                 all_packages.add(package)
                                 name, version = self._parse_package_spec(package)
                                 package_dependencies.append(PackageDependency(
                                     name=name,
                                     version=version,
-                                    category=f"Category-{category}",
+                                    category="Static-Fallback",
                                     source_node=node_type,
                                     required=True
                                 ))
+                                logger.info(f"   📦 STATIC: Added {package} from mapping")
+                
             except Exception as e:
                 logger.warning(f"Could not analyze packages for {node_type}: {e}")
         
+        logger.info(f"✅ DYNAMIC ANALYSIS: Found {len(package_dependencies)} total dependencies")
         return package_dependencies
+    
+    def _extract_packages_from_node(self, node_class, node_type: str) -> List[str]:
+        """🔥 DYNAMIC: Node'dan actual required packages'i çek"""
+        
+        try:
+            # 1. Node instance yarat
+            node_instance = node_class()
+            
+            # 2. 🔥 DİNAMİK: Node'da get_required_packages methodu var mı kontrol et
+            if hasattr(node_instance, 'get_required_packages'):
+                logger.info(f"✅ {node_type} has get_required_packages method - USING DYNAMIC!")
+                dynamic_packages = node_instance.get_required_packages()
+                logger.info(f"   📦 DYNAMIC PACKAGES: {dynamic_packages}")
+                return dynamic_packages
+            
+            # 3. Alternatif: required_packages attribute var mı kontrol et
+            elif hasattr(node_instance, 'required_packages'):
+                logger.info(f"✅ {node_type} has required_packages attribute")
+                return node_instance.required_packages
+            
+            # 4. 🔥 IMPORT-BASED DETECTION: Node source code'undan import'ları extract et
+            else:
+                logger.info(f"🔍 {node_type} extracting from imports (no get_required_packages method)")
+                return self._extract_packages_from_imports(node_class)
+                
+        except Exception as e:
+            logger.warning(f"Failed to extract packages from {node_type}: {e}")
+            return []
+    
+    def _extract_packages_from_imports(self, node_class) -> List[str]:
+        """Node'un import'larından package'ları extract et"""
+        
+        try:
+            import inspect
+            
+            # Node'un source code'unu al
+            source_code = inspect.getsource(node_class)
+            
+            # Import statements'ı parse et
+            import re
+            import_patterns = [
+                r'from\s+(langchain_\w+)',  # langchain_openai, langchain_tavily, etc.
+                r'from\s+(openai)',         # openai
+                r'from\s+(tavily)',         # tavily
+                r'from\s+(cohere)',         # cohere
+                r'import\s+(requests)',     # requests
+                r'import\s+(asyncpg)',      # asyncpg
+                r'from\s+(fastapi)',        # fastapi
+                r'from\s+(bs4)',            # beautifulsoup4
+                r'import\s+(sqlite3)',      # sqlite3
+                r'from\s+(kafka)',          # kafka-python
+            ]
+            
+            detected_packages = []
+            
+            for pattern in import_patterns:
+                matches = re.findall(pattern, source_code)
+                for match in matches:
+                    # Package name'den requirement'a çevir
+                    if match == "langchain_openai":
+                        detected_packages.append("langchain-openai>=0.0.5")
+                        detected_packages.append("openai>=1.0.0")
+                    elif match == "langchain_tavily":
+                        detected_packages.append("langchain-tavily>=0.2.0")
+                        detected_packages.append("tavily-python>=0.3.0")
+                    elif match == "langchain_cohere":
+                        detected_packages.append("langchain-cohere>=0.4.0")
+                        detected_packages.append("cohere==5.12.0")
+                    elif match == "openai":
+                        detected_packages.append("openai>=1.0.0")
+                    elif match == "requests":
+                        detected_packages.append("requests>=2.31.0")
+                    elif match == "asyncpg":
+                        detected_packages.append("asyncpg>=0.28.0")
+                    elif match == "fastapi":
+                        detected_packages.append("fastapi>=0.104.0")
+                    elif match == "bs4":
+                        detected_packages.append("beautifulsoup4>=4.12.0")
+                    elif match == "kafka":
+                        detected_packages.append("kafka-python>=2.0.0")
+            
+            # Unique packages only
+            unique_packages = list(set(detected_packages))
+            logger.info(f"📦 AUTO-DETECTED from imports: {unique_packages}")
+            return unique_packages
+            
+        except Exception as e:
+            logger.warning(f"Failed to extract from imports: {e}")
+            return []
     
     def _parse_package_spec(self, package_spec: str) -> Tuple[str, str]:
         """Package specification'ı parse et"""
@@ -329,7 +542,7 @@ class DynamicNodeAnalyzer:
         self.node_registry = node_registry
         self.credential_detector = CredentialDetector()
         self.name_generator = EnvVarNameGenerator()
-        self.package_analyzer = PackageAnalyzer()
+        self.package_analyzer = PackageAnalyzer(node_registry)
     
     def analyze_workflow(self, flow_data: Dict[str, Any]) -> WorkflowAnalysisResult:
         """Workflow'dan complete analysis çıkar"""

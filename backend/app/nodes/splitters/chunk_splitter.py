@@ -1323,6 +1323,7 @@ class ChunkSplitterNode(ProcessorNode):
             )
             
             return {
+                "documents": chunks,
                 "chunks": chunks,
                 "stats": stats,
                 "preview": preview,

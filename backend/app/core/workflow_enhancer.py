@@ -29,12 +29,28 @@ class WorkflowExecutionEnhancer:
         self._current_context: Optional[DynamicWorkflowContext] = None
         self._compiled_graph = None
     
-    def create_context_from_request(self, req: Any, current_user: Any = None, 
+    def create_context_from_request(self, req: Any, current_user: Any = None,
                                    is_webhook: bool = False) -> DynamicWorkflowContext:
         """Create dynamic context from request parameters"""
         
-        # Generate session_id with fallback logic
-        session_id = req.session_id or req.chatflow_id or f"session_{req.__hash__()}"
+        # DEBUG LOGGING: Validate assumptions about the error
+        logger.debug(f"🔍 DEBUG: Request type: {type(req)}")
+        logger.debug(f"🔍 DEBUG: Request __hash__ attribute: {req.__hash__}")
+        logger.debug(f"🔍 DEBUG: Request session_id: {getattr(req, 'session_id', 'MISSING')}")
+        logger.debug(f"🔍 DEBUG: Request chatflow_id: {getattr(req, 'chatflow_id', 'MISSING')}")
+        logger.debug(f"🔍 DEBUG: Request has __hash__ method: {hasattr(req, '__hash__')}")
+        logger.debug(f"🔍 DEBUG: Request __hash__ is callable: {callable(getattr(req, '__hash__', None))}")
+        
+        # Generate session_id with safe fallback logic - FIXED: No more hash() attempts on BaseModel
+        session_id = getattr(req, 'session_id', None) or getattr(req, 'chatflow_id', None)
+        
+        if not session_id:
+            # Safe fallback using object id instead of broken __hash__() - CRITICAL FIX
+            logger.warning(f"⚠️  No session_id or chatflow_id provided, using object id fallback")
+            session_id = f"session_{id(req)}"
+        
+        logger.debug(f"🔧 FIXED: Generated session_id safely: {session_id}")
+            
         if isinstance(session_id, int):
             session_id = str(session_id)
         

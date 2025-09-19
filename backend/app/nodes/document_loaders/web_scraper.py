@@ -716,6 +716,21 @@ class WebScraperNode(ProcessorNode):
             ],
         }
 
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: WebScraperNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        
+        Bu method dynamic export sisteminin çalışması için kritik!
+        Web scraper için gereken HTTP ve parsing dependencies.
+        """
+        return [
+            "requests>=2.31.0",        # HTTP client for web requests
+            "beautifulsoup4>=4.12.0",  # HTML parsing and DOM manipulation
+            "urllib3>=2.0.0",          # HTTP library for URL handling
+            "langchain-core>=0.1.0",   # Core document classes
+            "typing-extensions>=4.8.0" # Advanced typing support
+        ]
+
     @staticmethod
     def _clean_html_content(html: str, remove_selectors: List[str]) -> str:
         """
