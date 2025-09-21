@@ -243,7 +243,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
-from ..base import BaseNode, NodeType, NodeInput, NodeOutput
+from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
 
 
 # ================================================================================
