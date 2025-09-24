@@ -2,7 +2,7 @@
 # Enables clean imports like: from nodes import OpenAINode, ReactAgentNode
 
 # Base Classes
-from .base import BaseNode, ProviderNode, ProcessorNode, TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+from .base import BaseNode, ProviderNode, ProcessorNode, TerminatorNode, MemoryNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 
 # LLM Nodes
 from .llms.openai_node import OpenAINode, OpenAIChatNode
@@ -50,7 +50,7 @@ from .triggers.timer_start_node import TimerStartNode
 # Public API - what gets imported when doing "from nodes import *"
 __all__ = [
     # Base
-    "BaseNode", "ProviderNode", "ProcessorNode", "TerminatorNode",
+    "BaseNode", "ProviderNode", "ProcessorNode", "TerminatorNode", "MemoryNode",
     "NodeMetadata", "NodeInput", "NodeOutput", "NodeType",
     
     # LLM

@@ -10,6 +10,8 @@ The heavy lifting is done by the export package modules:
 - routes.py: API endpoints
 """
 
+import logging
+
 # Import everything from the modular export package
 from .export import *
 
