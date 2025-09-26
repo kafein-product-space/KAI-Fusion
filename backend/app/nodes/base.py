@@ -162,10 +162,10 @@ class NodeInput(BaseModel):
     """
     
     name: str = Field(
-        ..., 
+        ...,
         description="Unique identifier for this input within the node",
         min_length=1,
-        pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$"  # Valid Python identifier
+        pattern=r"^[a-zA-ZçÇğĞıİöÖşŞüÜ_][a-zA-ZçÇğĞıİöÖşŞüÜ0-9_]*$"  # Valid Python identifier with Turkish characters
     )
     
     type: str = Field(
@@ -204,6 +204,11 @@ class NodeInput(BaseModel):
         default=None,
         description="Frontend UI configuration (widget type, placeholder, etc.)"
     )
+    
+    @property
+    def type_hint(self) -> str:
+        """Backward compatibility property for type_hint."""
+        return self.type
 
 class NodeOutput(BaseModel):
     """
@@ -777,6 +782,11 @@ class ProviderNode(BaseNode):
     """
     Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
     """
+    _metadata = {
+        "name": "ProviderNode",
+        "description": "Base class for nodes that provide objects.",
+        "node_type": NodeType.PROVIDER,
+    }
     def __init__(self):
         super().__init__()
         if not hasattr(self, '_metadata'):
@@ -793,6 +803,11 @@ class ProcessorNode(BaseNode):
     """
     Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
     """
+    _metadata = {
+        "name": "ProcessorNode",
+        "description": "Base class for nodes that process inputs.",
+        "node_type": NodeType.PROCESSOR,
+    }
     def __init__(self):
         super().__init__()
         if not hasattr(self, '_metadata'):
@@ -808,6 +823,11 @@ class TerminatorNode(BaseNode):
     Bir zincirin sonuna eklenen ve çıktıyı işleyen/dönüştüren node'lar (örn: OutputParser).
     Genellikle tek bir node'dan girdi alırlar.
     """
+    _metadata = {
+        "name": "TerminatorNode",
+        "description": "Base class for nodes that terminate chains.",
+        "node_type": NodeType.TERMINATOR,
+    }
     def __init__(self):
         super().__init__()
         if not hasattr(self, '_metadata'):
@@ -817,3 +837,44 @@ class TerminatorNode(BaseNode):
 
     def execute(self, previous_node: Runnable, inputs: Dict[str, Any]) -> Runnable:  # type: ignore[override]
         return super().execute(previous_node=previous_node, inputs=inputs)
+
+
+class MemoryNode(BaseNode):
+    """
+    Base class for nodes that manage conversation state and context.
+    They are responsible for creating and handling memory objects.
+    """
+    _metadata = {
+        "name": "MemoryNode",
+        "description": "Base class for nodes that manage memory.",
+        "node_type": NodeType.MEMORY,
+    }
+
+    def __init__(self):
+        super().__init__()
+        if not hasattr(self, '_metadata'):
+            self._metadata = {}
+        if "node_type" not in self._metadata:
+            self._metadata["node_type"] = NodeType.MEMORY
+        
+        # Define standard inputs common to all memory nodes
+        self._standard_inputs = [
+            NodeInput(
+                name="session_id",
+                type="str",
+                description="Unique identifier for the conversation session.",
+                required=False,
+                is_connection=False
+            ),
+            NodeInput(
+                name="memory_key",
+                type="str",
+                description="The key for the memory variable in the chain.",
+                default="history",
+                required=False
+            )
+        ]
+    
+    # MemoryNode subclasses will implement their own `execute` method
+    # to create and configure the specific LangChain memory object.
+    pass

@@ -21,7 +21,7 @@ import asyncio
 from datetime import datetime
 
 from .graph_builder import GraphBuilder
-from .enhanced_graph_builder import EnhancedGraphBuilder
+
 from .state import FlowState
 from .node_registry import node_registry
 from app.nodes.base import BaseNode
@@ -201,7 +201,7 @@ class DynamicWorkflowEngine:
     """
     
     def __init__(self, checkpointer=None):
-        self.base_builder = EnhancedGraphBuilder(node_registry.nodes, checkpointer)
+        self.base_builder = GraphBuilder(node_registry, checkpointer)
         self.node_resolver = DynamicNodeResolver(node_registry.nodes)
         self.connection_mapper = DynamicConnectionMapper()
         self.optimizer = DynamicWorkflowOptimizer()

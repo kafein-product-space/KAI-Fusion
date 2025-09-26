@@ -8,8 +8,9 @@ starlette==0.47.3
 sqlalchemy==2.0.43
 asyncpg==0.30.0
 alembic==1.16.4
+# PostgreSQL drivers - both psycopg2 (legacy) and psycopg3 (modern)
 psycopg2-binary==2.9.10
-psycopg==3.2.9
+psycopg[binary]==3.2.9
 psycopg-pool==3.2.6
 PyJWT==2.10.1
 
@@ -24,7 +25,7 @@ email-validator==2.2.0
 
 # Authentication & Security
 python-jose==3.5.0
-passlib==1.7.4
+passlib[bcrypt]==1.7.4
 bcrypt==4.0.1
 cryptography==45.0.6
 
@@ -67,6 +68,9 @@ requests-toolbelt==1.0.0
 aiohttp==3.12.15
 aiohappyeyeballs==2.6.1
 aiosignal==1.4.0
+
+# File Operations
+aiofiles>=23.0.0
 
 # Template Engine
 jinja2==3.1.6
@@ -115,7 +119,7 @@ tiktoken==0.11.0
 tokenizers==0.21.4
 huggingface-hub==0.34.4
 
-# Core Dependencies
+# Core Dependencies (most are transitive, but kept for compatibility)
 annotated-types==0.7.0
 anyio==4.10.0
 attrs==25.3.0
@@ -128,7 +132,6 @@ dataclasses-json==0.6.7
 distro==1.9.0
 dnspython==2.7.0
 ecdsa==0.19.1
-fastapi==0.116.1
 fastavro==1.12.0
 filelock==3.19.1
 frozenlist==1.7.0

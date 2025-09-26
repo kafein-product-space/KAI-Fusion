@@ -1,6 +1,6 @@
 from typing import Any, Dict
 from langchain_core.runnables import Runnable
-from app.nodes.base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+from ..base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 
 class EndNode(TerminatorNode):
     """

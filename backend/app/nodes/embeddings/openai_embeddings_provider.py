@@ -22,7 +22,7 @@ from typing import Dict, Any
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.runnables import Runnable
 
-from app.nodes.base import ProviderNode, NodeType, NodeInput, NodeOutput
+from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
 
 
 class OpenAIEmbeddingsProvider(ProviderNode):
@@ -32,39 +32,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
     This node creates configured OpenAIEmbeddings instances that can be used
     by other nodes in the workflow. It focuses on configuration only, without
     document processing or analytics features.
-    
-    Usage Pattern:
-    --------------
-    The provider node is used at the beginning of workflows to create a shared
-    embeddings instance that can be passed to multiple downstream nodes:
-    
-    ```python
-    # In workflow configuration
-    embeddings_provider = OpenAIEmbeddingsProvider()
-    embeddings = embeddings_provider.execute(
-        openai_api_key="your-api-key",
-        model="text-embedding-3-small",
-        request_timeout=60,
-        max_retries=3
-    )
-    
-    # The embeddings instance can then be used by other nodes
-    # like vector stores or retrieval chains
-    ```
-    
-    Configuration Philosophy:
-    -------------------------
-    - Minimal parameters: Only what's needed to configure the embeddings
-    - Secure defaults: API key can be provided via environment variables
-    - Model validation: Only supported models are allowed
-    - Clear error messages: Helpful feedback for configuration issues
-    
-    Integration Points:
-    -------------------
-    This provider can be connected to:
-    - Vector store nodes (PGVector, etc.)
-    - Retrieval chain nodes
-    - Any node requiring an embeddings instance
+
     """
     
     def __init__(self):
@@ -127,6 +95,22 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                 )
             ]
         }
+    
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: OpenAIEmbeddingsProvider'un ihtiyaç duyduğu Python packages'ini döndür.
+        
+        Bu method dynamic export sisteminin çalışması için kritik!
+        OpenAI embeddings için gereken API ve LangChain dependencies.
+        """
+        return [
+            "langchain-openai>=0.0.5",  # OpenAI LangChain integration
+            "openai>=1.0.0",            # OpenAI Python SDK
+            "httpx>=0.25.0",            # HTTP client for API calls
+            "pydantic>=2.5.0",          # Data validation
+            "tiktoken>=0.5.0",          # Token counting for embeddings
+            "typing-extensions>=4.8.0"  # Advanced typing support
+        ]
     
     def execute(self, **kwargs) -> Runnable:
         """
