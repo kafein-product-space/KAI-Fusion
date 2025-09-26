@@ -40,6 +40,9 @@ from .default.end_node import EndNode
 from .triggers.webhook_trigger import WebhookTriggerNode
 from .triggers.timer_start_node import TimerStartNode
 
+# Text Processing Nodes
+from .text_processing.string_input_node import StringInputNode
+
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
