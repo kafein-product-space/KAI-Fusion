@@ -104,20 +104,15 @@ from typing import Dict, Any, Sequence, List, Optional
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
-from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
-from langchain_core.memory import BaseMemory
-from langchain_core.retrievers import BaseRetriever
+from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.prebuilt import create_react_agent
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph.state import CompiledStateGraph
 # Manual retriever tool creation since langchain-community import is not working
-from langchain_core.tools import Tool
 import re
 import sys
 import os
-import locale
-from langchain.globals import get_debug
 from langchain_core.callbacks import BaseCallbackHandler
 
 # ================================================================================

@@ -4,6 +4,7 @@
 import logging
 import uuid
 import os
+from typing import Dict, Any
 from fastapi import APIRouter, HTTPException, status, Depends
 from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,7 +18,7 @@ from app.core.database import get_db_session
 
 from .schemas import WorkflowExportConfig, WorkflowEnvironmentConfig
 from .utils import analyze_workflow_dependencies, get_required_env_vars_for_workflow, validate_env_variables
-from .services import create_minimal_backend, filter_requirements_for_nodes, create_pre_configured_env_file, create_ready_to_run_docker_context, generate_ready_to_run_readme, create_workflow_export_package
+from .ast_exporter import LibcstWorkflowExporter
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -126,32 +127,21 @@ async def complete_workflow_export(
                 detail=f"Invalid environment variables: {validation_result['errors']}"
             )
         
-        # Create minimal backend components with dynamic node extraction
-        minimal_backend = create_minimal_backend(dependencies, workflow.flow_data)
-        
-        # Filter requirements for nodes
-        filtered_requirements = filter_requirements_for_nodes(dependencies.nodes)
-        
-        # Create pre-configured .env file
-        pre_configured_env = create_pre_configured_env_file(
-            dependencies, env_config.env_vars, env_config.security, 
-            env_config.monitoring, env_config.docker, workflow.flow_data
+        # Use AST-based export system
+        logger.info("Starting AST-based workflow export...")
+
+        # Export workflow using AST-based exporter
+        ast_exporter = LibcstWorkflowExporter()
+        ast_export_package = ast_exporter.export_workflow_ast(
+            workflow.flow_data, env_config
         )
-        
-        # Create Docker context
-        docker_context = create_ready_to_run_docker_context(
-            workflow, minimal_backend, pre_configured_env, env_config.docker
-        )
-        
+
+        logger.info("✅ AST-based export completed successfully")
+
         # Create export package
-        export_package = create_workflow_export_package({
-            'workflow': workflow,
-            'backend': minimal_backend,
-            'pre_configured_env': pre_configured_env,
-            'docker_configs': docker_context,
-            'filtered_requirements': filtered_requirements,
-            'readme': generate_ready_to_run_readme(workflow.name, env_config)
-        })
+        export_package = _create_export_package_from_ast(ast_export_package, workflow)
+
+        logger.info("✅ Export package created successfully")
         
         logger.info(f"Export package created: {export_package['download_url']}")
         
@@ -183,6 +173,55 @@ async def complete_workflow_export(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to complete workflow export"
         )
+
+def _create_export_package_from_ast(ast_export_package: Dict[str, str], workflow) -> Dict[str, Any]:
+    """Create export package format from AST-based export."""
+    import tempfile
+    import zipfile
+    import os
+    import shutil
+    
+    logger.info("📦 Creating export package from AST output...")
+    
+    # Create package name
+    package_name = f"workflow-export-{workflow.name.lower().replace(' ', '-')}"
+    
+    with tempfile.TemporaryDirectory() as temp_dir:
+        package_dir = os.path.join(temp_dir, package_name)
+        os.makedirs(package_dir)
+        
+        # Write all files from AST export
+        for filename, content in ast_export_package.items():
+            file_path = os.path.join(package_dir, filename)
+            
+            # Create subdirectories if needed
+            os.makedirs(os.path.dirname(file_path), exist_ok=True)
+            
+            with open(file_path, 'w', encoding='utf-8') as f:
+                f.write(content)
+        
+        # Create ZIP file
+        zip_path = f"{package_dir}.zip"
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(package_dir):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.relpath(file_path, temp_dir)
+                    zipf.write(file_path, arcname)
+        
+        # Move to permanent storage
+        permanent_dir = os.path.join(os.getcwd(), "exports")
+        os.makedirs(permanent_dir, exist_ok=True)
+        permanent_zip_path = os.path.join(permanent_dir, f"{package_name}.zip")
+        shutil.move(zip_path, permanent_zip_path)
+        
+        logger.info(f"✅ Export package created: {permanent_zip_path}")
+        
+        return {
+            "download_url": f"/api/v1/export/download/{package_name}.zip",
+            "package_size": os.path.getsize(permanent_zip_path),
+            "local_path": permanent_zip_path
+        }
 
 @router.get("/export/download/{filename}", tags=["Export"])
 async def download_export_package(filename: str):

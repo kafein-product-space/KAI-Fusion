@@ -189,3 +189,7 @@ xxhash==3.5.0
 yarl==1.20.1
 zstandard==0.24.0
 cachetools==5.5.2
+
+# AST Processing for Dynamic Export
+libcst>=1.1.0
+astor>=0.8.1

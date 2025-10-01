@@ -58,12 +58,13 @@ class NodeExecutor:
         """Dynamically load node class with smart base class detection."""
         try:
             # First check if it's a base node type (defined in nodes/__init__.py)
-            from nodes import BaseNode, ProcessorNode, ProviderNode, TerminatorNode
+            from nodes import BaseNode, ProcessorNode, ProviderNode, TerminatorNode, MemoryNode
             
             base_node_map = {
                 'processornode': ProcessorNode,
                 'providernode': ProviderNode,
                 'terminatornode': TerminatorNode,
+                'memorynode': MemoryNode,
                 'processor': ProcessorNode,
                 'provider': ProviderNode,
                 'terminator': TerminatorNode,
@@ -81,7 +82,7 @@ class NodeExecutor:
             try:
                 module_name = f"nodes.{node_type.lower()}_node"
                 module = importlib.import_module(module_name)
-                
+
                 # Find the node class in the module
                 for attr_name in dir(module):
                     attr = getattr(module, attr_name)
@@ -90,11 +91,29 @@ class NodeExecutor:
                         attr_name.lower().find(node_type.lower()) != -1):
                         logger.info(f"✅ Loaded specific class: {node_type} -> {attr.__name__}")
                         return attr
-                
+
                 logger.warning(f"⚠️  No specific class found in {module_name} for {node_type}")
-                
-            except ImportError:
-                logger.warning(f"⚠️  Could not import module for {node_type}")
+
+            except ImportError as e:
+                logger.warning(f"⚠️  Could not import module for {node_type}: {e}")
+                # Try alternative naming patterns
+                alt_patterns = [
+                    f"nodes.{node_type.lower()}",
+                    f"nodes.{node_type.lower()}_provider",
+                    f"nodes.{node_type.lower()}_node"
+                ]
+                for alt_module in alt_patterns:
+                    try:
+                        module = importlib.import_module(alt_module)
+                        for attr_name in dir(module):
+                            attr = getattr(module, attr_name)
+                            if (isinstance(attr, type) and
+                                hasattr(attr, 'execute') and
+                                issubclass(attr, BaseNode)):
+                                logger.info(f"✅ Loaded alternative class: {node_type} -> {attr.__name__}")
+                                return attr
+                    except ImportError:
+                        continue
             
             # Final fallback based on node type pattern
             if 'processor' in normalized_type:
@@ -106,6 +125,9 @@ class NodeExecutor:
             elif 'terminator' in normalized_type or 'end' in normalized_type:
                 logger.info(f"🔄 Fallback to TerminatorNode for {node_type}")
                 return TerminatorNode
+            elif 'memory' in normalized_type or 'buffer' in normalized_type:
+                logger.info(f"🔄 Fallback to MemoryNode for {node_type}")
+                return MemoryNode
             else:
                 logger.info(f"🔄 Fallback to BaseNode for {node_type}")
                 return BaseNode
@@ -141,9 +163,22 @@ class NodeExecutor:
                 'user_data': user_data
             }
             
-            # Execute node
+            # Execute node with proper handling for different return types
             runnable = node_instance.execute()
-            result = runnable.invoke(execution_input)
+            
+            # Handle different node types - provider nodes return objects, not runnables
+            if hasattr(runnable, 'invoke'):
+                # It's a proper Runnable, invoke it
+                result = runnable.invoke(execution_input)
+            else:
+                # It's a provider node returning an object (LLM, embeddings, etc.)
+                # For provider nodes, the object itself is the result
+                result = {
+                    "output": runnable,
+                    "type": "provider_object",
+                    "node_id": node_id,
+                    "provider_type": type(runnable).__name__
+                }
             
             # Update context with results
             if isinstance(result, dict):
@@ -420,6 +455,7 @@ from typing import Dict, Any, Optional, List
 from fastapi import FastAPI, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from contextlib import asynccontextmanager
 from pydantic import BaseModel, Field
 from workflow_engine import DynamicWorkflowEngine, initialize_workflow_engine
 
@@ -739,24 +775,28 @@ async def global_exception_handler(request, exc):
         }
     )
 
-# Startup event
-@app.on_event("startup")
-async def startup_event():
-    """Application startup event."""
+# Lifespan event handler (replaces deprecated on_event)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Application lifespan event handler."""
+    # Startup
     logger.info("🚀 KAI-Fusion Advanced Workflow Runtime starting up")
     logger.info(f"   - Workflow loaded: {workflow_loaded}")
     logger.info(f"   - Environment: {os.getenv('ENVIRONMENT', 'development')}")
     logger.info(f"   - Port: {os.getenv('API_PORT', '8000')}")
-    
+
     if workflow_engine:
         workflow_info = workflow_engine.get_workflow_info()
         logger.info(f"   - Workflow nodes: {workflow_info['nodes']}")
         logger.info(f"   - Node types: {', '.join(workflow_info['node_types'])}")
 
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Application shutdown event."""
+    yield
+
+    # Shutdown
     logger.info("🛑 KAI-Fusion Advanced Workflow Runtime shutting down")
+
+# Add lifespan to app
+app.router.lifespan_context = lifespan
 
 if __name__ == "__main__":
     import uvicorn

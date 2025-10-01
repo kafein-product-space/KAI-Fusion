@@ -526,7 +526,7 @@
         }
 
         // Use only the working endpoint
-        const url = config.targetUrl + '/api/workflow/execute';
+        const url = config.targetUrl + '/api/v1/chat/completions';
         const payload = {
                 input: message,
                 message: message,

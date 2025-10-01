@@ -149,20 +149,45 @@ class EnvVarNameGenerator:
     """Node type ve input name'den environment variable name oluştur"""
     
     def __init__(self):
-        # Node type normalization mappings
+        # 🔥 PHASE 1: Enhanced node type mappings - sync with export system
         self.node_type_mappings = {
+            # LLM Nodes - map to same env var prefix
             'OpenAIChat': 'OPENAI',
+            'OpenAIChatNode': 'OPENAI',  # 🔥 New export class name
             'OpenAINode': 'OPENAI',
+            'OpenAI': 'OPENAI',         # 🔥 Short name variant
             'OpenAIEmbeddingsProvider': 'OPENAI',
             'OpenAIEmbeddings': 'OPENAI',
+            
+            # Memory Nodes
+            'BufferMemory': 'BUFFER_MEMORY',
+            'BufferMemoryNode': 'BUFFER_MEMORY',  # 🔥 New export class name
+            'ConversationMemory': 'CONVERSATION_MEMORY',
+            'ConversationMemoryNode': 'CONVERSATION_MEMORY',  # 🔥 New export class name
+            
+            # Agent Nodes
+            'ReactAgent': 'REACT_AGENT',
+            'ReactAgentNode': 'REACT_AGENT',  # 🔥 New export class name
+            'ToolAgent': 'TOOL_AGENT',
+            'ToolAgentNode': 'TOOL_AGENT',    # 🔥 New export class name
+            
+            # Tool/Search Nodes
+            'TavilyWebSearch': 'TAVILY',
+            'TavilyWebSearchNode': 'TAVILY',  # 🔥 New export class name
+            'TavilySearch': 'TAVILY',
             'CohereRerankerNode': 'COHERE',
             'CohereRerankerProvider': 'COHERE',
+            'CohereReranker': 'COHERE',       # 🔥 Short name variant
+            
+            # Vector/Retriever Nodes
             'VectorStoreOrchestrator': 'VECTORSTORE',
-            'TavilyWebSearch': 'TAVILY',
-            'TavilyWebSearchNode': 'TAVILY',
-            'TavilySearch': 'TAVILY',
             'RetrieverProvider': 'RETRIEVER',
-            'BufferMemory': 'BUFFER_MEMORY'
+            'RetrieverNode': 'RETRIEVER',     # 🔥 New export class name
+            'Retriever': 'RETRIEVER',        # 🔥 Short name variant
+            
+            # HTTP/API Nodes
+            'HttpClient': 'HTTP_CLIENT',
+            'HttpClientNode': 'HTTP_CLIENT',  # 🔥 New export class name
         }
         
         # Input name normalization
@@ -232,24 +257,28 @@ class PackageAnalyzer:
         
         # Node-specific package mapping
         self.node_packages = {
-            # === LLM NODES ===
+            # === LLM NODES - Enhanced mapping ===
             "OpenAIChat": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
+            "OpenAIChatNode": ["langchain-openai>=0.0.5", "openai>=1.0.0"],  # 🔥 New export class
             "OpenAINode": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
+            "OpenAI": ["langchain-openai>=0.0.5", "openai>=1.0.0"],         # 🔥 Short variant
             
-            # === AGENT NODES ===
+            # === AGENT NODES - Enhanced mapping ===
             "ReactAgent": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
-            "ReactAgentNode": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ReactAgentNode": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],  # 🔥 New export class
+            "ToolAgent": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ToolAgentNode": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],    # 🔥 New export class
             "Agent": ["langgraph>=0.0.30", "langchain>=0.1.0", "langchain-core>=0.1.0"],
             
-            # === SEARCH & WEB TOOLS ===
+            # === SEARCH & WEB TOOLS - Enhanced mapping ===
             "TavilyWebSearch": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
-            "TavilyWebSearchNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
+            "TavilyWebSearchNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],  # 🔥 New export class
             "TavilySearch": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
             "TavilyNode": ["langchain-tavily>=0.2.0", "tavily-python>=0.3.0"],
             "WebScraper": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
             "WebScraperNode": ["requests>=2.31.0", "beautifulsoup4>=4.12.0", "lxml>=4.9.0", "selenium>=4.15.0"],
             
-            # === RETRIEVER & RAG TOOLS ===
+            # === RETRIEVER & RAG TOOLS - Enhanced mapping ===
             "RetrieverNode": [
                 "langchain-postgres>=0.0.15",  # For PGVector support
                 "pgvector>=0.2.0",             # Vector similarity operations
@@ -265,39 +294,43 @@ class PackageAnalyzer:
                 "langchain-community>=0.0.10", # Community retrievers
                 "langchain-core>=0.1.0"        # Core retriever classes
             ],
+            "Retriever": [  # 🔥 Short variant
+                "langchain-postgres>=0.0.15", "pgvector>=0.2.0", "psycopg2-binary>=2.9.0",
+                "langchain-community>=0.0.10", "langchain-core>=0.1.0"
+            ],
             
-            # === RERANKER TOOLS ===
+            # === RERANKER TOOLS - Enhanced mapping ===
             "CohereRerankerProvider": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
-            "CohereRerankerNode": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
+            "CohereRerankerNode": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],  # 🔥 New export class
             "CohereReranker": ["langchain-cohere>=0.4.0", "cohere==5.12.0"],
             
-            # === MEMORY NODES ===
+            # === MEMORY NODES - Enhanced mapping ===
             "BufferMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
-            "BufferMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "BufferMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],        # 🔥 New export class
             "ConversationMemory": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
-            "ConversationMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],
+            "ConversationMemoryNode": ["langchain>=0.1.0", "langchain-core>=0.1.0"],  # 🔥 New export class
             
-            # === EMBEDDINGS PROVIDERS ===
+            # === EMBEDDINGS PROVIDERS - Enhanced mapping ===
             "OpenAIEmbeddingsProvider": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
             "OpenAIEmbeddings": ["langchain-openai>=0.0.5", "openai>=1.0.0"],
             
-            # === DOCUMENT PROCESSING ===
+            # === DOCUMENT PROCESSING - Enhanced mapping ===
             "DocumentLoaderNode": ["langchain-community>=0.0.10", "python-magic>=0.4.0", "pypdf>=3.0.0"],
             "DocumentLoader": ["langchain-community>=0.0.10", "python-magic>=0.4.0", "pypdf>=3.0.0"],
             "ChunkSplitterNode": ["langchain-text-splitters>=0.3.0"],
             "ChunkSplitter": ["langchain-text-splitters>=0.3.0"],
             
-            # === HTTP & API TOOLS ===
-            "HttpClientNode": ["httpx>=0.25.0", "requests>=2.31.0", "aiohttp>=3.9.0"],
+            # === HTTP & API TOOLS - Enhanced mapping ===
+            "HttpClientNode": ["httpx>=0.25.0", "requests>=2.31.0", "aiohttp>=3.9.0"],  # 🔥 New export class
             "HttpClient": ["httpx>=0.25.0", "requests>=2.31.0", "aiohttp>=3.9.0"],
             
-            # === TRIGGER NODES ===
+            # === TRIGGER NODES - Enhanced mapping ===
             "TimerStartNode": ["fastapi>=0.104.0", "python-crontab>=3.0.0", "schedule>=1.2.0"],
             "TimerStart": ["fastapi>=0.104.0", "python-crontab>=3.0.0", "schedule>=1.2.0"],
             "WebhookTriggerNode": ["fastapi>=0.104.0", "httpx>=0.25.0", "pydantic>=2.5.0"],
             "WebhookTrigger": ["fastapi>=0.104.0", "httpx>=0.25.0", "pydantic>=2.5.0"],
             
-            # === VECTOR STORAGE ===
+            # === VECTOR STORAGE - Enhanced mapping ===
             "VectorStoreOrchestrator": ["langchain-postgres>=0.0.15", "pgvector>=0.2.0", "psycopg2-binary>=2.9.0"],
             "VectorStore": ["langchain-postgres>=0.0.15", "pgvector>=0.2.0", "psycopg2-binary>=2.9.0"],
             

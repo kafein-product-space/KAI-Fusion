@@ -196,7 +196,7 @@ LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary - KAI-Fusion Platform
 """
 
-from ..base import MemoryNode, NodeInput, NodeType
+from app.nodes import MemoryNode, NodeInput, NodeType
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.runnables import Runnable
 from typing import cast, Dict

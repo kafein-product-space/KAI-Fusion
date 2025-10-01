@@ -63,7 +63,7 @@ docker compose up -d
 
 ## 🔗 API Integration
 
-Widget sends POST requests to: `{target-url}/api/workflow/execute`
+Widget sends POST requests to: `{target-url}/api/v1/chat/completions`
 
 **Request format:**
 ```json
