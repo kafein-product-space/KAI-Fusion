@@ -17,6 +17,7 @@ import {
   Search,
   Network,
   BookOpen,
+  Type,
 } from "lucide-react";
 
 interface NodeType {
@@ -58,6 +59,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   TextDataLoader: <FileText className="w-6 h-6 text-pink-400" />,
   DocumentLoader: <FileText className="w-6 h-6 text-blue-400" />,
   ChunkSplitter: <Scissors className="w-6 h-6 text-pink-300" />,
+  StringInputNode: <Type className="w-6 h-6 text-blue-400" />,
   PGVectorStore: (
     <img
       src="icons/postgresql_vectorstore.svg"

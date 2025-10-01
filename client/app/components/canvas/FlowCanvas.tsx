@@ -60,6 +60,7 @@ import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsPr
 import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
 import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
 import RetrieverNode from "../nodes/tools/RetrieverNode";
+import { StringInputNode } from "../nodes/text_processing";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import FullscreenNodeModal from "../common/FullscreenNodeModal";
@@ -83,6 +84,7 @@ import WebhookTriggerConfigForm from "../nodes/triggers/WebhookTrigger/WebhookTr
 import VectorStoreOrchestratorConfigForm from "../nodes/vectorstores/VectorStoreOrchestrator/VectorStoreOrchestratorConfigForm";
 import OpenAIEmbeddingsProviderConfigForm from "../nodes/embeddings/OpenAIEmbeddingsProvider/OpenAIEmbeddingsProviderConfigForm";
 import RetrieverConfigForm from "../nodes/tools/RetrieverConfigForm";
+import { StringInputConfigForm } from "../nodes/text_processing";
 
 // Node config component mapping
 const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
@@ -102,6 +104,7 @@ const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
   VectorStoreOrchestrator: VectorStoreOrchestratorConfigForm,
   OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderConfigForm,
   RetrieverProvider: RetrieverConfigForm,
+  StringInputNode: StringInputConfigForm,
 };
 
 // Define nodeTypes outside component to prevent recreations
@@ -124,6 +127,7 @@ const baseNodeTypes = {
   CohereRerankerProvider: CohereRerankerNode,
   VectorStoreOrchestrator: VectorStoreOrchestratorNode,
   RetrieverProvider: RetrieverNode,
+  StringInputNode: StringInputNode,
 };
 
 interface FlowCanvasProps {
