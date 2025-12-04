@@ -22,7 +22,7 @@ from typing import Dict, Any
 from langchain_openai import OpenAIEmbeddings
 from langchain_core.runnables import Runnable
 
-from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
+from ..base import NodeProperty, ProviderNode, NodeType, NodeInput, NodeOutput, NodePosition, NodePropertyType
 
 
 class OpenAIEmbeddingsProvider(ProviderNode):
@@ -46,15 +46,14 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             ),
             "category": "Embedding",
             "node_type": NodeType.PROVIDER,
-            "icon": "key",
-            "color": "#38bdf8",
+            "icon": {"name": "openai", "path": "icons/openai.svg", "alt": "openaiicons"},
+            "colors": ["cyan-500", "blue-600"],
             "inputs": [
                 NodeInput(
                     name="openai_api_key",
                     type="str",
                     description="OpenAI API Key (leave empty to use OPENAI_API_KEY environment variable)",
                     required=False,
-                    is_secret=True,
                 ),
                 NodeInput(
                     name="model",
@@ -62,11 +61,6 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     description="OpenAI embedding model to use",
                     default="text-embedding-3-small",
                     required=False,
-                    choices=[
-                        "text-embedding-3-small",
-                        "text-embedding-3-large", 
-                        "text-embedding-ada-002"
-                    ]
                 ),
                 NodeInput(
                     name="request_timeout",
@@ -74,8 +68,6 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     description="Request timeout in seconds",
                     default=60,
                     required=False,
-                    min_value=10,
-                    max_value=300,
                 ),
                 NodeInput(
                     name="max_retries",
@@ -83,17 +75,94 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     description="Maximum number of retries for failed requests",
                     default=3,
                     required=False,
-                    min_value=0,
-                    max_value=5,
+
                 ),
             ],
             "outputs": [
                 NodeOutput(
-                    name="embeddings",
+                    name="embedder",
+                    displayName="Embedder",
                     type="OpenAIEmbeddings",
                     description="Configured OpenAIEmbeddings instance ready for use",
+                    direction=NodePosition.TOP,
+                    is_connection=True,
                 )
-            ]
+            ],
+            "properties": [
+                NodeProperty(
+                    name="model",
+                    displayName="Embedding Model",
+                    type=NodePropertyType.SELECT,
+                    default="text-embedding-3-small",
+                    options=[
+                        {"label": "text-embedding-3-small (1536D)", "value": "text-embedding-3-small"},
+                        {"label": "text-embedding-3-large (3072D)", "value": "text-embedding-3-large"},
+                        {"label": "text-embedding-ada-002 (1536D)", "value": "text-embedding-ada-002"},
+                    ],
+                    hint="The model to use for generating embeddings.",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="credential",
+                    displayName="Select Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="openai_api_key",
+                    displayName="API Key",
+                    type=NodePropertyType.PASSWORD,
+                    hint="OpenAI API Key.",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="organization",
+                    displayName="Organization (Optional)",
+                    type=NodePropertyType.TEXT,
+                    hint="OpenAI Organization ID.",
+                    placeholder="org-...",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="batch_size",
+                    displayName="Batch Size",
+                    type=NodePropertyType.NUMBER,
+                    default=100,
+                    min=1,
+                    max=100,
+                    hint="Number of texts to embed in a single batch.",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="max_retries",
+                    displayName="Max Retries",
+                    type=NodePropertyType.NUMBER,
+                    default=3,
+                    min=0,
+                    max=10,
+                    hint="Maximum number of retries for failed requests.",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="request_timeout",
+                    displayName="Request Timeout (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    default=30,
+                    min=10,
+                    max=300,
+                    hint="Timeout for API requests in seconds.",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="dimensions",
+                    displayName="Dimensions",
+                    type=NodePropertyType.NUMBER,
+                    default=1536,
+                    hint="Auto-calculated based on model selection.",
+                    required=True,
+                ),
+            ],
         }
     
     def get_required_packages(self) -> list[str]:

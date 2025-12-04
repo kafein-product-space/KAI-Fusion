@@ -243,7 +243,7 @@ from langchain_openai import ChatOpenAI
 from langchain_core.runnables import Runnable
 from pydantic import SecretStr
 
-from ..base import BaseNode, NodeType, NodeInput, NodeOutput
+from ..base import BaseNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePosition, NodePropertyType
 
 
 # ================================================================================
@@ -512,24 +512,15 @@ class OpenAINode(BaseNode):
             "description": "OpenAI Chat completion using latest GPT models with advanced configuration",
             "category": "LLM",
             "node_type": NodeType.PROVIDER,
-            "inputs": [
+            "icon": {"name": "openai", "path": "icons/openai.svg", "alt": "openaiicons"},
+            "colors": ["purple-500", "indigo-600"],
+                        "inputs": [
                 NodeInput(
                     name="model_name",
                     type="str",
                     description="OpenAI model to use",
                     default="gpt-4o",  # Changed default to gpt-4o
                     required=False,
-                    choices=[
-                        "o3-mini",
-                        "o3",
-                        "gpt-4o",
-                        "gpt-4o-mini",
-                        "gpt-4.1-nano",
-                        "gpt-4-turbo",
-                        "gpt-4-turbo-preview",
-                        "gpt-4",
-                        "gpt-4-32k"
-                    ]
                 ),
                 NodeInput(
                     name="temperature",
@@ -537,8 +528,6 @@ class OpenAINode(BaseNode):
                     description="Sampling temperature (0.0-2.0) - Controls randomness",
                     default=0.1,  # Lower for faster, more consistent responses
                     required=False,
-                    min_value=0.0,
-                    max_value=2.0
                 ),
                 NodeInput(
                     name="max_tokens",
@@ -546,8 +535,7 @@ class OpenAINode(BaseNode):
                     description="Maximum tokens to generate (default: model limit)",
                     default=10000,  # Changed default to 10000 tokens
                     required=False,
-                    min_value=1,
-                    max_value=200000
+
                 ),
                 NodeInput(
                     name="top_p",
@@ -555,8 +543,6 @@ class OpenAINode(BaseNode):
                     description="Nucleus sampling parameter (0.0-1.0)",
                     default=1.0,
                     required=False,
-                    min_value=0.0,
-                    max_value=1.0
                 ),
                 NodeInput(
                     name="frequency_penalty",
@@ -564,8 +550,6 @@ class OpenAINode(BaseNode):
                     description="Frequency penalty (-2.0 to 2.0)",
                     default=0.0,
                     required=False,
-                    min_value=-2.0,
-                    max_value=2.0
                 ),
                 NodeInput(
                     name="presence_penalty",
@@ -573,15 +557,12 @@ class OpenAINode(BaseNode):
                     description="Presence penalty (-2.0 to 2.0)",
                     default=0.0,
                     required=False,
-                    min_value=-2.0,
-                    max_value=2.0
                 ),
                 NodeInput(
                     name="api_key",
                     type="str",
                     description="OpenAI API Key",
                     required=True,
-                    is_secret=True
                 ),
                 NodeInput(
                     name="system_prompt",
@@ -589,7 +570,6 @@ class OpenAINode(BaseNode):
                     description="System prompt for the model",
                     default="You are a helpful, accurate, and intelligent AI assistant.",
                     required=False,
-                    multiline=True
                 ),
                 NodeInput(
                     name="streaming",
@@ -604,15 +584,16 @@ class OpenAINode(BaseNode):
                     description="Request timeout in seconds",
                     default=60,
                     required=False,
-                    min_value=1,
-                    max_value=300
                 )
             ],
             "outputs": [
                 NodeOutput(
-                    name="output",
+                    name="llm",
+                    displayName="LLM",
                     type="llm",
-                    description="OpenAI Chat LLM instance configured with specified parameters"
+                    description="OpenAI Chat LLM instance configured with specified parameters",
+                    is_connection=True,
+                    direction=NodePosition.TOP
                 ),
                 NodeOutput(
                     name="model_info",
@@ -624,7 +605,57 @@ class OpenAINode(BaseNode):
                     type="dict",
                     description="Token usage and cost information"
                 )
-            ]
+            ],
+            "properties": [
+                NodeProperty(
+                    name="credential_id",
+                    displayName="Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="api_key",
+                    displayName="API Key",
+                    type=NodePropertyType.PASSWORD,
+                    required=False,
+                ),
+                NodeProperty(
+                    name="model_name",
+                    displayName="Model",
+                    type=NodePropertyType.SELECT,
+                    default="gpt-4o",
+                    options=[
+                        {"label": "GPT-4o ⭐", "value": "gpt-4o"},
+                        {"label": "GPT-4o Mini", "value": "gpt-4o-mini"},
+                        {"label": "GPT-4 Turbo", "value": "gpt-4-turbo"},
+                        {"label": "GPT-4", "value": "gpt-4"},
+                        {"label": "GPT-4 32K", "value": "gpt-4-32k"},
+                    ],
+                    required=True
+                ),
+                NodeProperty(
+                    name="temperature",
+                    displayName="Temperature",
+                    type=NodePropertyType.RANGE,
+                    default=0.7,
+                    min=0.0,
+                    max=2.0,
+                    step=0.1,
+                    minLabel="Precise",
+                    maxLabel="Creative",
+                    required=True
+                ),
+                NodeProperty(
+                    name="max_tokens",
+                    displayName="Max Tokens",
+                    type=NodePropertyType.NUMBER,
+                    default=1000,
+                    min=1,
+                    max=4096,
+                    required=True
+                )
+            ],
         }
         
         # Model configurations and capabilities

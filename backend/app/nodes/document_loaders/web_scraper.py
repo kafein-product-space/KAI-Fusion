@@ -328,7 +328,7 @@ from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 from bs4 import BeautifulSoup
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeProperty, NodeInput, NodeOutput, NodeType, NodePropertyType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
@@ -669,8 +669,8 @@ class WebScraperNode(ProcessorNode):
             ),
             "category": "Tool",
             "node_type": NodeType.PROCESSOR,
-            "icon": "globe-alt",
-            "color": "#0ea5e9",
+            "icon": {"name": "pickaxe", "path": None, "alt": None},
+            "colors": ["blue-500", "indigo-600"],
             "inputs": [
                 NodeInput(
                     name="urls",
@@ -680,6 +680,7 @@ class WebScraperNode(ProcessorNode):
                 ),
                 NodeInput(
                     name="input_urls",
+                    displayName="Input URLs",
                     type="any",
                     description="URLs received from previous nodes in the workflow",
                     required=False,
@@ -710,9 +711,96 @@ class WebScraperNode(ProcessorNode):
             "outputs": [
                 NodeOutput(
                     name="documents",
+                    displayName="Documents",
                     type="documents",
                     description="List of LangChain Documents with cleaned text content",
+                    is_connection=True
                 )
+            ],
+            "properties": [
+                NodeProperty(
+                    name="credential",
+                    displayName= "Credential (Optional)",
+                    tabName= "basic",
+                    type= NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder= "Select Credential",
+                    required= False
+                ),
+                NodeProperty(
+                    name="urls",
+                    displayName= "URLs to Scrape",
+                    tabName= "basic",
+                    type= NodePropertyType.TEXT_AREA,
+                    placeholder= "https://example.com\nhttps://example.org",
+                    required= True
+                ),
+                NodeProperty(
+                    name="user_agent",
+                    displayName= "User Agent",
+                    tabName= "basic",
+                    type= NodePropertyType.TEXT,
+                    placeholder= "Default KAI-Fusion",
+                    required= True
+                ),
+                NodeProperty(
+                    name="remove_selectors",
+                    displayName= "Remove Selectors",
+                    tabName= "basic",
+                    type= NodePropertyType.TEXT_AREA,
+                    placeholder= "nav,footer,header,script,style,aside,noscript,form",
+                    rows= 2,
+                    hint= "CSS selectors to remove from scraped content",
+                    required= True
+                ),
+                NodeProperty(
+                    name="min_content_length",
+                    displayName= "Min Content Length",
+                    tabName= "advanced",
+                    type= NodePropertyType.NUMBER,
+                    minLength= 1,
+                    colSpan= 1,
+                    required= True
+                ),
+                NodeProperty(
+                    name="max_concurrent",
+                    displayName= "Max Concurrent",
+                    tabName= "advanced",
+                    default= 5,
+                    type= NodePropertyType.NUMBER,
+                    min= 1,
+                    max= 10,
+                    colSpan= 1,
+                    required= True
+                ),
+                NodeProperty(
+                    name="timeout_seconds",
+                    displayName= "Timeout (seconds)",
+                    tabName= "advanced",
+                    type= NodePropertyType.NUMBER,
+                    min= 5,
+                    max= 300,
+                    colSpan= 1,
+                    required= True
+                ),
+                NodeProperty(
+                    name="retry_attempts",
+                    displayName= "Retry Attempts",
+                    tabName= "advanced",
+                    type= NodePropertyType.NUMBER,
+                    min= 0,
+                    max= 5,
+                    colSpan= 1,
+                    required= True
+                ),
+                NodeProperty(
+                    name="tavily_api_key",
+                    displayName= "Tavily API Key (Optional)",
+                    tabName= "advanced",
+                    type= NodePropertyType.PASSWORD,
+                    placeholder= "Enter your Tavily API key",
+                    hint= "Used for enhanced web search capabilities",
+                    required= False
+                ),
             ],
         }
 
@@ -858,13 +946,32 @@ class WebScraperNode(ProcessorNode):
         # Get parameters
         remove_selectors_str = inputs.get("remove_selectors", "nav,footer,header,script,style,aside,noscript,form")
         remove_selectors = [s.strip() for s in remove_selectors_str.split(",") if s.strip()]
-        min_content_length = int(inputs.get("min_content_length", 100))
+        
+        # Safely extract integer parameters
+        try:
+            val = inputs.get("min_content_length")
+            min_content_length = int(val) if val is not None and str(val).strip() != "" else 100
+        except (ValueError, TypeError):
+            min_content_length = 100
+            
+        try:
+            val = inputs.get("timeout_seconds")
+            timeout_seconds = int(val) if val is not None and str(val).strip() != "" else 30
+        except (ValueError, TypeError):
+            timeout_seconds = 30
+            
+        try:
+            val = inputs.get("retry_attempts")
+            retry_attempts = int(val) if val is not None and str(val).strip() != "" else 3
+        except (ValueError, TypeError):
+            retry_attempts = 3
+
         user_agent = inputs.get("user_agent", "Mozilla/5.0 (compatible; KAI-Fusion/2.1.0; Web-Scraper)")
         
         # Setup HTTP session with retry strategy
         session = requests.Session()
         retry_strategy = Retry(
-            total=3,
+            total=retry_attempts,
             backoff_factor=1,
             status_forcelist=[429, 500, 502, 503, 504],
         )
@@ -899,7 +1006,7 @@ class WebScraperNode(ProcessorNode):
                 logger.info(f"🔄 [{i}/{len(all_urls)}] Scraping: {url}")
                 
                 # Make HTTP request to fetch the page
-                response = session.get(url, timeout=30)
+                response = session.get(url, timeout=timeout_seconds)
                 response.raise_for_status()
                 
                 # Get HTML content

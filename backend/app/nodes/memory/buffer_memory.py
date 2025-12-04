@@ -145,7 +145,7 @@ LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary - KAI-Fusion Platform
 """
 
-from ..base import MemoryNode, NodeInput, NodeType
+from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 from langchain.memory import ConversationBufferMemory
 from langchain_core.runnables import Runnable
 from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, SystemMessage
@@ -172,10 +172,52 @@ class BufferMemoryNode(MemoryNode):
             "name": "BufferMemory",
             "display_name": "Buffer Memory (Persistent)",
             "description": "Stores entire conversation history with database persistence.",
+            "icon": {"name": "database", "path": None, "alt": None},
+            "colors": ["blue-500", "indigo-600"],
             "inputs": [
                 NodeInput(name="return_messages", type="bool", description="Return as messages.", default=True),
                 NodeInput(name="input_key", type="str", description="Key for user input.", default="input"),
                 NodeInput(name="user_id", type="str", description="User ID for multi-tenancy.", required=False),
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="memory",
+                    displayName="Memory",
+                    type="BaseChatMemory",
+                    description="Configured buffer memory instance.",
+                    is_connection=True,
+                    direction=NodePosition.TOP
+                )
+            ],
+            "properties": [
+                NodeProperty(
+                    name="memory_key",
+                    displayName="MEMORY KEY",
+                    type=NodePropertyType.TEXT,
+                    default="memory",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="input_key",
+                    displayName="INPUT KEY",
+                    type=NodePropertyType.TEXT,
+                    default="input",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="output_key",
+                    displayName="OUTPUT KEY",
+                    type=NodePropertyType.TEXT,
+                    default="output",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="return_messages",
+                    displayName="Return Messages",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    required=False,
+                ),
             ]
         })
         # Standard inputs are now inherited from MemoryNode

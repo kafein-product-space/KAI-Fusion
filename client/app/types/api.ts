@@ -1,3 +1,5 @@
+import type { Position } from "@xyflow/react";
+
 // User and Authentication types
 export interface User {
   id: string;
@@ -167,16 +169,21 @@ export interface WorkflowExecution {
 // Node types
 export interface NodeInput {
   name: string;
+  displayName?: string;
   type: string;
   description?: string;
   required?: boolean;
   default?: any;
+  is_connection?: boolean;
+  direction?: Position;
 }
 
 export interface NodeOutput {
   name: string;
+  displayName?: string;
   type: string;
   description?: string;
+  direction?: Position;
 }
 
 export interface NodeMetadata {
@@ -186,8 +193,13 @@ export interface NodeMetadata {
   category: string;
   inputs: NodeInput[];
   outputs: NodeOutput[];
-  icon?: string;
-  color?: string;
+  properties: Record<string, any>; // TODO: Replace with NodeProperty[]
+  icon?: {
+    name?: string;
+    path?: string;
+    alt?: string;
+  };
+  colors?: string[];
 }
 
 export interface NodeCategory {

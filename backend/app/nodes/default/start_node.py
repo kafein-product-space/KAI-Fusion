@@ -22,6 +22,7 @@ class StartNode(ProcessorNode):
             "inputs": [
                 NodeInput(
                     name="initial_input",
+                    displayName="Initial Input",
                     type="string",
                     description="Initial input text to start the workflow",
                     default="",
@@ -29,6 +30,7 @@ class StartNode(ProcessorNode):
                 ),
                 NodeInput(
                     name="trigger_data",
+                    displayName="Trigger Data",
                     type="any",
                     description="Data received from trigger nodes",
                     required=False,
@@ -38,12 +40,14 @@ class StartNode(ProcessorNode):
             "outputs": [
                 NodeOutput(
                     name="output",
+                    displayName="Execute",
                     type="string",
-                    description="Forwarded input to start the workflow chain"
+                    description="Forwarded input to start the workflow chain",
+                    is_connection=True,
                 )
             ],
-            "color": "#22c55e",  # Green color for start
-            "icon": "play"
+            "colors": ["green-500", "emerald-600"],
+            "icon": {"name": "rocket", "path": None, "alt": None},
         }
     
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:

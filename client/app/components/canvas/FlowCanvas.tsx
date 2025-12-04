@@ -21,10 +21,7 @@ import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
-import StartNode from "../nodes/StartNode";
-import ToolAgentNode from "../nodes/agents/ToolAgent/index";
-
-import OpenAIChatNode from "../nodes/llms/OpenAI/index";
+import StartNode from "../node/StartNode";
 import CustomEdge from "../common/CustomEdge";
 
 import type {
@@ -42,103 +39,22 @@ import ChatHistorySidebar from "./ChatHistorySidebar";
 import SidebarToggleButton from "./SidebarToggleButton";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
-import BufferMemoryNode from "../nodes/memory/BufferMemory/index";
-import TavilyWebSearchNode from "../nodes/tools/TavilyWebSearch";
 import Navbar from "../common/Navbar";
 import Sidebar from "../common/Sidebar";
-import EndNode from "../nodes/special/EndNode";
+import EndNode from "../node/EndNode";
 import { useChatStore } from "../../stores/chat";
-import ConversationMemoryNode from "../nodes/memory/ConversationMemory/index";
-import WebScraperNode from "../nodes/document_loaders/WebScraper";
-import DocumentLoaderNode from "../nodes/document_loaders/DocumentLoader/index";
-import DocumentChunkSplitterNode from "../nodes/splitters/DocumentChunkSplitter";
-import HTTPClientNode from "../nodes/tools/HTTPClient/index";
-import DocumentRerankerNode from "../nodes/tools/DocumentReranker/index";
-import TimerStartNode from "../nodes/triggers/TimerStartNode";
-import WebhookTriggerNode from "../nodes/triggers/WebhookTrigger";
-import OpenAIEmbeddingsProviderNode from "../nodes/embeddings/OpenAIEmbeddingsProvider";
-import CohereRerankerNode from "../nodes/tools/CohereReranker/index";
-import VectorStoreOrchestratorNode from "../nodes/vectorstores/VectorStoreOrchestrator/index";
-import RetrieverNode from "../nodes/tools/RetrieverNode";
-import { StringInputNode } from "../nodes/text_processing";
 import UnsavedChangesModal from "../modals/UnsavedChangesModal";
 import AutoSaveSettingsModal from "../modals/AutoSaveSettingsModal";
 import FullscreenNodeModal from "../common/FullscreenNodeModal";
 import { TutorialButton } from "../tutorial";
 import { executeWorkflowStream } from "~/services/executionService";
+import GenericNode from "../node";
 
 // Import config components
-import ChatConfigForm from "../nodes/llms/OpenAI/ChatConfigForm";
-import ToolAgentConfigForm from "../nodes/agents/ToolAgent/ToolAgentConfigForm";
-import BufferMemoryConfigForm from "../nodes/memory/BufferMemory/BufferMemoryConfigForm";
-import ConversationMemoryConfigForm from "../nodes/memory/ConversationMemory/ConversationMemoryConfigForm";
-import WebScraperConfigForm from "../nodes/document_loaders/WebScraper/WebScraperConfigForm";
-import DocumentLoaderConfigForm from "../nodes/document_loaders/DocumentLoader/DocumentLoaderConfigForm";
-import DocumentChunkSplitterConfigForm from "../nodes/splitters/DocumentChunkSplitter/DocumentChunkSplitterConfigForm";
-import HTTPClientConfigForm from "../nodes/tools/HTTPClient/HTTPClientConfigForm";
-import DocumentRerankerConfigForm from "../nodes/tools/DocumentReranker/DocumentRerankerConfigForm";
-import CohereRerankerConfigForm from "../nodes/tools/CohereReranker/CohereRerankerConfigForm";
-import TavilyWebSearchConfigForm from "../nodes/tools/TavilyWebSearch/TavilyWebSearchConfigForm";
-import TimerStartConfigForm from "../nodes/triggers/TimerStartNode/TimerStartConfigForm";
-import WebhookTriggerConfigForm from "../nodes/triggers/WebhookTrigger/WebhookTriggerConfigForm";
-import VectorStoreOrchestratorConfigForm from "../nodes/vectorstores/VectorStoreOrchestrator/VectorStoreOrchestratorConfigForm";
-import OpenAIEmbeddingsProviderConfigForm from "../nodes/embeddings/OpenAIEmbeddingsProvider/OpenAIEmbeddingsProviderConfigForm";
-import RetrieverConfigForm from "../nodes/tools/RetrieverConfigForm";
-import { StringInputConfigForm } from "../nodes/text_processing";
-
-// Node config component mapping
-const nodeConfigComponents: Record<string, React.ComponentType<any>> = {
-  OpenAIChat: ChatConfigForm,
-  Agent: ToolAgentConfigForm,
-  BufferMemory: BufferMemoryConfigForm,
-  ConversationMemory: ConversationMemoryConfigForm,
-  WebScraper: WebScraperConfigForm,
-  DocumentLoader: DocumentLoaderConfigForm,
-  ChunkSplitter: DocumentChunkSplitterConfigForm,
-  HttpRequest: HTTPClientConfigForm,
-  Reranker: DocumentRerankerConfigForm,
-  CohereRerankerProvider: CohereRerankerConfigForm,
-  TavilySearch: TavilyWebSearchConfigForm,
-  TimerStartNode: TimerStartConfigForm,
-  WebhookTrigger: WebhookTriggerConfigForm,
-  VectorStoreOrchestrator: VectorStoreOrchestratorConfigForm,
-  OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderConfigForm,
-  RetrieverProvider: RetrieverConfigForm,
-  StringInputNode: StringInputConfigForm,
-};
-
-// Define nodeTypes outside component to prevent recreations
-const baseNodeTypes = {
-  Agent: ToolAgentNode,
-  StartNode: StartNode,
-  OpenAIChat: OpenAIChatNode,
-  BufferMemory: BufferMemoryNode,
-  ConversationMemory: ConversationMemoryNode,
-  TavilySearch: TavilyWebSearchNode,
-  WebScraper: WebScraperNode,
-  DocumentLoader: DocumentLoaderNode,
-  EndNode: EndNode,
-  ChunkSplitter: DocumentChunkSplitterNode,
-  HttpRequest: HTTPClientNode,
-  Reranker: DocumentRerankerNode,
-  TimerStartNode: TimerStartNode,
-  WebhookTrigger: WebhookTriggerNode,
-  OpenAIEmbeddingsProvider: OpenAIEmbeddingsProviderNode,
-  CohereRerankerProvider: CohereRerankerNode,
-  VectorStoreOrchestrator: VectorStoreOrchestratorNode,
-  RetrieverProvider: RetrieverNode,
-  StringInputNode: StringInputNode,
-};
+import { GenericNodeForm } from "../node";
 
 interface FlowCanvasProps {
   workflowId?: string;
-}
-
-interface ChatMessage {
-  from: "user" | "bot";
-  text: string;
-  timestamp?: string;
-  session_id?: string;
 }
 
 function FlowCanvas({ workflowId }: FlowCanvasProps) {
@@ -158,6 +74,22 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     Record<string, "success" | "failed" | "pending">
   >({});
 
+  // Create node config components and base node types directly from nodes
+  const nodeConfigComponents = useMemo(
+    () =>
+      nodes.reduce((acc, node) => {
+        const nodeType = node.type as string;
+        if (!acc[nodeType]) {
+          if (nodeType === "StartNode" || nodeType === "EndNode") {
+            acc[nodeType] = null;
+          } else {
+            acc[nodeType] = GenericNodeForm as React.ComponentType<any>;
+          }
+        }
+        return acc;
+      }, {} as Record<string, React.ComponentType<any> | null>),
+    [nodes]
+  );
   // Listen for chat execution events to update node status
   useChatExecutionListener(
     nodes,
@@ -229,6 +161,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     currentWorkflow?.name || "isimsiz dosya"
   );
 
+  console.log("currentWorkflow", currentWorkflow);
   const {
     chats,
     activeChatflowId,
@@ -897,21 +830,30 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Use stable nodeTypes - pass handlers via node data instead
   const nodeTypes = useMemo(
-    () => ({
-      ...baseNodeTypes,
-      StartNode: (props: any) => (
-        <StartNode
-          {...props}
-          onExecute={handleStartNodeExecution}
-          isExecuting={executionLoading}
-          isActive={activeNodes.includes(props.id)}
-        />
+    () =>
+      nodes.reduce(
+        (acc, node) => {
+          const nodeType = node.type as string;
+          if (!acc[nodeType]) {
+            acc[nodeType] = GenericNode;
+          }
+          return acc;
+        },
+        {
+          StartNode: (props: any) => (
+            <StartNode
+              {...props}
+              onExecute={handleStartNodeExecution}
+              isExecuting={executionLoading}
+              isActive={activeNodes.includes(props.id)}
+            />
+          ),
+          EndNode: (props: any) => (
+            <EndNode {...props} isActive={activeNodes.includes(props.id)} />
+          ),
+        } as Record<string, React.ComponentType<any> | null>
       ),
-      OpenAIChat: (props: any) => (
-        <OpenAIChatNode {...props} isActive={activeNodes.includes(props.id)} />
-      ),
-    }),
-    [handleStartNodeExecution, executionLoading, activeNodes]
+    [nodes, handleStartNodeExecution, executionLoading, activeNodes]
   );
   const handleClear = useCallback(() => {
     if (hasUnsavedChanges) {
@@ -1060,12 +1002,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         });
       }
     },
-    [availableNodes]
+    [availableNodes, nodeConfigComponents]
   );
 
   // Handle fullscreen modal save
   const handleFullscreenModalSave = useCallback(
     (values: any) => {
+      console.log("values", values);
       if (fullscreenModal.nodeData) {
         setNodes((nodes) =>
           nodes.map((node) =>

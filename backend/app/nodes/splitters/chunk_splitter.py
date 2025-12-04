@@ -353,7 +353,7 @@ from langchain_text_splitters import (
     LatexTextSplitter,
 )
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
@@ -773,13 +773,12 @@ class ChunkSplitterNode(ProcessorNode):
             ),
             "category": NodeCategory.TEXT_SPLITTER,
             "node_type": NodeType.PROCESSOR,
-            "icon": "scissors",
-            "color": "#facc15",
-            
-            # Input configuration with advanced UI controls
+            "icon": {"name": "scissors", "path": None, "alt": None},
+            "colors": ["yellow-500", "orange-600"],
             "inputs": [
                 NodeInput(
                     name="documents",
+                    displayName="Documents",
                     type="documents",
                     is_connection=True,
                     description="List of documents to split into chunks",
@@ -789,31 +788,18 @@ class ChunkSplitterNode(ProcessorNode):
                     name="split_strategy",
                     type="select",
                     description="Text splitting strategy to use",
-                    choices=[
-                        {"value": k, "label": v["name"], "description": v["description"]}
-                        for k, v in _SPLITTER_STRATEGIES.items()
-                    ],
-                    default="recursive_character",
                     required=True,
                 ),
                 NodeInput(
                     name="chunk_size",
                     type="slider",
                     description="Maximum size of each chunk (characters or tokens)",
-                    default=1000,
-                    min_value=100,
-                    max_value=8000,
-                    step=100,
                     required=True,
                 ),
                 NodeInput(
                     name="chunk_overlap",
                     type="slider", 
                     description="Overlap between consecutive chunks (helps maintain context)",
-                    default=200,
-                    min_value=0,
-                    max_value=2000,
-                    step=25,
                     required=True,
                 ),
                 NodeInput(
@@ -848,21 +834,17 @@ class ChunkSplitterNode(ProcessorNode):
                     name="length_function",
                     type="select",
                     description="How to measure chunk length",
-                    choices=[
-                        {"value": "len", "label": "Characters", "description": "Count characters"},
-                        {"value": "tokens", "label": "Tokens", "description": "Count tokens (approximate)"},
-                    ],
                     default="len",
                     required=False,
                 ),
             ],
-            
-            # Multiple outputs for different use cases
             "outputs": [
                 NodeOutput(
                     name="chunks",
+                    displayName="Chunks",
                     type="documents",
                     description="Complete list of document chunks ready for embedding",
+                    is_connection=True,
                 ),
                 NodeOutput(
                     name="stats",
@@ -878,6 +860,73 @@ class ChunkSplitterNode(ProcessorNode):
                     name="metadata_report",
                     type="dict",
                     description="Detailed metadata analysis and quality metrics",
+                ),
+            ],
+            "properties": [
+                NodeProperty(
+                    name="chunk_size",
+                    displayName="Chunk Size",
+                    type=NodePropertyType.NUMBER,
+                    default=1000,
+                    min=100,
+                    max=10000,
+                    hint="Number of characters per chunk (100-10000)",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="chunk_overlap",
+                    displayName="Overlap",
+                    type=NodePropertyType.NUMBER,
+                    default=200,
+                    min=0,
+                    max=5000,
+                    hint="Number of characters to overlap between chunks (0-5000)",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="separator",
+                    displayName="Separator",
+                    type=NodePropertyType.TEXT,
+                    default="\\n\\n",
+                    hint="Character or string to split on",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="keep_separator",
+                    displayName="Keep Separator",
+                    type=NodePropertyType.SELECT,
+                    default="true",
+                    options=[
+                        {"label": "Yes", "value": "true"},
+                        {"label": "No", "value": "false"},
+                    ],
+                    hint="Whether to keep the separator in the chunks",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="length_function",
+                    displayName="Length Function",
+                    type=NodePropertyType.SELECT,
+                    default="len",
+                    options=[
+                        {"label": "Character Count (len)", "value": "len"},
+                        {"label": "Token Count", "value": "tokenizer"},
+                        {"label": "Custom Function", "value": "custom"},
+                    ],
+                    hint="Function to measure chunk length",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="is_separator_regex",
+                    displayName="Use Regex Separator",
+                    type=NodePropertyType.SELECT,
+                    default="false",
+                    options=[
+                        {"label": "No", "value": "false"},
+                        {"label": "Yes", "value": "true"},
+                    ],
+                    hint="Treat separator as regular expression",
+                    required=False,
                 ),
             ],
         }
@@ -1272,13 +1321,15 @@ class ChunkSplitterNode(ProcessorNode):
         # Get configuration
         config = {
             "split_strategy": inputs.get("split_strategy", "recursive_character"),
-            "chunk_size": int(inputs.get("chunk_size", 1000)),
-            "chunk_overlap": int(inputs.get("chunk_overlap", 200)),
+            "chunk_size": int(inputs.get("chunk_size") or inputs.get("chunkSize") or 1000),
+            "chunk_overlap": int(inputs.get("chunk_overlap") or inputs.get("overlap") or 200),
             "separators": inputs.get("separators", ""),
+            "separator": inputs.get("separator", ""),
             "header_levels": inputs.get("header_levels", ""),
-            "keep_separator": inputs.get("keep_separator", True),
+            "keep_separator": str(inputs.get("keep_separator") or inputs.get("keepSeparator", "true")).lower() == "true",
             "strip_whitespace": inputs.get("strip_whitespace", True),
-            "length_function": inputs.get("length_function", "len"),
+            "length_function": inputs.get("length_function") or inputs.get("lengthFunction", "len"),
+            "is_separator_regex": str(inputs.get("is_separator_regex") or inputs.get("isSeparatorRegex", "false")).lower() == "true",
         }
         
         logger.info(f"⚙️ Configuration: {config['split_strategy']} | size={config['chunk_size']} | overlap={config['chunk_overlap']}")
