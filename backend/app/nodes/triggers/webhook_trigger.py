@@ -27,7 +27,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
 from langchain_core.runnables.utils import Input, Output
 
-from ..base import ProviderNode, TerminatorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProviderNode, TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
@@ -463,24 +463,14 @@ class WebhookTriggerNode(TerminatorNode):
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
-            "icon": "webhook",
-            "color": "#3b82f6",
-            
-            # Webhook configuration inputs
+            "icon": {"name": "webhook", "path": None, "alt": None},
+            "colors": ["green-500", "emerald-600"],
+                        # Webhook configuration inputs
             "inputs": [
                 NodeInput(
                     name="http_method",
                     type="select",
                     description="HTTP method for webhook endpoint",
-                    default="POST",
-                    choices=[
-                        {"value": "GET", "label": "GET", "description": "GET request (query parameters)"},
-                        {"value": "POST", "label": "POST", "description": "POST request (JSON body)"},
-                        {"value": "PUT", "label": "PUT", "description": "PUT request (JSON body)"},
-                        {"value": "PATCH", "label": "PATCH", "description": "PATCH request (JSON body)"},
-                        {"value": "DELETE", "label": "DELETE", "description": "DELETE request (query parameters)"},
-                        {"value": "HEAD", "label": "HEAD", "description": "HEAD request (no body)"},
-                    ],
                     required=False,
                 ),
                 NodeInput(
@@ -502,8 +492,6 @@ class WebhookTriggerNode(TerminatorNode):
                     type="number",
                     description="Maximum payload size in KB",
                     default=1024,
-                    min_value=1,
-                    max_value=10240,
                     required=False,
                 ),
                 NodeInput(
@@ -511,8 +499,6 @@ class WebhookTriggerNode(TerminatorNode):
                     type="number",
                     description="Maximum requests per minute (0 = no limit)",
                     default=60,
-                    min_value=0,
-                    max_value=1000,
                     required=False,
                 ),
                 NodeInput(
@@ -527,14 +513,19 @@ class WebhookTriggerNode(TerminatorNode):
                     type="number",
                     description="Webhook processing timeout in seconds",
                     default=30,
-                    min_value=5,
-                    max_value=300,
                     required=False,
                 ),
             ],
             
             # Webhook outputs
             "outputs": [
+                NodeOutput(
+                    name="webhook_data",
+                    displayName="Webhook Data",
+                    type="dict",
+                    description="Received webhook payload and metadata.",
+                    is_connection=True,
+                ),
                 NodeOutput(
                     name="webhook_endpoint",
                     type="string",
@@ -554,6 +545,220 @@ class WebhookTriggerNode(TerminatorNode):
                     name="webhook_config",
                     type="dict",
                     description="Webhook configuration and metadata",
+                ),
+            ],
+            "properties": [
+                # Basic Tab
+                NodeProperty(
+                    name="http_method",
+                    displayName="HTTP Method",
+                    type=NodePropertyType.SELECT,
+                    default="POST",
+                    options=[
+                        {"label": "POST - JSON Body (Default)", "value": "POST"},
+                        {"label": "GET - Query Parameters", "value": "GET"},
+                        {"label": "PUT - Full Resource Update", "value": "PUT"},
+                        {"label": "PATCH - Partial Update", "value": "PATCH"},
+                        {"label": "DELETE - Query Parameters", "value": "DELETE"},
+                        {"label": "HEAD - Headers Only", "value": "HEAD"},
+                    ],
+                    hint="Choose the HTTP method for webhook requests",
+                    required=True,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="authentication_required",
+                    displayName="Authentication Required",
+                    type=NodePropertyType.SELECT,
+                    default="true",
+                    options=[
+                        {"label": "Yes", "value": "true"},
+                        {"label": "No", "value": "false"},
+                    ],
+                    description="Require bearer token authentication",
+                    required=True,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="webhook_token",
+                    displayName="Authentication Token",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Enter Bearer token for authentication",
+                    hint="This token will be used as Bearer token in Authorization header",
+                    displayOptions={
+                        "show": {
+                            "authentication_required": "true"
+                        }
+                    },
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="allowed_event_types",
+                    displayName="Allowed Event Types",
+                    type=NodePropertyType.TEXT_AREA,
+                    placeholder="user.created, order.completed, data.updated (comma-separated, empty = all)",
+                    tabName="basic"
+                ),
+
+                # Security Tab
+                NodeProperty(
+                    name="max_payload_size",
+                    displayName="Max Payload Size (KB)",
+                    type=NodePropertyType.NUMBER,
+                    default=1024,
+                    min=1,
+                    max=10240,
+                    description="Maximum payload size in KB",
+                    required=True,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="rate_limit_per_minute",
+                    displayName="Rate Limit (per minute)",
+                    type=NodePropertyType.NUMBER,
+                    default=60,
+                    min=0,
+                    max=1000,
+                    description="Maximum requests per minute (0 = no limit)",
+                    required=True,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="enable_cors",
+                    displayName="Enable CORS",
+                    type=NodePropertyType.SELECT,
+                    default="true",
+                    options=[
+                        {"label": "Yes", "value": "true"},
+                        {"label": "No", "value": "false"},
+                    ],
+                    description="Enable CORS for cross-origin requests",
+                    required=True,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="webhook_timeout",
+                    displayName="Webhook Timeout (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    default=30,
+                    min=5,
+                    max=300,
+                    description="Webhook processing timeout in seconds",
+                    tabName="security",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="webhook_token",
+                    displayName="Secret Token",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Enter secret token",
+                    tabName="security",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="allowed_ips",
+                    displayName="Allowed IPs (Optional)",
+                    type=NodePropertyType.TEXT_AREA,
+                    description="Comma-separated list of allowed IP addresses or CIDR blocks",
+                    placeholder="192.168.1.1, 10.0.0.0/8",
+                    tabName="security",
+                    required=False,
+                ),
+
+                # Advanced Tab
+                NodeProperty(
+                    name="max_concurrent_connections",
+                    displayName="Max Concurrent Connections",
+                    type=NodePropertyType.NUMBER,
+                    default=100,
+                    min=1,
+                    max=1000,
+                    hint="Maximum number of concurrent webhook connections",
+                    tabName="advanced",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="connection_timeout",
+                    displayName="Connection Timeout (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    default=30,
+                    min=5,
+                    max=300,
+                    description="Connection timeout in seconds",
+                    tabName="advanced",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="enable_response_cache",
+                    displayName="Enable Response Caching",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Cache webhook responses for better performance",
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="cache_duration",
+                    displayName="Cache Duration (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    default=300,
+                    min=60,
+                    max=3600,
+                    displayOptions={
+                        "show": {
+                            "enable_response_cache": True
+                        }
+                    },
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="enable_websocket_broadcast",
+                    displayName="Enable WebSocket Broadcasting",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Broadcast webhook events via WebSocket",
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="realtime_channels",
+                    displayName="Realtime Channels",
+                    type=NodePropertyType.TEXT_AREA,
+                    hint="Comma-separated list of WebSocket channels",
+                    placeholder="admin, analytics, monitoring",
+                    displayOptions={
+                        "show": {
+                            "enable_websocket_broadcast": True
+                        }
+                    },
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="tenant_isolation",
+                    displayName="Enable Tenant Isolation",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Separate webhook processing per tenant",
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="tenant_header",
+                    displayName="Tenant Header",
+                    type=NodePropertyType.TEXT,
+                    default="X-Tenant-ID",
+                    placeholder="X-Tenant-ID",
+                    displayOptions={
+                        "show": {
+                            "tenant_isolation": True
+                        }
+                    },
+                    tabName="advanced"
+                ),
+                NodeProperty(
+                    name="circuit_breaker",
+                    displayName="Enable Circuit Breaker",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Automatically handle failures and timeouts",
+                    tabName="advanced"
                 ),
             ],
         }

@@ -164,7 +164,7 @@ LICENSE: Proprietary - KAI-Fusion Platform
 
 import os
 from typing import Dict, Any, Optional, List
-from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
+from ..base import NodeProperty, ProviderNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 from langchain_tavily import TavilySearch
 from langchain_core.tools import Tool
@@ -425,13 +425,14 @@ class TavilySearchNode(ProviderNode):
             "description": "Performs a web search using the Tavily API.",
             "category": "Tool",
             "node_type": NodeType.PROVIDER,
+            "icon": {"name": "tavily_search", "path": "icons/tavily_search.svg", "alt": "tavilysearchicons"},
+            "colors": ["blue-500", "cyan-600"],
             "inputs": [
                 NodeInput(
                     name="tavily_api_key",
                     type="str",
                     description="Tavily API Key. If not provided, uses TAVILY_API_KEY environment variable.",
                     required=False,
-                    is_secret=True
                 ),
                 NodeInput(name="max_results", type="int", default=5, description="The maximum number of results to return."),
                 NodeInput(name="search_depth", type="str", default="basic", choices=["basic", "advanced"], description="The depth of the search."),
@@ -444,9 +445,70 @@ class TavilySearchNode(ProviderNode):
             "outputs": [
                 NodeOutput(
                     name="search_tool",
+                    displayName="Search Tool",
                     type="BaseTool",
-                    description="A configured Tavily search tool ready for use with agents."
+                    description="A configured Tavily search tool ready for use with agents.",
+                    direction= NodePosition.TOP,
+                    is_connection=True
                 )
+            ],
+            "properties": [
+                NodeProperty(
+                    name="search_type",
+                    displayName= "Search Type",
+                    type= NodePropertyType.SELECT,
+                    default= "basic",
+                    options= [{"label": "Basic Search", "value": "basic"}, {"label": "Advanced Search", "value": "advanced"}],
+                    required= True,
+                ),
+                NodeProperty(
+                    name="credential",
+                    displayName= "Credential (Optional)",
+                    type= NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder= "Select Credential",
+                    required= False
+                ),
+                NodeProperty(
+                    name="tavily_api_key",
+                    displayName= "API Key",
+                    type= NodePropertyType.PASSWORD,
+                    required= True
+                ),
+                NodeProperty(
+                    name="max_results",
+                    displayName= "Max Results",
+                    default= 5,
+                    type= NodePropertyType.NUMBER,
+                    min= 1,
+                    max= 20,
+                    required= False
+                ),
+                NodeProperty(
+                    name="search_depth",
+                    displayName= "Search Depth",
+                    type= NodePropertyType.SELECT,
+                    default= "basic",
+                    options= [{"label": "Basic", "value": "basic"}, {"label": "Moderate", "value": "moderate"}, {"label": "Advanced", "value": "advanced"}],
+                    required= True,
+                ),
+                NodeProperty(
+                    name="include_answer",
+                    displayName= "Include Answer",
+                    type= NodePropertyType.CHECKBOX,
+                    hint= "Include direct answers from Tavily"
+                ),
+                NodeProperty(
+                    name="include_raw_content",
+                    displayName= "Include Raw Content",
+                    type= NodePropertyType.CHECKBOX,
+                    hint= "Include raw HTML content from pages"
+                ),
+                NodeProperty(
+                    name="include_images",
+                    displayName= "Include Images",
+                    type= NodePropertyType.CHECKBOX,
+                    hint= "Include image URLs in search results"
+                ),
             ]
         }
     

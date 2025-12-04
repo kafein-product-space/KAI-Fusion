@@ -82,4 +82,7 @@ __all__ = [
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode",
+    
+    # Other
+    "StringInputNode",
 ]

@@ -18,6 +18,7 @@ import {
   Network,
   BookOpen,
   Type,
+  Box,
 } from "lucide-react";
 
 interface NodeType {
@@ -31,6 +32,7 @@ interface NodeType {
 
 interface DraggableNodeProps {
   nodeType: NodeType;
+  icon: string;
 }
 
 const nodeTypeIconMap: Record<string, ReactElement> = {
@@ -154,9 +156,10 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
+  GenericNode: <Box className="w-6 h-6 text-blue-400" />,
 };
 
-function DraggableNode({ nodeType }: DraggableNodeProps) {
+function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
   const onDragStart = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
     event.dataTransfer.setData(

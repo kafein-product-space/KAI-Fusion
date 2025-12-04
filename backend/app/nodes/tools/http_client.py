@@ -381,7 +381,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
 from langchain_core.runnables.utils import Input, Output
 
-from app.nodes.base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from app.nodes.base import NodeProperty, ProcessorNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
@@ -725,28 +725,24 @@ class HttpClientNode(ProcessorNode):
             ),
             "category": "Tool",
             "node_type": NodeType.PROCESSOR,
-            "icon": "arrow-up-circle",
-            "color": "#0ea5e9",
-            
-            # HTTP request configuration
+            "icon": {"name": "globe", "path": None, "alt": None},
+            "colors": ["blue-500", "purple-600"],
             "inputs": [
                 # Basic request config
                 NodeInput(
                     name="method",
                     type="select",
                     description="HTTP method to use",
-                    choices=[
-                        {"value": method, "label": method, "description": f"{method} request"}
-                        for method in HTTP_METHODS
-                    ],
                     default="GET",
                     required=True,
                 ),
                 NodeInput(
                     name="url",
+                    displayName="Input URL",
                     type="text",
                     description="Target URL (supports Jinja2 templating)",
                     required=True,
+                    is_connection=True,
                 ),
                 
                 # Headers and parameters
@@ -776,10 +772,6 @@ class HttpClientNode(ProcessorNode):
                     name="content_type",
                     type="select",
                     description="Content type for request body",
-                    choices=[
-                        {"value": k, "label": v, "description": f"Send as {v}"}
-                        for k, v in CONTENT_TYPES.items()
-                    ],
                     default="json",
                     required=False,
                 ),
@@ -789,12 +781,6 @@ class HttpClientNode(ProcessorNode):
                     name="auth_type",
                     type="select",
                     description="Authentication method",
-                    choices=[
-                        {"value": "none", "label": "No Authentication", "description": "No authentication"},
-                        {"value": "bearer", "label": "Bearer Token", "description": "Authorization: Bearer <token>"},
-                        {"value": "basic", "label": "Basic Auth", "description": "HTTP Basic Authentication"},
-                        {"value": "api_key", "label": "API Key Header", "description": "Custom API key header"},
-                    ],
                     default="none",
                     required=False,
                 ),
@@ -829,29 +815,18 @@ class HttpClientNode(ProcessorNode):
                     name="timeout",
                     type="slider",
                     description="Request timeout in seconds",
-                    default=30,
-                    min_value=1,
-                    max_value=300,
-                    step=1,
                     required=False,
                 ),
                 NodeInput(
                     name="max_retries",
                     type="number",
                     description="Maximum number of retry attempts",
-                    default=3,
-                    min_value=0,
-                    max_value=10,
                     required=False,
                 ),
                 NodeInput(
                     name="retry_delay",
                     type="slider",
                     description="Delay between retries in seconds",
-                    default=1.0,
-                    min_value=0.1,
-                    max_value=10.0,
-                    step=0.1,
                     required=False,
                 ),
                 NodeInput(
@@ -885,13 +860,14 @@ class HttpClientNode(ProcessorNode):
                     required=False,
                 ),
             ],
-            
-            # HTTP response outputs
             "outputs": [
                 NodeOutput(
                     name="response",
+                    displayName="Response",
                     type="dict",
                     description="Complete HTTP response object",
+                    is_connection=True,
+                    direction=NodePosition.RIGHT
                 ),
                 NodeOutput(
                     name="status_code",
@@ -900,6 +876,7 @@ class HttpClientNode(ProcessorNode):
                 ),
                 NodeOutput(
                     name="content",
+                    displayName="Content",
                     type="any",
                     description="Response content (JSON object or text)",
                 ),
@@ -920,6 +897,7 @@ class HttpClientNode(ProcessorNode):
                 ),
                 NodeOutput(
                     name="documents",
+                    displayName="Documents",
                     type="list",
                     description="Response content as Document objects for ChunkSplitter",
                 ),
@@ -929,6 +907,310 @@ class HttpClientNode(ProcessorNode):
                     description="Single Document object for backward compatibility",
                 ),
             ],
+            "properties": [
+                # Basic Tab
+                NodeProperty(
+                    name="url",
+                    displayName="URL",
+                    type=NodePropertyType.TEXT,
+                    required=True,
+                    placeholder="https://api.example.com/endpoint",
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="method",
+                    displayName="HTTP Method",
+                    type=NodePropertyType.SELECT,
+                    required=True,
+                    default="GET",
+                    options=[
+                        {"label": "GET - Retrieve data", "value": "GET"},
+                        {"label": "POST - Create new resource", "value": "POST"},
+                        {"label": "PUT - Update entire resource", "value": "PUT"},
+                        {"label": "PATCH - Partial update", "value": "PATCH"},
+                        {"label": "DELETE - Remove resource", "value": "DELETE"},
+                        {"label": "HEAD - Get headers only", "value": "HEAD"},
+                        {"label": "OPTIONS - Get allowed methods", "value": "OPTIONS"},
+                    ],
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="content_type",
+                    displayName="Content Type",
+                    type=NodePropertyType.SELECT,
+                    default="application/json",
+                    options=[
+                        {"label": "JSON", "value": "application/json"},
+                        {"label": "XML", "value": "application/xml"},
+                        {"label": "Plain Text", "value": "text/plain"},
+                        {"label": "Form Data", "value": "application/x-www-form-urlencoded"},
+                        {"label": "Multipart", "value": "multipart/form-data"},
+                    ],
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="timeout",
+                    displayName="Timeout (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    max=300,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="retry_count",
+                    displayName="Retry Count",
+                    type=NodePropertyType.NUMBER,
+                    min=0,
+                    max=10,
+                    colSpan= 1,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="retry_delay",
+                    displayName="Retry Delay (ms)",
+                    type=NodePropertyType.NUMBER,
+                    min=100,
+                    max=10000,
+                    colSpan= 1,
+                    tabName="basic"
+                ),
+
+                # Security Tab
+                NodeProperty(
+                    name="title",
+                    displayName="Authentication",
+                    type=NodePropertyType.TITLE,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="api_key_header",
+                    displayName="API Key Header",
+                    type=NodePropertyType.TEXT,
+                    placeholder="Authorization",
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="api_key_value",
+                    displayName="API Key Value",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Bearer token or API key",
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="auth_username",
+                    displayName="Username",
+                    type=NodePropertyType.TEXT,
+                    colSpan= 1,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="auth_password",
+                    displayName="Password",
+                    type=NodePropertyType.PASSWORD,
+                    colSpan= 1,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="title",
+                    displayName="SSL Settings",
+                    type=NodePropertyType.TITLE,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="verify_ssl",
+                    displayName="Verify SSL Certificate",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="ssl_cert_path",
+                    displayName="SSL Certificate Path",
+                    type=NodePropertyType.TEXT,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="ssl_key_path",
+                    displayName="SSL Key Path",
+                    type=NodePropertyType.TEXT,
+                    tabName="security"
+                ),
+                NodeProperty(
+                    name="custom_headers",
+                    displayName="Custom Headers",
+                    type=NodePropertyType.TEXT_AREA,
+                    description="Key-value pairs of custom headers",
+                    placeholder='{"X-Custom-Header": "value"}',
+                    rows= 3,
+                    tabName="security"
+                ),
+
+                # Performance Tab
+                NodeProperty(
+                    name="title",
+                    displayName="Rate Limiting",
+                    type=NodePropertyType.TITLE,
+                    tabName="performance"
+                ),
+                NodeProperty(
+                    name="rate_limit_enabled",
+                    displayName="Enable Rate Limiting",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="performance"
+                ),
+                NodeProperty(
+                    name="rate_limit_requests",
+                    displayName="Requests per Window",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                    displayOptions={
+                        "show": {
+                            "rate_limit_enabled": True
+                        }
+                    }
+                ),
+                NodeProperty(
+                    name="rate_limit_window",
+                    displayName="Window (seconds)",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                    displayOptions={
+                        "show": {
+                            "rate_limit_enabled": True
+                        }
+                    }
+                ),
+                NodeProperty(
+                    name="title",
+                    displayName="Connection Settings",
+                    type=NodePropertyType.TITLE,
+                    tabName="performance"
+                ),
+                NodeProperty(
+                    name="connection_timeout",
+                    displayName="Connection Timeout (s)",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                ),
+                NodeProperty(
+                    name="read_timeout",
+                    displayName="Read Timeout (s)",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                ),
+                NodeProperty(
+                    name="keep_alive",
+                    displayName="Keep-Alive Connection",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="performance",
+                ),
+                NodeProperty(
+                    name="connection_pooling",
+                    displayName="Connection Pooling",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="performance",
+                ),
+                NodeProperty(
+                    name="title",
+                    displayName="Circuit Breaker",
+                    type=NodePropertyType.TITLE,
+                    tabName="performance"
+                ),
+                NodeProperty(
+                    name="circuit_breaker_enabled",
+                    displayName="Enable Circuit Breaker",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="performance",
+                ),
+                NodeProperty(
+                    name="circuit_breaker_threshold",
+                    displayName="Failure Threshold",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                    displayOptions={
+                        "show": {
+                            "circuit_breaker_enabled": True
+                        }
+                    }
+                ),
+                NodeProperty(
+                    name="circuit_breaker_timeout",
+                    displayName="Timeout (s)",
+                    type=NodePropertyType.NUMBER,
+                    min=1,
+                    tabName="performance",
+                    colSpan= 1,
+                    displayOptions={
+                        "show": {
+                            "circuit_breaker_enabled": True
+                        }
+                    }
+                ),
+
+                # Test Tab
+                NodeProperty(
+                    name="title",
+                    displayName="Test Configuration",
+                    type=NodePropertyType.TITLE,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="success_status_codes",
+                    displayName="Success Status Codes",
+                    type=NodePropertyType.TEXT,
+                    placeholder="200,201,202",
+                    colSpan= 1,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="retry_on_status_codes",
+                    displayName="Retry Status Codes",
+                    type=NodePropertyType.TEXT,
+                    placeholder="500,502,503,504",
+                    colSpan= 1,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="retry_exponential_backoff",
+                    displayName="Exponential Backoff",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="title",
+                    displayName="Debug Settings",
+                    type=NodePropertyType.TITLE,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="logging_enabled",
+                    displayName="Enable Logging",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="debug_mode",
+                    displayName="Debug Mode",
+                    type=NodePropertyType.CHECKBOX,
+                    tabName="test"
+                ),
+                NodeProperty(
+                    name="response_validation",
+                    displayName="Response Validation",
+                    type=NodePropertyType.TEXT_AREA,
+                    placeholder="JSON schema or validation rules",
+                    tabName="test"
+                ),
+            ]
         }
         
     def get_required_packages(self) -> list[str]:

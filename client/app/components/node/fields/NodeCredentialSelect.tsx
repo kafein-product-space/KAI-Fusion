@@ -1,0 +1,62 @@
+import { useFormikContext } from "formik";
+import CredentialSelector from "../../credentials/CredentialSelector";
+import { getUserCredentialSecret } from "~/services/userCredentialService";
+import type { NodeProperty } from "../types";
+
+interface NodeCredentialSelectProps {
+  property: NodeProperty;
+  values: any;
+  setFieldValue: (name: string, value: any) => void;
+}
+
+export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCredentialSelectProps) => {
+  const handleCredentialChange = async (credentialId: string) => {
+    setFieldValue("credential_id", credentialId);
+    if (credentialId) {
+      try {
+        const result = await getUserCredentialSecret(credentialId);
+
+        if ((result as any)?.secret?.api_key) {
+          setFieldValue("tavily_api_key", (result as any).secret.api_key);
+        }
+      } catch (e) {
+        console.error("Failed to fetch credential secret:", e);
+      }
+    }
+  };
+
+  const handleCredentialLoad = (secret: any) => {
+    if (secret?.api_key) {
+      setFieldValue("tavily_api_key", secret.api_key);
+    }
+  };
+
+  const displayOptions = property?.displayOptions || {};
+  const show = displayOptions.show || {};
+
+  if (Object.keys(show).length > 0) {
+    for (const [dependencyName, validValue] of Object.entries(show)) {
+      const dependencyValue = values[dependencyName];
+      if (dependencyValue !== validValue) {
+        return null;
+      }
+    }
+  }
+
+  return (
+    <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
+      <label className="text-white text-sm font-medium mb-2 block">
+        {property.displayName}
+      </label>
+      <CredentialSelector
+        value={values.credential_id}
+        onChange={handleCredentialChange}
+        onCredentialLoad={handleCredentialLoad}
+        serviceType={property.serviceType}
+        placeholder={property.placeholder}
+        showCreateNew={true}
+        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border"
+      />
+    </div>
+  );
+};

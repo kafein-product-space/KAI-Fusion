@@ -207,7 +207,7 @@ function Sidebar({ onClose }: SidebarProps) {
                 </h4>
                 <div className="space-y-2">
                   {nodesToDisplay.map((nodeType) => (
-                    <DraggableNode key={nodeType.id} nodeType={nodeType} />
+                    <DraggableNode key={nodeType.id} nodeType={nodeType} icon={nodeType.data.icon} />
                   ))}
                 </div>
               </div>
@@ -230,7 +230,7 @@ function Sidebar({ onClose }: SidebarProps) {
                     <div className="collapse-content space-y-2">
                       {categoryNodes.map((nodeType) => (
                         <React.Fragment key={nodeType.id}>
-                          <DraggableNode nodeType={nodeType} />
+                          <DraggableNode nodeType={nodeType} icon={nodeType.data.icon} />
                           <hr className="my-2 border-gray-600" />
                         </React.Fragment>
                       ))}

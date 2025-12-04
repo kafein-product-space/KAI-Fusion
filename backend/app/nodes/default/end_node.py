@@ -18,11 +18,12 @@ class EndNode(TerminatorNode):
             description="Marks the end of a workflow path",
             category="Special",
             node_type=NodeType.TERMINATOR,
-            icon="flag-checkered",
-            color="#D32F2F", # A distinct red color
+            icon={"name": "flag", "path": None, "alt": None},
+            colors=["gray-500", "slate-600"],
             inputs=[
                 NodeInput(
                     name="target",
+                    displayName="Target",
                     type="any",
                     description="The final data from the preceding node",
                     is_connection=True,

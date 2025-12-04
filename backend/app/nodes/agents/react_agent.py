@@ -97,7 +97,7 @@ LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary
 """
 
-from ..base import ProcessorNode, NodeInput, NodeType, NodeOutput
+from ..base import NodePosition, ProcessorNode, NodeInput, NodePropertyType, NodeType, NodeOutput, NodeProperty
 from app.nodes.memory import BufferMemoryNode
 from app.core.tool import AutoToolManager
 from typing import Dict, Any, Sequence, List, Optional
@@ -970,9 +970,75 @@ class ReactAgentNode(ProcessorNode):
             "description": self._get_description(),
             "category": self._get_category(),
             "node_type": self._get_node_type(),
+            "colors": ["purple-500", "indigo-600"],      
+            "icon": {"name": "bot", "path": None, "alt": None},
             "inputs": self._build_input_schema(),
-            "outputs": self._build_output_schema()
+            "outputs": self._build_output_schema(),
+            "properties": self._build_properties_schema()
         }
+
+    def _build_properties_schema(self) -> List[NodeProperty]:
+        """Build the properties schema from modular property definitions."""
+        return [
+            NodeProperty(
+                name="agent_type",
+                displayName="Agent Type",
+                type=NodePropertyType.SELECT,
+                options=[
+                    {"label": "ReAct Agent ⭐", "value": "react"},
+                    {"label": "Conversational Agent", "value": "conversational"},
+                    {"label": "Task-Oriented Agent", "value": "task_oriented"},
+                ],
+                default="react",
+                required=True,
+            ),
+            NodeProperty(
+                name="system_prompt",
+                displayName="System Prompt",
+                type=NodePropertyType.TEXT_AREA,
+                default="You are a helpful assistant. Use tools to answer: {input}",
+                hint="Use {input} for user input. Define agent behavior and capabilities.",
+                required=True,
+            ),
+            NodeProperty(
+                name="max_iterations",
+                displayName="Max Iterations",
+                type=NodePropertyType.RANGE,
+                default=5,
+                min=1,
+                max=20,
+                minLabel="Quick",
+                maxLabel="Thorough",
+                required=True,
+            ),
+            NodeProperty(
+                name="temperature",
+                displayName="Temperature",
+                type=NodePropertyType.RANGE,
+                default=0.7,
+                min=0.0,
+                max=2.0,
+                step=0.1,
+                color="purple-400",
+                minLabel="Precise",
+                maxLabel="Creative",
+                required=True,
+            ),
+            NodeProperty(
+                name="enable_memory",
+                displayName="Enable Memory",
+                type=NodePropertyType.CHECKBOX,
+                default=True,
+                hint="Allow agent to remember previous interactions",
+            ),
+            NodeProperty(
+                name="enable_tools",
+                displayName="Enable Tools",
+                type=NodePropertyType.CHECKBOX,
+                default=True,
+                hint="Allow agent to use connected tools and functions",
+            ),
+        ]
 
     def _get_node_name(self) -> str:
         """Get the internal node name identifier."""
@@ -1014,7 +1080,9 @@ class ReactAgentNode(ProcessorNode):
         """Create the main input node configuration."""
         return NodeInput(
             name="input",
+            displayName="Input",
             type="string",
+            is_connection=True,
             required=True,
             description="The user's input to the agent."
         )
@@ -1023,9 +1091,11 @@ class ReactAgentNode(ProcessorNode):
         """Create the LLM connection input configuration."""
         return NodeInput(
             name="llm",
+            displayName="LLM",
             type="BaseLanguageModel",
             required=True,
             is_connection=True,
+            direction=NodePosition.BOTTOM,
             description="The language model that the agent will use."
         )
 
@@ -1033,9 +1103,11 @@ class ReactAgentNode(ProcessorNode):
         """Create the tools connection input configuration."""
         return NodeInput(
             name="tools",
+            displayName="Tools",
             type="Sequence[BaseTool]",
             required=False,
             is_connection=True,
+            direction=NodePosition.BOTTOM,
             description="The tools that the agent can use."
         )
 
@@ -1043,9 +1115,11 @@ class ReactAgentNode(ProcessorNode):
         """Create the memory connection input configuration."""
         return NodeInput(
             name="memory",
+            displayName="Memory",
             type="BaseMemory",
             required=False,
             is_connection=True,
+            direction=NodePosition.BOTTOM,
             description="The memory that the agent can use."
         )
 
@@ -1081,8 +1155,10 @@ class ReactAgentNode(ProcessorNode):
         """Create the main output node configuration."""
         return NodeOutput(
             name="output",
+            displayName="Output",
             type="str",
-            description="The final output from the agent."
+            description="The final output from the agent.",
+            is_connection=True,
         )
     
     def get_required_packages(self) -> list[str]:
