@@ -13,7 +13,7 @@ import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
 
-from app.nodes.tools.http_client import HttpClientNode
+from app.nodes.tools import HttpClientNode
 
 logger = logging.getLogger(__name__)
 

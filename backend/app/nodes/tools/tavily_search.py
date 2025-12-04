@@ -167,7 +167,7 @@ from typing import Dict, Any, Optional, List
 from ..base import ProviderNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
 from langchain_tavily import TavilySearch
-from langchain_core.runnables import Runnable
+from langchain_core.tools import Tool
 
 # ================================================================================
 # TAVILY SEARCH NODE - ENTERPRISE WEB INTELLIGENCE PROVIDER
@@ -443,91 +443,235 @@ class TavilySearchNode(ProviderNode):
             ],
             "outputs": [
                 NodeOutput(
-                    name="output",
-                    type="tool",
-                    description="A configured Tavily search tool instance."
+                    name="search_tool",
+                    type="BaseTool",
+                    description="A configured Tavily search tool ready for use with agents."
                 )
             ]
         }
     
-    def execute(self, **kwargs) -> Runnable:
+    def get_required_packages(self) -> List[str]:
         """
-        Creates and returns a configured TavilySearchResults tool.
+        🔥 DYNAMIC METHOD: Bu node'un ihtiyaç duyduğu Python packages'ini döndür.
+        
+        Bu method dynamic export sisteminin çalışması için kritik!
+        Yeni node eklendiğinde bu method tanımlanmalı.
+        """
+        return [
+            "langchain-tavily>=0.2.0",  # Tavily LangChain integration
+            "tavily-python>=0.3.0",     # Tavily Python SDK
+            "httpx>=0.25.0",            # HTTP client for API calls
+            "pydantic>=2.5.0"           # Data validation
+        ]
+    
+    def execute(self, **kwargs) -> Dict[str, Any]:
+        """
+        Create Tavily search tool with agent-optimized formatting.
+
+        Following the RetrieverProvider pattern for consistent tool creation.
         """
         print("\n🔍 TAVILY SEARCH SETUP")
 
-        # 1. Get API key using the same pattern as OpenAI node
-        api_key = self.user_data.get("tavily_api_key")
-        if not api_key:
-            api_key = os.getenv("TAVILY_API_KEY")
-        
-        print(f"   🔑 API Key: {'✅ Found' if api_key else '❌ Missing'}")
-        if api_key:
-            print(f"   🔑 Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
-        
-        if not api_key:
-            raise ValueError(
-                "Tavily API key is required. Please provide it in the node configuration "
-                "or set TAVILY_API_KEY environment variable."
-            )
-
-        # 2. Get all other parameters from user data with defaults.
-        max_results = int(self.user_data.get("max_results", 5))
-        search_depth = self.user_data.get("search_depth", "basic")
-        include_answer = bool(self.user_data.get("include_answer", True))
-        include_raw_content = bool(self.user_data.get("include_raw_content", False))
-        include_images = bool(self.user_data.get("include_images", False))
-
-        # 3. Safely parse domain lists.
-        include_domains_str = self.user_data.get("include_domains", "")
-        exclude_domains_str = self.user_data.get("exclude_domains", "")
-        
-        include_domains = [d.strip() for d in include_domains_str.split(",") if d.strip()]
-        exclude_domains = [d.strip() for d in exclude_domains_str.split(",") if d.strip()]
-
         try:
-            # 4. Instantiate the official Tavily tool.
-            # Only include domain parameters if they have values
-            tool_params = {
-                "tavily_api_key": api_key,
+            # 1. Get API key using the same pattern as OpenAI node
+            api_key = self.user_data.get("tavily_api_key")
+            if not api_key:
+                api_key = os.getenv("TAVILY_API_KEY")
+            
+            print(f"   🔑 API Key: {'✅ Found' if api_key else '❌ Missing'}")
+            if api_key:
+                print(f"   🔑 Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
+            
+            if not api_key:
+                raise ValueError(
+                    "Tavily API key is required. Please provide it in the node configuration "
+                    "or set TAVILY_API_KEY environment variable."
+                )
+
+            # 2. Get all other parameters from user data with defaults.
+            max_results = int(self.user_data.get("max_results", 5))
+            search_depth = self.user_data.get("search_depth", "basic")
+            include_answer = bool(self.user_data.get("include_answer", True))
+            include_raw_content = bool(self.user_data.get("include_raw_content", False))
+            include_images = bool(self.user_data.get("include_images", False))
+
+            # 3. Safely parse domain lists.
+            include_domains_str = self.user_data.get("include_domains", "")
+            exclude_domains_str = self.user_data.get("exclude_domains", "")
+            
+            include_domains = [d.strip() for d in include_domains_str.split(",") if d.strip()]
+            exclude_domains = [d.strip() for d in exclude_domains_str.split(",") if d.strip()]
+
+            # 4. Build search configuration
+            search_config = {
                 "max_results": max_results,
                 "search_depth": search_depth,
                 "include_answer": include_answer,
                 "include_raw_content": include_raw_content,
                 "include_images": include_images,
+                "include_domains": include_domains,
+                "exclude_domains": exclude_domains
             }
-            
-            # Only add domain filters if they contain actual domains
-            if include_domains:
-                tool_params["include_domains"] = include_domains
-            if exclude_domains:
-                tool_params["exclude_domains"] = exclude_domains
-                
-            search_tool = TavilySearch(**tool_params)
-            
-            print(f"   ✅ Tool: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
-            
-            # Test the API connection with a simple query
+
+            # 5. Create Tavily search instance
+            tavily_search = self._create_tavily_search(api_key, search_config)
+
+            # 6. Test the API connection
             try:
-                test_result = search_tool.run("test query")
+                test_result = tavily_search.run("test query")
                 print(f"   🧪 API Test: ✅ Success ({len(str(test_result))} chars)")
             except Exception as test_error:
                 print(f"   🧪 API Test: ❌ Failed ({str(test_error)[:50]}...)")
-            
-            return search_tool
-            
+
+            # 7. Create agent-ready tool
+            search_tool = self._create_search_tool(tavily_search, search_config)
+
+            print(f"   ✅ Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
+
+            return {
+                "taviliy_web_search": {"tool": search_tool}
+            }
+
         except Exception as e:
-            print(f"❌ Failed to create Tavily search tool: {e}")
-            print(f"[DEBUG Tavily] Exception type: {type(e).__name__}")
-            print(f"[DEBUG Tavily] Exception details: {str(e)}")
+            error_msg = f"TavilySearchNode execution failed: {str(e)}"
+            print(f"❌ {error_msg}")
+            raise ValueError(error_msg) from e
+
+    def _create_tavily_search(self, api_key: str, search_config: Dict[str, Any]) -> TavilySearch:
+        """Create Tavily search instance with configuration."""
+        try:
+            # Build tool parameters
+            tool_params = {
+                "tavily_api_key": api_key,
+                "max_results": search_config["max_results"],
+                "search_depth": search_config["search_depth"],
+                "include_answer": search_config["include_answer"],
+                "include_raw_content": search_config["include_raw_content"],
+                "include_images": search_config["include_images"],
+            }
             
-            # Try to get more details from the exception
-            if hasattr(e, 'response'):
-                print(f"[DEBUG Tavily] Response status: {e.response.status_code}")
-                print(f"[DEBUG Tavily] Response text: {e.response.text}")
-            
-            # Propagate the error to be handled by the workflow engine.
-            raise ValueError(f"Failed to initialize Tavily Search Tool: {e}") from e
+            # Only add domain filters if they contain actual domains
+            if search_config["include_domains"]:
+                tool_params["include_domains"] = search_config["include_domains"]
+            if search_config["exclude_domains"]:
+                tool_params["exclude_domains"] = search_config["exclude_domains"]
+                
+            return TavilySearch(**tool_params)
+
+        except Exception as e:
+            raise ValueError(f"Failed to create Tavily search instance: {str(e)}") from e
+
+    def _create_search_tool(self, tavily_search: TavilySearch, search_config: Dict[str, Any]) -> Tool:
+        """Create LangChain Tool with agent-optimized formatting."""
+
+        def tavily_web_search(query: str) -> str:
+            """Web search function that agents will call."""
+            try:
+                print(f"🔍 Agent performing web search for: {query}")
+
+                # Perform search using Tavily
+                raw_results = tavily_search.run(query)
+
+                # Handle empty results
+                if not raw_results or (isinstance(raw_results, str) and not raw_results.strip()):
+                    return f"""🌐 WEB SEARCH RESULTS - Tavily
+Query: No web results found for '{query}'.
+
+📊 SEARCH SUMMARY:
+- Search completed but no relevant web pages were found
+- You may try using different search terms or be more specific
+- Search Engine: Tavily
+- Search Depth: {search_config['search_depth']}
+- Max Results: {search_config['max_results']}"""
+
+                # Format results for agent consumption
+                result_parts = [
+                    "🌐 WEB SEARCH RESULTS - Tavily",
+                    f"Query: {query}",
+                    f"Search Depth: {search_config['search_depth']}",
+                    f"Max Results: {search_config['max_results']}",
+                    ""
+                ]
+
+                # Parse and format results
+                if isinstance(raw_results, str):
+                    # If results are already formatted as string
+                    result_parts.extend([
+                        "SEARCH RESULTS:",
+                        raw_results,
+                        "",
+                    ])
+                elif isinstance(raw_results, list):
+                    # If results are in list format
+                    result_parts.append(f"Total results found: {len(raw_results)}")
+                    result_parts.append("")
+                    
+                    for i, result in enumerate(raw_results[:5], 1):  # Limit to 5 results
+                        if isinstance(result, dict):
+                            title = result.get('title', 'No title')
+                            url = result.get('url', 'No URL')
+                            content = result.get('content', result.get('snippet', 'No content'))
+                            
+                            # Smart content truncation
+                            if len(content) > 400:
+                                content = content[:400] + "..."
+                                
+                            result_parts.extend([
+                                f"=== RESULT {i} ===",
+                                f"Title: {title}",
+                                f"URL: {url}",
+                                f"Content: {content}",
+                                "",
+                                "---",
+                                ""
+                            ])
+                        else:
+                            result_parts.extend([
+                                f"=== RESULT {i} ===",
+                                str(result),
+                                "",
+                                "---",
+                                ""
+                            ])
+                else:
+                    # Handle other formats
+                    result_parts.extend([
+                        "SEARCH RESULTS:",
+                        str(raw_results),
+                        "",
+                    ])
+
+                result_parts.extend([
+                    "",
+                    "📊 SEARCH SUMMARY:",
+                    f"- These web search results are the most relevant for the query '{query}'",
+                    f"- Search Engine: Tavily API",
+                    f"- Search Depth: {search_config['search_depth']} (higher depth = more comprehensive results)",
+                    f"- Domain Filtering: {'Yes' if search_config['include_domains'] or search_config['exclude_domains'] else 'None'}",
+                    f"- Results are ranked by relevance and recency"
+                ])
+
+                return "\n".join(result_parts)
+
+            except Exception as e:
+                error_msg = str(e)
+                return f"""🌐 WEB SEARCH RESULTS - Tavily
+Query: A technical issue occurred while searching for '{query}'.
+
+⚠️ ERROR DETAILS:
+{error_msg}
+
+📊 SEARCH SUMMARY:
+- Web search could not be completed due to technical issues
+- Search Engine: Tavily API
+- Please try again with different search terms"""
+
+        # Create tool with descriptive name and description
+        return Tool(
+            name="tavily_web_search",
+            description="Search the web for current information, news, and real-time data using Tavily's advanced search API. Use this tool when you need up-to-date information that may not be in your training data.",
+            func=tavily_web_search
+        )
 
 # Alias for frontend compatibility
 TavilyNode = TavilySearchNode

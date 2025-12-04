@@ -544,10 +544,10 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
         """Create a minimal fallback registry with essential nodes."""
         try:
             # Try to import and register core nodes manually
-            from app.nodes.test_node import TestHelloNode, TestProcessorNode
-            registry.register_node(TestHelloNode)
-            registry.register_node(TestProcessorNode)
-            print("✅ Registered fallback nodes: TestHello, TestProcessor")
+            from app.nodes.default import StartNode, EndNode
+            registry.register_node(StartNode)
+            registry.register_node(EndNode)
+            print("✅ Registered fallback nodes: StartNode, EndNode")
         except Exception as e:
             print(f"⚠️  Could not register fallback nodes: {e}")
 

@@ -297,7 +297,7 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-
+from app.core.constants import PORT
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
@@ -317,7 +317,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
-from app.nodes.triggers.webhook_trigger import webhook_router as webhook_node_router
+from app.nodes.triggers import webhook_router as webhook_node_router
 from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
 from app.api.scheduled_jobs import router as scheduled_jobs_router
@@ -606,9 +606,9 @@ async def root():
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
-        "app.main:app",
+        "main:app",
         host="0.0.0.0",
-        port=8000,
+        port=int(PORT),
         reload=True,
         log_level="info"
     ) 

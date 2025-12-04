@@ -381,7 +381,7 @@ from pydantic import BaseModel, Field, ValidationError
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
 from langchain_core.runnables.utils import Input, Output
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from app.nodes.base import ProcessorNode, NodeInput, NodeOutput, NodeType
 from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
@@ -706,6 +706,16 @@ class HttpClientNode(ProcessorNode):
     
     def __init__(self):
         super().__init__()
+        
+        # Initialize Jinja2 environment for templating
+        self.jinja_env = Environment(
+            autoescape=select_autoescape(['html', 'xml']),
+            trim_blocks=True,
+            lstrip_blocks=True,
+        )
+        
+        logger.info("🌐 HTTP Request Node initialized")
+        
         self._metadata = {
             "name": "HttpRequest",
             "display_name": "HTTP Client",
@@ -921,14 +931,19 @@ class HttpClientNode(ProcessorNode):
             ],
         }
         
-        # Jinja2 environment for templating
-        self.jinja_env = Environment(
-            autoescape=select_autoescape(['html', 'xml']),
-            trim_blocks=True,
-            lstrip_blocks=True,
-        )
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: HttpClientNode'un ihtiyaç duyduğu Python packages'ini döndür.
         
-        logger.info("🌐 HTTP Request Node initialized")
+        Bu method dynamic export sisteminin çalışması için kritik!
+        HTTP client için gereken API ve template dependencies.
+        """
+        return [
+            "httpx>=0.25.0",        # Async HTTP client
+            "jinja2>=3.1.0",        # Template engine
+            "pydantic>=2.5.0",      # Data validation
+            "typing-extensions>=4.8.0"  # Advanced typing support
+        ]
     
     def _render_template(self, template_str: str, context: Dict[str, Any]) -> str:
         """Render Jinja2 template with provided context."""
@@ -1112,10 +1127,23 @@ class HttpClientNode(ProcessorNode):
             connected_nodes: Connected node outputs for templating
             
         Returns:
-            Dict with response data and request statistics
+            Dict with response data, request statistics, and documents output
         """
         logger.info("🚀 Executing HTTP Request")
         
+        # 🔥 CRITICAL FIX: Return direct result dict instead of RunnableLambda wrapper
+        # This fixes the HttpClient->ChunkSplitter compatibility issue where
+        # ChunkSplitter receives HttpClientNode instance instead of documents
+        http_result = self._execute_http_request(inputs, connected_nodes)
+        logger.info(f"✅ HTTP Request completed, returning direct result with documents")
+        
+        return http_result
+    
+    def _execute_http_request(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Internal method to execute HTTP request and return raw result.
+        This separates the HTTP logic from the Runnable wrapping.
+        """
         try:
             # Build configuration
             # Handle headers and url_params - they might already be dicts
@@ -1249,7 +1277,7 @@ class HttpClientNode(ProcessorNode):
             error_msg = f"HTTP Request execution failed: {str(e)}"
             logger.error(error_msg)
             
-            # Return error response
+            # Return error response as Dict
             return {
                 "response": None,
                 "status_code": 0,

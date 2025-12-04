@@ -1,30 +1,30 @@
 
 """
-KAI-Fusion ReactAgent Node - Advanced AI Agent Orchestration
-==========================================================
+KAI-Fusion ReactAgent Node - Modern LangGraph-Based AI Agent Orchestration
+=========================================================================
 
-This module implements a sophisticated ReactAgent node that serves as the orchestration
-brain of the KAI-Fusion platform. Built on LangChain's proven ReAct (Reasoning + Acting)
-framework, it provides enterprise-grade agent capabilities with advanced tool integration,
-memory management, and multilingual support.
+This module implements a sophisticated ReactAgent node using the latest LangGraph API,
+serving as the orchestration brain of the KAI-Fusion platform. Built on LangGraph's
+modern create_react_agent framework, it provides enterprise-grade agent capabilities
+with advanced tool integration, state-based memory management, and multilingual support.
 
 ARCHITECTURAL OVERVIEW:
 ======================
 
-The ReactAgent operates on the ReAct paradigm:
-1. **Reason**: Analyze the problem and plan actions
-2. **Act**: Execute tools to gather information or perform actions  
-3. **Observe**: Process tool results and update understanding
-4. **Repeat**: Continue until the goal is achieved
+The ReactAgent operates on the modern LangGraph state-based paradigm:
+1. **State Management**: Uses CompiledStateGraph for robust execution flow
+2. **Message-Based Communication**: Handles conversations as message sequences
+3. **Tool Orchestration**: Automatic tool calling and result processing
+4. **Memory Integration**: Checkpointer-based persistent memory
 
 ┌─────────────────────────────────────────────────────────────┐
-│                    ReactAgent Architecture                  │
+│              Modern ReactAgent Architecture                 │
 ├─────────────────────────────────────────────────────────────┤
-│  User Input  →  [Reasoning Engine]  →  [Tool Selection]     │
+│  Messages  →  [CompiledStateGraph]  →  [Tool Execution]     │
 │      ↓               ↑                       ↓              │
-│  [Memory]  ←  [Result Processing]  ←  [Tool Execution]      │
+│  [Checkpointer]  ←  [State Updates]  ←  [Agent Reasoning]   │
 │      ↓               ↑                       ↓              │
-│  [Context]  →  [Response Generation]  ←  [Observations]     │
+│  [Persistence]  →  [Response Generation]  ←  [Results]      │
 └─────────────────────────────────────────────────────────────┘
 
 KEY INNOVATIONS:
@@ -98,25 +98,120 @@ LICENSE: Proprietary
 """
 
 from ..base import ProcessorNode, NodeInput, NodeType, NodeOutput
-from typing import Dict, Any, Sequence
+from app.nodes.memory import BufferMemoryNode
+from app.core.tool import AutoToolManager
+from typing import Dict, Any, Sequence, List, Optional
 from langchain_core.runnables import Runnable, RunnableLambda
 from langchain_core.language_models import BaseLanguageModel
 from langchain_core.tools import BaseTool
-from langchain_core.prompts import PromptTemplate
+from langchain_core.prompts import PromptTemplate, ChatPromptTemplate
 from langchain_core.memory import BaseMemory
 from langchain_core.retrievers import BaseRetriever
-from langchain.agents import AgentExecutor, create_react_agent
+from langchain_core.messages import HumanMessage, SystemMessage
+from langgraph.prebuilt import create_react_agent
+from langgraph.checkpoint.memory import MemorySaver
+from langgraph.graph.state import CompiledStateGraph
 # Manual retriever tool creation since langchain-community import is not working
 from langchain_core.tools import Tool
 import re
 import sys
 import os
 import locale
+from langchain.globals import get_debug
+from langchain_core.callbacks import BaseCallbackHandler
+
+# ================================================================================
+# DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
+# ================================================================================
+class AgentDebugCallback(BaseCallbackHandler):
+    @staticmethod
+    def _safe_name(serialized) -> str:
+        try:
+            if serialized is None:
+                return "unknown"
+            if isinstance(serialized, dict):
+                # LangChain often passes {"id": [...]} or {"name": "..."} etc.
+                return serialized.get("name") or serialized.get("id") or "unknown"
+            # Fallback to type name
+            return type(serialized).__name__
+        except Exception:
+            return "unknown"
+
+    def on_chain_start(self, serialized, inputs, **kwargs):
+        try:
+            name = self._safe_name(serialized)
+            keys = list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)
+            print(f"[TRACE][CHAIN.START] {name} inputs_keys={keys}")
+        except Exception as e:
+            print(f"[TRACE][CHAIN.START] error={e}")
+
+    def on_chain_end(self, outputs, **kwargs):
+        try:
+            keys = list(outputs.keys()) if isinstance(outputs, dict) else type(outputs)
+            print(f"[TRACE][CHAIN.END] outputs_keys={keys}")
+        except Exception as e:
+            print(f"[TRACE][CHAIN.END] error={e}")
+
+    def on_chain_error(self, error, **kwargs):
+        try:
+            print(f"[TRACE][CHAIN.ERROR] {type(error).__name__}: {error}")
+        except Exception:
+            pass
+
+    def on_llm_start(self, serialized, prompts, **kwargs):
+        try:
+            name = self._safe_name(serialized)
+            count = len(prompts) if hasattr(prompts, "__len__") else "unknown"
+            print(f"[TRACE][LLM.START] {name} prompts={count}")
+            for i, p in enumerate(prompts or [], 1):
+                p_str = str(p)
+                snippet = p_str[:500].replace("\n", " ")
+                print(f"[TRACE][LLM.PROMPT {i}] {snippet}")
+        except Exception as e:
+            print(f"[TRACE][LLM.START] error={e}")
+
+    def on_llm_end(self, response, **kwargs):
+        try:
+            gens = getattr(response, "generations", None)
+            text = gens[0][0].text if gens and gens[0] and gens[0][0] else ""
+            print(f"[TRACE][LLM.END] text_snippet={text[:300].replace(chr(10), ' ')}")
+            llm_output = getattr(response, "llm_output", None)
+            usage = llm_output.get("token_usage") if isinstance(llm_output, dict) else None
+            if usage:
+                print(f"[TRACE][LLM.USAGE] {usage}")
+        except Exception as e:
+            print(f"[TRACE][LLM.END] parse_error={e}")
+
+    def on_llm_error(self, error, **kwargs):
+        try:
+            print(f"[TRACE][LLM.ERROR] {type(error).__name__}: {error}")
+        except Exception:
+            pass
+
+    def on_tool_start(self, serialized, input_str, **kwargs):
+        try:
+            name = self._safe_name(serialized)
+            print(f"[TRACE][TOOL.START] {name} args={input_str}")
+        except Exception as e:
+            print(f"[TRACE][TOOL.START] error={e}")
+
+    def on_tool_end(self, output, **kwargs):
+        try:
+            out_snippet = str(output)[:300].replace("\n", " ")
+            print(f"[TRACE][TOOL.END] output={out_snippet}")
+        except Exception as e:
+            print(f"[TRACE][TOOL.END] error={e}")
+
+    def on_tool_error(self, error, **kwargs):
+        try:
+            print(f"[TRACE][TOOL.ERROR] {type(error).__name__}: {error}")
+        except Exception:
+            pass
 
 # ================================================================================
 # LANGUAGE DETECTION AND LOCALIZATION SYSTEM
 # ================================================================================
-
+ 
 def detect_language(text: str) -> str:
     """
     Comprehensive multilingual language detection supporting 20+ languages.
@@ -400,22 +495,7 @@ def get_language_specific_prompt(language_code: str) -> str:
     """
 
     # Universal language enforcement rules (always included)
-    universal_rules = """
-🔴 MANDATORY LANGUAGE RULE: Answer in the SAME language as the user's question! 🔴
-🔴 ZORUNLU DİL KURALI: Kullanıcı hangi dilde soru sorduysa, SIZ DE AYNİ DİLDE CEVAP VERMELİSİNİZ! 🔴
-🔴 QWINGENDE SPRACHREGEL: Beantworten Sie in DERSELBEN Sprache wie die Frage des Benutzers! 🔴
-🔴 RÈGLE OBLIGATOIRE DE LANGUE: Répondez DANS LA MÊME langue que la question de l'utilisateur! 🔴
-🔴 REGLA OBLIGATORIA DE IDIOMA: ¡Responda EN EL MISMO idioma que la pregunta del usuario! 🔴
-🔴 REGOLA OBBLIGATORIA DI LINGUA: Rispondi NELLA STESSA lingua della domanda dell'utente! 🔴
-🔴 REGRA OBRIGATÓRIA DE IDIOMA: Responda NA MESMA língua da pergunta do usuário! 🔴
-🔴 ОБЯЗАТЕЛЬНОЕ ПРАВИЛО ЯЗЫКА: Отвечайте НА ТОМ ЖЕ языке, что и вопрос пользователя! 🔴
-🔴 القاعدة الإلزامية للغة: أجب بنفس اللغة التي سأل بها المستخدم! 🔴
-🔴 强制语言规则：用与用户提问相同的语言回答！ 🔴
-🔴 強制言語ルール：ユーザーの質問と同じ言語で回答してください！ 🔴
-🔴 강제 언어 규칙: 사용자가 질문한 것과 같은 언어로 답변하십시오! 🔴
-🔴 अनिवार्य भाषा नियम: उपयोगकर्ता ने जिस भाषा में सवाल पूछा है, उसी भाषा में जवाब दें! 🔴
-🔴 قانون اجباری زبان: به همان زبانی که کاربر سوال کرده است پاسخ دهید! 🔴
-"""
+    universal_rules = """"""
 
     prompts = {
         'tr': f"""
@@ -855,633 +935,492 @@ ESTILO DE RESPOSTA:
     return prompts.get(language_code, prompts['en'])  # Default to English
 
 # ================================================================================
-# RETRIEVER TOOL FACTORY - ADVANCED RAG INTEGRATION
-# ================================================================================
-
-def create_retriever_tool(name: str, description: str, retriever: BaseRetriever) -> Tool:
-    """
-    Advanced Retriever Tool Factory for RAG Integration
-    =================================================
-    
-    Creates a sophisticated tool that wraps a LangChain BaseRetriever for use in
-    ReactAgent workflows. This factory provides enterprise-grade features including
-    result formatting, error handling, performance optimization, and multilingual support.
-    
-    FEATURES:
-    ========
-    
-    1. **Intelligent Result Formatting**: Structures retriever results for optimal agent consumption
-    2. **Performance Optimization**: Limits results and content length for efficiency
-    3. **Error Resilience**: Comprehensive error handling with informative fallbacks
-    4. **Content Truncation**: Smart content trimming to prevent token overflow
-    5. **Multilingual Support**: Works seamlessly with Turkish and English content
-    
-    DESIGN PHILOSOPHY:
-    =================
-    
-    - **Agent-Centric**: Output optimized for agent reasoning and decision making
-    - **Performance-First**: Balanced between comprehensiveness and speed
-    - **Error-Tolerant**: Never fails completely, always provides useful feedback
-    - **Context-Aware**: Understands the broader workflow context
-    
-    Args:
-        name (str): Tool identifier for agent reference (should be descriptive)
-        description (str): Detailed description of tool capabilities for agent planning
-        retriever (BaseRetriever): LangChain retriever instance (vector store, BM25, etc.)
-    
-    Returns:
-        Tool: LangChain Tool instance ready for agent integration
-    
-    EXAMPLE USAGE:
-    =============
-    
-    ```python
-    # Create a retriever tool from a vector store
-    vector_retriever = vector_store.as_retriever(search_kwargs={"k": 10})
-    rag_tool = create_retriever_tool(
-        name="knowledge_search",
-        description="Search company knowledge base for relevant information",
-        retriever=vector_retriever
-    )
-    
-    # Use in ReactAgent
-    agent = ReactAgentNode()
-    result = agent.execute(
-        inputs={"input": "What is our refund policy?"},
-        connected_nodes={"llm": llm, "tools": [rag_tool]}
-    )
-    ```
-    
-    PERFORMANCE CHARACTERISTICS:
-    ===========================
-    
-    - **Result Limit**: Maximum 5 documents to prevent information overload
-    - **Content Limit**: 500 characters per document with smart truncation
-    - **Error Recovery**: Graceful handling of retriever failures
-    - **Memory Efficiency**: Optimized string formatting to minimize memory usage
-    """
-    
-    def retrieve_func(query: str) -> str:
-        """
-        Enhanced retrieval function that provides comprehensive, structured results
-        optimized for agent consumption and decision making.
-        """
-        try:
-            # Perform the retrieval
-            docs = retriever.get_relevant_documents(query)
-            
-            if not docs:
-                return f"""🔍 ARAMA SONUÇLARI
-Sorgu: '{query}' için doküman bulunamadı.
-
-📊 ARAMA ÖZETİ:
-- Arama tamamlandı ancak ilgili doküman bulunamadı
-- Daha spesifik arama terimleri kullanmayı deneyebilirsiniz
-- Veya genel bilgi için sorunuzu yeniden formüle edebilirsiniz"""
-            
-            # Limit results for performance (max 5 documents)
-            limited_docs = docs[:5]
-            
-            # Format results for agent consumption
-            result_parts = [
-                f"🔍 ARAMA SONUÇLARI",
-                f"Toplam bulunan doküman sayısı: {len(docs)}",
-                f"Gösterilen doküman sayısı: {len(limited_docs)}",
-                ""
-            ]
-            
-            for i, doc in enumerate(limited_docs, 1):
-                # Get content and metadata
-                content = doc.page_content
-                metadata = doc.metadata if hasattr(doc, 'metadata') else {}
-                
-                # Smart content truncation (500 chars max per doc)
-                if len(content) > 500:
-                    content = content[:500] + "..."
-                
-                # Extract source information
-                source = metadata.get('source', 'unknown')
-                if isinstance(source, str) and len(source) > 50:
-                    source = source[-50:]  # Show last 50 chars for long paths
-                
-                result_parts.extend([
-                    f"=== DOKÜMAN {i} === (Source: {source})",
-                    "İÇERİK:",
-                    content,
-                    "",
-                    "---",
-                    ""
-                ])
-            
-            result_parts.extend([
-                "",
-                "📊 ARAMA ÖZETİ:",
-                f"- Bu sonuçlar, '{query}' sorgusu için en alakalı dokümanları içerir",
-                f"- Her dokümandaki detaylı bilgiler agent tarafından analiz edilecektir",
-                f"- Dokümanlar önem sırasına göre sıralanmıştır"
-            ])
-            
-            return "\n".join(result_parts)
-            
-        except Exception as e:
-            error_msg = str(e)
-            return f"""🔍 ARAMA SONUÇLARI
-Sorgu: '{query}' için arama yapılırken teknik bir sorun oluştu.
-
-⚠️ HATA DETAYI:
-{error_msg}
-
-📊 ARAMA ÖZETİ:
-- Teknik sorun nedeniyle arama tamamlanamadı
-- Lütfen farklı arama terimleri ile tekrar deneyin
-- Sorun devam ederse sistem yöneticisi ile iletişime geçin"""
-    
-    # Create and return the configured tool
-    return Tool(
-        name=name,
-        description=description,
-        func=retrieve_func
-    )
-
-# ================================================================================
 # REACTAGENT NODE - THE ORCHESTRATION BRAIN OF KAI-FUSION
 # ================================================================================
 
 class ReactAgentNode(ProcessorNode):
     """
-    KAI-Fusion ReactAgent - Advanced AI Agent Orchestration Engine
-    ===========================================================
+    KAI-Fusion ReactAgent - Modern LangGraph-Based AI Agent Orchestration Engine
+    ==========================================================================
     
     The ReactAgentNode is the crown jewel of the KAI-Fusion platform, representing the
-    culmination of advanced AI agent architecture, multilingual intelligence, and
-    enterprise-grade orchestration capabilities. Built upon LangChain's proven ReAct
-    framework, it transcends traditional chatbot limitations to deliver sophisticated,
-    reasoning-driven AI interactions.
-    
-    CORE PHILOSOPHY:
-    ===============
-    
-    "Intelligence through Reasoning and Action"
-    
-    Unlike simple question-answer systems, the ReactAgent embodies true intelligence
-    through its ability to:
-    1. **Reason** about complex problems and break them into actionable steps
-    2. **Act** by strategically selecting and executing appropriate tools
-    3. **Observe** the results and adapt its approach dynamically
-    4. **Learn** from each interaction to improve future performance
-    
-    ARCHITECTURAL EXCELLENCE:
-    ========================
-    
-    ┌─────────────────────────────────────────────────────────────┐
-    │                REACTAGENT ARCHITECTURE                      │
-    ├─────────────────────────────────────────────────────────────┤
-    │                                                             │
-    │  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
-    │  │   REASON    │ -> │    ACT      │ -> │  OBSERVE    │     │
-    │  │             │    │             │    │             │     │
-    │  │ • Analyze   │    │ • Select    │    │ • Process   │     │
-    │  │ • Plan      │    │ • Execute   │    │ • Evaluate  │     │
-    │  │ • Strategy  │    │ • Monitor   │    │ • Learn     │     │
-    │  └─────────────┘    └─────────────┘    └─────────────┘     │
-    │           ^                                      │          │
-    │           └──────────────────────────────────────┘          │
-    │                         FEEDBACK LOOP                       │
-    └─────────────────────────────────────────────────────────────┘
-    
-    ENTERPRISE FEATURES:
-    ===================
-    
-    1. **Multilingual Intelligence**: 
-       - Native Turkish and English processing with cultural context awareness
-       - Seamless code-switching and contextual language adaptation
-       - Localized reasoning patterns optimized for each language
-    
-    2. **Advanced Tool Orchestration**:
-       - Dynamic tool selection based on context and capability analysis
-       - Parallel tool execution where applicable for performance optimization
-       - Intelligent fallback mechanisms for tool failures
-       - Comprehensive tool result analysis and integration
-    
-    3. **Memory Architecture**:
-       - Multi-layered memory system (short-term, long-term, working, semantic)
-       - Conversation context preservation across sessions
-       - Adaptive memory management with relevance scoring
-       - Privacy-aware memory handling with data protection
-    
-    4. **Performance Optimization**:
-       - Smart iteration limits to prevent infinite loops
-       - Token usage optimization through strategic content truncation
-       - Caching mechanisms for frequently accessed information
-       - Resource-aware execution with graceful degradation
-    
-    5. **Error Resilience**:
-       - Comprehensive error handling with multiple recovery strategies
-       - Graceful degradation when tools or services are unavailable
-       - Detailed error reporting for debugging and improvement
-       - User-friendly error communication without technical jargon
-    
-    REASONING CAPABILITIES:
-    ======================
-    
-    The ReactAgent demonstrates advanced reasoning through:
-    
-    - **Causal Reasoning**: Understanding cause-and-effect relationships
-    - **Temporal Reasoning**: Managing time-based information and sequences
-    - **Spatial Reasoning**: Processing location and geometric information
-    - **Abstract Reasoning**: Handling concepts, metaphors, and complex ideas
-    - **Social Reasoning**: Understanding human emotions, intentions, and context
-    
-    TOOL INTEGRATION MATRIX:
-    =======================
-    
-    │ Tool Type        │ Purpose                    │ Integration Level │
-    ├─────────────────┼───────────────────────────┼──────────────────┤
-    │ Search Tools    │ Information retrieval     │ Native           │
-    │ RAG Tools       │ Document-based Q&A        │ Advanced         │
-    │ API Tools       │ External service access   │ Standard         │
-    │ Processing      │ Data transformation       │ Standard         │
-    │ Memory Tools    │ Context management        │ Deep             │
-    │ Custom Tools    │ Business logic            │ Extensible       │
-    
-    MULTILINGUAL OPTIMIZATION:
-    =========================
-    
-    Turkish Language Features:
-    - Agglutinative morphology understanding
-    - Cultural context integration
-    - Formal/informal register adaptation
-    - Regional dialect recognition
-    
-    English Language Features:
-    - International variant support
-    - Technical terminology handling
-    - Cultural sensitivity awareness
-    - Professional communication styles
-    
-    PERFORMANCE METRICS:
-    ===================
-    
-    Target Performance Characteristics:
-    - Response Time: < 3 seconds for simple queries
-    - Tool Execution: < 10 seconds for complex multi-tool workflows
-    - Memory Efficiency: < 100MB working memory per session
-    - Accuracy: > 95% for factual questions with available information
-    - User Satisfaction: > 4.8/5.0 based on interaction quality
-    
-    INTEGRATION PATTERNS:
-    ====================
-    
-    Standard Integration:
-    ```python
-    # Basic agent setup
-    agent = ReactAgentNode()
-    result = agent.execute(
-        inputs={
-            "input": "Analyze the quarterly sales data and provide insights",
-            "max_iterations": 5,
-            "system_prompt": "You are a business analyst assistant"
-        },
-        connected_nodes={
-            "llm": openai_llm,
-            "tools": [search_tool, calculator_tool, chart_tool],
-            "memory": conversation_memory
-        }
-    )
-    ```
-    
-    Advanced RAG Integration:
-    ```python
-    # RAG-enabled agent
-    rag_retriever = vector_store.as_retriever()
-    rag_tool = create_retriever_tool(
-        name="knowledge_search",
-        description="Search company knowledge base",
-        retriever=rag_retriever
-    )
-    
-    agent = ReactAgentNode()
-    result = agent.execute(
-        inputs={"input": "What's our policy on remote work?"},
-        connected_nodes={
-            "llm": llm,
-            "tools": [rag_tool, hr_api_tool],
-            "memory": memory
-        }
-    )
-    ```
-    
-    SECURITY AND PRIVACY:
-    ====================
-    
-    - Input sanitization to prevent injection attacks
-    - Output filtering to prevent sensitive information leakage
-    - Tool permission management with role-based access
-    - Conversation logging with privacy controls
-    - Compliance with GDPR, CCPA, and other privacy regulations
-    
-    MONITORING AND OBSERVABILITY:
-    ============================
-    
-    - LangSmith integration for comprehensive tracing
-    - Performance metrics collection and analysis
-    - Error tracking and alerting systems
-    - User interaction analytics for continuous improvement
-    - A/B testing framework for prompt optimization
-    
-    VERSION HISTORY:
-    ===============
-    
-    v2.1.0 (Current):
-    - Enhanced multilingual support with Turkish optimization
-    - Advanced retriever tool integration
-    - Improved error handling and recovery mechanisms
-    - Performance optimizations and memory management
-    
-    v2.0.0:
-    - Complete rewrite with ProcessorNode architecture
-    - LangGraph integration for complex workflows
-    - Advanced prompt engineering with cultural context
-    
-    v1.x:
-    - Initial ReactAgent implementation
-    - Basic tool integration and memory support
-    
+    culmination of modern AI agent architecture, multilingual intelligence, and
+    enterprise-grade orchestration capabilities. Built upon LangGraph's latest
+    create_react_agent framework, it transcends traditional agent limitations to deliver
+    sophisticated, state-driven AI interactions with robust memory and tool management.
+
     AUTHORS: KAI-Fusion Development Team
     MAINTAINER: Senior AI Architecture Team
-    VERSION: 2.1.0
-    LAST_UPDATED: 2025-07-26
+    VERSION: 3.0.0
+    LAST_UPDATED: 2025-09-07
     LICENSE: Proprietary - KAI-Fusion Platform
     """
     
     def __init__(self):
+        """Initialize ReactAgentNode with modular metadata configuration."""
         super().__init__()
-        self._metadata = {
-            "name": "Agent",
-            "display_name": "Agent",
-            "description": "Orchestrates LLM, tools, and memory for complex, multi-step tasks.",
-            "category": "Agents",
-            "node_type": NodeType.PROCESSOR,
-            "inputs": [
-                NodeInput(name="input", type="string", required=True, description="The user's input to the agent."),
-                NodeInput(name="llm", type="BaseLanguageModel", required=True, is_connection=True, description="The language model that the agent will use."),
-                NodeInput(name="tools", type="Sequence[BaseTool]", required=False, is_connection=True, description="The tools that the agent can use."),
-                NodeInput(name="memory", type="BaseMemory", required=False, is_connection=True, description="The memory that the agent can use."),
-                NodeInput(name="max_iterations", type="int", default=10, description="The maximum number of iterations the agent can perform."),
-                NodeInput(name="system_prompt", type="str", default="You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.", description="The system prompt for the agent."),
-                NodeInput(name="prompt_instructions", type="str", required=False,
-                         description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
-                         default=""),
-            ],
-            "outputs": [NodeOutput(name="output", type="str", description="The final output from the agent.")]
+        self._metadata = self._build_metadata()
+        self.auto_tool_manager = AutoToolManager()
+
+    def _build_metadata(self) -> Dict[str, Any]:
+        """Build comprehensive metadata dictionary from modular components."""
+        return {
+            "name": self._get_node_name(),
+            "display_name": self._get_display_name(),
+            "description": self._get_description(),
+            "category": self._get_category(),
+            "node_type": self._get_node_type(),
+            "inputs": self._build_input_schema(),
+            "outputs": self._build_output_schema()
         }
+
+    def _get_node_name(self) -> str:
+        """Get the internal node name identifier."""
+        return "Agent"
+
+    def _get_display_name(self) -> str:
+        """Get the user-friendly display name."""
+        return "Agent"
+
+    def _get_description(self) -> str:
+        """Get the detailed node description."""
+        return "Orchestrates LLM, tools, and memory for complex, multi-step tasks."
+
+    def _get_category(self) -> str:
+        """Get the node category for UI organization."""
+        return "Agents"
+
+    def _get_node_type(self) -> NodeType:
+        """Get the processor node type."""
+        return NodeType.PROCESSOR
+
+    def _build_input_schema(self) -> List[NodeInput]:
+        """Build the input schema from modular input definitions."""
+        return [
+            self._create_input_node(),
+            self._create_llm_input(),
+            self._create_tools_input(),
+            self._create_memory_input(),
+            self._create_max_iterations_input(),
+            self._create_system_prompt_input(),
+            self._create_prompt_instructions_input()
+        ]
+
+    def _build_output_schema(self) -> List[NodeOutput]:
+        """Build the output schema from modular output definitions."""
+        return [self._create_output_node()]
+
+    def _create_input_node(self) -> NodeInput:
+        """Create the main input node configuration."""
+        return NodeInput(
+            name="input",
+            type="string",
+            required=True,
+            description="The user's input to the agent."
+        )
+
+    def _create_llm_input(self) -> NodeInput:
+        """Create the LLM connection input configuration."""
+        return NodeInput(
+            name="llm",
+            type="BaseLanguageModel",
+            required=True,
+            is_connection=True,
+            description="The language model that the agent will use."
+        )
+
+    def _create_tools_input(self) -> NodeInput:
+        """Create the tools connection input configuration."""
+        return NodeInput(
+            name="tools",
+            type="Sequence[BaseTool]",
+            required=False,
+            is_connection=True,
+            description="The tools that the agent can use."
+        )
+
+    def _create_memory_input(self) -> NodeInput:
+        """Create the memory connection input configuration."""
+        return NodeInput(
+            name="memory",
+            type="BaseMemory",
+            required=False,
+            is_connection=True,
+            description="The memory that the agent can use."
+        )
+
+    def _create_max_iterations_input(self) -> NodeInput:
+        """Create the max iterations parameter input configuration."""
+        return NodeInput(
+            name="max_iterations",
+            type="int",
+            default=10,
+            description="The maximum number of iterations the agent can perform."
+        )
+
+    def _create_system_prompt_input(self) -> NodeInput:
+        """Create the system prompt parameter input configuration."""
+        return NodeInput(
+            name="system_prompt",
+            type="str",
+            default="You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
+            description="The system prompt for the agent."
+        )
+
+    def _create_prompt_instructions_input(self) -> NodeInput:
+        """Create the custom prompt instructions parameter input configuration."""
+        return NodeInput(
+            name="prompt_instructions",
+            type="str",
+            required=False,
+            description="Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
+            default=""
+        )
+
+    def _create_output_node(self) -> NodeOutput:
+        """Create the main output node configuration."""
+        return NodeOutput(
+            name="output",
+            type="str",
+            description="The final output from the agent."
+        )
+    
+    def get_required_packages(self) -> list[str]:
+        """
+        🔥 DYNAMIC METHOD: ReactAgentNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        
+        Bu method dynamic export sisteminin çalışması için kritik!
+        ReactAgent için gereken LangGraph ve agent dependencies.
+        """
+        return [
+            "langgraph>=0.2.0",            # LangGraph for new agent orchestration
+            "langchain>=0.1.0",            # LangChain core framework
+            "langchain-core>=0.1.0",       # LangChain core components
+            "langchain-community>=0.0.10", # Community tools and agents
+            "pydantic>=2.5.0",             # Data validation
+            "typing-extensions>=4.8.0"     # Advanced typing support
+        ]
 
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Runnable]) -> Runnable:
         """
         Sets up and returns a RunnableLambda that executes the agent with dynamic language detection.
         """
         def agent_executor_lambda(runtime_inputs: dict) -> dict:
-            # 🔧 FIX: Set proper encoding for Turkish characters
-            try:
-                # Force UTF-8 encoding for all string operations
-                if hasattr(sys.stdout, 'reconfigure'):
-                    sys.stdout.reconfigure(encoding='utf-8')
-                if hasattr(sys.stderr, 'reconfigure'):
-                    sys.stderr.reconfigure(encoding='utf-8')
+            # Setup encoding and validate connections
+            self._setup_encoding()
+            llm, tools, memory = self._validate_and_extract_connections(connected_nodes)
 
-                # Set environment variables for UTF-8 (Docker-compatible)
-                os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
-                os.environ.setdefault('LANG', 'C.UTF-8')
-                os.environ.setdefault('LC_ALL', 'C.UTF-8')
-
-                # Docker containers handle UTF-8 by default, no locale setup needed
-                # This ensures Turkish characters work without system-specific locale requirements
-
-                print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
-
-            except Exception as encoding_error:
-                print(f"[WARNING] Encoding setup failed: {encoding_error}")
-
-            # Debug connection information
-            print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
-            print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
-
-            llm = connected_nodes.get("llm")
-            tools = connected_nodes.get("tools")
-            memory = connected_nodes.get("memory")
-
-            # Enhanced LLM validation with better error reporting
-            print(f"[DEBUG] LLM received: {type(llm)}")
-            if llm is None:
-                available_connections = list(connected_nodes.keys())
-                raise ValueError(
-                    f"A valid LLM connection is required. "
-                    f"Available connections: {available_connections}. "
-                    f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
-                )
-
-            if not isinstance(llm, BaseLanguageModel):
-                raise ValueError(
-                    f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
-                    f"Ensure the OpenAI Chat node is properly configured and connected."
-                )
-
+            # Prepare tools and detect language
             tools_list = self._prepare_tools(tools)
-
-            # Dynamic language detection from user input
-            user_input = ""
-            if isinstance(runtime_inputs, str):
-                user_input = runtime_inputs
-            elif isinstance(runtime_inputs, dict):
-                user_input = runtime_inputs.get("input", inputs.get("input", ""))
-            else:
-                user_input = inputs.get("input", "")
-
-            # Detect user's language with Turkish character safety
+            # Trace prepared tools for visibility
             try:
-                detected_language = detect_language(user_input)
-                print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
-            except UnicodeEncodeError as lang_error:
-                print(f"[WARNING] Language detection encoding error: {lang_error}")
-                detected_language = 'tr'  # Default to Turkish for Turkish characters
-                print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
-
-            # Create language-specific prompt
-            agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
-
-            agent = create_react_agent(llm, tools_list, agent_prompt)
-
-            # Get max_iterations from inputs (user configuration) with proper fallback
-            max_iterations = inputs.get("max_iterations")
-            if max_iterations is None:
-                max_iterations = self.user_data.get("max_iterations", 10)  # Increased default for more detailed processing
-            
-            print(f"[DEBUG] Max iterations configured: {max_iterations}")
-            
-            # Build executor config with enhanced settings for detailed responses
-            executor_config = {
-                "agent": agent,
-                "tools": tools_list,
-                "verbose": True, # Essential for real-time debugging
-                "handle_parsing_errors": True,  # Use boolean instead of string
-                "max_iterations": max_iterations,
-                "return_intermediate_steps": True,  # Capture tool usage for debugging
-                "max_execution_time": 120,  # Increased execution time for detailed processing
-                "early_stopping_method": "force"  # Use supported method
-            }
-            
-            # Only add memory if it exists and is properly initialized
-            if memory is not None:
-                try:
-                    # Test if memory is working properly
-                    if hasattr(memory, 'load_memory_variables'):
-                        test_vars = memory.load_memory_variables({})
-                        executor_config["memory"] = memory
-                        print(f"   💭 Memory: Connected successfully")
-                    else:
-                        print(f"   💭 Memory: Invalid memory object, proceeding without memory")
-                        memory = None
-                except Exception as e:
-                    print(f"   💭 Memory: Failed to initialize ({str(e)}), proceeding without memory")
-                    memory = None
-            else:
-                print(f"   💭 Memory: None")
-                
-            executor = AgentExecutor(**executor_config)
-
-            # Enhanced logging
-            print(f"\n🤖 REACT AGENT EXECUTION")
-            print(f"   📝 Input: {str(runtime_inputs)[:60]}...")
-            print(f"   🛠️  Tools: {[tool.name for tool in tools_list]}")
-            
-            # Memory context debug
-            if memory and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                messages = memory.chat_memory.messages
-                print(f"   💭 Memory: {len(messages)} messages")
-            else:
-                print(f"   💭 Memory: None")
-            
-            # Handle runtime_inputs being either dict or string
-            if isinstance(runtime_inputs, str):
-                user_input = runtime_inputs
-            elif isinstance(runtime_inputs, dict):
-                user_input = runtime_inputs.get("input", inputs.get("input", ""))
-            else:
-                user_input = inputs.get("input", "")
-            
-            # 🔥 CRITICAL FIX: Load conversation history from memory
-            conversation_history = ""
-            if memory is not None:
-                try:
-                    # Load memory variables to get conversation history
-                    memory_vars = memory.load_memory_variables({})
-                    if memory_vars:
-                        # Get the memory key (usually "memory" or "history")
-                        memory_key = getattr(memory, 'memory_key', 'memory')
-                        if memory_key in memory_vars:
-                            history_content = memory_vars[memory_key]
-                            if isinstance(history_content, list):
-                                # Format message list into readable conversation
-                                formatted_history = []
-                                for msg in history_content:
-                                    if hasattr(msg, 'type') and hasattr(msg, 'content'):
-                                        role = "Human" if msg.type == "human" else "Assistant"
-                                        formatted_history.append(f"{role}: {msg.content}")
-                                    elif isinstance(msg, dict):
-                                        role = "Human" if msg.get('type') == 'human' else "Assistant"
-                                        formatted_history.append(f"{role}: {msg.get('content', '')}")
-                                
-                                if formatted_history:
-                                    conversation_history = "\n".join(formatted_history[-10:])  # Last 10 messages
-                                    print(f"   💭 Loaded conversation history: {len(formatted_history)} messages")
-                            elif isinstance(history_content, str) and history_content.strip():
-                                conversation_history = history_content
-                                print(f"   💭 Loaded conversation history: {len(history_content)} chars")
-                except Exception as memory_error:
-                    print(f"   ⚠️  Failed to load memory variables: {memory_error}")
-                    conversation_history = ""
-            
-            final_input = {
-                "input": user_input,
-                "tools": tools_list,  # LangChain create_react_agent için gerekli
-                "tool_names": [tool.name for tool in tools_list],
-                "chat_history": conversation_history  # Add conversation history to input
-            }
-            
-            print(f"   ⚙️  Executing with input: '{final_input['input'][:50]}...'")
-            
-            # Execute the agent with error handling for Turkish characters
-            try:
-                result = executor.invoke(final_input)
-
-                # Debug: Check memory after execution (AgentExecutor handles saving automatically)
-                if memory is not None and hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
-                    new_message_count = len(memory.chat_memory.messages)
-                    print(f"   📚 Memory now contains: {new_message_count} messages")
-
-                return result
-
-            except UnicodeEncodeError as unicode_error:
-                print(f"[ERROR] Unicode encoding error: {unicode_error}")
-                # Fallback: Try to encode the result with UTF-8
-                try:
-                    error_result = {
-                        "error": f"Türkçe karakter encoding hatası: {str(unicode_error)}",
-                        "suggestion": "Lütfen Türkçe karakterleri doğru şekilde kullanın veya sistem dil ayarlarını kontrol edin."
-                    }
-                    return error_result
-                except:
-                    return {"error": "Unicode encoding error occurred"}
-
+                tool_names = [getattr(t, "name", type(t).__name__) for t in (tools_list or [])]
+                print(f"[TRACE][AGENT.TOOLS] prepared={len(tools_list)} tools={tool_names}")
             except Exception as e:
-                error_msg = f"Agent execution failed: {str(e)}"
-                print(f"[ERROR] {error_msg}")
-                return {"error": error_msg}
+                print(f"[TRACE][AGENT.TOOLS] error listing tools: {e}")
+            user_input = self._extract_user_input(runtime_inputs, inputs)
+            detected_language = self._detect_user_language(user_input)
+
+            # Create agent graph using new API
+            agent_graph = self._create_agent(llm, tools_list, detected_language, memory)
+
+            # Prepare final input and execute
+            final_input = self._prepare_final_input_for_graph(user_input, memory)
+            return self._execute_graph_with_error_handling(agent_graph, final_input, memory)
 
         return RunnableLambda(agent_executor_lambda)
 
-    def _prepare_tools(self, tools_input: Any) -> list[BaseTool]:
-        """Ensures the tools are in the correct list format, including retriever tools."""
-        if not tools_input:
+    def _setup_encoding(self) -> None:
+        """Setup UTF-8 encoding for Turkish character support."""
+        try:
+            # Force UTF-8 encoding for all string operations
+            if hasattr(sys.stdout, 'reconfigure'):
+                sys.stdout.reconfigure(encoding='utf-8')
+            if hasattr(sys.stderr, 'reconfigure'):
+                sys.stderr.reconfigure(encoding='utf-8')
+
+            # Set environment variables for UTF-8 (Docker-compatible)
+            os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+            os.environ.setdefault('LANG', 'C.UTF-8')
+            os.environ.setdefault('LC_ALL', 'C.UTF-8')
+
+            print(f"[DEBUG] Encoding setup completed - Default: {sys.getdefaultencoding()}")
+
+        except Exception as encoding_error:
+            print(f"[WARNING] Encoding setup failed: {encoding_error}")
+
+    def _validate_and_extract_connections(self, connected_nodes: Dict[str, Runnable]) -> tuple:
+        """Validate connections and extract LLM, tools, and memory components."""
+        print(f"[DEBUG] Agent connected_nodes keys: {list(connected_nodes.keys())}")
+        print(f"[DEBUG] Agent connected_nodes types: {[(k, type(v)) for k, v in connected_nodes.items()]}")
+
+        llm = connected_nodes.get("llm")
+        tools = connected_nodes.get("tools")
+        memory = connected_nodes.get("memory")
+
+        # Enhanced LLM validation
+        self._validate_llm_connection(llm, connected_nodes)
+
+        return llm, tools, memory
+
+    def _validate_llm_connection(self, llm: Any, connected_nodes: Dict[str, Runnable]) -> None:
+        """Validate that LLM connection is properly configured."""
+        print(f"[DEBUG] LLM received: {type(llm)}")
+        if llm is None:
+            available_connections = list(connected_nodes.keys())
+            raise ValueError(
+                f"A valid LLM connection is required. "
+                f"Available connections: {available_connections}. "
+                f"Make sure to connect an OpenAI Chat node to the 'llm' input of this Agent."
+            )
+
+        if not isinstance(llm, BaseLanguageModel):
+            raise ValueError(
+                f"Connected LLM must be a BaseLanguageModel instance, got {type(llm)}. "
+                f"Ensure the OpenAI Chat node is properly configured and connected."
+            )
+
+    def _extract_user_input(self, runtime_inputs: Any, inputs: Dict[str, Any]) -> str:
+        """Extract user input from various input formats."""
+        if isinstance(runtime_inputs, str):
+            return runtime_inputs
+        elif isinstance(runtime_inputs, dict):
+            return runtime_inputs.get("input", inputs.get("input", ""))
+        else:
+            return inputs.get("input", "")
+
+    def _detect_user_language(self, user_input: str) -> str:
+        """Detect user's language with Turkish character safety."""
+        try:
+            detected_language = detect_language(user_input)
+            print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
+            return detected_language
+        except UnicodeEncodeError as lang_error:
+            print(f"[WARNING] Language detection encoding error: {lang_error}")
+            print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
+            return 'tr'  # Default to Turkish for Turkish characters
+
+    def _create_agent(self, llm: BaseLanguageModel, tools_list: list, detected_language: str, memory: Any = None) -> CompiledStateGraph:
+        """Create the React agent with language-specific prompt using new LangGraph API."""
+        # Create language-specific prompt
+        agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
+        
+        # Create checkpointer for memory if memory is provided
+        checkpointer = None
+        if memory is not None:
+            try:
+                checkpointer = MemorySaver()
+                print("   💭 Memory: Using MemorySaver checkpointer")
+            except Exception as e:
+                print(f"   💭 Memory: Failed to create checkpointer ({str(e)}), proceeding without memory")
+        
+        # Create the agent using new API
+        agent_graph = create_react_agent(
+            model=llm,
+            tools=tools_list,
+            prompt=agent_prompt,
+            checkpointer=checkpointer,
+            version="v2"
+        )
+        
+        return agent_graph
+
+    def _validate_memory(self, memory: Any) -> bool:
+        """Validate memory component for graph-based execution."""
+        try:
+            if hasattr(memory, 'load_memory_variables'):
+                test_vars = memory.load_memory_variables({})
+                print("   💭 Memory: Valid memory object found")
+                return True
+            else:
+                print("   💭 Memory: Invalid memory object, proceeding without memory")
+                return False
+        except Exception as e:
+            print(f"   💭 Memory: Failed to validate ({str(e)}), proceeding without memory")
+            return False
+
+    def _prepare_final_input_for_graph(self, user_input: str, memory: Any) -> Dict[str, Any]:
+        """Prepare the final input dictionary for graph execution using new state format."""
+        # Load conversation history from memory
+        conversation_history = self._load_conversation_history(memory)
+        
+        # Create messages list in the format expected by the new API
+        messages = []
+        
+        # Add conversation history if available
+        if conversation_history:
+            # Parse conversation history and add to messages
+            for line in conversation_history.split('\n'):
+                if line.strip():
+                    if line.startswith('Human:'):
+                        messages.append(HumanMessage(content=line.replace('Human:', '').strip()))
+                    elif line.startswith('Assistant:'):
+                        # Skip assistant messages as they'll be regenerated
+                        pass
+        
+        # Add current user input
+        messages.append(HumanMessage(content=user_input))
+
+        return {
+            "messages": messages
+        }
+
+    def _load_conversation_history(self, memory: Any) -> str:
+        """Load and format conversation history from memory."""
+        print(f"🔍 [AGENT MEMORY DEBUG] Starting memory history load")
+        
+        if memory is None:
+            print("   💭 Memory: None")
+            print("🔍 [AGENT MEMORY DEBUG] Memory object is None")
+            return ""
+
+        print(f"🔍 [AGENT MEMORY DEBUG] Memory object type: {type(memory)}")
+        print(f"🔍 [AGENT MEMORY DEBUG] Memory object attributes: {dir(memory)}")
+
+        try:
+            # Check if memory has chat_memory attribute
+            if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
+                messages = memory.chat_memory.messages
+                print(f"🔍 [AGENT MEMORY DEBUG] Direct access: {len(messages)} messages in chat_memory")
+                
+                if messages:
+                    for i, msg in enumerate(messages[:3]):
+                        msg_type = getattr(msg, 'type', 'unknown')
+                        msg_content = getattr(msg, 'content', '')
+                        print(f"🔍 [AGENT MEMORY DEBUG] Direct message {i+1}: type={msg_type}, content='{msg_content[:50]}...'")
+
+            # Try to load memory variables
+            print(f"🔍 [AGENT MEMORY DEBUG] Attempting to load memory variables...")
+            memory_vars = memory.load_memory_variables({})
+            print(f"🔍 [AGENT MEMORY DEBUG] Memory variables loaded: {list(memory_vars.keys()) if memory_vars else 'None'}")
+            
+            if not memory_vars:
+                print("   💭 Memory: None")
+                print("🔍 [AGENT MEMORY DEBUG] Memory variables are empty or None")
+                return ""
+
+            memory_key = getattr(memory, 'memory_key', 'memory')
+            print(f"🔍 [AGENT MEMORY DEBUG] Using memory key: {memory_key}")
+            
+            if memory_key not in memory_vars:
+                print("   💭 Memory: None")
+                print(f"🔍 [AGENT MEMORY DEBUG] Memory key '{memory_key}' not found in variables: {list(memory_vars.keys())}")
+                return ""
+
+            history_content = memory_vars[memory_key]
+            print(f"🔍 [AGENT MEMORY DEBUG] History content type: {type(history_content)}")
+            print(f"🔍 [AGENT MEMORY DEBUG] History content length: {len(history_content) if hasattr(history_content, '__len__') else 'no length'}")
+            
+            formatted_history = self._format_conversation_history(history_content)
+            print(f"🔍 [AGENT MEMORY DEBUG] Formatted history length: {len(formatted_history)} chars")
+            
+            return formatted_history
+
+        except Exception as memory_error:
+            print(f"   ⚠️  Failed to load memory variables: {memory_error}")
+            import traceback
+            print(f"🔍 [AGENT MEMORY DEBUG] Memory load error traceback: {traceback.format_exc()}")
+            return ""
+
+    def _format_conversation_history(self, history_content: Any) -> str:
+        """Format conversation history into readable string."""
+        if isinstance(history_content, list):
+            formatted_history = []
+            for msg in history_content:
+                if hasattr(msg, 'type') and hasattr(msg, 'content'):
+                    role = "Human" if msg.type == "human" else "Assistant"
+                    formatted_history.append(f"{role}: {msg.content}")
+                elif isinstance(msg, dict):
+                    role = "Human" if msg.get('type') == 'human' else "Assistant"
+                    formatted_history.append(f"{role}: {msg.get('content', '')}")
+
+            if formatted_history:
+                conversation_history = "\n".join(formatted_history[-10:])  # Last 10 messages
+                print(f"   💭 Loaded conversation history: {len(formatted_history)} messages")
+                return conversation_history
+
+        elif isinstance(history_content, str) and history_content.strip():
+            print(f"   💭 Loaded conversation history: {len(history_content)} chars")
+            return history_content
+
+        return ""
+
+    def _execute_graph_with_error_handling(self, agent_graph: CompiledStateGraph, final_input: Dict[str, Any], memory: Any) -> Dict[str, Any]:
+        """Execute the agent graph with comprehensive error handling."""
+        try:
+
+            result = agent_graph.invoke(final_input)
+            
+            # Extract the final message content from the result
+            if 'messages' in result and result['messages']:
+                last_ai_message = result['messages'][-1]
+                output_content = last_ai_message.content if hasattr(last_ai_message, 'content') else str(last_ai_message)
+                # Debug: Check memory after execution and save to database
+                if memory:
+                    try:
+                        print("   💾 Persisting conversation to database via memory node...")
+                        session_id = memory.memory_key
+
+                        BufferMemoryNode().save_messages(session_id=session_id, messages=[last_ai_message])
+                        print(f"   ✅ Conversation persisted for session {session_id[:8]}...")
+                    except Exception as e:
+                        print(f"   ❌ Failed to persist memory via _persist_to_database: {e}")
+
+
+                return {"output": output_content}
+            else:
+                return {"output": str(result)}
+
+        except UnicodeEncodeError as unicode_error:
+            print(f"[ERROR] Unicode encoding error: {unicode_error}")
+            return self._handle_unicode_error(unicode_error)
+
+        except Exception as e:
+            error_msg = f"Agent graph execution failed: {str(e)}"
+            print(f"[ERROR] {error_msg}")
+            return {"error": error_msg}
+
+    def _handle_unicode_error(self, unicode_error: UnicodeEncodeError) -> Dict[str, Any]:
+        """Handle Unicode encoding errors with Turkish-specific fallback."""
+        try:
+            return {
+                "error": f"Türkçe karakter encoding hatası: {str(unicode_error)}",
+                "suggestion": "Lütfen Türkçe karakterleri doğru şekilde kullanın veya sistem dil ayarlarını kontrol edin."
+            }
+        except:
+            return {"error": "Unicode encoding error occurred"}
+
+    def _prepare_tools(self, tools_to_process: Any) -> list[BaseTool]:
+        """Universal tool preparation using auto-discovery."""
+        if not tools_to_process:
             return []
         
         tools_list = []
-        
-        # Handle different input types
-        if isinstance(tools_input, list):
-            for tool in tools_input:
-                if isinstance(tool, BaseTool):
-                    tools_list.append(tool)
-                elif isinstance(tool, BaseRetriever):
-                    # Convert retriever to tool
-                    retriever_tool = create_retriever_tool(
-                        name="document_retriever",
-                        description="Search and retrieve relevant documents from the knowledge base",
-                        retriever=tool,
-                    )
-                    tools_list.append(retriever_tool)
-        elif isinstance(tools_input, BaseTool):
-            tools_list.append(tools_input)
-        elif isinstance(tools_input, BaseRetriever):
-            # Convert single retriever to tool
-            retriever_tool = create_retriever_tool(
-                name="document_retriever", 
-                description="Search and retrieve relevant documents from the knowledge base",
-                retriever=tools_input,
-            )
-            tools_list.append(retriever_tool)
+        tools_dict=tools_to_process
+        if not isinstance(tools_to_process, dict):
+            tools_dict=dict((key,d[key]) for d in tools_to_process for key in d)
+
+        for tool_input in tools_dict:
+            if isinstance(tools_dict[tool_input]['tool'], BaseTool):
+                tools_list.append(tools_dict[tool_input]['tool'])
+            else:
+                # Use auto-discovery system
+                converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_input)
+                if converted_tool:
+                    tools_list.append(converted_tool)
+                    print(f"🔧 Auto-converted {type(tool_input).__name__} to tool: {converted_tool.name}")
         
         return tools_list
 
-    def _create_prompt(self, tools: list[BaseTool]) -> PromptTemplate:
+    def _create_prompt(self, tools: list[BaseTool]) -> ChatPromptTemplate:
         """
         Legacy method for backward compatibility. Creates a unified ReAct-compatible prompt.
         """
         return self._create_language_specific_prompt(tools, 'en')  # Default to English
 
-    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str) -> PromptTemplate:
+    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str) -> ChatPromptTemplate:
         """
-        Creates a language-specific ReAct-compatible prompt with mandatory language enforcement.
+        Creates a language-specific ChatPromptTemplate compatible with the new API.
         Uses custom prompt_instructions if provided, otherwise falls back to smart orchestration.
         """
         custom_instructions = self.user_data.get("system_prompt", "").strip()
@@ -1490,14 +1429,19 @@ class ReactAgentNode(ProcessorNode):
         language_specific_context = get_language_specific_prompt(language_code)
 
         # Build dynamic, intelligent prompt based on available components
-        prompt_content = self._build_intelligent_prompt(custom_instructions, language_specific_context, language_code)
+        system_content = self._build_intelligent_system_prompt(custom_instructions, language_specific_context, language_code)
 
-        return PromptTemplate.from_template(prompt_content)
+        # Create a ChatPromptTemplate that works with the new API
+        return ChatPromptTemplate.from_messages([
+            ("system", system_content),
+            ("placeholder", "{messages}")
+        ])
 
-    def _build_intelligent_prompt(self, custom_instructions: str, base_system_context: str, language_code: str = 'en') -> str:
+    def _build_intelligent_system_prompt(self, custom_instructions: str, base_system_context: str, language_code: str = 'en') -> str:
         """
         Builds an intelligent, dynamic system prompt that adapts to available tools, memory, and custom instructions.
         This creates a context-aware agent that understands its capabilities and constraints with mandatory language enforcement.
+        The new API handles ReAct formatting automatically, so we focus on system instructions.
         """
 
         # === SIMPLE IDENTITY SECTION ===
@@ -1506,213 +1450,64 @@ class ReactAgentNode(ProcessorNode):
         else:
             identity_section = base_system_context
 
-        # Language-specific guidelines - FORCE TOOL USAGE with DETAILED RESPONSES
+        # Language-specific guidelines - SIMPLIFIED FOR NEW API
         language_guidelines = {
-            'tr': "Kullanıcıya DETAYLI, ADIM ADIM ve AÇIKLAYICI cevaplar ver! HER ZAMAN araçları kullan ve bulunan bilgileri kapsamlı şekilde sun. Hiçbir zaman doğrudan genel cevap verme! Her zaman kullanıcının dilinde, anlaşılır ve yardımcı ol!",
-            'en': "Provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users! ALWAYS use tools and present found information thoroughly. Never give direct general answers! Always respond in user's language, clearly and helpfully!",
-            'de': "Geben Sie dem Benutzer DETALLIERTE, SCHRITTWEISE und KOMPREHENSIVE Antworten! Verwenden Sie IMMER Tools und präsentieren Sie gefundene Informationen gründlich. Antworten Sie niemals direkt allgemein! Beantworten Sie immer in der Sprache des Benutzers, klar und hilfreich!",
-            'fr': "Fournissez des réponses DÉTAILLÉES, ÉTAPE PAR ÉTAPE et COMPLÈTES aux utilisateurs! Utilisez TOUJOURS les outils et présentez les informations trouvées de manière approfondie. Ne répondez jamais directement de manière générale! Répondez toujours dans la langue de l'utilisateur, clairement et utilement!",
-            'es': "¡Proporciona respuestas DETALLADAS, PASO A PASO y COMPLETAS a los usuarios! ¡USA SIEMPRE herramientas y presenta la información encontrada de manera exhaustiva. ¡Nunca respondas directamente de manera general! ¡Responde siempre en el idioma del usuario, claramente y de manera útil!",
-            'it': "Fornisci risposte DETTAGLIATE, PASSO DOPO PASSO e COMPLETE agli utenti! USA SEMPRE gli strumenti e presenta le informazioni trovate in modo approfondito. Non rispondere mai direttamente in modo generale! Rispondi sempre nella lingua dell'utente, chiaramente e in modo utile!",
-            'pt': "Forneça respostas DETALHADAS, PASSO A PASSO e COMPLETAS aos usuários! USE SEMPRE ferramentas e apresente as informações encontradas de maneira exaustiva. Nunca responda diretamente de maneira geral! Responda sempre no idioma do usuário, claramente e de maneira útil!",
-            'ru': "Предоставляйте ПОДРОБНЫЕ, ПОШАГОВЫЕ и КОМПЛЕКСНЫЕ ответы пользователям! ВСЕГДА используйте инструменты и представляйте найденную информацию исчерпывающе. Никогда не отвечайте прямо общими ответами! Всегда отвечайте на языке пользователя, ясно и полезно!",
-            'ar': "قدم إجابات مفصلة وشاملة للمستخدمين! استخدم دائماً الأدوات وقدم المعلومات الموجودة بشكل شامل. لا تجب أبداً بشكل عام مباشرة! أجب دائماً بلغة المستخدم بوضوح ومساعدة!",
-            'zh': "为用户提供详细、逐步和全面的回答！始终使用工具并全面呈现找到的信息。永远不要直接给出一般性回答！始终以用户的语言、清晰和有帮助的方式回答！",
-            'ja': "ユーザーに詳細でステップバイステップの包括的な回答を提供してください！常にツールを使用し、見つかった情報を徹底的に提示します。決して直接的な一般的な回答をしないでください！常にユーザーの言語で明確かつ役立つ方法で回答してください！",
-            'ko': "사용자에게 상세하고 단계별이며 포괄적인 답변을 제공하십시오! 항상 도구를 사용하고 발견된 정보를 철저히 제시하십시오. 직접적인 일반적인 답변을 하지 마십시오! 항상 사용자의 언어로 명확하고 도움이 되는 방식으로 답변하십시오!",
-            'hi': "उपयोगकर्ताओं को विस्तृत, चरणबद्ध और व्यापक उत्तर प्रदान करें! हमेशा उपकरणों का उपयोग करें और पाई गई जानकारी को पूरी तरह से प्रस्तुत करें। कभी भी सीधा सामान्य उत्तर न दें! हमेशा उपयोगकर्ता की भाषा में, स्पष्ट और सहायक तरीके से उत्तर दें!",
-            'fa': "پاسخ‌های مفصل، گام به گام و جامع به کاربران ارائه دهید! همیشه از ابزارها استفاده کنید و اطلاعات یافت شده را به طور کامل ارائه دهید. هرگز به طور مستقیم پاسخ عمومی ندهید! همیشه به زبان کاربر، واضح و مفید پاسخ دهید!"
+            'tr': "Kullanıcıya DETAYLI, ADIM ADIM ve AÇIKLAYICI cevaplar ver! Mevcut araçları kullanarak bulunan bilgileri kapsamlı şekilde sun. Her zaman kullanıcının dilinde, anlaşılır ve yardımcı ol!",
+            'en': "Provide DETAILED, STEP-BY-STEP and COMPREHENSIVE answers to users! Use available tools to gather information and present findings thoroughly. Always respond in user's language, clearly and helpfully!",
+            'de': "Geben Sie DETAILLIERTE, SCHRITTWEISE und UMFASSENDE Antworten! Verwenden Sie verfügbare Tools zur Informationsbeschaffung und präsentieren Sie Ergebnisse gründlich. Antworten Sie immer in der Sprache des Benutzers, klar und hilfreich!",
+            'fr': "Fournissez des réponses DÉTAILLÉES, ÉTAPE PAR ÉTAPE et COMPLÈTES! Utilisez les outils disponibles pour collecter des informations et présentez les résultats de manière approfondie. Répondez toujours dans la langue de l'utilisateur, clairement et utilement!",
+            'es': "¡Proporciona respuestas DETALLADAS, PASO A PASO y COMPLETAS! ¡Usa herramientas disponibles para recopilar información y presenta los hallazgos exhaustivamente! ¡Responde siempre en el idioma del usuario, claramente y de manera útil!",
+            'it': "Fornisci risposte DETTAGLIATE, PASSO DOPO PASSO e COMPLETE! Usa strumenti disponibili per raccogliere informazioni e presenta i risultati in modo approfondito! Rispondi sempre nella lingua dell'utente, chiaramente e in modo utile!",
+            'pt': "Forneça respostas DETALHADAS, PASSO A PASSO e COMPLETAS! Use ferramentas disponíveis para coletar informações e apresente os achados exaustivamente! Responda sempre no idioma do usuário, claramente e de maneira útil!",
+            'ru': "Предоставляйте ПОДРОБНЫЕ, ПОШАГОВЫЕ и КОМПЛЕКСНЫЕ ответы! Используйте доступные инструменты для сбора информации и представляйте результаты исчерпывающе! Всегда отвечайте на языке пользователя, ясно и полезно!",
+            'ar': "قدم إجابات مفصلة وشاملة وخطوة بخطوة! استخدم الأدوات المتاحة لجمع المعلومات وقدم النتائج بشكل شامل! أجب دائماً بلغة المستخدم بوضوح ومساعدة!",
+            'zh': "提供详细、逐步和全面的回答！使用可用工具收集信息并全面展示发现！始终用用户的语言清晰有帮助地回答！",
+            'ja': "詳細で段階的かつ包括的な回答を提供してください！利用可能なツールを使用して情報を収集し、発見を徹底的に提示してください！常にユーザーの言語で明確かつ有用に回答してください！",
+            'ko': "상세하고 단계별이며 포괄적인 답변을 제공하십시오! 사용 가능한 도구를 사용하여 정보를 수집하고 발견사항을 철저히 제시하십시오! 항상 사용자의 언어로 명확하고 도움이 되게 답변하십시오!",
+            'hi': "विस्तृत, चरणबद्ध और व्यापक उत्तर प्रदान करें! जानकारी एकत्र करने के लिए उपलब्ध उपकरणों का उपयोग करें और निष्कर्षों को पूरी तरह से प्रस्तुत करें! हमेशा उपयोगकर्ता की भाषा में स्पष्ट और सहायक रूप से उत्तर दें!",
+            'fa': "پاسخ‌های مفصل، گام به گام و جامع ارائه دهید! از ابزارهای موجود برای جمع‌آوری اطلاعات استفاده کنید و یافته‌ها را به طور کامل ارائه دهید! همیشه به زبان کاربر، واضح و مفید پاسخ دهید!"
         }
 
         simplified_guidelines = language_guidelines.get(language_code, language_guidelines['en'])
 
-        # === SIMPLIFIED REACT TEMPLATES FOR RELIABLE FORMAT ===
-        react_templates = {
-            'tr': """Sen yardımcı bir asistansın. Kullanıcı sorularını yanıtlamak için mevcut araçları kullanırsın.
-
-Konuşma Geçmişi:
-{chat_history}
-
-Mevcut Araçlar:
-{tools}
-
-Araç İsimleri: {tool_names}
-
-ÖNEMLI: Her cevabı "Final Answer:" ile bitir!
-
-ÖZEL DURUMLAR:
-- Kimliğin, amacın veya rolün hakkında sorulursa: Sistem bağlamını kullanarak kendini tanıt
-- Data Touch konuları için: Önce document_retriever kullan
-- Genel sorular için: Gerektiğinde araç kullan
-
-Bu formatı kullan:
-Question: {input}
-Thought: [Kimliğim/amacım soruluyorsa doğrudan cevap verebilirim. Diğer durumlarda araç kullanacağım.]
-Action: document_retriever
-Action Input: [arama terimi]
-Observation: [sonuçlar]
-Thought: Faydalı bir cevap vereceğim.
-Final Answer: [Araç sonuçlarını veya sistem bağlamını uygun şekilde kullanarak cevap ver]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'en': """You are a helpful assistant that uses available tools to answer user questions.
-
-Conversation History:
-{chat_history}
-
-Available Tools:
-{tools}
-
-Tool Names: {tool_names}
-
-IMPORTANT: End every response with "Final Answer:"!
-
-SPECIAL CASES:
-- If asked about your identity, purpose, or role: Use your system context to introduce yourself
-- For Data Touch topics: Always use document_retriever first
-- For general questions: Use tools when helpful
-
-Use this format:
-Question: {input}
-Thought: [If asking about my identity/purpose, I can answer directly. Otherwise, I'll use tools.]
-Action: document_retriever
-Action Input: [search query]
-Observation: [results]
-Thought: I'll provide a helpful answer.
-Final Answer: [Answer using tools results or system context as appropriate]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'de': """Sie sind ein hilfreicher Assistent, der verfügbare Tools verwendet, um Benutzerfragen zu beantworten.
-
-Gesprächsverlauf:
-{chat_history}
-
-Verfügbare Tools:
-{tools}
-
-Tool-Namen: {tool_names}
-
-WICHTIG: Beenden Sie jede Antwort mit "Final Answer:"!
-
-Verwenden Sie dieses Format:
-Question: {input}
-Thought: Ich muss Tools für diese Frage verwenden.
-Action: document_retriever
-Action Input: [relevante Suchanfrage zur Frage]
-Observation: [Tool-Ergebnisse erscheinen hier]
-Thought: Ich habe die Tool-Ergebnisse erhalten, nun werde ich antworten.
-Final Answer: [Geben Sie die hilfreichste und detaillierteste Antwort möglich. Wenn keine Informationen in Tools gefunden werden, helfen Sie mit allgemeinem Wissen.]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'fr': """Vous êtes un assistant utile qui utilise les outils disponibles pour répondre aux questions des utilisateurs.
-
-Historique de conversation:
-{chat_history}
-
-Outils disponibles:
-{tools}
-
-Noms des outils: {tool_names}
-
-IMPORTANT: Terminez chaque réponse par "Final Answer:"!
-
-Utilisez ce format:
-Question: {input}
-Thought: Je dois utiliser les outils pour cette question.
-Action: document_retriever
-Action Input: [requête de recherche pertinente à la question]
-Observation: [les résultats des outils apparaîtront ici]
-Thought: J'ai reçu les résultats des outils, maintenant je vais répondre.
-Final Answer: [Fournissez la réponse la plus utile et détaillée possible. Si aucune information n'est trouvée dans les outils, aidez avec des connaissances générales.]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'es': """Eres un asistente útil que usa herramientas disponibles para responder preguntas de usuarios.
-
-Historial de conversación:
-{chat_history}
-
-Herramientas disponibles:
-{tools}
-
-Nombres de herramientas: {tool_names}
-
-IMPORTANTE: ¡Termina cada respuesta con "Final Answer:"!
-
-Usa este formato:
-Question: {input}
-Thought: Necesito usar herramientas para esta pregunta.
-Action: document_retriever
-Action Input: [consulta de búsqueda relevante a la pregunta]
-Observation: [los resultados de las herramientas aparecerán aquí]
-Thought: Recibí los resultados de las herramientas, ahora responderé.
-Final Answer: [Proporciona la respuesta más útil y detallada posible. Si no se encuentra información en las herramientas, ayuda con conocimiento general.]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'it': """Sei un assistente utile che usa strumenti disponibili per rispondere alle domande degli utenti.
-
-Cronologia conversazione:
-{chat_history}
-
-Strumenti disponibili:
-{tools}
-
-Nomi degli strumenti: {tool_names}
-
-IMPORTANTE: Termina ogni risposta con "Final Answer:"!
-
-Usa questo formato:
-Question: {input}
-Thought: Devo usare strumenti per questa domanda.
-Action: document_retriever
-Action Input: [query di ricerca rilevante alla domanda]
-Observation: [i risultati degli strumenti appariranno qui]
-Thought: Ho ricevuto i risultati degli strumenti, ora risponderò.
-Final Answer: [Fornisci la risposta più utile e dettagliata possibile. Se non vengono trovate informazioni negli strumenti, aiuta con conoscenze generali.]
-
-Question: {input}
-Thought:{agent_scratchpad}""",
-            'pt': """Você é um assistente útil que usa ferramentas disponíveis para responder perguntas dos usuários.
-
-Histórico de conversa:
-{chat_history}
-
-Ferramentas disponíveis:
-{tools}
-
-Nomes das ferramentas: {tool_names}
-
-IMPORTANTE: Termine cada resposta com "Final Answer:"!
-
-Use este formato:
-Question: {input}
-Thought: Preciso usar ferramentas para esta pergunta.
-Action: document_retriever
-Action Input: [consulta de busca relevante à pergunta]
-Observation: [os resultados das ferramentas aparecerão aqui]
-Thought: Recebi os resultados das ferramentas, agora vou responder.
-Final Answer: [Forneça a resposta mais útil e detalhada possível. Se nenhuma informação for encontrada nas ferramentas, ajude com conhecimento geral.]
-
-Question: {input}
-Thought:{agent_scratchpad}"""
-        }
-
-        react_template = react_templates.get(language_code, react_templates['en'])
-
-        # === COMBINE ALL SECTIONS ===
+        # === COMBINE SECTIONS FOR NEW API ===
         full_prompt = f"""
 {identity_section}
 
 {simplified_guidelines}
 
-{react_template}
+When using tools, always provide comprehensive explanations of what you found and how it relates to the user's question.
 """
 
         return full_prompt.strip()
+
+    def _save_conversation_to_database(self, session_id: str, user_content: str, ai_content: str, user_id: str):
+        """Save conversation to database through memory service"""
+        try:
+            # Import database service
+            from app.services.memory import db_memory_store
+            
+            if db_memory_store:
+                result = db_memory_store.save_session_memory(
+                    session_id=session_id,
+                    user_input=user_content,
+                    ai_response=ai_content,
+                    user_id=user_id,
+                    metadata={
+                        'source': 'react_agent',
+                        'agent_type': 'react_agent_node',
+                        'timestamp': str(__import__('datetime').datetime.now())
+                    }
+                )
+                if result:
+                    print(f"   ✅ Database save successful: {result[:8]}...")
+                else:
+                    print(f"   ❌ Database save failed: empty result")
+            else:
+                print(f"   ⚠️ Database store not available")
+                
+        except Exception as e:
+            print(f"   ⚠️ Database save exception: {e}")
 
 # Alias for frontend compatibility
 ToolAgentNode = ReactAgentNode

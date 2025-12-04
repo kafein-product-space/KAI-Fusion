@@ -7,7 +7,7 @@ for the Agent-Flow V2 service layer.
 from functools import lru_cache
 from fastapi import Depends
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.database import get_db_session
+from app.core.database import get_db_session, get_db
 from app.services.user_service import UserService
 from app.services.workflow_service import WorkflowService, WorkflowTemplateService
 from app.services.execution_service import ExecutionService

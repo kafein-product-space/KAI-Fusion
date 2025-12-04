@@ -325,7 +325,7 @@ import importlib
 import inspect
 from pathlib import Path
 from typing import Dict, Type
-from app.nodes.base import BaseNode
+from app.nodes import BaseNode
 
 # Deprecated - use app.core.node_registry instead
 NODE_TYPE_MAP: Dict[str, Type[BaseNode]] = {}

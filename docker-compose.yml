@@ -3,25 +3,30 @@ services:
   kaifusion-be:
     build: .
     image: kaifusion:latest
+    container_name: kai-fusion-backend
     ports:
-      - "23056:8000"
+      - "${BACKEND_PORT:-23056}:8000"
     environment:
       # Core Application Settings
       SECRET_KEY: ${SECRET_KEY}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      BACKEND_PORT: ${BACKEND_PORT:-23056}
+      BACKEND_DEBUG: ${BACKEND_DEBUG:-true}
 
       # Database Settings
       CREATE_DATABASE: ${CREATE_DATABASE}
       DATABASE_URL: ${DATABASE_URL}
-      POSTGRES_DB: ${POSTGRES_DB}
-      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_USERNAME: ${POSTGRES_USERNAME}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASE_PORT: ${DATABASE_PORT}
-      DATABASE_HOST: ${DATABASE_HOST}
       DATABASE_SSL: ${DATABASE_SSL}
       DISABLE_DATABASE: ${DISABLE_DATABASE}
 
       # Security
       CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+
+      # Basic Settings
+      LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
 
       # LangSmith Settings
       LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
@@ -29,11 +34,9 @@ services:
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
 
-      # Async Database
-      ASYNC_DATABASE_URL: ${ASYNC_DATABASE_URL}
-
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000
-
+    command: uvicorn main:app --host 0.0.0.0 --port 8000
+    networks:
+      - kai_network
     stdin_open: true
     restart: always
     tty: true
@@ -48,7 +51,7 @@ services:
         VITE_API_VERSION: ${VITE_API_VERSION}
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
-    container_name: kai-fusion-client
+    container_name: kai-fusion-frontend
     ports:
       - "23058:3000"
     environment:
@@ -56,17 +59,21 @@ services:
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
+    networks:
+      - kai_network
     restart: unless-stopped
     depends_on:
       - kaifusion-be
 
   kai-widget:
-    build: 
+    build:
       context: ./widget
       dockerfile: Dockerfile
     ports:
       - "23059:80"
     container_name: kai-fusion-widget
+    networks:
+      - kai_network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost/health"]
@@ -78,5 +85,3 @@ services:
 networks:
   kai_network:
     driver: bridge
-  shared_net:
-    external: true
