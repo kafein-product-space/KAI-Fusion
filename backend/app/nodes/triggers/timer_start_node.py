@@ -8,7 +8,7 @@ from datetime import datetime, timedelta, timezone
 from croniter import croniter
 from pydantic import BaseModel, Field
 
-from app.nodes.base import TerminatorNode, NodeInput, NodeOutput, NodeType
+from app.nodes.base import TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 from app.core.state import FlowState
 from app.core.execution_queue import execution_queue
 from app.core.engine import get_engine
@@ -52,11 +52,13 @@ class TimerStartNode(TerminatorNode):
         self._is_active = False
         
         self._metadata = {
-            "name": "TimerStartNode",
+            "name": "TimerStart",
             "display_name": "Timer Start",
             "description": "Start workflow on schedule, timer events, or manual trigger",
             "node_type": NodeType.TERMINATOR,
             "category": "Triggers",
+            "colors": ["green-500", "emerald-600"],
+            "icon": {"name": "clock", "path": None, "alt": None},
             "inputs": [
                 NodeInput(
                     name="schedule_type",
@@ -64,7 +66,6 @@ class TimerStartNode(TerminatorNode):
                     description="Type of schedule",
                     default="interval",
                     required=False,
-                    choices=["interval", "cron", "once", "manual"]
                 ),
                 NodeInput(
                     name="interval_seconds",
@@ -72,8 +73,6 @@ class TimerStartNode(TerminatorNode):
                     description="Interval in seconds (for interval type)",
                     default=3600,  # 1 hour
                     required=False,
-                    min_value=30,  # 30 seconds minimum
-                    max_value=604800  # 1 week maximum
                 ),
                 NodeInput(
                     name="cron_expression",
@@ -123,8 +122,6 @@ class TimerStartNode(TerminatorNode):
                     description="Maximum number of executions (0 = unlimited)",
                     default=0,
                     required=False,
-                    min_value=0,
-                    max_value=10000
                 ),
                 NodeInput(
                     name="timeout_seconds",
@@ -132,8 +129,6 @@ class TimerStartNode(TerminatorNode):
                     description="Workflow execution timeout in seconds",
                     default=300,
                     required=False,
-                    min_value=10,
-                    max_value=3600
                 ),
                 NodeInput(
                     name="retry_on_failure",
@@ -148,15 +143,15 @@ class TimerStartNode(TerminatorNode):
                     description="Number of retries on failure",
                     default=3,
                     required=False,
-                    min_value=1,
-                    max_value=10
                 )
             ],
             "outputs": [
                 NodeOutput(
                     name="timer_data",
+                    displayName="Timer Data",
                     type="object",
-                    description="Timer trigger information"
+                    description="Timer trigger information",
+                    is_connection=True
                 ),
                 NodeOutput(
                     name="schedule_info",
@@ -174,8 +169,111 @@ class TimerStartNode(TerminatorNode):
                     description="Timer control interface for start/stop/status operations"
                 )
             ],
-            "color": "#10b981",  # Green color for timer
-            "icon": "clock"
+            "properties": [
+                # Basic Tab
+                NodeProperty(
+                    name="schedule_type",
+                    displayName="Schedule Type",
+                    type=NodePropertyType.SELECT,
+                    default="interval",
+                    options=[
+                        {"label": "Interval ⭐", "value": "interval", "hint": "Run at regular intervals"},
+                        {"label": "Cron Expression", "value": "cron", "hint": "Use cron expression for complex scheduling"},
+                        {"label": "One Time", "value": "once", "hint": "Run once at a specific time"},
+                        {"label": "Manual Trigger", "value": "manual", "hint": "Trigger manually only"},
+                    ],
+                    tabName="basic",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="interval_seconds",
+                    displayName="Interval (seconds)",
+                    type=NodePropertyType.RANGE,
+                    default=3600,
+                    min=60,
+                    max=86400,
+                    minLabel="1 minute",
+                    maxLabel="24 hours",
+                    step=60,
+                    description="Run at regular intervals",
+                    displayOptions={
+                        "show": {
+                            "schedule_type": "interval"
+                        }
+                    },
+                    tabName="basic",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="cron_expression",
+                    displayName="Cron Expression",
+                    type=NodePropertyType.TEXT,
+                    default="0 */1 * * *",
+                    placeholder="0 */1 * * *",
+                    hint="Format: minute hour day month weekday",
+                    displayOptions={
+                        "show": {
+                            "schedule_type": "cron"
+                        }
+                    },
+                    tabName="basic",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="scheduled_time",
+                    displayName="Scheduled Time",
+                    type=NodePropertyType.DATETIME,
+                    hint="Run once at a specific time (ISO format)",
+                    displayOptions={
+                        "show": {
+                            "schedule_type": "once"
+                        }
+                    },
+                    tabName="basic",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="timezone",
+                    displayName="Timezone",
+                    type=NodePropertyType.SELECT,
+                    default="UTC",
+                    options=[
+                        {"label": "UTC ⭐", "value": "UTC"},
+                        {"label": "Eastern Time", "value": "America/New_York"},
+                        {"label": "Central Time", "value": "America/Chicago"},
+                        {"label": "Mountain Time", "value": "America/Denver"},
+                        {"label": "Pacific Time", "value": "America/Los_Angeles"},
+                        {"label": "London", "value": "Europe/London"},
+                        {"label": "Paris", "value": "Europe/Paris"},
+                        {"label": "Tokyo", "value": "Asia/Tokyo"},
+                        {"label": "Shanghai", "value": "Asia/Shanghai"},
+                        {"label": "Sydney", "value": "Australia/Sydney"},
+                    ],
+                    hint="Timezone for scheduling",
+                    tabName="basic",
+                    required=True,
+                ),
+
+                # Advanced Tab
+                NodeProperty(
+                    name="enabled",
+                    displayName="Enable Timer",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Enable or disable the timer trigger",
+                    tabName="advanced",
+                ),
+
+                # Data Tab
+                NodeProperty(
+                    name="trigger_data",
+                    displayName="Trigger Data",
+                    type=NodePropertyType.JSON_EDITOR,
+                    default="{}",
+                    hint="Data to pass when timer triggers (JSON format)",
+                    tabName="data",
+                ),
+            ],
         }
         
         # Register timer in global registry

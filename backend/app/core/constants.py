@@ -105,6 +105,13 @@ IMPLEMENTATION DETAILS:
 ──────────────────────────────────────────────────────────────
 """
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+backend_dir = Path(__file__).parent.parent.parent
+env_file = backend_dir / '.env'
+if env_file.exists():
+    load_dotenv(dotenv_path=env_file)
 
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")

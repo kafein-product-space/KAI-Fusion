@@ -304,7 +304,7 @@ try:
 except ImportError:
     GOOGLE_DRIVE_AVAILABLE = False
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType, NodePropertyType, NodeProperty
 from app.models.node import NodeCategory
 from app.services.document_service import DocumentService
 from app.core.database import get_db_session_context
@@ -435,8 +435,8 @@ class DocumentLoaderNode(ProcessorNode):
             ),
             "category": NodeCategory.DOCUMENT_LOADER,
             "node_type": NodeType.PROCESSOR,
-            "icon": "document-text",
-            "color": "#059669",
+            "icon": {"name": "file-input", "path": None, "alt": None},
+            "colors": ["blue-500", "blue-600"],
             "inputs": [
                 NodeInput(
                     name="trigger",
@@ -446,6 +446,7 @@ class DocumentLoaderNode(ProcessorNode):
                 ),
                 NodeInput(
                     name="input_documents",
+                    displayName="Input Documents",
                     type="documents",
                     description="Documents received from other nodes in the workflow",
                     required=False,
@@ -461,14 +462,6 @@ class DocumentLoaderNode(ProcessorNode):
                     name="supported_formats",
                     type="multiselect",
                     description="Document formats to process",
-                    choices=[
-                        {"value": "txt", "label": "Text Files (.txt, .md, .log)", "description": "Process plain text, markdown, and log files"},
-                        {"value": "json", "label": "JSON (.json, .jsonl)", "description": "Process JSON documents and JSON lines"},
-                        {"value": "docx", "label": "Word Documents (.docx, .doc)", "description": "Process Microsoft Word documents"},
-                        {"value": "pdf", "label": "PDF (.pdf)", "description": "Process PDF documents with text extraction"},
-                        {"value": "csv", "label": "CSV Files (.csv)", "description": "Process comma-separated value files"},
-                    ],
-                    default=["txt", "json", "docx", "pdf", "csv"],
                     required=False,
                 ),
                 NodeInput(
@@ -504,9 +497,6 @@ class DocumentLoaderNode(ProcessorNode):
                     type="slider",
                     description="Minimum quality score for document inclusion (0.0-1.0)",
                     default=0.5,
-                    min_value=0.0,
-                    max_value=1.0,
-                    step=0.1,
                     required=False,
                 ),
                 
@@ -515,10 +505,6 @@ class DocumentLoaderNode(ProcessorNode):
                     name="google_drive_auth_type",
                     type="select",
                     description="Google Drive authentication method",
-                    choices=[
-                        {"value": "service_account", "label": "Service Account", "description": "Use service account credentials JSON"},
-                        {"value": "oauth2", "label": "OAuth2", "description": "Use OAuth2 user credentials"},
-                    ],
                     default="service_account",
                     required=True,
                 ),
@@ -529,7 +515,6 @@ class DocumentLoaderNode(ProcessorNode):
                     type="textarea",
                     description="Google Drive service account credentials (JSON format). Get from Google Cloud Console > Service Accounts",
                     required=False,
-                    is_secret=True,
                 ),
                 
                 # OAuth2 Configuration
@@ -538,28 +523,27 @@ class DocumentLoaderNode(ProcessorNode):
                     type="password",
                     description="Google OAuth2 Client ID from Google Cloud Console",
                     required=False,
-                    is_secret=True,
                 ),
                 NodeInput(
                     name="oauth2_client_secret",
                     type="password",
                     description="Google OAuth2 Client Secret from Google Cloud Console",
                     required=False,
-                    is_secret=True,
                 ),
                 NodeInput(
                     name="oauth2_refresh_token",
                     type="password",
                     description="Google OAuth2 Refresh Token (obtained from OAuth flow)",
                     required=False,
-                    is_secret=True,
                 ),
             ],
             "outputs": [
                 NodeOutput(
                     name="documents",
+                    displayName="Processed Documents",
                     type="documents",
                     description="Processed documents ready for downstream workflows",
+                    is_connection=True,
                 ),
                 NodeOutput(
                     name="stats",
@@ -572,6 +556,153 @@ class DocumentLoaderNode(ProcessorNode):
                     description="Detailed metadata analysis and quality metrics",
                 ),
             ],
+            "properties": [
+                NodeProperty(
+                    name="drive_links",
+                    displayName="Google Drive Links",
+                    type=NodePropertyType.TEXT_AREA,
+                    placeholder="https://drive.google.com/file/d/...\nhttps://drive.google.com/drive/folders/...",
+                    hint="Enter Google Drive file or folder URLs (one per line)",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="google_drive_auth_type",
+                    displayName="Authentication Method",
+                    type=NodePropertyType.SELECT,
+                    description="Google Drive authentication method",
+                    options=[
+                        {"value": "service_account", "label": "Service Account"},
+                        {"value": "oauth2", "label": "OAuth2"},
+                    ],
+                    default="service_account",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="service_account_json",
+                    displayName="Service Account JSON",
+                    type=NodePropertyType.JSON_EDITOR,
+                    placeholder='{"type": "service_account", "project_id": "...", ...}',
+                    displayOptions={
+                        "show": {
+                            "google_drive_auth_type": "service_account"
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
+                    name="oauth2_client_id",
+                    displayName="Client ID",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Your Google OAuth2 Client ID",
+                    displayOptions={
+                        "show": {
+                            "google_drive_auth_type": "oauth2"
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
+                    name="oauth2_client_secret",
+                    displayName="Client Secret",
+                    type=NodePropertyType.PASSWORD,
+                    placeholder="Your Google OAuth2 Client Secret",
+                    displayOptions={
+                        "show": {
+                            "google_drive_auth_type": "oauth2"
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
+                    name="supported_formats_title",
+                    displayName="Supported Formats",
+                    type=NodePropertyType.TITLE,
+                    description="Select document formats to process",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="format_txt",
+                    displayName="Text Files",
+                    hint=".txt, .md, .log",
+                    type=NodePropertyType.CHECKBOX,
+                    colSpan=1,
+                ),
+                NodeProperty(
+                    name="format_json",
+                    displayName="JSON",
+                    hint=".json, .jsonl",
+                    type=NodePropertyType.CHECKBOX,
+                    colSpan=1,
+                ),
+                NodeProperty(
+                    name="format_docx",
+                    displayName="Word Documents",
+                    hint=".docx, .doc",
+                    type=NodePropertyType.CHECKBOX,
+                    colSpan=1,
+                ),
+                NodeProperty(
+                    name="format_pdf",
+                    displayName="PDF",
+                    hint=".pdf",
+                    type=NodePropertyType.CHECKBOX,
+                    colSpan=1,
+                ),
+                NodeProperty(
+                    name="format_csv",
+                    displayName="CSV Files",
+                    hint=".csv",
+                    type=NodePropertyType.CHECKBOX,
+                    colSpan=2,
+                ),
+                NodeProperty(
+                    name="min_content_length",
+                    displayName="Min Content Length",
+                    type=NodePropertyType.NUMBER,
+                    description="Minimum content length to include (characters)",
+                    default=100,
+                    colSpan=1,
+                    required=False,
+                ),
+                NodeProperty(
+                    name="max_file_size_mb",
+                    displayName="Max File Size (MB)",
+                    type=NodePropertyType.NUMBER,
+                    description="Maximum file size to process (MB)",
+                    default=100,
+                    colSpan=1,
+                    required=False,
+                ),
+                NodeProperty(
+                    name="quality_threshold",
+                    displayName="Quality Threshold",
+                    type=NodePropertyType.RANGE,
+                    description="Minimum quality score for document inclusion (0.0-1.0)",
+                    default=0.5,
+                    min=0.0,
+                    max=1.0,
+                    step=0.1,
+                    minLabel="Low Quality",
+                    maxLabel="High Quality",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="storage_enabled",
+                    displayName="Enable Document Storage",
+                    type=NodePropertyType.CHECKBOX,
+                    description="Enable document storage for future retrieval",
+                    default=False,
+                    required=False,
+                ),
+                NodeProperty(
+                    name="deduplicate",
+                    displayName="Remove Duplicates",
+                    type=NodePropertyType.CHECKBOX,
+                    description="Remove duplicate documents based on content similarity",
+                    default=True,
+                    required=False,
+                ),
+            ]
         }
 
     def get_required_packages(self) -> list[str]:

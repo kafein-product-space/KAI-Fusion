@@ -70,7 +70,7 @@ License: Proprietary
 """
 
 from typing import Dict, Any, Optional
-from app.nodes.base import ProcessorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+from app.nodes.base import ProcessorNode, NodeMetadata, NodeProperty, NodeInput, NodeOutput, NodeType, NodePropertyType
 from app.core.state import FlowState
 from langchain_core.documents import Document
 from datetime import datetime, timezone
@@ -97,6 +97,7 @@ class StringInputNode(ProcessorNode):
             "inputs": [
                 NodeInput(
                     name="input_data",
+                    displayName="Input",
                     type="str",
                     description="Input data from connected nodes (e.g., Start Node)",
                     required=False,
@@ -123,36 +124,21 @@ class StringInputNode(ProcessorNode):
             "outputs": [
                 NodeOutput(
                     name="output",
+                    displayName="Output",
                     type="str",
                     description="The processed and validated text ready for use in workflows",
-                    format="text"
+                    format="text",
+                    is_connection=True
                 ),
                 NodeOutput(
                     name="text_stats", 
                     type="dict",
                     description="Statistics about the input text (length, lines, words, etc.)",
-                    schema={
-                        "type": "object",
-                        "properties": {
-                            "length": {"type": "integer", "description": "Character count"},
-                            "lines": {"type": "integer", "description": "Line count"},
-                            "words": {"type": "integer", "description": "Word count"},
-                            "paragraphs": {"type": "integer", "description": "Paragraph count"}
-                        }
-                    }
                 ),
                 NodeOutput(
                     name="validation_status", 
                     type="dict", 
                     description="Validation results and processing status",
-                    schema={
-                        "type": "object",
-                        "properties": {
-                            "is_valid": {"type": "boolean", "description": "Whether input passed validation"},
-                            "message": {"type": "string", "description": "Validation or processing message"},
-                            "warnings": {"type": "array", "items": {"type": "string"}}
-                        }
-                    }
                 ),
                 NodeOutput(
                     name="documents",
@@ -161,8 +147,19 @@ class StringInputNode(ProcessorNode):
                     format="langchain_documents"
                 )
             ],
-            "color": "#3b82f6",  # Blue color for text processing
-            "icon": "text"
+            "properties": [
+                NodeProperty(
+                    name="text_input",
+                    displayName= "Text Input (Optional - can also receive from connected nodes)",
+                    type= NodePropertyType.TEXT_AREA,
+                    maxLength= 10000,
+                    placeholder= "Enter your text content here...",
+                    rows= 8,
+                    required= True
+                ),
+            ],
+            "colors": ["blue-500", "indigo-600"],  # Blue color for text processing
+            "icon": {"name": "type", "path": None, "alt": None},
         }
     
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:

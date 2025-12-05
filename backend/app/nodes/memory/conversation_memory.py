@@ -196,7 +196,7 @@ LAST_UPDATED: 2025-07-26
 LICENSE: Proprietary - KAI-Fusion Platform
 """
 
-from ..base import MemoryNode, NodeInput, NodeType
+from ..base import MemoryNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 from langchain.memory import ConversationBufferWindowMemory
 from langchain_core.runnables import Runnable
 from typing import cast, Dict
@@ -223,9 +223,150 @@ class ConversationMemoryNode(MemoryNode):
             "name": "ConversationMemory",
             "display_name": "Conversation Memory (Windowed)",
             "description": "Keeps a sliding window of recent messages in memory for one session.",
+            "icon": {"name": "message-circle", "path": None, "alt": None},
+            "colors": ["blue-500", "indigo-600"],
             "inputs": [
                 NodeInput(name="k", type="int", description="Number of message pairs to keep.", default=5),
                 # `session_id` and `memory_key` are inherited from BaseMemoryNode's standard inputs
+            ],
+            "outputs": [
+                NodeOutput(
+                    name="memory",
+                    displayName="Memory",
+                    type="BaseChatMemory",
+                    description="Configured conversation memory instance.",
+                    direction=NodePosition.TOP,
+                    is_connection=True,
+                )
+            ],
+            "properties": [
+                # Basic Settings
+                NodeProperty(
+                    name="k",
+                    displayName="Window Size (k)",
+                    type=NodePropertyType.RANGE,
+                    default=5,
+                    min=1,
+                    max=50,
+                    minLabel="1",
+                    maxLabel="50",
+                    hint="Number of messages to remember in conversation history",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="memory_key",
+                    displayName="Memory Key",
+                    type=NodePropertyType.TEXT,
+                    default="chat_history",
+                    hint="Unique identifier for this memory instance",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="input_key",
+                    displayName="Input Key",
+                    type=NodePropertyType.TEXT,
+                    default="input",
+                    hint="Key for incoming messages",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="output_key",
+                    displayName="Output Key",
+                    type=NodePropertyType.TEXT,
+                    default="output",
+                    hint="Key for outgoing messages",
+                    required=True,
+                ),
+
+                # Memory Features
+                NodeProperty(
+                    name="return_messages",
+                    displayName="Return Messages",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Return full message objects instead of just text",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="enable_cleanup",
+                    displayName="Auto Cleanup",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Automatically clean up old messages when limit is reached",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="enable_compression",
+                    displayName="Memory Compression",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Compress memory to save space and improve performance",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="enable_encryption",
+                    displayName="Memory Encryption",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Encrypt stored messages for enhanced security",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="enable_backup",
+                    displayName="Auto Backup",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Automatically backup memory data at regular intervals",
+                    required=False,
+                ),
+
+                # Advanced Settings - Conditional Fields
+                NodeProperty(
+                    name="cleanup_threshold",
+                    displayName="Cleanup Threshold",
+                    type=NodePropertyType.RANGE,
+                    default=10,
+                    min=5,
+                    max=100,
+                    step=5,
+                    hint="Number of messages before cleanup is triggered",
+                    displayOptions={
+                        "show": {
+                            "enable_cleanup": True
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
+                    name="encryption_key",
+                    displayName="Encryption Key",
+                    type=NodePropertyType.PASSWORD,
+                    hint="Key used to encrypt/decrypt memory data",
+                    displayOptions={
+                        "show": {
+                            "enable_encryption": True
+                        }
+                    },
+                    required=False,
+                ),
+                NodeProperty(
+                    name="backup_interval",
+                    displayName="Backup Interval (hours)",
+                    type=NodePropertyType.RANGE,
+                    default=24,
+                    min=1,
+                    max=168,
+                    step=1,
+                    minLabel="1 hour",
+                    maxLabel="1 week",
+                    hint="Interval between automatic backups",
+                    displayOptions={
+                        "show": {
+                            "enable_backup": True
+                        }
+                    },
+                    required=False,
+                ),
             ]
         })
         # Standard inputs are now inherited from MemoryNode

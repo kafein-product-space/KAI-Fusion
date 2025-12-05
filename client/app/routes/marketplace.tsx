@@ -25,6 +25,8 @@ import { timeAgo } from "~/lib/dateFormatter";
 import AuthGuard from "~/components/AuthGuard";
 import Loading from "~/components/Loading";
 import PinButton from "~/components/common/PinButton";
+import * as LucideIcons from "lucide-react";
+import { Box } from "lucide-react";
 
 function MarketplaceLayout() {
   const { enqueueSnackbar } = useSnackbar();
@@ -137,11 +139,10 @@ function MarketplaceLayout() {
     if (!tpl) return;
 
     try {
-      const flow = tpl.buildFlow();
       const created = await useWorkflows.getState().createWorkflow({
         name: tpl.name,
         description: tpl.description,
-        flow_data: flow as any,
+        flow_data: tpl.flow_data,
       });
       enqueueSnackbar("Template workflow created!", { variant: "success" });
       navigate(`/canvas?workflow=${created.id}`);
@@ -150,6 +151,29 @@ function MarketplaceLayout() {
         variant: "error",
       });
     }
+  };
+
+  const getIconComponent = (icon: { name: string; path: string | null; alt: string | null }) => {
+    if (icon?.path) {
+      return (props: any) => (
+        <img
+          src={icon.path}
+          alt={icon.alt}
+          {...props}
+          className={`${props.className || ""} object-contain`}
+        />
+      );
+    }
+    if (!icon?.name) return Box;
+
+    let Icon = (LucideIcons as any)[icon.name];
+    for (const [key, value] of Object.entries(LucideIcons)) {
+      if (key.toLowerCase() === icon.name.replace(/-/g, "").toLowerCase()) {
+        Icon = value;
+        break;
+      }
+    }
+    return Icon || Box;
   };
 
   return (
@@ -347,7 +371,9 @@ function MarketplaceLayout() {
                         <div
                           className={`flex items-center justify-center w-12 h-12 rounded-xl bg-gradient-to-br ${tpl.colorFrom} ${tpl.colorTo} shadow-lg group-hover:scale-110 transition-transform duration-300`}
                         >
-                          {tpl.icon}
+                          {React.createElement(getIconComponent(tpl.icon), {
+                            className: "w-6 h-6 text-white",
+                          })}
                         </div>
                         <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full font-medium">
                           Template

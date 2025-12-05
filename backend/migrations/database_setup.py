@@ -59,9 +59,7 @@ from sqlalchemy import text, inspect, MetaData, Table, Column
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy.sql.sqltypes import TypeEngine
-from dotenv import load_dotenv
-
-
+from app.core.constants import DATABASE_URL
 
 # Backend dizinini Python path'ine ekle
 backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -79,9 +77,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Environment variables
-DATABASE_URL = os.getenv("DATABASE_URL")
 CREATE_DATABASE = os.getenv("CREATE_DATABASE", "true").lower() in ("true", "1", "t")
-
 class DatabaseSetup:
     """Veritabanı kurulum ve yönetim sınıfı."""
     

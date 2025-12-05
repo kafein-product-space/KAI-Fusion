@@ -60,7 +60,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 from langchain_postgres import PGEngine, PGVector
 
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 
 logger = logging.getLogger(__name__)
 
@@ -102,40 +102,38 @@ class VectorStoreOrchestrator(ProcessorNode):
             ),
             "category": "VectorStore",
             "node_type": NodeType.PROCESSOR,
-            "icon": "database",
-            "color": "#10b981",
-            
+            "icon": {"name": "postgresql_vectorstore", "path": "icons/postgresql_vectorstore.svg", "alt": "vectorsotreicons"},
+            "colors": ["purple-500", "pink-600"],
             "inputs": [
                 # Connected Inputs (from other nodes)
                 NodeInput(
                     name="documents",
-                    type="documents",
+                    displayName="Documents",
+                    type="List[Document]",
+                    description="Documents to ingest into the vector store.",
                     is_connection=True,
-                    description="Pre-embedded document chunks (will auto-generate embeddings if missing)",
-                    required=True,
                 ),
                 NodeInput(
                     name="embedder",
-                    type="embedder",
+                    displayName="Embedder",
+                    type="Embedder",
+                    description="Embedding model for vectorizing documents.",
+                    direction=NodePosition.BOTTOM,
                     is_connection=True,
-                    description="Embedder service for storage operations (OpenAIEmbeddings, etc.)",
-                    required=True,
                 ),
-                
+
                 # Database Configuration
                 NodeInput(
                     name="connection_string",
                     type="password",
                     description="PostgreSQL connection string (postgresql://user:pass@host:port/db)",
                     required=True,
-                    is_secret=True,
                 ),
                 NodeInput(
                     name="collection_name",
                     type="text",
                     description="Vector collection name - separates different datasets (REQUIRED for data isolation)",
                     required=True,
-                    placeholder="e.g., amazon_products, user_manuals, company_docs",
                 ),
                 NodeInput(
                     name="table_prefix",
@@ -143,7 +141,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Custom table prefix for complete database isolation (optional)",
                     required=False,
                     default="",
-                    placeholder="e.g., project1_, client_a_",
                 ),
                 NodeInput(
                     name="pre_delete_collection",
@@ -160,7 +157,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Custom metadata to add to all documents (JSON format)",
                     required=False,
                     default="{}",
-                    placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}',
                 ),
                 NodeInput(
                     name="preserve_document_metadata",
@@ -173,11 +169,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     name="metadata_strategy",
                     type="select",
                     description="How to handle metadata conflicts",
-                    choices=[
-                        {"value": "merge", "label": "Merge (custom overrides document)", "description": "Combine both, custom metadata takes priority"},
-                        {"value": "replace", "label": "Replace (only custom metadata)", "description": "Use only custom metadata, ignore document metadata"},
-                        {"value": "document_only", "label": "Document Only", "description": "Use only document metadata, ignore custom metadata"}
-                    ],
                     default="merge",
                     required=False,
                 ),
@@ -196,8 +187,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Embedding vector dimension (auto-detected if 0)",
                     default=0,
                     required=False,
-                    min_value=0,
-                    max_value=4096,
                 ),
                 
                 # Retriever Configuration
@@ -205,10 +194,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     name="search_algorithm",
                     type="select",
                     description="Vector similarity search algorithm",
-                    choices=[
-                        {"value": k, "label": v["name"], "description": v["description"]}
-                        for k, v in SEARCH_ALGORITHMS.items()
-                    ],
                     default="cosine",
                     required=False,
                 ),
@@ -217,9 +202,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Number of documents to retrieve",
                     default=6,
-                    min_value=1,
-                    max_value=50,
-                    step=1,
                     required=False,
                 ),
                 NodeInput(
@@ -227,9 +209,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Minimum similarity score threshold (0.0-1.0)",
                     default=0.0,
-                    min_value=0.0,
-                    max_value=1.0,
-                    step=0.05,
                     required=False,
                 ),
                 
@@ -239,33 +218,151 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Batch size for storing embeddings",
                     default=100,
-                    min_value=10,
-                    max_value=1000,
-                    step=10,
                     required=False,
                 ),
             ],
-            
             "outputs": [
                 NodeOutput(
                     name="result",
-                    type="retriever",
-                    description="Optimized vector store retriever for RAG",
+                    displayName="Retriever",
+                    type="VectorStoreRetriever",
+                    description="Configured retriever for searching the vector store.",
+                    is_connection=True,
+                )
+            ],
+            "properties": [
+                # Data Configuration Tab
+                NodeProperty(
+                    name="credential_id",
+                    displayName="Select Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    tabName="data",
+                    required=False,
                 ),
-                NodeOutput(
-                    name="vectorstore",
-                    type="vectorstore",
-                    description="Direct vector store instance for advanced operations",
+                NodeProperty(
+                    name="connection_string",
+                    displayName="Connection String",
+                    type=NodePropertyType.PASSWORD,
+                    description="PostgreSQL connection string",
+                    tabName="data",
+                    required=True,
                 ),
-                NodeOutput(
-                    name="optimization_report",
-                    type="dict",
-                    description="Database optimization report and performance metrics",
+                NodeProperty(
+                    name="collection_name",
+                    displayName="Collection Name",
+                    type=NodePropertyType.TEXT,
+                    placeholder="e.g., amazon_products, user_manuals, company_docs",
+                    hint="Vector collection name - separates different datasets (REQUIRED for data isolation)",
+                    tabName="data",
+                    required=True,
                 ),
-                NodeOutput(
-                    name="storage_stats",
-                    type="dict",
-                    description="Storage operation statistics and performance metrics",
+                NodeProperty(
+                    name="table_prefix",
+                    displayName="Table Prefix (Optional)",
+                    type=NodePropertyType.TEXT,
+                    placeholder="e.g., project1_, client_a_",
+                    hint="Custom table prefix for complete database isolation (optional)",
+                    tabName="data",
+                    required=False,
+                ),
+
+                # Metadata Configuration Tab
+                NodeProperty(
+                    name="custom_metadata",
+                    displayName="Custom Metadata",
+                    type=NodePropertyType.JSON_EDITOR,
+                    default='{}',
+                    hint="Custom metadata to add to all documents (JSON format)",
+                    tabName="metadata",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="preserve_document_metadata",
+                    displayName="Preserve Document Metadata",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Keep original document metadata alongside custom metadata",
+                    tabName="metadata",
+                ),
+                NodeProperty(
+                    name="metadata_strategy",
+                    displayName="Metadata Strategy",
+                    type=NodePropertyType.SELECT,
+                    default="merge",
+                    options=[
+                        {"label": "Merge (custom overrides document)", "value": "merge"},
+                        {"label": "Replace (only custom metadata)", "value": "replace"},
+                        {"label": "Document Only", "value": "document_only"},
+                    ],
+                    hint="How to handle metadata conflicts",
+                    tabName="metadata",
+                ),
+
+                # Search Configuration Tab
+                NodeProperty(
+                    name="search_algorithm",
+                    displayName="Search Algorithm",
+                    type=NodePropertyType.SELECT,
+                    default="cosine",
+                    options=[
+                        {"label": "Cosine Similarity", "value": "cosine"},
+                        {"label": "Euclidean Distance", "value": "euclidean"},
+                        {"label": "Inner Product", "value": "inner_product"},
+                    ],
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="search_k",
+                    displayName="Search K",
+                    type=NodePropertyType.RANGE,
+                    default=10,
+                    min=1,
+                    max=50,
+                    step=1,
+                    minLabel="1",
+                    maxLabel="50",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="score_threshold",
+                    displayName="Score Threshold",
+                    type=NodePropertyType.RANGE,
+                    default=0.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.1,
+                    color="purple-400",
+                    minLabel="0.0",
+                    maxLabel="1.0",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="batch_size",
+                    displayName="Batch Size",
+                    type=NodePropertyType.RANGE,
+                    default=100,
+                    min=10,
+                    max=1000,
+                    step=10,
+                    color="green-400",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="pre_delete_collection",
+                    displayName="Pre Delete Collection",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Delete existing collection before creating new one",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="enable_hnsw_index",
+                    displayName="Enable HNSW Index",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Use HNSW index for faster similarity search",
+                    tabName="search",
                 ),
             ],
         }
