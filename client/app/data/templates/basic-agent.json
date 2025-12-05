@@ -1,0 +1,773 @@
+{
+  "id": "basic_agent",
+  "name": "Basic Agent",
+  "description": "AI Agent with OpenAI LLM for intelligent conversations and task execution. Includes StartNode → OpenAI Chat → Agent → EndNode workflow.",
+  "colorFrom": "from-blue-500",
+  "colorTo": "to-cyan-600",
+  "icon": { "name": "message-square", "path": null, "alt": null },
+  "flow_data": {
+    "edges": [
+      {
+        "id": "xy-edge__StartNode-1output-Agent-3input",
+        "type": "custom",
+        "source": "StartNode-1",
+        "target": "Agent-3",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__Agent-3output-EndNode-2target",
+        "type": "custom",
+        "source": "Agent-3",
+        "target": "EndNode-2",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__OpenAIChat-4llm-Agent-3llm",
+        "type": "custom",
+        "source": "OpenAIChat-4",
+        "target": "Agent-3",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
+      }
+    ],
+    "nodes": [
+      {
+        "id": "StartNode-1",
+        "data": {
+          "icon": {
+            "alt": null,
+            "name": "rocket",
+            "path": null
+          },
+          "name": "StartNode",
+          "inputs": [
+            {
+              "name": "initial_input",
+              "type": "string",
+              "default": "",
+              "required": false,
+              "description": "Initial input text to start the workflow",
+              "displayName": "Initial Input",
+              "is_connection": false
+            },
+            {
+              "name": "trigger_data",
+              "type": "any",
+              "required": false,
+              "description": "Data received from trigger nodes",
+              "displayName": "Trigger Data",
+              "is_connection": true
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output",
+              "type": "string",
+              "description": "Forwarded input to start the workflow chain",
+              "displayName": "Execute",
+              "is_connection": true
+            }
+          ],
+          "metadata": {
+            "id": "StartNode",
+            "icon": {
+              "alt": null,
+              "name": "rocket",
+              "path": null
+            },
+            "name": "StartNode",
+            "tags": [],
+            "colors": ["green-500", "emerald-600"],
+            "inputs": [
+              {
+                "name": "initial_input",
+                "type": "string",
+                "default": "",
+                "required": false,
+                "description": "Initial input text to start the workflow",
+                "displayName": "Initial Input",
+                "is_connection": false
+              },
+              {
+                "name": "trigger_data",
+                "type": "any",
+                "required": false,
+                "description": "Data received from trigger nodes",
+                "displayName": "Trigger Data",
+                "is_connection": true
+              }
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "type": "string",
+                "description": "Forwarded input to start the workflow chain",
+                "displayName": "Execute",
+                "is_connection": true
+              }
+            ],
+            "version": "1.0.0",
+            "category": "Special",
+            "examples": [],
+            "node_type": "processor",
+            "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
+            "display_name": "Start"
+          },
+          "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
+          "displayName": "Start"
+        },
+        "type": "StartNode",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 620,
+          "y": 460
+        },
+        "selected": false
+      },
+      {
+        "id": "EndNode-2",
+        "data": {
+          "icon": {
+            "alt": null,
+            "name": "flag",
+            "path": null
+          },
+          "name": "EndNode",
+          "inputs": [
+            {
+              "name": "target",
+              "type": "any",
+              "required": true,
+              "description": "The final data from the preceding node",
+              "displayName": "Target",
+              "is_connection": true
+            }
+          ],
+          "outputs": [],
+          "metadata": {
+            "id": "EndNode",
+            "icon": {
+              "alt": null,
+              "name": "flag",
+              "path": null
+            },
+            "name": "EndNode",
+            "tags": [],
+            "colors": ["gray-500", "slate-600"],
+            "inputs": [
+              {
+                "name": "target",
+                "type": "any",
+                "required": true,
+                "description": "The final data from the preceding node",
+                "displayName": "Target",
+                "is_connection": true
+              }
+            ],
+            "outputs": [],
+            "version": "1.0.0",
+            "category": "Special",
+            "examples": [],
+            "node_type": "terminator",
+            "description": "Marks the end of a workflow path",
+            "display_name": "End"
+          },
+          "description": "Marks the end of a workflow path",
+          "displayName": "End"
+        },
+        "type": "EndNode",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 1210,
+          "y": 460
+        },
+        "selected": false
+      },
+      {
+        "id": "Agent-3",
+        "data": {
+          "icon": {
+            "alt": null,
+            "name": "bot",
+            "path": null
+          },
+          "name": "Agent",
+          "inputs": [
+            {
+              "name": "input",
+              "type": "string",
+              "required": true,
+              "description": "The user's input to the agent.",
+              "displayName": "Input",
+              "is_connection": true
+            },
+            {
+              "name": "llm",
+              "type": "BaseLanguageModel",
+              "required": true,
+              "direction": "bottom",
+              "description": "The language model that the agent will use.",
+              "displayName": "LLM",
+              "is_connection": true
+            },
+            {
+              "name": "tools",
+              "type": "Sequence[BaseTool]",
+              "required": false,
+              "direction": "bottom",
+              "description": "The tools that the agent can use.",
+              "displayName": "Tools",
+              "is_connection": true
+            },
+            {
+              "name": "memory",
+              "type": "BaseMemory",
+              "required": false,
+              "direction": "bottom",
+              "description": "The memory that the agent can use.",
+              "displayName": "Memory",
+              "is_connection": true
+            },
+            {
+              "name": "max_iterations",
+              "type": "int",
+              "default": 10,
+              "required": true,
+              "description": "The maximum number of iterations the agent can perform.",
+              "is_connection": false
+            },
+            {
+              "name": "system_prompt",
+              "type": "str",
+              "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
+              "required": true,
+              "description": "The system prompt for the agent.",
+              "is_connection": false
+            },
+            {
+              "name": "prompt_instructions",
+              "type": "str",
+              "default": "",
+              "required": false,
+              "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
+              "is_connection": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "output",
+              "type": "str",
+              "description": "The final output from the agent.",
+              "displayName": "Output",
+              "is_connection": true
+            }
+          ],
+          "metadata": {
+            "id": "Agent",
+            "icon": {
+              "alt": null,
+              "name": "bot",
+              "path": null
+            },
+            "name": "Agent",
+            "tags": [],
+            "colors": ["purple-500", "indigo-600"],
+            "inputs": [
+              {
+                "name": "input",
+                "type": "string",
+                "required": true,
+                "description": "The user's input to the agent.",
+                "displayName": "Input",
+                "is_connection": true
+              },
+              {
+                "name": "llm",
+                "type": "BaseLanguageModel",
+                "required": true,
+                "direction": "bottom",
+                "description": "The language model that the agent will use.",
+                "displayName": "LLM",
+                "is_connection": true
+              },
+              {
+                "name": "tools",
+                "type": "Sequence[BaseTool]",
+                "required": false,
+                "direction": "bottom",
+                "description": "The tools that the agent can use.",
+                "displayName": "Tools",
+                "is_connection": true
+              },
+              {
+                "name": "memory",
+                "type": "BaseMemory",
+                "required": false,
+                "direction": "bottom",
+                "description": "The memory that the agent can use.",
+                "displayName": "Memory",
+                "is_connection": true
+              },
+              {
+                "name": "max_iterations",
+                "type": "int",
+                "default": 10,
+                "required": true,
+                "description": "The maximum number of iterations the agent can perform.",
+                "is_connection": false
+              },
+              {
+                "name": "system_prompt",
+                "type": "str",
+                "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
+                "required": true,
+                "description": "The system prompt for the agent.",
+                "is_connection": false
+              },
+              {
+                "name": "prompt_instructions",
+                "type": "str",
+                "default": "",
+                "required": false,
+                "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
+                "is_connection": false
+              }
+            ],
+            "outputs": [
+              {
+                "name": "output",
+                "type": "str",
+                "description": "The final output from the agent.",
+                "displayName": "Output",
+                "is_connection": true
+              }
+            ],
+            "version": "1.0.0",
+            "category": "Agents",
+            "examples": [],
+            "node_type": "processor",
+            "properties": [
+              {
+                "name": "agent_type",
+                "rows": 4,
+                "type": "select",
+                "default": "react",
+                "options": [
+                  {
+                    "label": "ReAct Agent ⭐",
+                    "value": "react"
+                  },
+                  {
+                    "label": "Conversational Agent",
+                    "value": "conversational"
+                  },
+                  {
+                    "label": "Task-Oriented Agent",
+                    "value": "task_oriented"
+                  }
+                ],
+                "required": true,
+                "displayName": "Agent Type"
+              },
+              {
+                "hint": "Use {input} for user input. Define agent behavior and capabilities.",
+                "name": "system_prompt",
+                "rows": 4,
+                "type": "textarea",
+                "default": "You are a helpful assistant. Use tools to answer: {input}",
+                "required": true,
+                "displayName": "System Prompt"
+              },
+              {
+                "max": 20,
+                "min": 1,
+                "name": "max_iterations",
+                "rows": 4,
+                "type": "range",
+                "default": 5,
+                "maxLabel": "Thorough",
+                "minLabel": "Quick",
+                "required": true,
+                "displayName": "Max Iterations"
+              },
+              {
+                "max": 2,
+                "min": 0,
+                "name": "temperature",
+                "rows": 4,
+                "step": 0.1,
+                "type": "range",
+                "color": "purple-400",
+                "default": 0.7,
+                "maxLabel": "Creative",
+                "minLabel": "Precise",
+                "required": true,
+                "displayName": "Temperature"
+              },
+              {
+                "hint": "Allow agent to remember previous interactions",
+                "name": "enable_memory",
+                "rows": 4,
+                "type": "checkbox",
+                "default": true,
+                "required": true,
+                "displayName": "Enable Memory"
+              },
+              {
+                "hint": "Allow agent to use connected tools and functions",
+                "name": "enable_tools",
+                "rows": 4,
+                "type": "checkbox",
+                "default": true,
+                "required": true,
+                "displayName": "Enable Tools"
+              }
+            ],
+            "description": "Orchestrates LLM, tools, and memory for complex, multi-step tasks.",
+            "display_name": "Agent"
+          },
+          "description": "Orchestrates LLM, tools, and memory for complex, multi-step tasks.",
+          "displayName": "Agent"
+        },
+        "type": "Agent",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 910,
+          "y": 460
+        },
+        "selected": false
+      },
+      {
+        "id": "OpenAIChat-4",
+        "data": {
+          "icon": {
+            "alt": "openaiicons",
+            "name": "openai",
+            "path": "icons/openai.svg"
+          },
+          "name": "OpenAIChat",
+          "inputs": [
+            {
+              "name": "model_name",
+              "type": "str",
+              "default": "gpt-4o",
+              "required": false,
+              "description": "OpenAI model to use",
+              "is_connection": false
+            },
+            {
+              "name": "temperature",
+              "type": "float",
+              "default": 0.1,
+              "required": false,
+              "description": "Sampling temperature (0.0-2.0) - Controls randomness",
+              "is_connection": false
+            },
+            {
+              "name": "max_tokens",
+              "type": "int",
+              "default": 10000,
+              "required": false,
+              "description": "Maximum tokens to generate (default: model limit)",
+              "is_connection": false
+            },
+            {
+              "name": "top_p",
+              "type": "float",
+              "default": 1,
+              "required": false,
+              "description": "Nucleus sampling parameter (0.0-1.0)",
+              "is_connection": false
+            },
+            {
+              "name": "frequency_penalty",
+              "type": "float",
+              "default": 0,
+              "required": false,
+              "description": "Frequency penalty (-2.0 to 2.0)",
+              "is_connection": false
+            },
+            {
+              "name": "presence_penalty",
+              "type": "float",
+              "default": 0,
+              "required": false,
+              "description": "Presence penalty (-2.0 to 2.0)",
+              "is_connection": false
+            },
+            {
+              "name": "api_key",
+              "type": "str",
+              "required": true,
+              "description": "OpenAI API Key",
+              "is_connection": false
+            },
+            {
+              "name": "system_prompt",
+              "type": "str",
+              "default": "You are a helpful, accurate, and intelligent AI assistant.",
+              "required": false,
+              "description": "System prompt for the model",
+              "is_connection": false
+            },
+            {
+              "name": "streaming",
+              "type": "bool",
+              "default": false,
+              "required": false,
+              "description": "Enable streaming responses",
+              "is_connection": false
+            },
+            {
+              "name": "timeout",
+              "type": "int",
+              "default": 60,
+              "required": false,
+              "description": "Request timeout in seconds",
+              "is_connection": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "llm",
+              "type": "llm",
+              "direction": "top",
+              "description": "OpenAI Chat LLM instance configured with specified parameters",
+              "displayName": "LLM",
+              "is_connection": true
+            },
+            {
+              "name": "model_info",
+              "type": "dict",
+              "description": "Model configuration information",
+              "is_connection": false
+            },
+            {
+              "name": "usage_stats",
+              "type": "dict",
+              "description": "Token usage and cost information",
+              "is_connection": false
+            }
+          ],
+          "metadata": {
+            "id": "OpenAIChat",
+            "icon": {
+              "alt": "openaiicons",
+              "name": "openai",
+              "path": "icons/openai.svg"
+            },
+            "name": "OpenAIChat",
+            "tags": [],
+            "colors": ["purple-500", "indigo-600"],
+            "inputs": [
+              {
+                "name": "model_name",
+                "type": "str",
+                "default": "gpt-4o",
+                "required": false,
+                "description": "OpenAI model to use",
+                "is_connection": false
+              },
+              {
+                "name": "temperature",
+                "type": "float",
+                "default": 0.1,
+                "required": false,
+                "description": "Sampling temperature (0.0-2.0) - Controls randomness",
+                "is_connection": false
+              },
+              {
+                "name": "max_tokens",
+                "type": "int",
+                "default": 10000,
+                "required": false,
+                "description": "Maximum tokens to generate (default: model limit)",
+                "is_connection": false
+              },
+              {
+                "name": "top_p",
+                "type": "float",
+                "default": 1,
+                "required": false,
+                "description": "Nucleus sampling parameter (0.0-1.0)",
+                "is_connection": false
+              },
+              {
+                "name": "frequency_penalty",
+                "type": "float",
+                "default": 0,
+                "required": false,
+                "description": "Frequency penalty (-2.0 to 2.0)",
+                "is_connection": false
+              },
+              {
+                "name": "presence_penalty",
+                "type": "float",
+                "default": 0,
+                "required": false,
+                "description": "Presence penalty (-2.0 to 2.0)",
+                "is_connection": false
+              },
+              {
+                "name": "api_key",
+                "type": "str",
+                "required": true,
+                "description": "OpenAI API Key",
+                "is_connection": false
+              },
+              {
+                "name": "system_prompt",
+                "type": "str",
+                "default": "You are a helpful, accurate, and intelligent AI assistant.",
+                "required": false,
+                "description": "System prompt for the model",
+                "is_connection": false
+              },
+              {
+                "name": "streaming",
+                "type": "bool",
+                "default": false,
+                "required": false,
+                "description": "Enable streaming responses",
+                "is_connection": false
+              },
+              {
+                "name": "timeout",
+                "type": "int",
+                "default": 60,
+                "required": false,
+                "description": "Request timeout in seconds",
+                "is_connection": false
+              }
+            ],
+            "outputs": [
+              {
+                "name": "llm",
+                "type": "llm",
+                "direction": "top",
+                "description": "OpenAI Chat LLM instance configured with specified parameters",
+                "displayName": "LLM",
+                "is_connection": true
+              },
+              {
+                "name": "model_info",
+                "type": "dict",
+                "description": "Model configuration information",
+                "is_connection": false
+              },
+              {
+                "name": "usage_stats",
+                "type": "dict",
+                "description": "Token usage and cost information",
+                "is_connection": false
+              }
+            ],
+            "version": "1.0.0",
+            "category": "LLM",
+            "examples": [],
+            "node_type": "provider",
+            "properties": [
+              {
+                "name": "credential_id",
+                "rows": 4,
+                "type": "credential-select",
+                "required": false,
+                "displayName": "Credential",
+                "placeholder": "Select Credential"
+              },
+              {
+                "name": "api_key",
+                "rows": 4,
+                "type": "password",
+                "required": false,
+                "displayName": "API Key"
+              },
+              {
+                "name": "model_name",
+                "rows": 4,
+                "type": "select",
+                "default": "gpt-4o",
+                "options": [
+                  {
+                    "label": "GPT-4o ⭐",
+                    "value": "gpt-4o"
+                  },
+                  {
+                    "label": "GPT-4o Mini",
+                    "value": "gpt-4o-mini"
+                  },
+                  {
+                    "label": "GPT-4 Turbo",
+                    "value": "gpt-4-turbo"
+                  },
+                  {
+                    "label": "GPT-4",
+                    "value": "gpt-4"
+                  },
+                  {
+                    "label": "GPT-4 32K",
+                    "value": "gpt-4-32k"
+                  }
+                ],
+                "required": true,
+                "displayName": "Model"
+              },
+              {
+                "max": 2,
+                "min": 0,
+                "name": "temperature",
+                "rows": 4,
+                "step": 0.1,
+                "type": "range",
+                "default": 0.7,
+                "maxLabel": "Creative",
+                "minLabel": "Precise",
+                "required": true,
+                "displayName": "Temperature"
+              },
+              {
+                "max": 4096,
+                "min": 1,
+                "name": "max_tokens",
+                "rows": 4,
+                "type": "number",
+                "default": 1000,
+                "required": true,
+                "displayName": "Max Tokens"
+              }
+            ],
+            "description": "OpenAI Chat completion using latest GPT models with advanced configuration",
+            "display_name": "OpenAI GPT"
+          },
+          "description": "OpenAI Chat completion using latest GPT models with advanced configuration",
+          "displayName": "OpenAI GPT"
+        },
+        "type": "OpenAIChat",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 780,
+          "y": 650
+        },
+        "selected": false
+      }
+    ]
+  }
+}

@@ -211,13 +211,6 @@ class NodeProperty(BaseModel):
         description="Default value used when input is not provided (only for non-required inputs)"
     )
 
-    # Optional Properties
-    typeOptions: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Type-specific options",
-        alias="typeOptions"
-    )
-    
     description: Optional[str] = Field(
         default=None,
         description="Human-readable description for UI tooltips and documentation",
@@ -234,12 +227,6 @@ class NodeProperty(BaseModel):
         alias="displayOptions"
     )
     
-    disabled_options: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Options to disable",
-        alias="disabledOptions"
-    )
-    
     options: Optional[List[Any]] = Field(
         default=None,
         description="List of options for select/multi-select types"
@@ -250,94 +237,10 @@ class NodeProperty(BaseModel):
         description="Placeholder text for inputs"
     )
     
-    isNodeSetting: Optional[bool] = Field(
-        default=False,
-        description="Whether this is a node-level setting",
-        alias="isNodeSetting"
-    )
-    
-    noDataExpression: Optional[bool] = Field(
-        default=False,
-        description="Whether to disable expression support",
-        alias="noDataExpression"
-    )
-    
     required: bool = Field(
         default=True,
         description="Whether this input must be provided for node execution"
     )
-    
-    routing: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Routing configuration"
-    )
-    
-    credentialTypes: Optional[List[str]] = Field(
-        default=None,
-        description="Supported credential types",
-        alias="credentialTypes"
-    )
-    
-    extractValue: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Value extraction logic",
-        alias="extractValue"
-    )
-    
-    modes: Optional[List[Any]] = Field(
-        default=None,
-        description="Available modes"
-    )
-    
-    requiresDataPath: Optional[str] = Field(
-        default=None,
-        description="Data path requirement (single/multiple)",
-        alias="requiresDataPath"
-    )
-    
-    doNotInherit: Optional[bool] = Field(
-        default=False,
-        description="Whether to prevent inheritance",
-        alias="doNotInherit"
-    )
-    
-    validateType: Optional[str] = Field(
-        default=None,
-        description="Type to validate against",
-        alias="validateType"
-    )
-    
-    ignoreValidationDuringExecution: Optional[bool] = Field(
-        default=False,
-        description="Skip validation during execution",
-        alias="ignoreValidationDuringExecution"
-    )
-    
-    allowArbitraryValues: Optional[bool] = Field(
-        default=False,
-        description="Allow values not in options list",
-        alias="allowArbitraryValues"
-    )
-
-    # Legacy / Internal properties
-    isConnection: bool = Field(
-        default=False,
-        description="True if input comes from node connections, False if from user form"
-    )
-    
-    validationRules: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Custom validation rules (min, max, regex, choices, etc.)"
-    )
-    
-    uiConfig: Optional[Dict[str, Any]] = Field(
-        default=None,
-        description="Frontend UI configuration (widget type, placeholder, etc.)"
-    )
-    
-    model_config = {
-        "populate_by_name": True
-    }
 
     min: Optional[int] = Field(
         default=None,
