@@ -1255,16 +1255,39 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     currentExecution.result.node_outputs?.[edge.source];
                   if (sourceNodeOutput !== undefined) {
                     const inputKey = edge.targetHandle || "input";
-                    inputs[inputKey] = sourceNodeOutput;
+                    // Extract actual output value if it's wrapped in execution data structure
+                    if (sourceNodeOutput?.output !== undefined) {
+                      inputs[inputKey] = sourceNodeOutput.output;
+                    } else if (sourceNodeOutput?.outputs !== undefined) {
+                      inputs[inputKey] = sourceNodeOutput.outputs;
+                    } else {
+                      inputs[inputKey] = sourceNodeOutput;
+                    }
                   }
                 });
 
                 return inputs;
               })(),
-              outputs:
-                currentExecution?.result?.node_outputs?.[
-                  fullscreenModal.nodeData?.id || ""
-                ],
+              outputs: (() => {
+                const nodeId = fullscreenModal.nodeData?.id;
+                if (!nodeId || !currentExecution?.result?.node_outputs)
+                  return undefined;
+
+                const nodeExecutionData =
+                  currentExecution.result.node_outputs?.[nodeId];
+                
+                // If the data has an 'output' or 'outputs' field, extract the actual output value
+                // This handles the case where node_outputs contains execution metadata (inputs, output, status)
+                if (nodeExecutionData?.output !== undefined) {
+                  return nodeExecutionData.output;
+                }
+                if (nodeExecutionData?.outputs !== undefined) {
+                  return nodeExecutionData.outputs;
+                }
+                
+                // If it's already the raw output value, return as-is
+                return nodeExecutionData;
+              })(),
               status:
                 currentExecution?.status === "completed"
                   ? "completed"

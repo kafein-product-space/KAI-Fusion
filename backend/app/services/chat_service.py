@@ -287,27 +287,38 @@ class ChatService:
         self._workflow_built = False
         self._last_workflow_id = None
     
-    async def _execute_workflow(self, user_input: str, chatflow_id: UUID) -> str:
+    async def _execute_workflow(self, user_input: str, chatflow_id: UUID, workflow_id: UUID = None) -> str:
         """
         Execute the actual workflow with user input and return LLM response.
+        
+        Args:
+            user_input: The user's input message
+            chatflow_id: The chat flow ID for session management
+            workflow_id: Optional workflow ID to execute a specific workflow from database
         """
         try:
             logger.info("Starting workflow execution", extra={
                 "user_input_length": len(user_input),
-                "chatflow_id": str(chatflow_id)
+                "chatflow_id": str(chatflow_id),
+                "workflow_id": str(workflow_id) if workflow_id else None
             })
             
-            # Get a default workflow from the first available workflow
-            # In a real scenario, you'd get the workflow_id from the chat or user preferences
-            default_workflow = await self._get_default_workflow()
+            # Get workflow - either from database or use default
+            if workflow_id:
+                workflow_data = await self._get_workflow_by_id(workflow_id)
+                if not workflow_data:
+                    logger.warning(f"Workflow {workflow_id} not found, falling back to default")
+                    workflow_data = await self._get_default_workflow()
+            else:
+                workflow_data = await self._get_default_workflow()
             
-            if not default_workflow:
-                logger.error("No default workflow found")
+            if not workflow_data:
+                logger.error("No workflow found")
                 return "I apologize, but no workflow is configured for this chat."
             
-            # 🔥 SESSION ID BASED CONTEXT - user_id yerine session_id kullan
-            # 🔥 CRITICAL: session_id her zaman olmalı
-            session_id = str(chatflow_id)  # chatflow_id'yi session_id olarak kullan
+            # 🔥 SESSION ID BASED CONTEXT - use chatflow_id as session_id
+            # 🔥 CRITICAL: session_id must always be set
+            session_id = str(chatflow_id)
             
             # Ensure session_id is valid
             if not session_id or session_id == 'None' or len(session_id.strip()) == 0:
@@ -315,17 +326,17 @@ class ChatService:
                 print(f"⚠️  Invalid session_id, generated: {session_id}")
             
             user_context = {
-                "session_id": session_id,  # chatflow_id'yi session_id olarak kullan
-                "user_id": str(chatflow_id),     # Fallback için tut
-                "workflow_id": default_workflow.get("id", "default")
+                "session_id": session_id,
+                "user_id": str(chatflow_id),
+                "workflow_id": str(workflow_id) if workflow_id else workflow_data.get("id", "default")
             }
             
-            # Build workflow only if needed
-            workflow_id = default_workflow.get("id", "default")
-            if not self._workflow_built or self._last_workflow_id != workflow_id:
-                self.engine.build(default_workflow, user_context=user_context)
+            # Build workflow only if needed (different workflow or not built yet)
+            current_workflow_id = str(workflow_id) if workflow_id else workflow_data.get("id", "default")
+            if not self._workflow_built or self._last_workflow_id != current_workflow_id:
+                self.engine.build(workflow_data, user_context=user_context)
                 self._workflow_built = True
-                self._last_workflow_id = workflow_id
+                self._last_workflow_id = current_workflow_id
             
             # Execute workflow using the engine
             execution_result = await self.engine.execute(
@@ -346,14 +357,40 @@ class ChatService:
                         })
                         return f"I encountered an error: {error_msg}"
                     
-                    # Try to extract meaningful response
-                    response = execution_result.get("output", execution_result.get("result", ""))
+                    # Try to extract meaningful response from various possible locations
+                    response = None
+                    
+                    # 1. Check 'result' field first (most common)
+                    if execution_result.get("result"):
+                        response = execution_result.get("result")
+                    
+                    # 2. Check 'output' field
+                    if not response and execution_result.get("output"):
+                        response = execution_result.get("output")
+                    
+                    # 3. Check 'state' for last_output
+                    if not response and execution_result.get("state"):
+                        state = execution_result.get("state", {})
+                        response = state.get("last_output")
+                        
+                        # Also check node_outputs for any output
+                        if not response and state.get("node_outputs"):
+                            node_outputs = state.get("node_outputs", {})
+                            # Get the last node output
+                            for node_id, output in node_outputs.items():
+                                if output:
+                                    if isinstance(output, dict):
+                                        response = output.get("output") or output.get("content") or output.get("result") or str(output)
+                                    else:
+                                        response = str(output)
+                    
+                    # 4. Check echo or message fields as fallback
                     if not response:
-                        # Try echo or message fields as fallback
                         response = execution_result.get("echo", {}).get("input", "") or execution_result.get("message", "")
                     
+                    # Handle dict response
                     if isinstance(response, dict):
-                        response = response.get("content", str(response))
+                        response = response.get("content") or response.get("output") or response.get("result") or str(response)
                     
                     response = str(response) if response else "No response generated."
                 else:
@@ -380,6 +417,30 @@ class ChatService:
                 "user_input_length": len(user_input)
             })
             return f"I encountered an error while processing your request: {str(e)}"
+    
+    async def _get_workflow_by_id(self, workflow_id: UUID) -> Optional[Dict[str, Any]]:
+        """
+        Get workflow configuration from database by ID.
+        """
+        try:
+            from app.models.workflow import Workflow
+            
+            result = await self.db.execute(
+                select(Workflow).filter(Workflow.id == workflow_id)
+            )
+            workflow = result.scalars().first()
+            
+            if workflow and workflow.flow_data:
+                # Return the flow_data with the workflow ID
+                flow_data = workflow.flow_data.copy() if isinstance(workflow.flow_data, dict) else workflow.flow_data
+                if isinstance(flow_data, dict):
+                    flow_data["id"] = str(workflow.id)
+                return flow_data
+            
+            return None
+        except Exception as e:
+            logger.error(f"Failed to get workflow by ID {workflow_id}: {e}")
+            return None
     
     async def _get_default_workflow(self) -> Optional[Dict[str, Any]]:
         """
@@ -670,8 +731,8 @@ class ChatService:
         )
         await self.create_chat_message(user_message)
 
-        # 3. Execute the actual workflow
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id)
+        # 3. Execute the actual workflow with the specified workflow_id
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
 
         # 4. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(
@@ -697,8 +758,8 @@ class ChatService:
         )
         await self.create_chat_message(user_message)
 
-        # 2. Execute the actual workflow
-        llm_response_content = await self._execute_workflow(user_input, chatflow_id)
+        # 2. Execute the actual workflow with the specified workflow_id
+        llm_response_content = await self._execute_workflow(user_input, chatflow_id, workflow_id)
 
         # 3. Save LLM's response (create_chat_message will handle encryption)
         llm_message = ChatMessageCreate(

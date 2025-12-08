@@ -121,17 +121,27 @@ const executeWorkflowWithStreaming = async (
             }
             
             if (eventType === 'node_end' && parsed.node_id) {
+              // Extract output from the event - backend now sends output in node_end events
+              const nodeOutput = parsed.output || {};
+              
+              console.log('📤 Node end output received:', parsed.node_id, nodeOutput);
+              
               if (nodeExecutionData[parsed.node_id]) {
-                nodeExecutionData[parsed.node_id].output = parsed.output || {};
+                // Merge output with existing data
+                nodeExecutionData[parsed.node_id].output = nodeOutput;
+                nodeExecutionData[parsed.node_id].outputs = nodeOutput; // Also store as 'outputs' for compatibility
                 nodeExecutionData[parsed.node_id].status = 'completed';
               } else {
                 // If we missed the start event, create entry for output
                 nodeExecutionData[parsed.node_id] = {
                   inputs: {},
-                  output: parsed.output || {},
+                  output: nodeOutput,
+                  outputs: nodeOutput, // Also store as 'outputs' for compatibility
                   status: 'completed'
                 };
               }
+              
+              console.log('💾 Node execution data updated:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
 
             // Emit custom event for FlowCanvas to listen

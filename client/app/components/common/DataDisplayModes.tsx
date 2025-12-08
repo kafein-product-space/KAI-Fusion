@@ -94,12 +94,9 @@ export default function DataDisplayModes({
                   renderSchemaView(value, depth + 1)
                 ) : (
                   <div className="flex items-center gap-2">
-                    <span className="text-purple-400 text-xs">
-                      {typeof value}
-                    </span>
                     {typeof value === 'string' && value.length > 50 ? (
                       <span className="text-gray-300 text-sm">
-                        "{value.substring(0, 50)}..."
+                        {value.substring(0, 50)}...
                       </span>
                     ) : (
                       <span className="text-gray-300 text-sm">
@@ -117,7 +114,6 @@ export default function DataDisplayModes({
 
     return (
       <div className="flex items-center gap-2">
-        <span className="text-purple-400 text-xs">{typeof obj}</span>
         <span className="text-gray-300">{String(obj)}</span>
       </div>
     );
