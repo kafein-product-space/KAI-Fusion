@@ -39,7 +39,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   // 🔄 Akış Kontrol
   StartNode: <Play className="w-6 h-6 text-green-400" />,
   start: <Play className="w-6 h-6 text-green-400" />,
-  TimerStartNode: <Zap className="w-6 h-6 text-yellow-400" />,
+  TimerStart: <Zap className="w-6 h-6 text-yellow-400" />,
   EndNode: <Square className="w-6 h-6 text-gray-400" />,
   ConditionalChain: <GitCompare className="w-6 h-6 text-orange-400" />,
   RouterChain: <GitBranch className="w-6 h-6 text-lime-400" />,
