@@ -176,7 +176,7 @@ const executeWorkflowWithStreaming = async (
               try {
                 const executionsModule = await import('./executions');
                 const executionsStore = executionsModule.useExecutionsStore.getState();
-                executionsStore.setCurrentExecution(executionResult);
+                executionsStore.setCurrentExecutionForWorkflow(workflow_id, executionResult);
               } catch (error) {
                 console.error('❌ Error setting execution result:', error);
               }

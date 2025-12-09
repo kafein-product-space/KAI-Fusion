@@ -150,12 +150,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Execution store integration
   const {
     executeWorkflow,
-    currentExecution,
-    setCurrentExecution,
+    getCurrentExecutionForWorkflow,
+    setCurrentExecutionForWorkflow,
     loading: executionLoading,
     error: executionError,
     clearError: clearExecutionError,
   } = useExecutionsStore();
+
+  // Get current execution for the current workflow
+  const currentExecution = currentWorkflow?.id
+    ? getCurrentExecutionForWorkflow(currentWorkflow.id)
+    : null;
 
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
@@ -249,13 +254,15 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
-  // Clear chats when workflow changes to prevent accumulation
+  // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
       // Clear chats when switching to a different workflow
       clearAllChats();
+      // Clear execution data for the previous workflow
+      setCurrentExecutionForWorkflow(currentWorkflow.id, null);
     }
-  }, [currentWorkflow?.id, clearAllChats]);
+  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -673,7 +680,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     status: "completed" as const,
                   };
 
-                  setCurrentExecution(executionResult);
+                  setCurrentExecutionForWorkflow(currentWorkflow.id, executionResult);
 
                   setTimeout(() => {
                     setActiveEdges([]);
