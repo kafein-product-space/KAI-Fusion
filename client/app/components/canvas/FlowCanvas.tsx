@@ -63,7 +63,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
-  const [nodeId, setNodeId] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
@@ -379,7 +378,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       );
 
       const newNode: Node = {
-        id: `${nodeType.type}-${nodeId}`,
+        id: `${nodeType.type}__${uuidv4()}`,
         type: nodeType.type,
         position,
         data: {
@@ -390,7 +389,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
-      setNodeId((id: number) => id + 1);
 
       // Update smart suggestions with the last added node
       setLastAddedNode(nodeType.type);
@@ -398,13 +396,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Update recommendations after setting the last added node
       updateRecommendations(availableNodes);
     },
-    [
-      screenToFlowPosition,
-      nodeId,
-      availableNodes,
-      setLastAddedNode,
-      updateRecommendations,
-    ]
+    [screenToFlowPosition, availableNodes, setLastAddedNode, updateRecommendations]
   );
 
   const handleSave = useCallback(async () => {
@@ -1243,7 +1235,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                 // First try to get tracked inputs from execution data
                 const nodeExecutionData =
-                  currentExecution.result.node_outputs?.[nodeId];
+                  currentExecution?.result?.node_outputs?.[nodeId];
                 if (
                   nodeExecutionData?.inputs &&
                   Object.keys(nodeExecutionData.inputs).length > 0
@@ -1259,7 +1251,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                 inputEdges.forEach((edge) => {
                   const sourceNodeOutput =
-                    currentExecution.result.node_outputs?.[edge.source];
+                    currentExecution?.result?.node_outputs?.[edge.source];
                   if (sourceNodeOutput !== undefined) {
                     const inputKey = edge.targetHandle || "input";
                     // Extract actual output value if it's wrapped in execution data structure
@@ -1281,7 +1273,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   return undefined;
 
                 const nodeExecutionData =
-                  currentExecution.result.node_outputs?.[nodeId];
+                  currentExecution?.result?.node_outputs?.[nodeId];
                 
                 // If the data has an 'output' or 'outputs' field, extract the actual output value
                 // This handles the case where node_outputs contains execution metadata (inputs, output, status)
@@ -1376,8 +1368,10 @@ function useChatExecutionListener(
             return true;
           }
 
-          // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          // Derive a clean node type/id token. New ids use `Type__UUID`.
+          const cleanNodeId = node_id.includes("__")
+            ? node_id.split("__")[0]
+            : node_id.replace(/\-\d+$/, "");
           if (
             n.type &&
             (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
@@ -1465,8 +1459,10 @@ function useChatExecutionListener(
             return true;
           }
 
-          // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          // Derive a clean node type/id token. New ids use `Type__UUID`.
+          const cleanNodeId = node_id.includes("__")
+            ? node_id.split("__")[0]
+            : node_id.replace(/\-\d+$/, "");
           if (
             n.type &&
             (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
