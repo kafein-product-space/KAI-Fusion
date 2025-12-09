@@ -236,7 +236,7 @@ class BufferMemoryNode(MemoryNode):
         Retrieves or creates a persistent, session-aware memory instance.
         """
         session_id = self.session_id
-        print(f"💾 BufferMemoryNode session_id: {session_id}")
+        print(f"BufferMemoryNode session_id: {session_id}")
         
         try:
             memory = self.get_memory_instance(session_id, **kwargs)

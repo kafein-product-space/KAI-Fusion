@@ -641,7 +641,7 @@ class BaseNode(ABC):
         self.node_id = None  # Will be set by GraphBuilder
         self.context_id = None  # Credential context for provider
         self.session_id = None  # Session ID for conversation continuity
-        # 🔥 NEW: Connection mappings set by GraphBuilder
+        # Connection mappings set by GraphBuilder
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend

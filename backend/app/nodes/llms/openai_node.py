@@ -626,7 +626,7 @@ class OpenAINode(BaseNode):
                     type=NodePropertyType.SELECT,
                     default="gpt-4o",
                     options=[
-                        {"label": "GPT-4o ⭐", "value": "gpt-4o"},
+                        {"label": "GPT-4o", "value": "gpt-4o"},
                         {"label": "GPT-4o Mini", "value": "gpt-4o-mini"},
                         {"label": "GPT-4 Turbo", "value": "gpt-4-turbo"},
                         {"label": "GPT-4", "value": "gpt-4"},
@@ -738,7 +738,7 @@ class OpenAINode(BaseNode):
     
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: OpenAINode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: OpenAINode'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         OpenAI LLM için gereken API ve LangChain dependencies.
@@ -754,7 +754,7 @@ class OpenAINode(BaseNode):
     
     def execute(self, **kwargs) -> Runnable:
         """Execute OpenAI node with enhanced configuration and validation."""
-        print(f"\n🤖 OPENAI LLM SETUP")
+        print(f"\nOPENAI LLM SETUP")
         
         # Get configuration from user_data
         model_name = self.user_data.get("model_name", "gpt-4o")
@@ -782,7 +782,7 @@ class OpenAINode(BaseNode):
             # Use default of 10000 tokens but cap at model limit
             max_tokens = min(10000, model_config["max_tokens"])
         elif max_tokens > model_config["max_tokens"]:
-            print(f"⚠️  Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
+            print(f"Requested max_tokens ({max_tokens}) exceeds model limit ({model_config['max_tokens']})")
             max_tokens = model_config["max_tokens"]
         
         # Build LLM configuration
@@ -803,8 +803,8 @@ class OpenAINode(BaseNode):
             llm = ChatOpenAI(**llm_config)
             
             # Log successful creation
-            print(f"   ✅ Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
-            print(f"   🔧 Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
+            print(f"   Model: {model_name} | Temp: {temperature} | Max Tokens: {max_tokens}")
+            print(f"   Features: Tools({model_config['supports_tools']}) | Vision({model_config['supports_vision']}) | Context({model_config['context_window']})")
             
             # Store model info for potential use
             self.model_info = {
@@ -822,7 +822,7 @@ class OpenAINode(BaseNode):
             
         except Exception as e:
             error_msg = f"Failed to create OpenAI LLM: {str(e)}"
-            print(f"❌ {error_msg}")
+            print(f"{error_msg}")
             raise ValueError(error_msg) from e
     
     def get_model_info(self) -> Optional[Dict[str, Any]]:

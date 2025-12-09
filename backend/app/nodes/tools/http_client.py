@@ -714,7 +714,7 @@ class HttpClientNode(ProcessorNode):
             lstrip_blocks=True,
         )
         
-        logger.info("🌐 HTTP Request Node initialized")
+        logger.info("HTTP Request Node initialized")
         
         self._metadata = {
             "name": "HttpRequest",
@@ -1215,7 +1215,7 @@ class HttpClientNode(ProcessorNode):
         
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: HttpClientNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: HttpClientNode'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         HTTP client için gereken API ve template dependencies.
@@ -1340,7 +1340,7 @@ class HttpClientNode(ProcessorNode):
         if auth:
             client_config["auth"] = auth
         
-        logger.info(f"🌐 Making {config.method} request to {url} [{request_id}]")
+        logger.info(f"Making {config.method} request to {url} [{request_id}]")
         
         try:
             async with httpx.AsyncClient(**client_config) as client:
@@ -1411,13 +1411,13 @@ class HttpClientNode(ProcessorNode):
         Returns:
             Dict with response data, request statistics, and documents output
         """
-        logger.info("🚀 Executing HTTP Request")
+        logger.info("Executing HTTP Request")
         
-        # 🔥 CRITICAL FIX: Return direct result dict instead of RunnableLambda wrapper
+        # CRITICAL FIX: Return direct result dict instead of RunnableLambda wrapper
         # This fixes the HttpClient->ChunkSplitter compatibility issue where
         # ChunkSplitter receives HttpClientNode instance instead of documents
         http_result = self._execute_http_request(inputs, connected_nodes)
-        logger.info(f"✅ HTTP Request completed, returning direct result with documents")
+        logger.info(f"HTTP Request completed, returning direct result with documents")
         
         return http_result
     
@@ -1510,7 +1510,7 @@ class HttpClientNode(ProcessorNode):
                         "timestamp": response.timestamp,
                     }
                     
-                    logger.info(f"✅ HTTP request completed: {response.status_code} in {response.duration_ms:.1f}ms")
+                    logger.info(f"HTTP request completed: {response.status_code} in {response.duration_ms:.1f}ms")
                     
                     # Convert response to Document format for ChunkSplitter compatibility
                     from langchain_core.documents import Document
@@ -1547,10 +1547,10 @@ class HttpClientNode(ProcessorNode):
                     last_error = str(e)
                     
                     if attempt < max_retries:
-                        logger.warning(f"⚠️ HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
+                        logger.warning(f"HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
                         time.sleep(retry_delay)
                     else:
-                        logger.error(f"❌ HTTP request failed after {max_retries + 1} attempts: {last_error}")
+                        logger.error(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")
             
             # All retries failed
             raise ValueError(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")
@@ -1619,22 +1619,22 @@ The HTTP Request node can connect to and integrate with all KAI-Fusion node type
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
 │ INPUT CONNECTIONS (accepts data from):                          │
-│ • Start Node ...................... ✅ (workflow initiation)   │
-│ • LLM Nodes ....................... ✅ (dynamic content)       │
-│ • Document Loaders ................ ✅ (document data)         │
-│ • Web Scraper ..................... ✅ (scraped content)       │
-│ • Vector Stores ................... ✅ (search results)        │
-│ • Agent Nodes ..................... ✅ (agent outputs)         │
-│ • Memory Nodes .................... ✅ (conversation context)  │
-│ • Any ProcessorNode ............... ✅ (data processing)       │
+│ • Start Node ...................... (workflow initiation)   │
+│ • LLM Nodes ....................... (dynamic content)       │
+│ • Document Loaders ................ (document data)         │
+│ • Web Scraper ..................... (scraped content)       │
+│ • Vector Stores ................... (search results)        │
+│ • Agent Nodes ..................... (agent outputs)         │
+│ • Memory Nodes .................... (conversation context)  │
+│ • Any ProcessorNode ............... (data processing)       │
 │                                                                 │
 │ OUTPUT CONNECTIONS (provides data to):                          │
-│ • LLM Nodes ....................... ✅ (API responses)         │
-│ • Document Loaders ................ ✅ (external content)      │
-│ • Agent Nodes ..................... ✅ (external tools)        │
-│ • End Node ........................ ✅ (workflow completion)    │
-│ • Vector Stores ................... ✅ (data ingestion)        │
-│ • Any ProcessorNode ............... ✅ (response processing)   │
+│ • LLM Nodes ....................... (API responses)         │
+│ • Document Loaders ................ (external content)      │
+│ • Agent Nodes ..................... (external tools)        │
+│ • End Node ........................ (workflow completion)    │
+│ • Vector Stores ................... (data ingestion)        │
+│ • Any ProcessorNode ............... (response processing)   │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 
@@ -1664,7 +1664,7 @@ Start → HTTP Node 1 → HTTP Node 2 → HTTP Node 3 → End
 COMPLETE INPUT/OUTPUT REFERENCE:
 ===============================
 
-📋 INPUT PARAMETERS (17 total):
+INPUT PARAMETERS (17 total):
 
 REQUIRED INPUTS:
 • method (select): HTTP method [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
@@ -1694,7 +1694,7 @@ ADVANCED OPTIONS:
 CONNECTION INPUT:
 • template_context (dict): Data from connected nodes for templating
 
-📤 OUTPUT PARAMETERS (6 total):
+OUTPUT PARAMETERS (6 total):
 
 • response (dict): Complete HTTP response object with metadata
 • status_code (number): HTTP status code (200, 404, 500, etc.)
@@ -1749,27 +1749,27 @@ TROUBLESHOOTING GUIDE:
 
 Common Issues and Solutions:
 
-❌ "Invalid URL" Error:
+"Invalid URL" Error:
 • Check URL format includes protocol (https://)
 • Verify template variables are properly substituted
 • Ensure no special characters without encoding
 
-❌ "Request Timeout" Error:
+"Request Timeout" Error:
 • Increase timeout value for slow APIs
 • Check network connectivity and DNS resolution
 • Verify target service is responding
 
-❌ "Authentication Failed" Error:
+"Authentication Failed" Error:
 • Verify auth_type matches API requirements
 • Check token/credentials are valid and not expired
 • Ensure proper header format for API key authentication
 
-❌ "Invalid JSON Body" Error:
+"Invalid JSON Body" Error:
 • Validate JSON syntax in body parameter
 • Use proper JSON escaping for quotes
 • Check for unescaped characters in JSON strings
 
-❌ "Template Rendering Failed" Error:
+"Template Rendering Failed" Error:
 • Verify template_context contains required variables
 • Check Jinja2 syntax for variables and filters
 • Ensure connected nodes provide expected data structure
@@ -1794,7 +1794,7 @@ Best Practices for Performance:
 SECURITY FEATURES:
 =================
 
-🔒 Built-in Security:
+Built-in Security:
 
 1. **Credential Protection**: 
    - Passwords/tokens marked as sensitive in UI
@@ -1819,7 +1819,7 @@ SECURITY FEATURES:
 MONITORING AND OBSERVABILITY:
 ============================
 
-📊 Available Metrics in request_stats:
+Available Metrics in request_stats:
 
 • request_id: Unique identifier for request tracking
 • method: HTTP method used
@@ -1839,21 +1839,21 @@ Integration with Monitoring Systems:
 PRODUCTION READINESS:
 ====================
 
-✅ Production Features:
+Production Features:
 • Comprehensive error handling and retry logic
 • Security hardening and input validation
 • Performance optimization and connection pooling
 • Monitoring and observability integration
 • Full test coverage and validation
 
-✅ Version Compatibility:
+Version Compatibility:
 • KAI-Fusion Platform: 2.1.0+
 • Python: 3.11+
 • LangChain: 0.1.0+
 • httpx: 0.25.0+
 • Jinja2: 3.1.0+
 
-STATUS: ✅ PRODUCTION READY
+STATUS: PRODUCTION READY
 LAST_UPDATED: 2025-08-04
 AUTHORS: KAI-Fusion Integration Architecture Team
 

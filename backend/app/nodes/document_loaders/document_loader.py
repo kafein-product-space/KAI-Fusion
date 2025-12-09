@@ -707,7 +707,7 @@ class DocumentLoaderNode(ProcessorNode):
 
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: DocumentLoaderNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: DocumentLoaderNode'un ihtiyaç duyduğu Python packages'ini döndür.
 
         Bu method dynamic export sisteminin çalışması için kritik!
         Document loader için gereken format ve API dependencies.
@@ -745,7 +745,7 @@ class DocumentLoaderNode(ProcessorNode):
                     scopes=['https://www.googleapis.com/auth/drive.readonly']
                 )
                 
-                logger.info("✅ Successfully created Google Drive service account credentials")
+                logger.info("Successfully created Google Drive service account credentials")
                 
             elif auth_type == "oauth2":
                 if not all([oauth2_client_id, oauth2_client_secret, oauth2_refresh_token]):
@@ -761,7 +761,7 @@ class DocumentLoaderNode(ProcessorNode):
                     scopes=['https://www.googleapis.com/auth/drive.readonly']
                 )
                 
-                logger.info("✅ Successfully created Google Drive OAuth2 credentials")
+                logger.info("Successfully created Google Drive OAuth2 credentials")
                 
             else:
                 raise ValueError(f"Unknown authentication type: {auth_type}")
@@ -771,7 +771,7 @@ class DocumentLoaderNode(ProcessorNode):
             
             # Test the connection
             service.about().get(fields="user").execute()
-            logger.info("✅ Google Drive service authenticated successfully")
+            logger.info("Google Drive service authenticated successfully")
             
             return service
             
@@ -814,7 +814,7 @@ class DocumentLoaderNode(ProcessorNode):
             if not file_id:
                 raise ValueError(f"Could not extract file/folder ID from link: {link}")
             
-            logger.info(f"📋 Parsed Google Drive link: ID={file_id}, Type={link_type}")
+            logger.info(f"Parsed Google Drive link: ID={file_id}, Type={link_type}")
             
             return {
                 'id': file_id,
@@ -835,7 +835,7 @@ class DocumentLoaderNode(ProcessorNode):
             mime_type = file_metadata.get('mimeType', '')
             file_size = int(file_metadata.get('size', 0))
             
-            logger.info(f"📄 Downloading Google Drive file: {name} ({mime_type}, {file_size} bytes)")
+            logger.info(f"Downloading Google Drive file: {name} ({mime_type}, {file_size} bytes)")
             
             # Check if it's a Google Workspace document that needs export
             export_format = None
@@ -861,11 +861,11 @@ class DocumentLoaderNode(ProcessorNode):
             if export_format:
                 # Export Google Workspace document
                 request = service.files().export_media(fileId=file_id, mimeType=export_format)
-                logger.info(f"📤 Exporting Google Workspace document as {export_format}")
+                logger.info(f"Exporting Google Workspace document as {export_format}")
             else:
                 # Download regular file
                 request = service.files().get_media(fileId=file_id)
-                logger.info(f"📥 Downloading regular file")
+                logger.info(f"Downloading regular file")
             
             # Stream download to file
             fh = io.BytesIO()
@@ -875,14 +875,14 @@ class DocumentLoaderNode(ProcessorNode):
             while done is False:
                 status, done = downloader.next_chunk()
                 if status:
-                    logger.info(f"⏳ Download progress: {int(status.progress() * 100)}%")
+                    logger.info(f"Download progress: {int(status.progress() * 100)}%")
             
             # Write to temporary file
             with open(temp_file_path, 'wb') as f:
                 f.write(fh.getvalue())
             
             actual_size = os.path.getsize(temp_file_path)
-            logger.info(f"✅ Downloaded {actual_size} bytes to {temp_file_path}")
+            logger.info(f"Downloaded {actual_size} bytes to {temp_file_path}")
             
             return temp_file_path
             
@@ -892,7 +892,7 @@ class DocumentLoaderNode(ProcessorNode):
     def _list_files_in_google_drive_folder(self, service, folder_id: str) -> list:
         """List all files in a Google Drive folder."""
         try:
-            logger.info(f"📁 Listing files in Google Drive folder: {folder_id}")
+            logger.info(f"Listing files in Google Drive folder: {folder_id}")
             
             files = []
             page_token = None
@@ -943,15 +943,15 @@ class DocumentLoaderNode(ProcessorNode):
                     
                     if mime_type in supported_mimes or any(name.endswith(ext) for ext in supported_extensions):
                         files.append(file_item)
-                        logger.info(f"📄 Found supported file: {file_item['name']} ({mime_type})")
+                        logger.info(f"Found supported file: {file_item['name']} ({mime_type})")
                     else:
-                        logger.info(f"⏭️ Skipping unsupported file: {file_item['name']} ({mime_type})")
+                        logger.info(f"Skipping unsupported file: {file_item['name']} ({mime_type})")
                 
                 page_token = results.get('nextPageToken')
                 if not page_token:
                     break
             
-            logger.info(f"📊 Found {len(files)} supported files in folder")
+            logger.info(f"Found {len(files)} supported files in folder")
             return files
             
         except Exception as e:
@@ -1248,7 +1248,7 @@ class DocumentLoaderNode(ProcessorNode):
                 reader = csv.DictReader(f, delimiter=delimiter)
                 for row_num, row in enumerate(reader, 1):
                     if row_num > 1000:  # Limit rows for large files
-                        logger.warning(f"⚠️ CSV file too large, limiting to first 1000 rows")
+                        logger.warning(f"CSV file too large, limiting to first 1000 rows")
                         break
                     rows.append(row)
             
@@ -1375,7 +1375,7 @@ class DocumentLoaderNode(ProcessorNode):
         Returns:
             Dict containing documents, processing statistics, and metadata report
         """
-        logger.info("📚 Starting Google Drive Document Loader execution")
+        logger.info("Starting Google Drive Document Loader execution")
         
         # Enhanced progress tracking for complete processing guarantee
         processing_stages = {
@@ -1390,12 +1390,12 @@ class DocumentLoaderNode(ProcessorNode):
         
         try:
             # Stage 1: Initialization
-            logger.info("🔄 Stage 1/7: Initialization")
+            logger.info("Stage 1/7: Initialization")
             
             # Check for trigger input (optional)
             trigger = inputs.get("trigger")
             if trigger is not None:
-                logger.info(f"🎯 Document loader triggered with signal: {type(trigger).__name__}")
+                logger.info(f"Document loader triggered with signal: {type(trigger).__name__}")
             
             # Get configuration
             drive_links_str = inputs.get("drive_links", "")
@@ -1417,33 +1417,33 @@ class DocumentLoaderNode(ProcessorNode):
             connected_documents = connected_nodes.get("input_documents", [])
             
             if not drive_links_str and not connected_documents:
-                logger.debug("❌ No drive_links or connected documents provided")
+                logger.debug("No drive_links or connected documents provided")
                 raise ValueError("Either Google Drive links or connected documents are required. Please provide Drive links or connect to a document source node.")
             
             # Determine processing mode
             has_drive_links = bool(drive_links_str and drive_links_str.strip())
             has_connected_docs = bool(connected_documents)
             
-            logger.info(f"📋 Processing mode: Drive links: {has_drive_links}, Connected docs: {has_connected_docs}")
+            logger.info(f"Processing mode: Drive links: {has_drive_links}, Connected docs: {has_connected_docs}")
             
-            logger.debug(f"📥 Raw drive_links input received: {repr(drive_links_str)}")
-            logger.info(f"🔧 Authentication type: {auth_type}")
-            logger.debug(f"🔐 Auth details - Service Account JSON length: {len(service_account_json)}, OAuth2 Client ID: {oauth2_client_id[:10]}..., Refresh Token length: {len(oauth2_refresh_token)}")
+            logger.debug(f"Raw drive_links input received: {repr(drive_links_str)}")
+            logger.info(f"Authentication type: {auth_type}")
+            logger.debug(f"Auth details - Service Account JSON length: {len(service_account_json)}, OAuth2 Client ID: {oauth2_client_id[:10]}..., Refresh Token length: {len(oauth2_refresh_token)}")
             
             processing_stages["initialization"] = True
-            logger.info("✅ Stage 1/7: Initialization completed")
+            logger.info("Stage 1/7: Initialization completed")
             
             # Get connected documents
             connected_documents = connected_nodes.get("input_documents", [])
-            logger.info(f"📄 Connected documents: {len(connected_documents)} documents received")
+            logger.info(f"Connected documents: {len(connected_documents)} documents received")
             
             # Stage 2: Google Drive Authentication (only if needed)
             drive_service = None
             if has_drive_links:
-                logger.info("🔄 Stage 2/7: Google Drive Authentication")
+                logger.info("Stage 2/7: Google Drive Authentication")
                 
                 try:
-                    logger.debug(f"🔑 Attempting Google Drive authentication with method: {auth_type}")
+                    logger.debug(f"Attempting Google Drive authentication with method: {auth_type}")
                     drive_service = self._get_google_drive_service(
                         auth_type=auth_type,
                         service_account_json=service_account_json,
@@ -1451,21 +1451,21 @@ class DocumentLoaderNode(ProcessorNode):
                         oauth2_client_secret=oauth2_client_secret,
                         oauth2_refresh_token=oauth2_refresh_token
                     )
-                    logger.info("✅ Google Drive authentication successful")
-                    logger.debug(f"🔗 Drive service object created: {type(drive_service)}")
+                    logger.info("Google Drive authentication successful")
+                    logger.debug(f"Drive service object created: {type(drive_service)}")
                 except Exception as e:
                     error_msg = f"Google Drive authentication failed: {str(e)}"
-                    logger.error(f"❌ {error_msg}")
-                    logger.debug(f"🔍 Authentication error details: {type(e).__name__}: {str(e)}")
+                    logger.error(f"{error_msg}")
+                    logger.debug(f"Authentication error details: {type(e).__name__}: {str(e)}")
                     raise ValueError(error_msg)
             else:
-                logger.info("⏭️ Skipping Google Drive authentication (no Drive links provided)")
+                logger.info("Skipping Google Drive authentication (no Drive links provided)")
             
             processing_stages["authentication"] = True
-            logger.info("✅ Stage 2/7: Authentication completed")
+            logger.info("Stage 2/7: Authentication completed")
             
             # Stage 3: Link Parsing and Resolution
-            logger.info("🔄 Stage 3/7: Link Parsing and Resolution")
+            logger.info("Stage 3/7: Link Parsing and Resolution")
             
             # Parse Drive links (only if we have them)
             drive_links = []
@@ -1473,22 +1473,22 @@ class DocumentLoaderNode(ProcessorNode):
             
             if has_drive_links:
                 raw_links = drive_links_str.splitlines()
-                logger.debug(f"📝 Raw lines from drive_links_str: {raw_links}")
+                logger.debug(f"Raw lines from drive_links_str: {raw_links}")
                 drive_links = [link.strip() for link in raw_links if link.strip()]
-                logger.info(f"📂 Found {len(drive_links)} Google Drive links to process")
-                logger.debug(f"🔗 Parsed drive links: {drive_links}")
+                logger.info(f"Found {len(drive_links)} Google Drive links to process")
+                logger.debug(f"Parsed drive links: {drive_links}")
             else:
-                logger.info("⏭️ No Drive links to parse")
-                logger.debug("⚠️ drive_links_str is empty after initial check")
+                logger.info("No Drive links to parse")
+                logger.debug("drive_links_str is empty after initial check")
             
             for i, drive_link in enumerate(drive_links, 1):
                 try:
-                    logger.info(f"🔍 Parsing link {i}/{len(drive_links)}: {drive_link}")
-                    logger.debug(f"🔎 About to parse drive link: {repr(drive_link)}")
+                    logger.info(f"Parsing link {i}/{len(drive_links)}: {drive_link}")
+                    logger.debug(f"About to parse drive link: {repr(drive_link)}")
                     
                     # Parse the Google Drive link
                     parsed_link = self._parse_google_drive_link(drive_link)
-                    logger.debug(f"📋 Parsed link result: {parsed_link}")
+                    logger.debug(f"Parsed link result: {parsed_link}")
                     
                     if parsed_link['type'] == 'file':
                         # Single file
@@ -1497,17 +1497,17 @@ class DocumentLoaderNode(ProcessorNode):
                             'name': None,  # Will be fetched during download
                             'source_link': drive_link
                         })
-                        logger.info(f"📄 Added single file: {parsed_link['id']}")
+                        logger.info(f"Added single file: {parsed_link['id']}")
                         
                     elif parsed_link['type'] == 'folder':
                         # List files in folder
-                        logger.info(f"📁 Listing files in folder: {parsed_link['id']}")
-                        logger.debug(f"🔍 Calling _list_files_in_google_drive_folder with service: {type(drive_service)}, folder_id: {parsed_link['id']}")
+                        logger.info(f"Listing files in folder: {parsed_link['id']}")
+                        logger.debug(f"Calling _list_files_in_google_drive_folder with service: {type(drive_service)}, folder_id: {parsed_link['id']}")
                         
                         try:
                             folder_files = self._list_files_in_google_drive_folder(drive_service, parsed_link['id'])
-                            logger.debug(f"📂 Folder files retrieved: {len(folder_files)} files")
-                            logger.debug(f"📋 Folder files details: {[{'id': f.get('id'), 'name': f.get('name')} for f in folder_files[:5]]}{'...' if len(folder_files) > 5 else ''}")
+                            logger.debug(f"Folder files retrieved: {len(folder_files)} files")
+                            logger.debug(f"Folder files details: {[{'id': f.get('id'), 'name': f.get('name')} for f in folder_files[:5]]}{'...' if len(folder_files) > 5 else ''}")
                             
                             for file_item in folder_files:
                                 files_to_process.append({
@@ -1516,33 +1516,33 @@ class DocumentLoaderNode(ProcessorNode):
                                     'source_link': f"{drive_link} (folder containing {file_item['name']})"
                                 })
                             
-                            logger.info(f"📊 Added {len(folder_files)} files from folder")
+                            logger.info(f"Added {len(folder_files)} files from folder")
                         except Exception as folder_error:
-                            logger.error(f"❌ Failed to list files in folder {parsed_link['id']}: {str(folder_error)}")
-                            logger.debug(f"🔍 Folder listing error details: {type(folder_error).__name__}: {str(folder_error)}")
+                            logger.error(f"Failed to list files in folder {parsed_link['id']}: {str(folder_error)}")
+                            logger.debug(f"Folder listing error details: {type(folder_error).__name__}: {str(folder_error)}")
                             raise
                     
                 except Exception as e:
                     error_msg = f"Failed to parse Google Drive link {drive_link}: {str(e)}"
-                    logger.error(f"❌ {error_msg}")
-                    logger.debug(f"🔍 Link parsing error details: {type(e).__name__}: {str(e)}")
-                    logger.debug(f"📎 Failed link was: {repr(drive_link)}")
+                    logger.error(f"{error_msg}")
+                    logger.debug(f"Link parsing error details: {type(e).__name__}: {str(e)}")
+                    logger.debug(f"Failed link was: {repr(drive_link)}")
                     # Continue with other links instead of failing completely
                     continue
             
-            logger.info(f"📋 Total files to process: {len(files_to_process)}")
+            logger.info(f"Total files to process: {len(files_to_process)}")
             if len(files_to_process) == 0:
-                logger.debug("⚠️ No files found to process - this will result in 'No documents could be processed from 0 sources' error")
+                logger.debug("No files found to process - this will result in 'No documents could be processed from 0 sources' error")
             else:
-                logger.debug(f"📝 Files to process summary: {[{'id': f['id'], 'name': f.get('name', 'Unknown')} for f in files_to_process[:3]]}{'...' if len(files_to_process) > 3 else ''}")
+                logger.debug(f"Files to process summary: {[{'id': f['id'], 'name': f.get('name', 'Unknown')} for f in files_to_process[:3]]}{'...' if len(files_to_process) > 3 else ''}")
             
             processing_stages["link_parsing"] = True
-            logger.info("✅ Stage 3/7: Link Parsing and Resolution completed")
+            logger.info("Stage 3/7: Link Parsing and Resolution completed")
             
             # Process connected documents if available
             documents = []
             if connected_documents:
-                logger.info(f"🔗 Processing {len(connected_documents) if isinstance(connected_documents, list) else 1} connected documents")
+                logger.info(f"Processing {len(connected_documents) if isinstance(connected_documents, list) else 1} connected documents")
                 # Handle both single document and list of documents
                 if isinstance(connected_documents, list):
                     documents.extend(connected_documents)
@@ -1550,7 +1550,7 @@ class DocumentLoaderNode(ProcessorNode):
                     documents.append(connected_documents)
             
             # Stage 4: Content Extraction from Google Drive
-            logger.info("🔄 Stage 4/7: Content Extraction from Google Drive")
+            logger.info("Stage 4/7: Content Extraction from Google Drive")
             
             # Process statistics
             initial_document_count = len(documents)
@@ -1568,23 +1568,23 @@ class DocumentLoaderNode(ProcessorNode):
             # Process Google Drive files
             for i, file_info in enumerate(files_to_process, 1):
                 try:
-                    logger.info(f"🔄 Processing Google Drive file {i}/{len(files_to_process)}: {file_info['name'] or file_info['id']}")
-                    logger.debug(f"📁 File info details: {file_info}")
+                    logger.info(f"Processing Google Drive file {i}/{len(files_to_process)}: {file_info['name'] or file_info['id']}")
+                    logger.debug(f"File info details: {file_info}")
                     
                     # Download file from Google Drive
                     try:
-                        logger.debug(f"⬇️ Attempting to download file ID: {file_info['id']}, name: {file_info.get('name', 'Unknown')}")
+                        logger.debug(f"Attempting to download file ID: {file_info['id']}, name: {file_info.get('name', 'Unknown')}")
                         temp_file_path = self._download_file_from_google_drive(
                             drive_service,
                             file_info['id'],
                             file_info['name']
                         )
-                        logger.info(f"✅ Downloaded to temporary file: {temp_file_path}")
-                        logger.debug(f"📂 Temp file exists: {os.path.exists(temp_file_path)}, size: {os.path.getsize(temp_file_path) if os.path.exists(temp_file_path) else 'N/A'} bytes")
+                        logger.info(f"Downloaded to temporary file: {temp_file_path}")
+                        logger.debug(f"Temp file exists: {os.path.exists(temp_file_path)}, size: {os.path.getsize(temp_file_path) if os.path.exists(temp_file_path) else 'N/A'} bytes")
                     except Exception as download_error:
                         error_msg = f"Failed to download Google Drive file {file_info['id']}: {str(download_error)}"
-                        logger.error(f"❌ {error_msg}")
-                        logger.debug(f"🔍 Download error details: {type(download_error).__name__}: {str(download_error)}")
+                        logger.error(f"{error_msg}")
+                        logger.debug(f"Download error details: {type(download_error).__name__}: {str(download_error)}")
                         stats["failed_processed"] += 1
                         stats["processing_errors"].append(error_msg)
                         continue
@@ -1596,7 +1596,7 @@ class DocumentLoaderNode(ProcessorNode):
                     
                     if file_size_mb > max_file_size_mb:
                         error_msg = f"File too large: {file_info['name']} ({file_size_mb:.1f}MB > {max_file_size_mb}MB)"
-                        logger.error(f"❌ {error_msg}")
+                        logger.error(f"{error_msg}")
                         stats["failed_processed"] += 1
                         stats["processing_errors"].append(error_msg)
                         # Clean up temporary file
@@ -1607,13 +1607,13 @@ class DocumentLoaderNode(ProcessorNode):
                         continue
                     
                     # Detect format
-                    logger.debug(f"🔍 Detecting file format for: {temp_file_path}")
+                    logger.debug(f"Detecting file format for: {temp_file_path}")
                     file_format = self._detect_file_format(temp_file_path)
-                    logger.debug(f"📋 Detected format: {file_format}, supported formats: {supported_formats}")
+                    logger.debug(f"Detected format: {file_format}, supported formats: {supported_formats}")
                     
                     if file_format not in supported_formats:
-                        logger.info(f"⏭️ Skipping file (format not enabled): {file_info['name']} ({file_format})")
-                        logger.debug(f"🚫 Format {file_format} not in supported list: {supported_formats}")
+                        logger.info(f"Skipping file (format not enabled): {file_info['name']} ({file_format})")
+                        logger.debug(f"Format {file_format} not in supported list: {supported_formats}")
                         # Clean up temporary file
                         try:
                             os.unlink(temp_file_path)
@@ -1621,34 +1621,34 @@ class DocumentLoaderNode(ProcessorNode):
                             pass
                         continue
                     
-                    logger.info(f"📄 Processing {file_format.upper()} file: {file_info['name']} ({file_size_mb:.2f}MB)")
-                    logger.debug(f"⚙️ About to process file with format-specific handler for: {file_format}")
+                    logger.info(f"Processing {file_format.upper()} file: {file_info['name']} ({file_size_mb:.2f}MB)")
+                    logger.debug(f"About to process file with format-specific handler for: {file_format}")
                     
                     # Process based on format with enhanced error handling
                     try:
-                        logger.debug(f"🔧 Processing file with format: {file_format}")
+                        logger.debug(f"Processing file with format: {file_format}")
                         if file_format == "txt":
-                            logger.debug("📝 Using text file processor")
+                            logger.debug("Using text file processor")
                             doc = self._process_text_file(temp_file_path)
                         elif file_format == "json":
-                            logger.debug("📊 Using JSON file processor")
+                            logger.debug("Using JSON file processor")
                             doc = self._process_json_file(temp_file_path)
                         elif file_format == "docx":
-                            logger.debug("📄 Using DOCX file processor")
+                            logger.debug("Using DOCX file processor")
                             doc = self._process_docx_file(temp_file_path)
                         elif file_format == "pdf":
-                            logger.debug("📕 Using PDF file processor")
+                            logger.debug("Using PDF file processor")
                             doc = self._process_pdf_file(temp_file_path)
                         elif file_format == "csv":
-                            logger.debug("📈 Using CSV file processor")
+                            logger.debug("Using CSV file processor")
                             doc = self._process_csv_file(temp_file_path)
                         else:
                             # Fallback to text processing
-                            logger.info(f"⚠️ Unknown format {file_format}, treating as text")
-                            logger.debug("📝 Using fallback text file processor")
+                            logger.info(f"Unknown format {file_format}, treating as text")
+                            logger.debug("Using fallback text file processor")
                             doc = self._process_text_file(temp_file_path)
                         
-                        logger.debug(f"✅ Document processed successfully - content length: {len(doc.page_content) if doc and hasattr(doc, 'page_content') else 'N/A'} chars")
+                        logger.debug(f"Document processed successfully - content length: {len(doc.page_content) if doc and hasattr(doc, 'page_content') else 'N/A'} chars")
                         
                         # Update metadata with Google Drive source information
                         doc.metadata.update({
@@ -1670,27 +1670,27 @@ class DocumentLoaderNode(ProcessorNode):
                         documents.append(doc)
                         stats["successful_processed"] += 1
                         stats["formats_processed"][file_format] = stats["formats_processed"].get(file_format, 0) + 1
-                        logger.info(f"✅ Successfully processed Google Drive file: {file_info['name']} - Content length: {len(doc.page_content)} chars")
+                        logger.info(f"Successfully processed Google Drive file: {file_info['name']} - Content length: {len(doc.page_content)} chars")
                     else:
                         error_msg = f"File content too short: {file_info['name']} ({len(doc.page_content)} chars < {min_content_length} required)"
-                        logger.warning(f"⚠️ {error_msg}")
+                        logger.warning(f"{error_msg}")
                         stats["failed_processed"] += 1
                         stats["processing_errors"].append(error_msg)
                         
                 except Exception as e:
                     error_msg = f"Failed to process Google Drive file {file_info.get('name', file_info['id'])}: {str(e)}"
-                    logger.error(f"❌ {error_msg}")
-                    logger.error(f"❌ Full error details: {type(e).__name__}: {str(e)}")
+                    logger.error(f"{error_msg}")
+                    logger.error(f"Full error details: {type(e).__name__}: {str(e)}")
                     import traceback
-                    logger.error(f"❌ Traceback: {traceback.format_exc()}")
+                    logger.error(f"Traceback: {traceback.format_exc()}")
                     stats["failed_processed"] += 1
                     stats["processing_errors"].append(error_msg)
             
             processing_stages["content_extraction"] = True
-            logger.info("✅ Stage 4/7: Content Extraction completed")
+            logger.info("Stage 4/7: Content Extraction completed")
             
             # Stage 5: Quality Analysis
-            logger.info("🔄 Stage 5/7: Quality Analysis & Processing")
+            logger.info("Stage 5/7: Quality Analysis & Processing")
             
             # Post-processing
             if documents:
@@ -1703,7 +1703,7 @@ class DocumentLoaderNode(ProcessorNode):
             low_quality_count = len(documents) - len(high_quality_docs)
             
             if low_quality_count > 0:
-                logger.info(f"🔍 Filtered out {low_quality_count} low-quality documents (quality < {quality_threshold})")
+                logger.info(f"Filtered out {low_quality_count} low-quality documents (quality < {quality_threshold})")
             
             documents = high_quality_docs
             
@@ -1714,10 +1714,10 @@ class DocumentLoaderNode(ProcessorNode):
                 duplicate_count = original_count - len(documents)
                 
                 if duplicate_count > 0:
-                    logger.info(f"🔄 Removed {duplicate_count} duplicate documents")
+                    logger.info(f"Removed {duplicate_count} duplicate documents")
             
             processing_stages["quality_analysis"] = True
-            logger.info("✅ Stage 5/7: Quality Analysis completed")
+            logger.info("Stage 5/7: Quality Analysis completed")
             
             # Final statistics
             stats.update({
@@ -1774,17 +1774,17 @@ class DocumentLoaderNode(ProcessorNode):
                 metadata_report["recommendations"] = recommendations
             
             # Stage 6: Storage Operations
-            logger.info("🔄 Stage 6/7: Storage Operations")
+            logger.info("Stage 6/7: Storage Operations")
             
             # Storage (if enabled)
             if storage_enabled and documents:
                 try:
-                    logger.info(f"💾 Storage enabled - storing {len(documents)} documents to database")
+                    logger.info(f"Storage enabled - storing {len(documents)} documents to database")
                     
                     # Get user_id from context (you may need to adjust this based on your auth system)
                     user_id = inputs.get("user_id")  # This should come from authentication context
                     if not user_id:
-                        logger.warning("⚠️ No user_id provided for storage, skipping database storage")
+                        logger.warning("No user_id provided for storage, skipping database storage")
                     else:
                         # Convert Document objects to storage format
                         documents_data = []
@@ -1803,7 +1803,7 @@ class DocumentLoaderNode(ProcessorNode):
                         try:
                             # For now, skip database storage to avoid async issues
                             # This can be re-enabled when the database service is properly configured
-                            logger.info("💾 Database storage temporarily disabled to avoid async issues")
+                            logger.info("Database storage temporarily disabled to avoid async issues")
                             stored_documents = []
                             
                             # Update documents to indicate storage was skipped
@@ -1815,14 +1815,14 @@ class DocumentLoaderNode(ProcessorNode):
                                     "storage_timestamp": datetime.now().isoformat()
                                 })
                             
-                            logger.info(f"ℹ️ Skipped database storage for {len(documents)} documents")
+                            logger.info(f"Skipped database storage for {len(documents)} documents")
                             
                         except Exception as storage_error:
                             logger.error(f"Database storage error: {storage_error}")
                             stored_documents = []
                             
                 except Exception as e:
-                    logger.error(f"❌ Database storage failed: {str(e)}")
+                    logger.error(f"Database storage failed: {str(e)}")
                     # Continue execution even if storage fails
                     for doc in documents:
                         doc.metadata.update({
@@ -1832,36 +1832,36 @@ class DocumentLoaderNode(ProcessorNode):
                             "storage_timestamp": datetime.now().isoformat()
                         })
             else:
-                logger.info("📄 Storage disabled or no documents to store")
+                logger.info("Storage disabled or no documents to store")
             
             processing_stages["storage_operations"] = True
-            logger.info("✅ Stage 6/7: Storage Operations completed")
+            logger.info("Stage 6/7: Storage Operations completed")
             
             # Stage 7: Finalization
-            logger.info("🔄 Stage 7/7: Finalization")
+            logger.info("Stage 7/7: Finalization")
             
             # Summary logging
             logger.info(
-                f"🎉 Google Drive Document Loader completed: {len(documents)} documents processed "
+                f"Google Drive Document Loader completed: {len(documents)} documents processed "
                 f"from {stats['successful_processed']}/{stats['total_sources']} sources "
                 f"(avg quality: {stats['avg_quality_score']:.2f})"
             )
             
-            logger.debug(f"🔚 Final validation - Documents: {len(documents)}, Sources: {stats.get('total_sources', 0)}")
+            logger.debug(f"Final validation - Documents: {len(documents)}, Sources: {stats.get('total_sources', 0)}")
             if not documents:
                 error_summary = f"No documents could be processed from {stats['total_sources']} sources."
                 if stats["processing_errors"]:
                     error_summary += f" Errors: {'; '.join(stats['processing_errors'][:3])}"  # Show first 3 errors
-                logger.error(f"❌ {error_summary}")
-                logger.debug(f"🔍 Debug info - Drive files attempted: {len(files_to_process)}, Processing stats: {stats}")
+                logger.error(f"{error_summary}")
+                logger.debug(f"Debug info - Drive files attempted: {len(files_to_process)}, Processing stats: {stats}")
                 raise ValueError(error_summary)
             
             processing_stages["finalization"] = True
-            logger.info("✅ Stage 7/7: Finalization completed")
+            logger.info("Stage 7/7: Finalization completed")
             
             # Log completion with stage verification
             completed_stages = [stage for stage, completed in processing_stages.items() if completed]
-            logger.info(f"🎯 All processing stages completed: {', '.join(completed_stages)}")
+            logger.info(f"All processing stages completed: {', '.join(completed_stages)}")
             
             # For node connectivity, return documents list directly
             # Other outputs (stats, metadata_report) are available via separate outputs
@@ -1870,8 +1870,8 @@ class DocumentLoaderNode(ProcessorNode):
         except Exception as e:
             # Enhanced error reporting with stage information
             failed_stages = [stage for stage, completed in processing_stages.items() if not completed]
-            logger.error(f"❌ DocumentLoader failed at stages: {failed_stages}")
-            logger.error(f"❌ Error details: {str(e)}")
+            logger.error(f"DocumentLoader failed at stages: {failed_stages}")
+            logger.error(f"Error details: {str(e)}")
             
             # Re-raise with enhanced context
             raise ValueError(f"DocumentLoader failed during {failed_stages}: {str(e)}") from e

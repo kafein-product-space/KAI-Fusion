@@ -369,7 +369,7 @@ class VectorStoreOrchestrator(ProcessorNode):
 
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         Vector store için gereken PostgreSQL, pgvector ve LangChain dependencies.
@@ -427,11 +427,11 @@ class VectorStoreOrchestrator(ProcessorNode):
                     """)
                     
                     has_id_column = cursor.fetchone()[0]
-                    logger.info(f"🔍 Schema compatibility check: id column exists = {has_id_column}")
+                    logger.info(f"Schema compatibility check: id column exists = {has_id_column}")
                     return has_id_column
             
         except Exception as e:
-            logger.warning(f"⚠️ Schema compatibility check failed: {e}")
+            logger.warning(f"Schema compatibility check failed: {e}")
             return False  # Assume incompatible on error
 
 
@@ -441,35 +441,35 @@ class VectorStoreOrchestrator(ProcessorNode):
         for doc in documents:
             embedding = doc.metadata.get("embedding")
             if embedding and isinstance(embedding, list) and len(embedding) > 0:
-                logger.info(f"🔍 Detected embedding dimension from documents: {len(embedding)}")
+                logger.info(f"Detected embedding dimension from documents: {len(embedding)}")
                 return len(embedding)
         
         # If no embeddings found, try to get dimension from embedder
         try:
 
             if hasattr(embedder, 'model') and 'text-embedding-3-small' in str(embedder.model):
-                logger.info("🔍 Detected OpenAI text-embedding-3-small: 1536 dimensions")
+                logger.info("Detected OpenAI text-embedding-3-small: 1536 dimensions")
                 return 1536
             elif hasattr(embedder, 'model') and 'text-embedding-3-large' in str(embedder.model):
-                logger.info("🔍 Detected OpenAI text-embedding-3-large: 3072 dimensions")
+                logger.info("Detected OpenAI text-embedding-3-large: 3072 dimensions")
                 return 3072
             elif hasattr(embedder, 'model') and 'text-embedding-ada-002' in str(embedder.model):
-                logger.info("🔍 Detected OpenAI text-embedding-ada-002: 1536 dimensions")
+                logger.info("Detected OpenAI text-embedding-ada-002: 1536 dimensions")
                 return 1536
             else:
                 # Default to OpenAI's most common dimension
-                logger.warning("⚠️ Could not detect embedding dimension, defaulting to 1536")
+                logger.warning("Could not detect embedding dimension, defaulting to 1536")
                 return 1536
         except Exception as e:
-            logger.warning(f"⚠️ Error detecting embedding dimension: {e}, defaulting to 1536")
+            logger.warning(f"Error detecting embedding dimension: {e}, defaulting to 1536")
             return 1536
 
     def _optimize_database_schema(self, connection_string: str, collection_name: str,
                                   embedding_dimension: int, search_algorithm: str) -> Dict[str, Any]:
         """Optimize database schema for vector operations."""
         
-        # 🔍 DEBUG: Validate all input parameters before database operations
-        logger.info(f"🔍 [SCHEMA_OPTIMIZATION_DEBUG] Input validation:")
+        # DEBUG: Validate all input parameters before database operations
+        logger.info(f"[SCHEMA_OPTIMIZATION_DEBUG] Input validation:")
         logger.info(f"    - embedding_dimension: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
         logger.info(f"    - collection_name: {repr(collection_name)}, type: {type(collection_name)}")
         logger.info(f"    - search_algorithm: {repr(search_algorithm)}, type: {type(search_algorithm)}")
@@ -477,7 +477,7 @@ class VectorStoreOrchestrator(ProcessorNode):
         # Fix: Ensure embedding_dimension is a valid positive integer
         if not isinstance(embedding_dimension, int) or embedding_dimension <= 0:
             if embedding_dimension == "none" or embedding_dimension is None:
-                logger.error(f"❌ Invalid embedding_dimension: '{embedding_dimension}' (type: {type(embedding_dimension)})")
+                logger.error(f"Invalid embedding_dimension: '{embedding_dimension}' (type: {type(embedding_dimension)})")
                 raise ValueError(f"Embedding dimension cannot be 'none' or None. Received: {embedding_dimension}")
             else:
                 try:
@@ -485,10 +485,10 @@ class VectorStoreOrchestrator(ProcessorNode):
                     if embedding_dimension <= 0:
                         raise ValueError(f"Embedding dimension must be positive, got: {embedding_dimension}")
                 except (ValueError, TypeError) as e:
-                    logger.error(f"❌ Cannot convert embedding_dimension to valid integer: '{embedding_dimension}' (type: {type(embedding_dimension)})")
+                    logger.error(f"Cannot convert embedding_dimension to valid integer: '{embedding_dimension}' (type: {type(embedding_dimension)})")
                     raise ValueError(f"Invalid embedding dimension: {embedding_dimension}. Must be a positive integer.") from e
         
-        logger.info(f"✅ Validated embedding_dimension: {embedding_dimension}")
+        logger.info(f"Validated embedding_dimension: {embedding_dimension}")
         
         optimization_report = {
             "timestamp": datetime.now().isoformat(),
@@ -506,11 +506,11 @@ class VectorStoreOrchestrator(ProcessorNode):
                     try:
                         cursor.execute("CREATE EXTENSION IF NOT EXISTS vector;")
                         optimization_report["optimizations_applied"].append("pgvector extension enabled")
-                        logger.info("✅ pgvector extension ensured")
+                        logger.info("pgvector extension ensured")
                     except Exception as e:
                         conn.rollback()
                         optimization_report["errors"].append(f"pgvector extension: {str(e)}")
-                        logger.warning(f"⚠️ pgvector extension issue: {e}")
+                        logger.warning(f"pgvector extension issue: {e}")
                         raise
                     
                     # 2. Check if langchain table exists (used for subsequent checks)
@@ -523,7 +523,7 @@ class VectorStoreOrchestrator(ProcessorNode):
                     table_exists = cursor.fetchone()[0]
 
                     if not table_exists:
-                        logger.info("📋 LangChain tables will be created automatically by PGVector")
+                        logger.info("LangChain tables will be created automatically by PGVector")
                         optimization_report["optimizations_applied"].append("LangChain tables will be auto-created")
                         return optimization_report
 
@@ -535,14 +535,14 @@ class VectorStoreOrchestrator(ProcessorNode):
                     column_info = cursor.fetchone()
                     if column_info and column_info[0] != 'vector':
                         try:
-                            logger.info(f"🔧 Migrating embedding column to vector({embedding_dimension})")
+                            logger.info(f"Migrating embedding column to vector({embedding_dimension})")
                             cursor.execute(f"ALTER TABLE public.langchain_pg_embedding ALTER COLUMN embedding TYPE vector({embedding_dimension});")
                             optimization_report["optimizations_applied"].append(f"Migrated embedding column to vector({embedding_dimension})")
-                            logger.info("✅ Embedding column migrated to vector type")
+                            logger.info("Embedding column migrated to vector type")
                         except Exception as e:
                             conn.rollback()
                             optimization_report["errors"].append(f"Column migration: {str(e)}")
-                            logger.warning(f"⚠️ Column migration issue: {e}")
+                            logger.warning(f"Column migration issue: {e}")
                             raise
 
                     # 4. Create HNSW index with dynamic distance strategy
@@ -559,7 +559,7 @@ class VectorStoreOrchestrator(ProcessorNode):
                     """)
                     if not cursor.fetchone():
                         try:
-                            logger.info(f"🔧 Creating HNSW index with {distance_ops}")
+                            logger.info(f"Creating HNSW index with {distance_ops}")
                             cursor.execute(f"""
                                 CREATE INDEX langchain_pg_embedding_hnsw_idx
                                 ON public.langchain_pg_embedding
@@ -567,11 +567,11 @@ class VectorStoreOrchestrator(ProcessorNode):
                                 WITH (m = 16, ef_construction = 64);
                             """)
                             optimization_report["optimizations_applied"].append(f"HNSW index created ({distance_ops})")
-                            logger.info("✅ HNSW index created successfully")
+                            logger.info("HNSW index created successfully")
                         except Exception as e:
                             conn.rollback()
                             optimization_report["errors"].append(f"HNSW index creation: {str(e)}")
-                            logger.warning(f"⚠️ HNSW index creation issue: {e}")
+                            logger.warning(f"HNSW index creation issue: {e}")
                             raise
                     
                     # 5. Create metadata GIN index
@@ -581,23 +581,23 @@ class VectorStoreOrchestrator(ProcessorNode):
                     """)
                     if not cursor.fetchone():
                         try:
-                            logger.info("🔧 Creating GIN index for metadata filtering")
+                            logger.info("Creating GIN index for metadata filtering")
                             cursor.execute("""
                                 CREATE INDEX langchain_pg_embedding_metadata_gin_idx
                                 ON public.langchain_pg_embedding
                                 USING gin (cmetadata);
                             """)
                             optimization_report["optimizations_applied"].append("Metadata GIN index created")
-                            logger.info("✅ Metadata GIN index created successfully")
+                            logger.info("Metadata GIN index created successfully")
                         except Exception as e:
                             conn.rollback()
                             optimization_report["errors"].append(f"GIN index creation: {str(e)}")
-                            logger.warning(f"⚠️ GIN index creation issue: {e}")
+                            logger.warning(f"GIN index creation issue: {e}")
                             raise
             
         except psycopg2.Error as e:
             optimization_report["errors"].append(f"Database optimization failed: {e}")
-            logger.error(f"❌ Database optimization failed: {e}")
+            logger.error(f"Database optimization failed: {e}")
             # Reraise to be caught by the main execute block
             raise
         
@@ -612,7 +612,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             return documents  # No changes needed
         
         processed_docs = []
-        logger.info(f"🏷️ Processing {len(documents)} documents with custom metadata strategy: {metadata_strategy}")
+        logger.info(f"Processing {len(documents)} documents with custom metadata strategy: {metadata_strategy}")
         
         for doc in documents:
             if metadata_strategy == "replace":
@@ -635,7 +635,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             )
             processed_docs.append(processed_doc)
         
-        logger.info(f"✅ Applied custom metadata to {len(processed_docs)} documents")
+        logger.info(f"Applied custom metadata to {len(processed_docs)} documents")
         return processed_docs
 
     def _get_table_names(self, table_prefix: str) -> Dict[str, str]:
@@ -657,7 +657,7 @@ class VectorStoreOrchestrator(ProcessorNode):
         valid_docs = []
         has_embeddings = True
         
-        logger.info(f"🔍 Validating {len(documents)} documents")
+        logger.info(f"Validating {len(documents)} documents")
         
         for i, doc in enumerate(documents):
             if isinstance(doc, Document) and doc.page_content.strip():
@@ -688,7 +688,7 @@ class VectorStoreOrchestrator(ProcessorNode):
         if not valid_docs:
             raise ValueError("No valid documents found in input")
             
-        logger.info(f"✅ Validated {len(valid_docs)} documents, embeddings_present={has_embeddings}")
+        logger.info(f"Validated {len(valid_docs)} documents, embeddings_present={has_embeddings}")
         return valid_docs, has_embeddings
 
     def _prepare_documents_for_storage(self, documents: List[Document]) -> Tuple[List[Document], List[List[float]]]:
@@ -750,7 +750,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             "score_threshold": search_kwargs.get("score_threshold"),
             "retriever_search_type": retriever_search_type
         }
-        logger.info(f"✅ Created VectorStoreRetriever with config={details}")
+        logger.info(f"Created VectorStoreRetriever with config={details}")
         return retriever
 
     def _get_storage_statistics(self, vectorstore, processed_docs: int,
@@ -768,7 +768,7 @@ class VectorStoreOrchestrator(ProcessorNode):
 
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
 
         Bu method dynamic export sisteminin çalışması için kritik!
         Vector store için gereken PostgreSQL, pgvector ve LangChain dependencies.
@@ -795,12 +795,12 @@ class VectorStoreOrchestrator(ProcessorNode):
             Dict with retriever, vectorstore, optimization_report, and storage_stats
         """
         start_time = time.time()
-        logger.info("🚀 Starting Intelligent Vector Store execution")
+        logger.info("Starting Intelligent Vector Store execution")
         
         # DEBUG: Log all available keys in connected_nodes
-        logger.info(f"🔍 [VARIABLE_MISMATCH_DEBUG] Available connected_nodes keys: {list(connected_nodes.keys())}")
+        logger.info(f"[VARIABLE_MISMATCH_DEBUG] Available connected_nodes keys: {list(connected_nodes.keys())}")
         for key, value in connected_nodes.items():
-            logger.info(f"🔍 [VARIABLE_MISMATCH_DEBUG] Key '{key}': type={type(value)}, length={len(value) if isinstance(value, list) else 'N/A'}")
+            logger.info(f"[VARIABLE_MISMATCH_DEBUG] Key '{key}': type={type(value)}, length={len(value) if isinstance(value, list) else 'N/A'}")
         
         documents = connected_nodes.get("documents")
         
@@ -828,15 +828,15 @@ class VectorStoreOrchestrator(ProcessorNode):
             custom_metadata_str = inputs.get("custom_metadata", "{}")
             custom_metadata = json.loads(custom_metadata_str) if isinstance(custom_metadata_str, str) else (custom_metadata_str or {})
         except (json.JSONDecodeError, TypeError) as e:
-            logger.warning(f"⚠️ Invalid custom_metadata JSON: {e}, using empty metadata")
+            logger.warning(f"Invalid custom_metadata JSON: {e}, using empty metadata")
             custom_metadata = {}
             
         metadata_strategy = inputs.get("metadata_strategy", "merge")
         embedding_dimension = inputs.get("embedding_dimension", 0)
         pre_delete = inputs.get("pre_delete_collection", False)
         
-        # 🔍 DEBUG: Log embedding_dimension type and value for diagnostic
-        logger.info(f"🔍 [EMBEDDING_DIMENSION_DEBUG] Raw value: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
+        # DEBUG: Log embedding_dimension type and value for diagnostic
+        logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Raw value: {repr(embedding_dimension)}, type: {type(embedding_dimension)}")
         
         # Fix: Ensure embedding_dimension is always an integer
         if embedding_dimension is None or embedding_dimension == "none" or embedding_dimension == "":
@@ -845,17 +845,17 @@ class VectorStoreOrchestrator(ProcessorNode):
             try:
                 embedding_dimension = int(embedding_dimension)
             except (ValueError, TypeError):
-                logger.warning(f"⚠️ Invalid embedding_dimension value '{embedding_dimension}', defaulting to 0")
+                logger.warning(f"Invalid embedding_dimension value '{embedding_dimension}', defaulting to 0")
                 embedding_dimension = 0
         elif not isinstance(embedding_dimension, int):
-            logger.warning(f"⚠️ Non-integer embedding_dimension value '{embedding_dimension}', defaulting to 0")
+            logger.warning(f"Non-integer embedding_dimension value '{embedding_dimension}', defaulting to 0")
             embedding_dimension = 0
         
-        logger.info(f"🔍 [EMBEDDING_DIMENSION_DEBUG] Processed value: {embedding_dimension}, type: {type(embedding_dimension)}")
+        logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Processed value: {embedding_dimension}, type: {type(embedding_dimension)}")
         
         if embedding_dimension == 0:
             embedding_dimension = self._detect_embedding_dimension(valid_docs, embedder)
-            logger.info(f"🔍 [EMBEDDING_DIMENSION_DEBUG] Auto-detected value: {embedding_dimension}")
+            logger.info(f"[EMBEDDING_DIMENSION_DEBUG] Auto-detected value: {embedding_dimension}")
             
         search_config = {
             "search_algorithm": inputs.get("search_algorithm", "cosine"),
@@ -867,7 +867,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             valid_docs, custom_metadata, inputs.get("preserve_document_metadata", True), metadata_strategy
         )
         
-        logger.info(f"⚙️ Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
+        logger.info(f"Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
 
         try:
 
@@ -877,7 +877,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             #)
             
             # Create vector store
-            logger.info(f"💾 Creating vector store: {collection_name} with {len(processed_docs)} docs")
+            logger.info(f"Creating vector store: {collection_name} with {len(processed_docs)} docs")
 
             # Use new PGVectorStore API with async driver
             # Fix: Convert generic postgresql:// to async-compatible postgresql+asyncpg://
@@ -890,10 +890,10 @@ class VectorStoreOrchestrator(ProcessorNode):
                     table_name=collection_name,
                     vector_size=embedding_dimension
                 )
-                logger.info(f"✅ Created new table: {collection_name}")
+                logger.info(f"Created new table: {collection_name}")
             except Exception as e:
                 if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
-                    logger.info(f"🔄 Table {collection_name} already exists, continuing...")
+                    logger.info(f"Table {collection_name} already exists, continuing...")
                 else:
                     raise  # Re-raise if it's a different error"""
 
@@ -910,7 +910,7 @@ class VectorStoreOrchestrator(ProcessorNode):
                 
 
 
-            logger.info(f"✅ Stored {len(processed_docs)} docs using API")
+            logger.info(f"Stored {len(processed_docs)} docs using API")
             
             retriever = self._create_retriever(vectorstore, search_config)
             
@@ -919,7 +919,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             storage_stats = self._get_storage_statistics(vectorstore, len(processed_docs), processing_time)
             
             logger.info(
-                f"🎉 Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
+                f"Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
             )
             
             return {
