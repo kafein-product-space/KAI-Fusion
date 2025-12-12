@@ -21,6 +21,7 @@ import uuid
 
 from app.core.state import FlowState
 from app.nodes.base import NodeType
+from app.core.credential_provider import credential_provider
 
 logger = logging.getLogger(__name__)
 
@@ -62,6 +63,10 @@ class NodeExecutionHandler(ABC):
         """Centralized logging for node execution."""
         logger.debug(f"[{node_type.upper()}] {action}: {node_id}")
 
+    def _inject_user_context(self, node_instance: Any, state: FlowState, node_id: str):
+        """Inject user context (user_id and credentials) into node instance if supported."""
+        if hasattr(node_instance, 'user_id') and state.user_id:
+            node_instance.credentials = credential_provider.get_credentials_sync(user_id=state.user_id)
 
 class MemoryNodeHandler(NodeExecutionHandler):
     """
@@ -88,6 +93,9 @@ class MemoryNodeHandler(NodeExecutionHandler):
             # Set session_id on memory nodes before execution
             source_node_instance.session_id = state.session_id
             print(f"[DEBUG] Set session_id on memory node {node_id}: {state.session_id}")
+            
+            # Inject user_id if supported
+            self._inject_user_context(source_node_instance, state, node_id)
             
             # Extract memory-specific inputs
             memory_inputs = self._extract_memory_inputs(source_node_instance, state)
@@ -151,6 +159,9 @@ class ProviderNodeHandler(NodeExecutionHandler):
             all_inputs = {**provider_inputs, **connected_inputs}
             
             print(f"[DEBUG] Provider node {node_id} inputs: user={list(provider_inputs.keys())}, connected={list(connected_inputs.keys())}")
+            
+            # Inject user_id from state into node instance before execution
+            self._inject_user_context(source_node_instance, state, node_id)
             
             # Execute provider node to get LangChain object
             node_instance = source_node_instance.execute(**all_inputs)
@@ -218,6 +229,10 @@ class ProviderNodeHandler(NodeExecutionHandler):
                     if source_node_type.value == "provider":
                         # Execute source provider to get its instance
                         provider_inputs = self._extract_provider_inputs(source_instance, state)
+                        
+                        # Inject user_id if supported
+                        self._inject_user_context(source_instance, state, source_node_id)
+                        
                         connected_result = source_instance.execute(**provider_inputs)
                         connected_inputs[input_name] = connected_result
                         print(f"[DEBUG] Successfully extracted provider connection: {input_name} -> {type(connected_result).__name__}")
@@ -278,6 +293,10 @@ class ProcessorNodeHandler(NodeExecutionHandler):
             
             # 2. If no cache, need to re-execute processor node
             print(f"[DEBUG] No cached output found for {node_id}, performing re-execution")
+            
+            # Inject user_id if supported
+            self._inject_user_context(source_node_instance, state, node_id)
+            
             return self._re_execute_processor(source_node_instance, gnode_instance, state)
             
         except Exception as e:

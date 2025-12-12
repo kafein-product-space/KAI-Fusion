@@ -110,13 +110,6 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     required=False,
                 ),
                 NodeProperty(
-                    name="openai_api_key",
-                    displayName="API Key",
-                    type=NodePropertyType.PASSWORD,
-                    hint="OpenAI API Key.",
-                    required=True,
-                ),
-                NodeProperty(
                     name="organization",
                     displayName="Organization (Optional)",
                     type=NodePropertyType.TEXT,
@@ -200,11 +193,9 @@ class OpenAIEmbeddingsProvider(ProviderNode):
         import os
         
         # Extract configuration from user data or kwargs
-        openai_api_key = (
-            kwargs.get("openai_api_key") or 
-            self.user_data.get("openai_api_key") or 
-            os.getenv("OPENAI_API_KEY")
-        )
+        credential_id = self.user_data.get("credential_id")
+        openai_api_key = self.get_credential(credential_id).get('secret').get('api_key')
+
         model = kwargs.get("model") or self.user_data.get("model", "text-embedding-3-small")
         request_timeout = kwargs.get("request_timeout") or self.user_data.get("request_timeout", 60)
         max_retries = kwargs.get("max_retries") or self.user_data.get("max_retries", 3)

@@ -559,12 +559,6 @@ class OpenAINode(BaseNode):
                     required=False,
                 ),
                 NodeInput(
-                    name="api_key",
-                    type="str",
-                    description="OpenAI API Key",
-                    required=True,
-                ),
-                NodeInput(
                     name="system_prompt",
                     type="str",
                     description="System prompt for the model",
@@ -612,12 +606,6 @@ class OpenAINode(BaseNode):
                     displayName="Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False,
-                ),
-                NodeProperty(
-                    name="api_key",
-                    displayName="API Key",
-                    type=NodePropertyType.PASSWORD,
                     required=False,
                 ),
                 NodeProperty(
@@ -767,7 +755,8 @@ class OpenAINode(BaseNode):
         timeout = int(self.user_data.get("timeout", 60))
         
         # Get API key from user configuration (database/UI)
-        api_key = self.user_data.get("api_key")
+        credential_id = self.user_data.get("credential_id")
+        api_key = self.get_credential(credential_id).get('secret').get('api_key')
         
         if not api_key:
             raise ValueError(

@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Plus, Key, Loader2 } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { useUserCredentialStore } from "~/stores/userCredential";
-import { getUserCredentialSecret } from "~/services/userCredentialService";
+import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "~/components/credentials/DynamicCredentialForm";
 import type { ServiceDefinition } from "~/types/credentials";
@@ -71,7 +71,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
 
     setLoadingCredential(true);
     try {
-      const result = await getUserCredentialSecret(credentialId);
+      const result = await getUserCredentialById(credentialId);
       onChange(credentialId);
 
       if (onCredentialLoad && result?.secret) {

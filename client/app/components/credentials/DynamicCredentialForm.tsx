@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 
@@ -70,6 +70,13 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
     return errors;
   };
+  
+  const formValues = useMemo(() => {
+    return {
+      api_key: initialValues.id,
+      ...initialValues,
+    };
+  }, [initialValues]);
 
   const renderField = (field: ServiceField) => {
     const commonProps = {
@@ -146,7 +153,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       </div>
 
       <Formik
-        initialValues={initialValues}
+        initialValues={formValues}
         validate={validateForm}
         onSubmit={onSubmit}
         enableReinitialize

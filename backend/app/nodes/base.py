@@ -56,6 +56,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 from pydantic import BaseModel, Field, field_validator
 from langchain_core.runnables import Runnable
+from app.models.user_credential import UserCredential
 from enum import Enum
 
 # Import FlowState for LangGraph compatibility
@@ -636,6 +637,7 @@ class BaseNode(ABC):
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
     user_data: Dict[str, Any]
+    credentials: List[Dict[str, Any]]
     
     def __init__(self):
         self.node_id = None  # Will be set by GraphBuilder
@@ -645,6 +647,7 @@ class BaseNode(ABC):
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend
+        self.credentials = {}
     
     @property
     def metadata(self) -> NodeMetadata:
@@ -965,6 +968,17 @@ class BaseNode(ABC):
             runnable = runnable.with_config(run_config)
         
         return runnable
+
+    def get_credential(self, credential_id: str) -> Dict[str, Any]:
+        """Get a credential by its ID"""
+        print(f"🔍 Credentials: {self.credentials}")
+        if self.credentials:
+            for cred in self.credentials:
+                c_id = cred.get('id')
+                if str(c_id) == str(credential_id):
+                    print(f"🔍 Found Credential: {cred}")
+                    return cred
+        return None
 
 # 4. Geliştiricilerin Kullanacağı 3 Standart Node Sınıfı
 

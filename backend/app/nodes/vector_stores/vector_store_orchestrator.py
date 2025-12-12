@@ -241,19 +241,19 @@ class VectorStoreOrchestrator(ProcessorNode):
                     required=False,
                 ),
                 NodeProperty(
-                    name="connection_string",
-                    displayName="Connection String",
-                    type=NodePropertyType.PASSWORD,
-                    description="PostgreSQL connection string",
-                    tabName="data",
-                    required=True,
-                ),
-                NodeProperty(
                     name="collection_name",
                     displayName="Collection Name",
                     type=NodePropertyType.TEXT,
                     placeholder="e.g., amazon_products, user_manuals, company_docs",
                     hint="Vector collection name - separates different datasets (REQUIRED for data isolation)",
+                    tabName="data",
+                    required=True,
+                ),
+                NodeProperty(
+                    name="table_name",
+                    displayName="Table Name",
+                    type=NodePropertyType.TEXT,
+                    hint="Vector table name",
                     tabName="data",
                     required=True,
                 ),
@@ -814,6 +814,10 @@ class VectorStoreOrchestrator(ProcessorNode):
         valid_docs, has_embeddings = self._validate_documents(documents)
         
         connection_string = inputs.get("connection_string")
+
+        credential_id = self.user_data.get("credential_id")
+        credential = self.get_credential(credential_id)
+
         if not connection_string:
             raise ValueError("PostgreSQL connection string is required")
             
