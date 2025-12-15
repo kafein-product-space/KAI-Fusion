@@ -647,7 +647,7 @@ class BaseNode(ABC):
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend
-        self.credentials = {}
+        self.credentials = []  # List of user credentials (not dict!)
     
     @property
     def metadata(self) -> NodeMetadata:

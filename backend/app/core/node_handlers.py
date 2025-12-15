@@ -65,7 +65,7 @@ class NodeExecutionHandler(ABC):
 
     def _inject_user_context(self, node_instance: Any, state: FlowState, node_id: str):
         """Inject user context (user_id and credentials) into node instance if supported."""
-        if hasattr(node_instance, 'user_id') and state.user_id:
+        if node_instance.user_data.get('credential_id') and state.user_id:
             node_instance.credentials = credential_provider.get_credentials_sync(user_id=state.user_id)
 
 class MemoryNodeHandler(NodeExecutionHandler):

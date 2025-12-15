@@ -57,7 +57,7 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 # Use new langchain_postgres API with legacy fallback
 
-from langchain_postgres import PGEngine, PGVector
+from langchain_postgres import PGVector
 
 
 from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
@@ -766,23 +766,6 @@ class VectorStoreOrchestrator(ProcessorNode):
             "status": "completed" if processed_docs > 0 else "failed",
         }
 
-    def get_required_packages(self) -> list[str]:
-        """
-        🔥 DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
-
-        Bu method dynamic export sisteminin çalışması için kritik!
-        Vector store için gereken PostgreSQL, pgvector ve LangChain dependencies.
-        """
-        return [
-            "langchain-postgres>=0.0.15",  # PostgreSQL LangChain integration
-            "pgvector>=0.2.0",  # Vector similarity operations
-            "psycopg2-binary>=2.9.0",  # PostgreSQL database connection
-            "langchain-community>=0.0.10",  # Community vector stores
-            "langchain-core>=0.1.0",  # Core vector store classes
-            "numpy>=1.24.0",  # Vector operations
-            "scipy>=1.11.0",  # Scientific computations
-            "sqlalchemy>=2.0.0"  # Database ORM
-        ]
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute intelligent vector storage with automatic database optimization.
@@ -813,10 +796,32 @@ class VectorStoreOrchestrator(ProcessorNode):
             
         valid_docs, has_embeddings = self._validate_documents(documents)
         
-        connection_string = inputs.get("connection_string")
-
+        # Get credential_id and extract credential data
         credential_id = self.user_data.get("credential_id")
-        credential = self.get_credential(credential_id)
+        credential = self.get_credential(credential_id) if credential_id else None
+        
+        # Build connection string from credential components
+        connection_string = None
+        if credential and credential.get('secret'):
+            secret = credential['secret']
+            
+            # Extract connection components
+            host = secret.get('host', 'localhost')
+            port = secret.get('port', 5432)
+            database = secret.get('database', 'vectorstore')
+            username = secret.get('username', 'postgres')
+            password = secret.get('password', '')
+            
+            # Build connection string
+            if username and password:
+                connection_string = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            else:
+                connection_string = f"postgresql://{host}:{port}/{database}"
+            
+            logger.info(f"🔑 Built connection string from credential: {credential['name']}")
+        else:
+            # Fallback to direct connection_string input (for backward compatibility)
+            connection_string = inputs.get("connection_string")
 
         if not connection_string:
             raise ValueError("PostgreSQL connection string is required")
@@ -871,35 +876,11 @@ class VectorStoreOrchestrator(ProcessorNode):
             valid_docs, custom_metadata, inputs.get("preserve_document_metadata", True), metadata_strategy
         )
         
-        logger.info(f"⚙️ Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
+        logger.info(f"Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
 
         try:
-
-            # Perform DB optimization
-            #optimization_report = self._optimize_database_schema(
-            #    connection_string, collection_name, embedding_dimension, search_config['search_algorithm']
-            #)
-            
             # Create vector store
-            logger.info(f"💾 Creating vector store: {collection_name} with {len(processed_docs)} docs")
-
-            # Use new PGVectorStore API with async driver
-            # Fix: Convert generic postgresql:// to async-compatible postgresql+asyncpg://
-            """async_connection_string = connection_string.replace('postgresql://', 'postgresql+asyncpg://') if connection_string.startswith('postgresql://') else connection_string
-            engine = PGEngine.from_connection_string(async_connection_string)
-
-            # Initialize vector store table (handle existing tables gracefully)
-            try:
-                engine.init_vectorstore_table(
-                    table_name=collection_name,
-                    vector_size=embedding_dimension
-                )
-                logger.info(f"✅ Created new table: {collection_name}")
-            except Exception as e:
-                if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
-                    logger.info(f"🔄 Table {collection_name} already exists, continuing...")
-                else:
-                    raise  # Re-raise if it's a different error"""
+            logger.info(f"Creating vector store: {collection_name} with {len(processed_docs)} docs")
 
             # Create vector store
             vectorstore = PGVector(
@@ -908,13 +889,9 @@ class VectorStoreOrchestrator(ProcessorNode):
                 embeddings=embedder
             )
 
-
-
             vectorstore.add_documents(processed_docs)
-                
-
-
-            logger.info(f"✅ Stored {len(processed_docs)} docs using API")
+            
+            logger.info(f"Stored {len(processed_docs)} docs using API")
             
             retriever = self._create_retriever(vectorstore, search_config)
             
@@ -923,7 +900,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             storage_stats = self._get_storage_statistics(vectorstore, len(processed_docs), processing_time)
             
             logger.info(
-                f"🎉 Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
+                f" Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
             )
             
             return {
