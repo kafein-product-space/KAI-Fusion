@@ -114,6 +114,21 @@ const executeWorkflowWithStreaming = async (
                   user_message: input_text,
                   ...(parsed.metadata?.inputs || {})
                 };
+                // Add inputs_meta to indicate the source of each input
+                nodeExecutionData[parsed.node_id].inputs_meta = {
+                  input: {
+                    sourceNodeId: 'chat_input',
+                    sourceNodeName: 'Chat Input',
+                    sourceNodeAlias: 'Chat Input',
+                    sourceHandle: 'user_message'
+                  },
+                  user_message: {
+                    sourceNodeId: 'chat_input',
+                    sourceNodeName: 'Chat Input',
+                    sourceNodeAlias: 'Chat Input',
+                    sourceHandle: 'user_message'
+                  }
+                };
                 console.log('🤖 Agent inputs captured:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs);
               }
               

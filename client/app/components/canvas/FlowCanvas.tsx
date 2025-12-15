@@ -646,8 +646,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     nodeType: evt.node_id
                       ? nodes.find((n) => n.id === evt.node_id)?.type
                       : failedNodeId
-                      ? nodes.find((n) => n.id === failedNodeId)?.type
-                      : undefined,
+                        ? nodes.find((n) => n.id === failedNodeId)?.type
+                        : undefined,
                     timestamp: evt.timestamp || new Date().toLocaleTimeString(),
                     stackTrace:
                       evt.stack_trace || evt.details || evt.stack_trace,
@@ -699,7 +699,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             } finally {
               try {
                 reader.releaseLock();
-              } catch {}
+              } catch { }
             }
           })();
         } catch (_) {
@@ -1013,9 +1013,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           nodes.map((node) =>
             node.id === fullscreenModal.nodeData.id
               ? {
-                  ...node,
-                  data: { ...node.data, ...values },
-                }
+                ...node,
+                data: { ...node.data, ...values },
+              }
               : node
           )
         );
@@ -1100,18 +1100,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
           {/* Chat Toggle Button */}
           <button
-            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${
-              chatOpen
+            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${chatOpen
                 ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
                 : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
-            }`}
+              }`}
             onClick={() => setChatOpen((v) => !v)}
           >
             <div className="relative">
               <svg
-                className={`w-5 h-5 transition-transform duration-300 ${
-                  chatOpen ? "rotate-12" : ""
-                }`}
+                className={`w-5 h-5 transition-transform duration-300 ${chatOpen ? "rotate-12" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1247,54 +1245,154 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const inputEdges = edges.filter(
                   (edge) => edge.target === nodeId
                 );
-                const inputs: Record<string, any> = {};
+                if (inputEdges.length === 0) {
+                  return {};
+                }
+
+                const inputs: Record<string, any[]> = {};
 
                 inputEdges.forEach((edge) => {
                   const sourceNodeOutput =
                     currentExecution?.result?.node_outputs?.[edge.source];
+                  const inputKey = edge.targetHandle || "input";
+                  const sourceNodeId = edge.source;
+                  const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+
+                  // Extract actual output value if it's wrapped in execution data structure
+                  let value: any;
                   if (sourceNodeOutput !== undefined) {
-                    const inputKey = edge.targetHandle || "input";
-                    // Extract actual output value if it's wrapped in execution data structure
-                    if (sourceNodeOutput?.output !== undefined) {
-                      inputs[inputKey] = sourceNodeOutput.output;
-                    } else if (sourceNodeOutput?.outputs !== undefined) {
-                      inputs[inputKey] = sourceNodeOutput.outputs;
+                    if (
+                      sourceNodeOutput &&
+                      typeof sourceNodeOutput === "object" &&
+                      sourceNodeOutput.output !== undefined
+                    ) {
+                      value = sourceNodeOutput.output;
+                    } else if (
+                      sourceNodeOutput &&
+                      typeof sourceNodeOutput === "object" &&
+                      sourceNodeOutput.outputs !== undefined
+                    ) {
+                      value = sourceNodeOutput.outputs;
                     } else {
-                      inputs[inputKey] = sourceNodeOutput;
+                      value = sourceNodeOutput;
+                    }
+                  } else {
+                    // Try to get default value from source node config
+                    const sourceData = (sourceNode?.data as any) || {};
+                    if (sourceData.text_input !== undefined) {
+                      value = sourceData.text_input;
+                    } else if (sourceData.text !== undefined) {
+                      value = sourceData.text;
+                    } else if (sourceData.content !== undefined) {
+                      value = sourceData.content;
+                    } else if (sourceData.value !== undefined) {
+                      value = sourceData.value;
+                    } else if (sourceData.query !== undefined) {
+                      value = sourceData.query;
+                    } else if (sourceData.prompt !== undefined) {
+                      value = sourceData.prompt;
+                    } else {
+                      // Placeholder for nodes that haven't executed yet and have no default value
+                      value = {
+                        _placeholder: true,
+                        message: "No default value available",
+                        sourceNodeId: edge.source
+                      };
                     }
                   }
+
+                  if (!Array.isArray(inputs[inputKey])) {
+                    inputs[inputKey] = [];
+                  }
+                  inputs[inputKey].push(value);
                 });
 
                 return inputs;
               })(),
-              outputs: (() => {
+              inputs_meta: (() => {
                 const nodeId = fullscreenModal.nodeData?.id;
                 if (!nodeId || !currentExecution?.result?.node_outputs)
                   return undefined;
 
+                // 1) If engine already tracked inputs_meta explicitly (e.g., from chat), use it
                 const nodeExecutionData =
                   currentExecution?.result?.node_outputs?.[nodeId];
-                
-                // If the data has an 'output' or 'outputs' field, extract the actual output value
-                // This handles the case where node_outputs contains execution metadata (inputs, output, status)
-                if (nodeExecutionData?.output !== undefined) {
-                  return nodeExecutionData.output;
+                if (
+                  nodeExecutionData?.inputs_meta &&
+                  Object.keys(nodeExecutionData.inputs_meta).length > 0
+                ) {
+                  return nodeExecutionData.inputs_meta;
                 }
-                if (nodeExecutionData?.outputs !== undefined) {
-                  return nodeExecutionData.outputs;
+
+                // 2) Fallback: build inputs_meta from incoming edges
+                const inputEdges = edges.filter(
+                  (edge) => edge.target === nodeId
+                );
+                if (inputEdges.length === 0) {
+                  return undefined;
                 }
-                
-                // If it's already the raw output value, return as-is
-                return nodeExecutionData;
+
+                const meta: Record<
+                  string,
+                  {
+                    sourceNodeId: string;
+                    sourceNodeName?: string;
+                    sourceNodeAlias?: string;
+                    sourceHandle?: string;
+                  }[]
+                > = {};
+
+                inputEdges.forEach((edge) => {
+                  const inputKey = edge.targetHandle || "input";
+                  const sourceNodeId = edge.source;
+                  const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+
+                  const sourceData = (sourceNode?.data as any) || {};
+                  const sourceMetadata = (sourceData.metadata as any) || {};
+
+                  const sourceAlias =
+                    sourceData.name || sourceMetadata.display_name;
+                  const sourceName =
+                    sourceMetadata.display_name ||
+                    sourceNode?.type ||
+                    sourceNodeId;
+
+                  const entry = {
+                    sourceNodeId,
+                    sourceNodeName: sourceName,
+                    sourceNodeAlias: sourceAlias,
+                    sourceHandle: edge.sourceHandle || undefined,
+                  };
+
+                  if (!Array.isArray(meta[inputKey])) {
+                    meta[inputKey] = [];
+                  }
+                  meta[inputKey].push(entry);
+                });
+
+                return meta;
+              })(),
+              outputs: (() => {
+                const nodeId = fullscreenModal.nodeData?.id;
+                if (!nodeId) return undefined;
+
+                // Only return actual execution outputs - do not use configuration data as outputs
+                const executionOutput = currentExecution?.result?.node_outputs?.[nodeId];
+                if (executionOutput) {
+                  return executionOutput;
+                }
+
+                // Return undefined if no execution output exists - do not show config data as outputs
+                return undefined;
               })(),
               status:
                 currentExecution?.status === "completed"
                   ? "completed"
                   : currentExecution?.status === "running"
-                  ? "running"
-                  : currentExecution?.status === "failed"
-                  ? "failed"
-                  : "pending",
+                    ? "running"
+                    : currentExecution?.status === "failed"
+                      ? "failed"
+                      : "pending",
             }}
           />
         )}

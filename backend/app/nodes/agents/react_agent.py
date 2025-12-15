@@ -996,9 +996,17 @@ class ReactAgentNode(ProcessorNode):
                 name="system_prompt",
                 displayName="System Prompt",
                 type=NodePropertyType.TEXT_AREA,
-                default="You are a helpful assistant. Use tools to answer: {input}",
-                hint="Use {input} for user input. Define agent behavior and capabilities.",
+                default="You are a helpful assistant. Use tools to answer questions.",
+                hint="Define agent behavior and capabilities. This is the core system instruction.",
                 required=True,
+            ),
+            NodeProperty(
+                name="user_prompt_template",
+                displayName="User Prompt Template",
+                type=NodePropertyType.TEXT_AREA,
+                default="{{input}}",
+                hint="Template for user input",
+                required=False,
             ),
             NodeProperty(
                 name="max_iterations",
@@ -1194,11 +1202,14 @@ class ReactAgentNode(ProcessorNode):
                 print(f"[TRACE][AGENT.TOOLS] prepared={len(tools_list)} tools={tool_names}")
             except Exception as e:
                 print(f"[TRACE][AGENT.TOOLS] error listing tools: {e}")
-            user_input = self._extract_user_input(runtime_inputs, inputs)
+
+            # CRITICAL FIX: Use templated inputs instead of extracting separately
+            # The templating has already been applied to the 'inputs' parameter by node_executor.py
+            user_input = self._extract_user_input_from_templated_inputs(runtime_inputs, inputs)
             detected_language = self._detect_user_language(user_input)
 
-            # Create agent graph using new API
-            agent_graph = self._create_agent(llm, tools_list, detected_language, memory)
+            # Create agent graph using new API (now with user_input for system prompt templating)
+            agent_graph = self._create_agent(llm, tools_list, detected_language, memory, user_input, inputs)
 
             # Prepare final input and execute
             final_input = self._prepare_final_input_for_graph(user_input, memory)
@@ -1265,21 +1276,45 @@ class ReactAgentNode(ProcessorNode):
         else:
             return inputs.get("input", "")
 
+    def _extract_user_input_from_templated_inputs(self, runtime_inputs: Any, templated_inputs: Dict[str, Any]) -> str:
+        """
+        Şablonlu giriş alanlarından kullanıcı girdisini ayıklayın, özellikle şablonlu 'input' alanına öncelik verin.
+
+        Bu yöntem, düğüm yürütücüsü tarafından önceden işlenmiş olan şablonlu giriş alanlarını kullanarak Jinja şablonlamasının ReactAgent için doğru şekilde çalışmasını sağlar.
+        """
+        if isinstance(templated_inputs, dict) and "input" in templated_inputs:
+            templated_input = templated_inputs["input"]
+            if isinstance(templated_input, str):
+                print(f"[TEMPLATE] ReactAgent using templated input: '{templated_input}'")
+                return templated_input
+
+        # Fallback: runtime_inputs (for backward compatibility)
+        if isinstance(runtime_inputs, str):
+            print(f"[TEMPLATE] ReactAgent using runtime input (fallback): '{runtime_inputs}'")
+            return runtime_inputs
+        elif isinstance(runtime_inputs, dict):
+            runtime_input = runtime_inputs.get("input", templated_inputs.get("input", ""))
+            print(f"[TEMPLATE] ReactAgent using runtime dict input (fallback): '{runtime_input}'")
+            return runtime_input
+        else:
+            fallback_input = templated_inputs.get("input", "")
+            print(f"[TEMPLATE] ReactAgent using templated input fallback: '{fallback_input}'")
+            return fallback_input
+
     def _detect_user_language(self, user_input: str) -> str:
         """Detect user's language with Turkish character safety."""
         try:
             detected_language = detect_language(user_input)
-            print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
             return detected_language
         except UnicodeEncodeError as lang_error:
             print(f"[WARNING] Language detection encoding error: {lang_error}")
             print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
             return 'tr'  # Default to Turkish for Turkish characters
 
-    def _create_agent(self, llm: BaseLanguageModel, tools_list: list, detected_language: str, memory: Any = None) -> CompiledStateGraph:
+    def _create_agent(self, llm: BaseLanguageModel, tools_list: list, detected_language: str, memory: Any = None, user_input: str = "", user_inputs: Dict[str, Any] = None) -> CompiledStateGraph:
         """Create the React agent with language-specific prompt using new LangGraph API."""
-        # Create language-specific prompt
-        agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
+        # Create language-specific prompt (now with user_input for system prompt templating)
+        agent_prompt = self._create_language_specific_prompt(tools_list, detected_language, user_input, user_inputs)
         
         # Create checkpointer for memory if memory is provided
         checkpointer = None
@@ -1319,10 +1354,10 @@ class ReactAgentNode(ProcessorNode):
         """Prepare the final input dictionary for graph execution using new state format."""
         # Load conversation history from memory
         conversation_history = self._load_conversation_history(memory)
-        
+
         # Create messages list in the format expected by the new API
         messages = []
-        
+
         # Add conversation history if available
         if conversation_history:
             # Parse conversation history and add to messages
@@ -1333,9 +1368,18 @@ class ReactAgentNode(ProcessorNode):
                     elif line.startswith('Assistant:'):
                         # Skip assistant messages as they'll be regenerated
                         pass
-        
-        # Add current user input
-        messages.append(HumanMessage(content=user_input))
+
+        # Check if user_prompt_template is being used
+        user_prompt_template = self.user_data.get("user_prompt_template", "").strip()
+
+        # If user_prompt_template is defined, user input is handled by the ChatPromptTemplate
+        # Don't add separate user message to avoid duplication
+        if not user_prompt_template:
+            # No user prompt template, add user input as regular message (backward compatibility)
+            messages.append(HumanMessage(content=user_input))
+
+        # If user_prompt_template exists, the user input will be injected into the prompt template
+        # and sent as part of the system message, not as a separate user message
 
         return {
             "messages": messages
@@ -1431,6 +1475,7 @@ class ReactAgentNode(ProcessorNode):
             if 'messages' in result and result['messages']:
                 last_ai_message = result['messages'][-1]
                 output_content = last_ai_message.content if hasattr(last_ai_message, 'content') else str(last_ai_message)
+                print(f"[AGENT OUTPUT] {output_content}")
                 # Debug: Check memory after execution and save to database
                 if memory:
                     try:
@@ -1445,7 +1490,9 @@ class ReactAgentNode(ProcessorNode):
 
                 return {"output": output_content}
             else:
-                return {"output": str(result)}
+                fallback_output = str(result)
+                print(f"[AGENT OUTPUT] {fallback_output}")
+                return {"output": fallback_output}
 
         except UnicodeEncodeError as unicode_error:
             print(f"[ERROR] Unicode encoding error: {unicode_error}")
@@ -1494,12 +1541,34 @@ class ReactAgentNode(ProcessorNode):
         """
         return self._create_language_specific_prompt(tools, 'en')  # Default to English
 
-    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str) -> ChatPromptTemplate:
+    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str, user_input: str = "", user_inputs: Dict[str, Any] = None) -> ChatPromptTemplate:
         """
         Creates a language-specific ChatPromptTemplate compatible with the new API.
         Uses custom prompt_instructions if provided, otherwise falls back to smart orchestration.
+        Now supports user prompt templating within system prompt.
         """
-        custom_instructions = self.user_data.get("system_prompt", "").strip()
+        # Get system_prompt from user_inputs (which has been templated) instead of self.user_data
+        custom_instructions = ""
+        if user_inputs and isinstance(user_inputs, dict):
+            custom_instructions = user_inputs.get("system_prompt", "").strip()
+        if not custom_instructions:
+            # Fallback to self.user_data if not in user_inputs
+            custom_instructions = self.user_data.get("system_prompt", "").strip()
+
+        # Get user_prompt_template from user_inputs (which has been templated) instead of self.user_data
+        user_prompt_template = ""
+        if user_inputs and isinstance(user_inputs, dict):
+            user_prompt_template = user_inputs.get("user_prompt_template", "").strip()
+        if not user_prompt_template:
+            # Fallback to self.user_data if not in user_inputs
+            user_prompt_template = self.user_data.get("user_prompt_template", "").strip()
+
+        # If user_prompt_template is provided, integrate it into system prompt
+        # Note: user_prompt_template has already been templated by node_executor.py
+        if user_prompt_template:
+            print(f"[TEMPLATE] Using templated user prompt: '{user_prompt_template[:50]}...'")
+            # Add templated user prompt to system instructions
+            custom_instructions += f"\n\nUser Input: {user_prompt_template}"
 
         # Get language-specific system context
         language_specific_context = get_language_specific_prompt(language_code)
