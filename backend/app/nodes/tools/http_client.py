@@ -108,7 +108,7 @@ class HttpClientNode(ProcessorNode):
             # Core inputs
             "inputs": [
                 NodeInput(name="method", type="select", description="HTTP method", default="GET", required=True),
-                NodeInput(name="url", type="text", description="Target URL (supports templating)", required=True),
+                NodeInput(name="url", type="text", description="Target URL (supports templating)", required=True, is_connection=True, direction=NodePosition.LEFT),
                 NodeInput(name="headers", type="json", description="Request headers", default="{}"),
                 NodeInput(name="params", type="json", description="URL parameters", default="{}"),
                 NodeInput(name="body", type="textarea", description="Request body (supports templating)"),
@@ -120,7 +120,8 @@ class HttpClientNode(ProcessorNode):
 
             # Core outputs
             "outputs": [
-                NodeOutput(name="response", type="dict", description="Complete HTTP response"),
+                NodeOutput(name="response", type="dict", description="Complete HTTP response",
+                           is_connection=True, direction=NodePosition.RIGHT),
                 NodeOutput(name="status_code", type="number", description="HTTP status code"),
                 NodeOutput(name="content", type="any", description="Response content"),
                 NodeOutput(name="headers", type="dict", description="Response headers"),
@@ -365,6 +366,33 @@ class HttpClientNode(ProcessorNode):
         logger.info("🚀 Executing HTTP Request")
 
         try:
+            # Resolve URL (connection-first compatibility)
+            resolved_url = inputs.get("url")
+
+            if not resolved_url:
+                # Prefer connected_nodes for connection-based URL wiring
+                resolved_url = (
+                    connected_nodes.get("url")
+                    or connected_nodes.get("Target Url")
+                    or connected_nodes.get("Target URL")
+                    or connected_nodes.get("target_url")
+                )
+
+            if isinstance(resolved_url, dict):
+                # If a node passes a structured payload, try common keys
+                resolved_url = resolved_url.get("url") or resolved_url.get("value")
+
+            if not resolved_url:
+                # Final fallback: allow manually configured URL stored on the node instance
+                node_user_data = getattr(self, "user_data", {}) or {}
+                if isinstance(node_user_data, dict):
+                    resolved_url = node_user_data.get("url") or node_user_data.get("Target Url") or node_user_data.get("target_url")
+
+            if resolved_url and not inputs.get("url"):
+                # Avoid mutating upstream dicts
+                inputs = dict(inputs)
+                inputs["url"] = resolved_url
+
             # Get template context
             template_context = connected_nodes.get("template_context", {})
             if not isinstance(template_context, dict):
