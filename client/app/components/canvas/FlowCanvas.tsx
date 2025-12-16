@@ -1101,8 +1101,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           {/* Chat Toggle Button */}
           <button
             className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${chatOpen
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
-                : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
+              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
+              : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
               }`}
             onClick={() => setChatOpen((v) => !v)}
           >
@@ -1261,36 +1261,24 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                   // Extract actual output value if it's wrapped in execution data structure
                   let value: any;
                   if (sourceNodeOutput !== undefined) {
-                    if (
-                      sourceNodeOutput &&
-                      typeof sourceNodeOutput === "object" &&
-                      sourceNodeOutput.output !== undefined
-                    ) {
-                      value = sourceNodeOutput.output;
-                    } else if (
-                      sourceNodeOutput &&
-                      typeof sourceNodeOutput === "object" &&
-                      sourceNodeOutput.outputs !== undefined
-                    ) {
-                      value = sourceNodeOutput.outputs;
-                    } else {
-                      value = sourceNodeOutput;
-                    }
+                    // Check for wrapped output fields in order of priority
+                    const OUTPUT_FIELDS = ['output', 'outputs'];
+                    const isObject = sourceNodeOutput && typeof sourceNodeOutput === "object";
+                    const outputField = isObject
+                      ? OUTPUT_FIELDS.find(field => sourceNodeOutput[field] !== undefined)
+                      : null;
+
+                    value = outputField ? sourceNodeOutput[outputField] : sourceNodeOutput;
                   } else {
                     // Try to get default value from source node config
                     const sourceData = (sourceNode?.data as any) || {};
-                    if (sourceData.text_input !== undefined) {
-                      value = sourceData.text_input;
-                    } else if (sourceData.text !== undefined) {
-                      value = sourceData.text;
-                    } else if (sourceData.content !== undefined) {
-                      value = sourceData.content;
-                    } else if (sourceData.value !== undefined) {
-                      value = sourceData.value;
-                    } else if (sourceData.query !== undefined) {
-                      value = sourceData.query;
-                    } else if (sourceData.prompt !== undefined) {
-                      value = sourceData.prompt;
+
+                    // List of fallback fields to check in order of priority
+                    const FALLBACK_FIELDS = ['text_input', 'text', 'content', 'value', 'query', 'prompt'];
+                    const fallbackField = FALLBACK_FIELDS.find(field => sourceData[field] !== undefined);
+
+                    if (fallbackField) {
+                      value = sourceData[fallbackField];
                     } else {
                       // Placeholder for nodes that haven't executed yet and have no default value
                       value = {
