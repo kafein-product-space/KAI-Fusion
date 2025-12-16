@@ -1,6 +1,6 @@
 import { useFormikContext } from "formik";
 import CredentialSelector from "../../credentials/CredentialSelector";
-import { getUserCredentialSecret } from "~/services/userCredentialService";
+import { getUserCredentialById } from "~/services/userCredentialService";
 import type { NodeProperty } from "../types";
 
 interface NodeCredentialSelectProps {
@@ -12,9 +12,10 @@ interface NodeCredentialSelectProps {
 export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCredentialSelectProps) => {
   const handleCredentialChange = async (credentialId: string) => {
     setFieldValue("credential_id", credentialId);
+    setFieldValue("connection_string", credentialId);
     if (credentialId) {
       try {
-        const result = await getUserCredentialSecret(credentialId);
+        const result = await getUserCredentialById(credentialId);
 
         if ((result as any)?.secret?.api_key) {
           setFieldValue("tavily_api_key", (result as any).secret.api_key);

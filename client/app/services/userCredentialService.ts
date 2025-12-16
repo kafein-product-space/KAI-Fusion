@@ -22,7 +22,3 @@ export const updateUserCredential = async (id: string, data: Partial<CredentialC
 export const deleteUserCredential = async (id: string): Promise<{ message: string; deleted_id: string }> => {
   return await apiClient.delete<{ message: string; deleted_id: string }>(API_ENDPOINTS.CREDENTIALS.DELETE(id));
 };
-
-export const getUserCredentialSecret = async (id: string): Promise<UserCredential> => {
-  return await apiClient.get<UserCredential>(`/credentials/${id}/secret`);
-}; 

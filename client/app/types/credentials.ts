@@ -43,23 +43,12 @@ export interface ServiceField {
           validation: {
             minLength: 20,
             custom: (value: string) => {
-              if (!value.startsWith('sk-')) {
-                return 'API key must start with "sk-"';
-              }
               if (value.length < 20) {
                 return 'API key must be at least 20 characters long';
               }
               return undefined;
             }
           }
-        },
-        {
-          name: 'organization',
-          label: 'Organization ID (Optional)',
-          type: 'text',
-          required: false,
-          placeholder: 'org-...',
-          description: 'Your OpenAI organization ID if you have one'
         }
       ]
     },

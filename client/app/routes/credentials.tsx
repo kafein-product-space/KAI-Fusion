@@ -18,7 +18,7 @@ import type { CredentialCreateRequest, UserCredential } from "../types/api";
 import Loading from "~/components/Loading";
 import AuthGuard from "~/components/AuthGuard";
 import { apiClient } from "../lib/api-client";
-import { getUserCredentialSecret } from "~/services/userCredentialService";
+import { getUserCredentialById } from "~/services/userCredentialService";
 import ServiceSelectionModal from "../components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "../components/credentials/DynamicCredentialForm";
 import CredentialCard from "../components/credentials/CredentialCard";
@@ -118,7 +118,7 @@ function CredentialsLayout() {
       setSelectedService(serviceDef);
     }
     try {
-      const detail = await getUserCredentialSecret(credential.id);
+      const detail = await getUserCredentialById(credential.id);
       if ((detail as any)?.secret && typeof (detail as any).secret === "object") {
         setEditingInitialValues((detail as any).secret);
       } else {
@@ -156,16 +156,6 @@ function CredentialsLayout() {
       await removeCredential(id);
     } catch (e: any) {
       console.error("Failed to delete credential:", e);
-    }
-  };
-
-  const handleViewSecret = async (id: string): Promise<string> => {
-    try {
-      const response = await apiClient.get(`/credentials/${id}/secret`);
-      return JSON.stringify(response.secret || {});
-    } catch (error) {
-      console.error("Failed to fetch secret:", error);
-      return "";
     }
   };
 
@@ -300,7 +290,6 @@ function CredentialsLayout() {
                     credential={credential}
                     onEdit={handleEditCredential}
                     onDelete={handleDeleteCredential}
-                    onViewSecret={handleViewSecret}
                   />
                 ))}
               </div>
@@ -412,7 +401,7 @@ function CredentialsLayout() {
                 }}
                 initialValues={
                   editingCredential
-                    ? { name: editingCredential.name, ...editingInitialValues }
+                    ? { ...editingCredential, ...editingInitialValues }
                     : { name: `${selectedService.name} Credential` }
                 }
                 isSubmitting={isSubmitting}
