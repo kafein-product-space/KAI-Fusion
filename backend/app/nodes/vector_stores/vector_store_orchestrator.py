@@ -250,14 +250,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     required=True,
                 ),
                 NodeProperty(
-                    name="table_name",
-                    displayName="Table Name",
-                    type=NodePropertyType.TEXT,
-                    hint="Vector table name",
-                    tabName="data",
-                    required=True,
-                ),
-                NodeProperty(
                     name="table_prefix",
                     displayName="Table Prefix (Optional)",
                     type=NodePropertyType.TEXT,
