@@ -66,6 +66,22 @@ class NodeExecutor:
             node_id: ID of the node
         """
         try:
+            # Setup User Context (User ID & Credentials)
+            if hasattr(state, 'user_id') and state.user_id:
+                gnode.node_instance.user_id = state.user_id
+                
+                # Fetch and inject credentials
+                try:
+                    from app.core.credential_provider import credential_provider
+                    # Convert string user_id to UUID if necessary
+                    user_uuid = uuid.UUID(state.user_id) if isinstance(state.user_id, str) else state.user_id
+                    
+                    credentials = credential_provider.get_credentials_sync(user_uuid)
+                    gnode.node_instance.credentials = credentials
+                    logger.debug(f"Injected {len(credentials)} credentials for user {state.user_id} into node {node_id}")
+                except Exception as e:
+                    logger.warning(f"Failed to inject credentials for node {node_id}: {e}")
+
             # Setup session for ReAct Agents and Tool Agents
             if gnode.type in PROCESSOR_NODE_TYPES and hasattr(gnode.node_instance, 'session_id'):
                 session_id = state.session_id or f"session_{node_id}"

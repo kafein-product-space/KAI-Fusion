@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Pencil, Trash, Eye, EyeOff, Copy, Check } from "lucide-react";
+import { Pencil, Trash } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
 import { getServiceDefinition } from "~/types/credentials";
 import type { UserCredential } from "~/types/api";
@@ -8,115 +8,16 @@ interface CredentialCardProps {
   credential: UserCredential;
   onEdit: (credential: UserCredential) => void;
   onDelete: (id: string) => void;
-  onViewSecret: (id: string) => Promise<string>;
 }
 
 const CredentialCard: React.FC<CredentialCardProps> = ({
   credential,
   onEdit,
   onDelete,
-  onViewSecret,
 }) => {
-  const [isSecretVisible, setIsSecretVisible] = useState(false);
-  const [secretValue, setSecretValue] = useState<string>("");
-  const [isLoadingSecret, setIsLoadingSecret] = useState(false);
-  const [copiedField, setCopiedField] = useState<string>("");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-
   const serviceDefinition = getServiceDefinition(credential.service_type);
   const [iconFailed, setIconFailed] = useState(false);
-
-  const handleViewSecret = async () => {
-    if (!isSecretVisible && !secretValue) {
-      setIsLoadingSecret(true);
-      try {
-        const secret = await onViewSecret(credential.id);
-        setSecretValue(secret);
-        setIsSecretVisible(true);
-      } catch (error) {
-        console.error("Failed to load secret:", error);
-      } finally {
-        setIsLoadingSecret(false);
-      }
-    } else {
-      setIsSecretVisible(!isSecretVisible);
-    }
-  };
-
-  const copyToClipboard = async (text: string, fieldName: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopiedField(fieldName);
-      setTimeout(() => setCopiedField(""), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-    }
-  };
-
-  const getSecretDisplayValue = () => {
-    if (!secretValue) return "";
-
-    try {
-      const secretData = JSON.parse(secretValue);
-      if (typeof secretData === "object") {
-        // Show first few characters of the first field
-        const firstField = Object.values(secretData)[0];
-        if (typeof firstField === "string") {
-          return firstField.length > 20
-            ? `${firstField.substring(0, 20)}...`
-            : firstField;
-        }
-      }
-      return secretValue.length > 20
-        ? `${secretValue.substring(0, 20)}...`
-        : secretValue;
-    } catch {
-      return secretValue.length > 20
-        ? `${secretValue.substring(0, 20)}...`
-        : secretValue;
-    }
-  };
-
-  const renderSecretFields = () => {
-    if (!secretValue) return null;
-
-    try {
-      const secretData = JSON.parse(secretValue);
-      if (typeof secretData === "object") {
-        return Object.entries(secretData).map(([key, value]) => (
-          <div
-            key={key}
-            className="flex items-center justify-between py-2 border-b border-gray-100 last:border-b-0"
-          >
-            <span className="text-sm font-medium text-gray-700 capitalize">
-              {key.replace(/_/g, " ")}:
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-900 font-mono">
-                {typeof value === "string" && value.length > 30
-                  ? `${value.substring(0, 30)}...`
-                  : String(value)}
-              </span>
-              <button
-                onClick={() => copyToClipboard(String(value), key)}
-                className="p-1 text-gray-400 hover:text-blue-600 transition-colors"
-                title="Copy to clipboard"
-              >
-                {copiedField === key ? (
-                  <Check className="w-4 h-4 text-green-500" />
-                ) : (
-                  <Copy className="w-4 h-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        ));
-      }
-      return null;
-    } catch {
-      return null;
-    }
-  };
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
@@ -161,42 +62,6 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
               : serviceDefinition?.category || credential.service_type}
           </span>
         </div>
-      </div>
-
-      {/* Secret Section */}
-      <div className="mb-3">
-        <div className="flex items-center justify-between mb-1.5">
-          <span className="text-xs font-medium text-gray-700">Credentials</span>
-          <button
-            onClick={handleViewSecret}
-            disabled={isLoadingSecret}
-            className="flex items-center gap-1 text-xs text-blue-600 hover:text-blue-700 disabled:opacity-50"
-          >
-            {isLoadingSecret ? (
-              <div className="w-4 h-4 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
-            ) : isSecretVisible ? (
-              <>
-                <EyeOff className="w-4 h-4" />
-                Hide
-              </>
-            ) : (
-              <>
-                <Eye className="w-4 h-4" />
-                View
-              </>
-            )}
-          </button>
-        </div>
-
-        {isSecretVisible && (
-          <div className="bg-gray-50 rounded-md p-2.5">
-            {renderSecretFields() || (
-              <div className="text-xs text-gray-600">
-                {getSecretDisplayValue()}
-              </div>
-            )}
-          </div>
-        )}
       </div>
 
       {/* Metadata */}

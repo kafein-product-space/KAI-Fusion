@@ -121,17 +121,6 @@ class RetrieverProvider(ProviderNode):
             "documentation_url": None,
             "examples": [],
             "inputs": [
-                # Database Configuration (gönderdiğiniz JSON'dan)
-                NodeInput(
-                    name="database_connection",
-                    type="str",
-                    description="Database connection string (postgresql://user:pass@host:port/db)",
-                    required=True,
-                    is_connection=False,
-                    default=None,
-                    ui_config=None,
-                    validation_rules=None
-                ),
                 NodeInput(
                     name="collection_name",
                     type="str",
@@ -246,18 +235,11 @@ class RetrieverProvider(ProviderNode):
             ],
             "properties": [
                 NodeProperty(
-                    name="credential",
+                    name="credential_id",
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False
-                ),
-                NodeProperty(
-                    name="database_connection",
-                    displayName="Database Connection",
-                    type=NodePropertyType.PASSWORD,
-                    description="PostgreSQL connection string",
-                    required=True
                 ),
                 NodeProperty(
                     name="collection_name",
@@ -343,13 +325,12 @@ class RetrieverProvider(ProviderNode):
         """
         Create retriever tool from existing vector database.
 
-        Gönderdiğiniz JSON konfigürasyonunu kullanarak retriever tool oluşturur.
+        Follows the VectorStoreOrchestrator credential pattern.
         """
         logger.info("🔍 Creating Retriever Tool from existing vector database")
 
         try:
-            # Gönderdiğiniz JSON'daki field'ları extract et
-            database_connection = inputs.get("database_connection")
+            # Extract configuration from inputs
             collection_name = inputs.get("collection_name")
             search_k = inputs.get("search_k", 6)
             search_type = inputs.get("search_type", "similarity")
@@ -360,9 +341,32 @@ class RetrieverProvider(ProviderNode):
             embedder = inputs.get("embedder")
             reranker = inputs.get("reranker")  # Optional
 
+            # Get credential_id and extract credential data (like VectorStoreOrchestrator)
+            credential_id = self.user_data.get("credential_id")
+            credential = self.get_credential(credential_id) if credential_id else None
+            
+            # Extract database connection from credential (with null safety)
+            database_connection = None
+            if credential and credential.get('secret'):
+                secret = credential['secret']
+                
+                # Extract connection components
+                host = secret.get('host', 'localhost')
+                port = secret.get('port', 5432)
+                database = secret.get('database')
+                username = secret.get('username')
+                password = secret.get('password')
+                
+                if database and username and password:
+                    # Build connection string
+                    database_connection = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+                    logger.info(f"✅ Connected to vector database: {host}:{port}/{database}")
+                else:
+                    logger.warning("❌ Missing required database credentials (database, username, or password)")
+
             # Validation
             if not database_connection:
-                raise ValueError("Database connection string is required")
+                raise ValueError("Database connection is required. Please provide database credentials.")
             if not collection_name:
                 raise ValueError("Collection name is required")
             if not embedder:
