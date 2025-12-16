@@ -121,17 +121,6 @@ class RetrieverProvider(ProviderNode):
             "documentation_url": None,
             "examples": [],
             "inputs": [
-                # Database Configuration (gönderdiğiniz JSON'dan)
-                NodeInput(
-                    name="database_connection",
-                    type="str",
-                    description="Database connection string (postgresql://user:pass@host:port/db)",
-                    required=True,
-                    is_connection=False,
-                    default=None,
-                    ui_config=None,
-                    validation_rules=None
-                ),
                 NodeInput(
                     name="collection_name",
                     type="str",
@@ -251,13 +240,6 @@ class RetrieverProvider(ProviderNode):
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False
-                ),
-                NodeProperty(
-                    name="database_connection",
-                    displayName="Database Connection",
-                    type=NodePropertyType.PASSWORD,
-                    description="PostgreSQL connection string",
-                    required=True
                 ),
                 NodeProperty(
                     name="collection_name",
