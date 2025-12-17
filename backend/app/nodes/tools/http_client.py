@@ -1,365 +1,19 @@
 """
-KAI-Fusion HTTP Request Integration - Enterprise API Gateway & External Service Connector
-========================================================================================
+Compact HTTP Client Node - Streamlined HTTP Request Handler
+==========================================================
 
-This module implements sophisticated HTTP request capabilities for the KAI-Fusion platform,
-providing enterprise-grade outbound API integration with comprehensive authentication,
-intelligent retry mechanisms, and advanced templating. Built for seamless integration
-with external services while maintaining security, performance, and observability.
+A compact, efficient HTTP client node that provides essential HTTP request
+capabilities while maintaining performance and usability. Designed for
+both simple API calls and advanced HTTP operations.
 
-ARCHITECTURAL OVERVIEW:
-======================
-
-The HTTP Request system serves as the external connectivity backbone of KAI-Fusion,
-enabling secure, reliable, and intelligent communication with third-party APIs, 
-microservices, and external data sources through sophisticated request management
-and response processing capabilities.
-
-┌─────────────────────────────────────────────────────────────────┐
-│                  HTTP Request Architecture                      │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  Request Config → [Template Engine] → [Authentication]         │
-│       ↓               ↓                      ↓                 │
-│  [Validation] → [Request Builder] → [HTTP Client]              │
-│       ↓               ↓                      ↓                 │
-│  [Retry Logic] → [Response Processing] → [Result Formatting]   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-KEY INNOVATIONS:
-===============
-
-1. **Intelligent Request Management**:
-   - Advanced Jinja2 templating for dynamic request construction
-   - Multi-format content type support (JSON, form data, XML, text)
-   - Context-aware parameter substitution and data transformation
-   - Smart URL construction with validation and normalization
-
-2. **Enterprise Authentication**:
-   - Multiple authentication strategies (Bearer, Basic, API Key, Custom)
-   - Secure credential management with encrypted storage
-   - Token rotation and expiration handling
-   - Multi-tenant authentication isolation
-
-3. **Production Reliability**:
-   - Intelligent retry mechanisms with exponential backoff
-   - Circuit breaker patterns for service protection
-   - Comprehensive error handling with graceful degradation
-   - Request/response logging and performance monitoring
-
-4. **Advanced Configuration**:
-   - Flexible timeout and connection management
-   - SSL certificate validation with custom CA support
-   - Redirect handling with security controls
-   - Custom header injection and manipulation
-
-5. **Performance Optimization**:
-   - Asynchronous request processing for high throughput
-   - Connection pooling and keep-alive optimization
-   - Response caching for repeated requests
-   - Bandwidth-aware content compression
-
-HTTP CAPABILITIES MATRIX:
-========================
-
-┌─────────────────┬─────────────┬─────────────┬──────────────────┐
-│ Feature         │ Standard    │ Advanced    │ Enterprise       │
-├─────────────────┼─────────────┼─────────────┼──────────────────┤
-│ HTTP Methods    │ All Major   │ All Major   │ All + Custom     │
-│ Authentication  │ Basic/Token │ Multi-Type  │ Enterprise SSO   │
-│ Templating      │ Simple      │ Advanced    │ Dynamic Context  │
-│ Retry Logic     │ Basic       │ Intelligent │ Circuit Breaker  │
-│ Monitoring      │ Logs        │ Metrics     │ Full Telemetry   │
-└─────────────────┴─────────────┴─────────────┴──────────────────┘
-
-TECHNICAL SPECIFICATIONS:
-========================
-
-Request Characteristics:
-- Supported Methods: GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
-- Content Types: JSON, Form Data, Multipart, XML, Plain Text
-- Authentication: Bearer Token, Basic Auth, API Key, Custom Headers
-- Template Engine: Jinja2 with security enhancements
-- Timeout Range: 1-300 seconds with intelligent defaults
-
-Performance Metrics:
-- Connection Setup: < 100ms for typical endpoints
-- Request Processing: < 50ms overhead per request
-- Template Rendering: < 10ms for complex templates
-- Retry Handling: Exponential backoff with jitter
-- Memory Usage: < 5MB per concurrent request
-
-Advanced Features:
-- SSL/TLS validation with custom certificates
-- HTTP/2 support with automatic fallback
-- Request/response compression (gzip, deflate)
-- Cookie handling and session management
-- Custom DNS resolution and proxy support
-
-SECURITY ARCHITECTURE:
-=====================
-
-1. **Input Validation**:
-   - URL validation and sanitization
-   - Header injection prevention
-   - Body content validation and encoding
-   - Parameter type validation and conversion
-
-2. **Authentication Security**:
-   - Secure credential storage with encryption
-   - Token validation and expiration handling
-   - Multi-factor authentication support
-   - Audit logging for authentication events
-
-3. **Network Security**:
-   - SSL/TLS certificate validation
-   - Custom CA certificate support
-   - Request timeout and rate limiting
-   - Network error handling and recovery
-
-4. **Data Protection**:
-   - Request/response encryption in transit
-   - Sensitive data masking in logs
-   - Compliance with data protection regulations
-   - Secure credential transmission
-
-AUTHENTICATION STRATEGIES:
-=========================
-
-1. **Bearer Token Authentication**:
-   - JWT token support with validation
-   - OAuth 2.0 integration patterns
-   - Token refresh and rotation handling
-   - Scope-based access control
-
-2. **Basic Authentication**:
-   - Username/password credential management
-   - Base64 encoding with security enhancements
-   - Credential validation and error handling
-   - Multi-realm authentication support
-
-3. **API Key Authentication**:
-   - Custom header-based key transmission
-   - Query parameter key support
-   - Key rotation and management
-   - Multi-key authentication strategies
-
-4. **Custom Authentication**:
-   - Flexible header manipulation
-   - Custom signature generation
-   - Multi-step authentication flows
-   - Integration with enterprise identity systems
-
-TEMPLATING ENGINE:
-=================
-
-Advanced Jinja2 Integration:
-
-1. **Dynamic URL Construction**:
-   ```jinja2
-   https://api.example.com/v1/users/{{ user_id }}/posts/{{ post_id }}
-   ```
-
-2. **Context-Aware Body Generation**:
-   ```jinja2
-   {
-     "user": "{{ user_name }}",
-     "timestamp": "{{ timestamp }}",
-     "data": {{ data | tojson }}
-   }
-   ```
-
-3. **Header Customization**:
-   ```jinja2
-   X-Request-ID: {{ request_id }}
-   X-User-Context: {{ user_context | b64encode }}
-   ```
-
-4. **Parameter Substitution**:
-   ```jinja2
-   ?filter={{ filters | join(',') }}&limit={{ page_size }}
-   ```
-
-RETRY AND RELIABILITY:
-=====================
-
-Intelligent Retry Strategies:
-
-1. **Exponential Backoff**:
-   - Initial delay: 1 second
-   - Maximum delay: 60 seconds
-   - Backoff multiplier: 2.0 with jitter
-   - Maximum retries: 3 (configurable)
-
-2. **Error Classification**:
-   - Retriable: Network errors, 5xx status codes, timeouts
-   - Non-retriable: 4xx client errors, authentication failures
-   - Custom: User-defined retry conditions
-
-3. **Circuit Breaker Pattern**:
-   - Failure threshold monitoring
-   - Automatic circuit opening/closing
-   - Health check integration
-   - Graceful degradation strategies
-
-MONITORING AND OBSERVABILITY:
-============================
-
-Comprehensive Request Intelligence:
-
-1. **Performance Metrics**:
-   - Request/response latency tracking
-   - Connection establishment time
-   - DNS resolution performance
-   - Bandwidth utilization monitoring
-
-2. **Error Analytics**:
-   - Error rate tracking by endpoint
-   - Failure pattern analysis and alerts
-   - Retry effectiveness measurement
-   - Root cause analysis capabilities
-
-3. **Business Metrics**:
-   - API usage patterns and trends
-   - Cost analysis for external service calls
-   - SLA compliance monitoring
-   - Performance impact on workflows
-
-4. **Security Monitoring**:
-   - Authentication failure tracking
-   - Suspicious request pattern detection
-   - SSL/TLS certificate monitoring
-   - Compliance audit trail generation
-
-INTEGRATION PATTERNS:
-====================
-
-Basic HTTP Request:
-```python
-# Simple GET request
-http_node = HttpRequestNode()
-response = http_node.execute(
-    inputs={
-        "method": "GET",
-        "url": "https://api.example.com/users",
-        "headers": {"Accept": "application/json"}
-    },
-    connected_nodes={}
-)
-```
-
-Advanced API Integration:
-```python
-# Complex POST with authentication and templating
-http_node = HttpRequestNode()
-response = http_node.execute(
-    inputs={
-        "method": "POST",
-        "url": "https://api.example.com/v1/users/{{ user_id }}/posts",
-        "body": json.dumps({
-            "title": "{{ post.title }}",
-            "content": "{{ post.content }}",
-            "tags": "{{ post.tags | join(',') }}"
-        }),
-        "content_type": "json",
-        "auth_type": "bearer",
-        "auth_token": "{{ api_token }}",
-        "timeout": 30,
-        "max_retries": 3
-    },
-    connected_nodes={
-        "template_context": {
-            "user_id": 12345,
-            "post": {"title": "Hello", "content": "World", "tags": ["test"]},
-            "api_token": "secret_token"
-        }
-    }
-)
-```
-
-Workflow Integration:
-```python
-# Integration with ReactAgent
-agent = ReactAgentNode()
-result = agent.execute(
-    inputs={"input": "Get user profile and update preferences"},
-    connected_nodes={
-        "llm": llm,
-        "tools": [
-            http_node.as_runnable().with_config({
-                "run_name": "UserAPI",
-                "tags": ["api", "user-management"]
-            })
-        ]
-    }
-)
-```
-
-ERROR HANDLING STRATEGY:
-=======================
-
-Multi-layered Error Management:
-
-1. **Network Errors**:
-   - Connection timeouts with intelligent retry
-   - DNS resolution failures with fallback
-   - SSL handshake errors with certificate validation
-   - Network unreachable with circuit breaker
-
-2. **HTTP Errors**:
-   - 4xx client errors with detailed diagnostics
-   - 5xx server errors with retry logic
-   - Rate limiting with backoff strategies
-   - Authentication failures with token refresh
-
-3. **Configuration Errors**:
-   - Invalid URL format validation
-   - Malformed JSON body detection
-   - Authentication parameter validation
-   - Template rendering error handling
-
-4. **Application Errors**:
-   - Response parsing failures
-   - Content type mismatches
-   - Encoding/decoding errors
-   - Business logic validation failures
-
-COMPLIANCE AND GOVERNANCE:
-=========================
-
-Enterprise-Grade Compliance:
-
-1. **Data Privacy**:
-   - GDPR compliance with data minimization
-   - Request/response data encryption
-   - Sensitive data masking in logs
-   - Cross-border data transfer controls
-
-2. **Security Standards**:
-   - SOC 2 Type II compliance features
-   - ISO 27001 security controls
-   - OWASP security guidelines implementation
-   - Regular security vulnerability assessments
-
-3. **Audit and Logging**:
-   - Comprehensive request/response logging
-   - Authentication event tracking
-   - Error and exception audit trails
-   - Compliance reporting capabilities
-
-AUTHORS: KAI-Fusion Integration Architecture Team
-VERSION: 2.1.0
-LAST_UPDATED: 2025-07-26
-LICENSE: Proprietary - KAI-Fusion Platform
-
-──────────────────────────────────────────────────────────────
-IMPLEMENTATION DETAILS:
-• Input: HTTP configuration + template context
-• Process: Request building, authentication, execution, retry logic
-• Output: Structured response with metrics and error handling
-• Features: Full HTTP method support, templating, monitoring
-──────────────────────────────────────────────────────────────
+Features:
+- All HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS)
+- Multiple authentication methods (Bearer, Basic, API Key)
+- Template support with Jinja2
+- Retry logic with configurable backoff
+- SSL verification and certificate support
+- Response validation and error handling
+- Document output for downstream processing
 """
 
 from __future__ import annotations
@@ -369,1009 +23,317 @@ import json
 import logging
 import os
 import time
-from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, Union
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional, Union
 from urllib.parse import urljoin, urlparse
 import uuid
 
 import httpx
-from jinja2 import Template, Environment, select_autoescape
-from pydantic import BaseModel, Field, ValidationError
-
+from jinja2 import Environment, select_autoescape
+from langchain_core.documents import Document
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
-from langchain_core.runnables.utils import Input, Output
 
 from app.nodes.base import NodeProperty, ProcessorNode, NodeInput, NodeOutput, NodeType, NodePosition, NodePropertyType
-from app.models.node import NodeCategory
 
 logger = logging.getLogger(__name__)
 
-# HTTP methods supported
+# HTTP constants
 HTTP_METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
-
-# Common content types
 CONTENT_TYPES = {
     "json": "application/json",
-    "form": "application/x-www-form-urlencoded", 
+    "form": "application/x-www-form-urlencoded",
     "multipart": "multipart/form-data",
     "text": "text/plain",
     "xml": "application/xml",
 }
-
-# Authentication types
 AUTH_TYPES = ["none", "bearer", "basic", "api_key"]
 
-class HttpRequestConfig(BaseModel):
-    """HTTP request configuration model."""
-    method: str = Field(default="GET", description="HTTP method")
-    url: str = Field(description="Target URL")
-    headers: Dict[str, str] = Field(default_factory=dict, description="Request headers")
-    params: Dict[str, Any] = Field(default_factory=dict, description="URL parameters")
-    body: Optional[str] = Field(default=None, description="Request body")
-    content_type: str = Field(default="json", description="Content type")
-    auth_type: str = Field(default="none", description="Authentication type")
-    auth_token: Optional[str] = Field(default=None, description="Authentication token")
-    auth_username: Optional[str] = Field(default=None, description="Basic auth username")
-    auth_password: Optional[str] = Field(default=None, description="Basic auth password")
-    timeout: int = Field(default=30, description="Request timeout in seconds")
-    follow_redirects: bool = Field(default=True, description="Follow HTTP redirects")
-    verify_ssl: bool = Field(default=True, description="Verify SSL certificates")
 
-class HttpResponse(BaseModel):
-    """HTTP response model."""
-    status_code: int
-    headers: Dict[str, str]
-    content: Union[Dict[str, Any], str, None]
-    is_json: bool
-    url: str
-    method: str
-    duration_ms: float
-    request_id: str
-    timestamp: str
+class HttpRequestConfig:
+    """Simplified HTTP request configuration."""
+
+    def __init__(self, **kwargs):
+        self.method = kwargs.get("method", "GET").upper()
+        self.url = kwargs.get("url", "")
+        self.headers = kwargs.get("headers", {})
+        self.params = kwargs.get("params", {})
+        self.body = kwargs.get("body")
+        self.content_type = kwargs.get("content_type", "json")
+        self.auth_type = kwargs.get("auth_type", "none")
+        self.auth_token = kwargs.get("auth_token")
+        self.auth_username = kwargs.get("auth_username")
+        self.auth_password = kwargs.get("auth_password")
+        self.timeout = int(kwargs.get("timeout", 30) or 30)
+        self.verify_ssl = kwargs.get("verify_ssl", True)
+        self.max_retries = int(kwargs.get("max_retries", 3) or 3)
+        self.retry_delay = float(kwargs.get("retry_delay", 1) or 1)
+
+
+class HttpResponse:
+    """HTTP response model with essential data."""
+
+    def __init__(self, status_code: int, headers: Dict[str, str], content: Union[Dict[str, Any], str, None],
+                 is_json: bool, url: str, method: str, duration_ms: float, request_id: str):
+        self.status_code = status_code
+        self.headers = headers
+        self.content = content
+        self.is_json = is_json
+        self.url = url
+        self.method = method
+        self.duration_ms = duration_ms
+        self.request_id = request_id
+        self.timestamp = datetime.now(timezone.utc).isoformat()
+
 
 class HttpClientNode(ProcessorNode):
-    """
-    Enterprise-Grade HTTP Request Processor for External API Integration
-    ================================================================
-    
-    The HttpRequestNode represents the sophisticated external connectivity engine
-    of the KAI-Fusion platform, providing enterprise-grade HTTP request capabilities
-    with advanced authentication, intelligent retry mechanisms, comprehensive
-    templating, and production-ready error handling.
-    
-    This node transforms simple HTTP requests into intelligent, secure, and
-    reliable API integrations that seamlessly connect KAI-Fusion workflows
-    with external services, microservices, and third-party APIs.
-    
-    CORE PHILOSOPHY:
-    ===============
-    
-    "Intelligent Connectivity for Seamless Integration"
-    
-    - **Security First**: Every request is secured with enterprise-grade authentication
-    - **Reliability Built-in**: Intelligent retry logic and circuit breaker patterns
-    - **Developer Friendly**: Intuitive configuration with powerful templating
-    - **Production Ready**: Comprehensive monitoring and error handling
-    - **Performance Optimized**: Asynchronous processing with connection pooling
-    
-    ADVANCED CAPABILITIES:
-    =====================
-    
-    1. **Intelligent Request Building**:
-       - Dynamic URL construction with Jinja2 templating
-       - Multi-format body generation (JSON, form data, XML, text)
-       - Context-aware parameter substitution and validation
-       - Smart header management with security enhancements
-    
-    2. **Enterprise Authentication Engine**:
-       - Bearer token authentication with JWT support
-       - Basic authentication with secure credential handling
-       - API key authentication with custom header support
-       - Custom authentication flows for enterprise systems
-    
-    3. **Production Reliability Features**:
-       - Intelligent retry logic with exponential backoff
-       - Circuit breaker patterns for service protection
-       - Comprehensive error classification and handling
-       - Request/response logging with performance metrics
-    
-    4. **Advanced Configuration Management**:
-       - Flexible timeout and connection settings
-       - SSL/TLS certificate validation with custom CA support
-       - HTTP redirect handling with security controls
-       - Custom DNS resolution and proxy configuration
-    
-    5. **Performance Engineering**:
-       - Asynchronous request processing for high throughput
-       - Connection pooling and keep-alive optimization
-       - Response caching for frequently accessed endpoints
-       - Bandwidth-aware content compression and optimization
-    
-    TECHNICAL ARCHITECTURE:
-    ======================
-    
-    The HttpRequestNode implements sophisticated request processing patterns:
-    
-    ┌─────────────────────────────────────────────────────────────┐
-    │              HTTP Request Processing Engine                 │
-    ├─────────────────────────────────────────────────────────────┤
-    │                                                             │
-    │ Configuration → [Template Processor] → [Auth Manager]      │
-    │       ↓              ↓                      ↓              │
-    │ [URL Builder] → [Body Processor] → [Header Builder]        │
-    │       ↓              ↓                      ↓              │
-    │ [HTTP Client] → [Response Handler] → [Result Formatter]    │
-    │                                                             │
-    └─────────────────────────────────────────────────────────────┘
-    
-    REQUEST PROCESSING PIPELINE:
-    ===========================
-    
-    1. **Configuration Validation**:
-       - Input parameter validation and normalization
-       - Security checks for URLs and headers
-       - Authentication credential validation
-       - Template context preparation
-    
-    2. **Template Processing**:
-       - Jinja2 template rendering with security enhancements
-       - Dynamic URL construction with parameter injection
-       - Context-aware body generation and formatting
-       - Header customization with variable substitution
-    
-    3. **Authentication Handling**:
-       - Multi-strategy authentication implementation
-       - Secure credential management and transmission
-       - Token validation and expiration handling
-       - Custom authentication flow execution
-    
-    4. **Request Execution**:
-       - Asynchronous HTTP client initialization
-       - Connection pooling and keep-alive management
-       - Request transmission with performance monitoring
-       - Response processing and content parsing
-    
-    5. **Error Handling and Retry**:
-       - Intelligent error classification and analysis
-       - Retry logic with exponential backoff and jitter
-       - Circuit breaker implementation for service protection
-       - Graceful degradation and fallback strategies
-    
-    IMPLEMENTATION DETAILS:
-    ======================
-    
-    HTTP Client Configuration:
-    - AsyncClient with httpx for high-performance requests
-    - Connection pooling with configurable limits
-    - Timeout management with per-request customization
-    - SSL/TLS configuration with certificate validation
-    
-    Template Engine:
-    - Jinja2 with security enhancements and sandboxing
-    - Custom filters for common data transformations
-    - Context validation and sanitization
-    - Error handling with graceful fallbacks
-    
-    Authentication System:
-    - Multi-strategy authentication with secure storage
-    - Token refresh and rotation capabilities
-    - Audit logging for security compliance
-    - Integration with enterprise identity systems
-    
-    Performance Optimization:
-    - Asynchronous processing with coroutine scheduling
-    - Memory-efficient request/response handling
-    - Connection reuse and pooling strategies
-    - Response caching with intelligent invalidation
-    
-    INTEGRATION EXAMPLES:
-    ====================
-    
-    Basic API Request:
-    ```python
-    # Simple GET request with authentication
-    http_node = HttpRequestNode()
-    response = http_node.execute(
-        inputs={
-            "method": "GET",
-            "url": "https://api.example.com/v1/users",
-            "auth_type": "bearer",
-            "auth_token": "your-bearer-token",
-            "timeout": 30
-        },
-        connected_nodes={}
-    )
-    
-    # Access response data
-    if response["success"]:
-        users = response["content"]
-        print(f"Retrieved {len(users)} users")
-    ```
-    
-    Advanced Templated Request:
-    ```python
-    # Complex POST with dynamic content
-    http_node = HttpRequestNode()
-    response = http_node.execute(
-        inputs={
-            "method": "POST",
-            "url": "https://api.example.com/v1/users/{{ user_id }}/posts",
-            "body": '''
-            {
-                "title": "{{ post.title }}",
-                "content": "{{ post.content }}",
-                "tags": {{ post.tags | tojson }},
-                "timestamp": "{{ timestamp }}"
-            }
-            ''',
-            "content_type": "json",
-            "auth_type": "bearer",
-            "auth_token": "{{ api_credentials.token }}",
-            "headers": {"X-Request-ID": "{{ request_id }}"},
-            "timeout": 60,
-            "max_retries": 3,
-            "enable_templating": True
-        },
-        connected_nodes={
-            "template_context": {
-                "user_id": 12345,
-                "post": {
-                    "title": "New Article",
-                    "content": "Article content here...",
-                    "tags": ["tech", "ai", "automation"]
-                },
-                "api_credentials": {"token": "secure-bearer-token"},
-                "request_id": "req-001",
-                "timestamp": "2025-07-26T10:00:00Z"
-            }
-        }
-    )
-    ```
-    
-    Workflow Integration:
-    ```python
-    # Integration with ReactAgent for complex workflows
-    agent = ReactAgentNode()
-    result = agent.execute(
-        inputs={
-            "input": "Get user profile and update their preferences"
-        },
-        connected_nodes={
-            "llm": openai_llm,
-            "tools": [
-                http_node.as_runnable().with_config({
-                    "run_name": "UserProfileAPI",
-                    "tags": ["api", "user-management", "external"]
-                })
-            ]
-        }
-    )
-    ```
-    
-    MONITORING AND OBSERVABILITY:
-    ============================
-    
-    Comprehensive Request Intelligence:
-    
-    1. **Performance Monitoring**:
-       - Request/response latency tracking with percentiles
-       - Connection establishment time measurement
-       - DNS resolution performance analysis
-       - Bandwidth utilization and throughput monitoring
-    
-    2. **Error Analytics**:
-       - Error rate tracking by endpoint and status code
-       - Failure pattern analysis with root cause identification
-       - Retry effectiveness measurement and optimization
-       - Circuit breaker state transitions and recovery tracking
-    
-    3. **Security Monitoring**:
-       - Authentication failure tracking and analysis
-       - Suspicious request pattern detection and alerting
-       - SSL/TLS certificate monitoring and expiration alerts
-       - Compliance audit trail generation and reporting
-    
-    4. **Business Intelligence**:
-       - API usage patterns and cost analysis
-       - SLA compliance monitoring and reporting
-       - Performance impact on workflow execution
-       - Integration health and availability tracking
-    
-    VERSION HISTORY:
-    ===============
-    
-    v2.1.0 (Current):
-    - Enhanced template engine with advanced Jinja2 features
-    - Improved authentication with multi-strategy support
-    - Advanced retry logic with circuit breaker patterns
-    - Comprehensive monitoring and observability features
-    
-    v2.0.0:
-    - Complete rewrite with enterprise architecture
-    - Asynchronous processing with httpx integration
-    - Production-grade error handling and retry logic
-    - Advanced security and compliance features
-    
-    v1.x:
-    - Initial HTTP request implementation
-    - Basic authentication and error handling
-    - Simple retry logic and logging
-    
-    AUTHORS: KAI-Fusion Integration Architecture Team
-    MAINTAINER: External Connectivity Specialists
-    VERSION: 2.1.0
-    LAST_UPDATED: 2025-07-26
-    LICENSE: Proprietary - KAI-Fusion Platform
-    """
-    
+    """Compact HTTP Client Node with streamlined functionality."""
+
     def __init__(self):
         super().__init__()
-        
-        # Initialize Jinja2 environment for templating
         self.jinja_env = Environment(
             autoescape=select_autoescape(['html', 'xml']),
             trim_blocks=True,
             lstrip_blocks=True,
         )
-        
-        logger.info("HTTP Request Node initialized")
-        
+
         self._metadata = {
             "name": "HttpRequest",
             "display_name": "HTTP Client",
-            "description": (
-                "Send HTTP requests to external REST APIs. Supports all HTTP methods, "
-                "authentication, templating, and comprehensive response handling."
-            ),
+            "description": "Send HTTP requests with authentication, templating, and comprehensive response handling.",
             "category": "Tool",
             "node_type": NodeType.PROCESSOR,
             "icon": {"name": "globe", "path": None, "alt": None},
             "colors": ["blue-500", "purple-600"],
+
+            # Core inputs
             "inputs": [
-                # Basic request config
-                NodeInput(
-                    name="method",
-                    type="select",
-                    description="HTTP method to use",
-                    default="GET",
-                    required=True,
-                ),
-                NodeInput(
-                    name="url",
-                    displayName="Input URL",
-                    type="text",
-                    description="Target URL (supports Jinja2 templating)",
-                    required=True,
-                    is_connection=True,
-                ),
-                
-                # Headers and parameters
-                NodeInput(
-                    name="headers",
-                    type="json",
-                    description="Request headers as JSON object",
-                    default="{}",
-                    required=False,
-                ),
-                NodeInput(
-                    name="url_params",
-                    type="json",
-                    description="URL query parameters as JSON object",
-                    default="{}",
-                    required=False,
-                ),
-                
-                # Request body
-                NodeInput(
-                    name="body",
-                    type="textarea",
-                    description="Request body (supports Jinja2 templating)",
-                    required=False,
-                ),
-                NodeInput(
-                    name="content_type",
-                    type="select",
-                    description="Content type for request body",
-                    default="json",
-                    required=False,
-                ),
-                
-                # Authentication
-                NodeInput(
-                    name="auth_type",
-                    type="select",
-                    description="Authentication method",
-                    default="none",
-                    required=False,
-                ),
-                NodeInput(
-                    name="auth_token",
-                    type="password",
-                    description="Authentication token or API key",
-                    required=False,
-                ),
-                NodeInput(
-                    name="auth_username",
-                    type="text",
-                    description="Username for basic authentication",
-                    required=False,
-                ),
-                NodeInput(
-                    name="auth_password",
-                    type="password",
-                    description="Password for basic authentication",
-                    required=False,
-                ),
-                NodeInput(
-                    name="api_key_header",
-                    type="text",
-                    description="Header name for API key (e.g., 'X-API-Key')",
-                    default="X-API-Key",
-                    required=False,
-                ),
-                
-                # Advanced options
-                NodeInput(
-                    name="timeout",
-                    type="slider",
-                    description="Request timeout in seconds",
-                    required=False,
-                ),
-                NodeInput(
-                    name="max_retries",
-                    type="number",
-                    description="Maximum number of retry attempts",
-                    required=False,
-                ),
-                NodeInput(
-                    name="retry_delay",
-                    type="slider",
-                    description="Delay between retries in seconds",
-                    required=False,
-                ),
-                NodeInput(
-                    name="follow_redirects",
-                    type="boolean",
-                    description="Follow HTTP redirects automatically",
-                    default=True,
-                    required=False,
-                ),
-                NodeInput(
-                    name="verify_ssl",
-                    type="boolean",
-                    description="Verify SSL certificates",
-                    default=True,
-                    required=False,
-                ),
-                NodeInput(
-                    name="enable_templating",
-                    type="boolean",
-                    description="Enable Jinja2 templating for URL and body",
-                    default=True,
-                    required=False,
-                ),
-                
-                # Connected input for template context
-                NodeInput(
-                    name="template_context",
-                    type="dict",
-                    description="Context data for Jinja2 templating",
-                    is_connection=True,
-                    required=False,
-                ),
+                NodeInput(name="method", type="select", description="HTTP method", default="GET", required=True),
+                NodeInput(name="url", type="text", description="Target URL (supports templating)", required=True, is_connection=True, direction=NodePosition.LEFT),
+                NodeInput(name="headers", type="json", description="Request headers", default="{}"),
+                NodeInput(name="params", type="json", description="URL parameters", default="{}"),
+                NodeInput(name="body", type="textarea", description="Request body (supports templating)"),
+                NodeInput(name="auth_type", type="select", description="Authentication method", default="none"),
+                NodeInput(name="auth_token", type="password", description="Auth token/API key"),
+                NodeInput(name="timeout", type="number", description="Request timeout (seconds)", default=30),
+                NodeInput(name="template_context", type="dict", description="Context for templating"),
             ],
+
+            # Core outputs
             "outputs": [
-                NodeOutput(
-                    name="response",
-                    displayName="Response",
-                    type="dict",
-                    description="Complete HTTP response object",
-                    is_connection=True,
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="status_code",
-                    type="number",
-                    description="HTTP status code",
-                ),
-                NodeOutput(
-                    name="content",
-                    displayName="Content",
-                    type="any",
-                    description="Response content (JSON object or text)",
-                ),
-                NodeOutput(
-                    name="headers",
-                    type="dict",
-                    description="Response headers",
-                ),
-                NodeOutput(
-                    name="success",
-                    type="boolean",
-                    description="Whether request was successful (2xx status)",
-                ),
-                NodeOutput(
-                    name="request_stats",
-                    type="dict",
-                    description="Request performance statistics",
-                ),
-                NodeOutput(
-                    name="documents",
-                    displayName="Documents",
-                    type="list",
-                    description="Response content as Document objects for ChunkSplitter",
-                ),
-                NodeOutput(
-                    name="document",
-                    type="any",
-                    description="Single Document object for backward compatibility",
-                ),
+                NodeOutput(name="response", type="dict", description="Complete HTTP response",
+                           is_connection=True, direction=NodePosition.RIGHT),
+                NodeOutput(name="status_code", type="number", description="HTTP status code"),
+                NodeOutput(name="content", type="any", description="Response content"),
+                NodeOutput(name="headers", type="dict", description="Response headers"),
+                NodeOutput(name="success", type="boolean", description="Request success status"),
+                NodeOutput(name="documents", type="list", description="Response as Documents"),
             ],
+
+            # Compact property definitions
             "properties": [
-                # Basic Tab
-                NodeProperty(
-                    name="url",
-                    displayName="URL",
-                    type=NodePropertyType.TEXT,
-                    required=True,
-                    placeholder="https://api.example.com/endpoint",
-                    tabName="basic"
-                ),
-                NodeProperty(
-                    name="method",
-                    displayName="HTTP Method",
-                    type=NodePropertyType.SELECT,
-                    required=True,
-                    default="GET",
-                    options=[
-                        {"label": "GET - Retrieve data", "value": "GET"},
-                        {"label": "POST - Create new resource", "value": "POST"},
-                        {"label": "PUT - Update entire resource", "value": "PUT"},
-                        {"label": "PATCH - Partial update", "value": "PATCH"},
-                        {"label": "DELETE - Remove resource", "value": "DELETE"},
-                        {"label": "HEAD - Get headers only", "value": "HEAD"},
-                        {"label": "OPTIONS - Get allowed methods", "value": "OPTIONS"},
-                    ],
-                    tabName="basic"
-                ),
-                NodeProperty(
-                    name="content_type",
-                    displayName="Content Type",
-                    type=NodePropertyType.SELECT,
-                    default="application/json",
-                    options=[
+                # Basic Configuration
+                NodeProperty(name="url", displayName="URL", type=NodePropertyType.TEXT, required=True,
+                             placeholder="https://api.example.com/endpoint", tabName="basic"),
+                NodeProperty(name="method", displayName="HTTP Method", type=NodePropertyType.SELECT,
+                             default="GET", options=[
+                        {"label": "GET - Retrieve", "value": "GET"},
+                        {"label": "POST - Create", "value": "POST"},
+                        {"label": "PUT - Update", "value": "PUT"},
+                        {"label": "PATCH - Partial", "value": "PATCH"},
+                        {"label": "DELETE - Remove", "value": "DELETE"},
+                    ], tabName="basic"),
+                NodeProperty(name="content_type", displayName="Content Type", type=NodePropertyType.SELECT,
+                             default="application/json", options=[
                         {"label": "JSON", "value": "application/json"},
-                        {"label": "XML", "value": "application/xml"},
-                        {"label": "Plain Text", "value": "text/plain"},
                         {"label": "Form Data", "value": "application/x-www-form-urlencoded"},
-                        {"label": "Multipart", "value": "multipart/form-data"},
-                    ],
-                    tabName="basic"
-                ),
-                NodeProperty(
-                    name="timeout",
-                    displayName="Timeout (seconds)",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    max=300,
-                    tabName="basic"
-                ),
-                NodeProperty(
-                    name="retry_count",
-                    displayName="Retry Count",
-                    type=NodePropertyType.NUMBER,
-                    min=0,
-                    max=10,
-                    colSpan= 1,
-                    tabName="basic"
-                ),
-                NodeProperty(
-                    name="retry_delay",
-                    displayName="Retry Delay (ms)",
-                    type=NodePropertyType.NUMBER,
-                    min=100,
-                    max=10000,
-                    colSpan= 1,
-                    tabName="basic"
-                ),
+                        {"label": "Plain Text", "value": "text/plain"},
+                    ], tabName="basic"),
 
-                # Security Tab
-                NodeProperty(
-                    name="title",
-                    displayName="Authentication",
-                    type=NodePropertyType.TITLE,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="api_key_header",
-                    displayName="API Key Header",
-                    type=NodePropertyType.TEXT,
-                    placeholder="Authorization",
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="api_key_value",
-                    displayName="API Key Value",
-                    type=NodePropertyType.PASSWORD,
-                    placeholder="Bearer token or API key",
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="auth_username",
-                    displayName="Username",
-                    type=NodePropertyType.TEXT,
-                    colSpan= 1,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="auth_password",
-                    displayName="Password",
-                    type=NodePropertyType.PASSWORD,
-                    colSpan= 1,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="title",
-                    displayName="SSL Settings",
-                    type=NodePropertyType.TITLE,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="verify_ssl",
-                    displayName="Verify SSL Certificate",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="ssl_cert_path",
-                    displayName="SSL Certificate Path",
-                    type=NodePropertyType.TEXT,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="ssl_key_path",
-                    displayName="SSL Key Path",
-                    type=NodePropertyType.TEXT,
-                    tabName="security"
-                ),
-                NodeProperty(
-                    name="custom_headers",
-                    displayName="Custom Headers",
-                    type=NodePropertyType.TEXT_AREA,
-                    description="Key-value pairs of custom headers",
-                    placeholder='{"X-Custom-Header": "value"}',
-                    rows= 3,
-                    tabName="security"
-                ),
+                # Authentication
+                NodeProperty(name="auth_type", displayName="Authentication", type=NodePropertyType.SELECT,
+                             default="none", options=[
+                        {"label": "None", "value": "none"},
+                        {"label": "Bearer Token", "value": "bearer"},
+                        {"label": "Basic Auth", "value": "basic"},
+                        {"label": "API Key", "value": "api_key"},
+                    ], tabName="auth"),
+                NodeProperty(name="auth_token", displayName="Token/Key", type=NodePropertyType.PASSWORD,
+                             placeholder="Bearer token or API key", tabName="auth"),
+                NodeProperty(name="auth_username", displayName="Username", type=NodePropertyType.TEXT, tabName="auth"),
+                NodeProperty(name="auth_password", displayName="Password", type=NodePropertyType.PASSWORD,
+                             tabName="auth"),
 
-                # Performance Tab
-                NodeProperty(
-                    name="title",
-                    displayName="Rate Limiting",
-                    type=NodePropertyType.TITLE,
-                    tabName="performance"
-                ),
-                NodeProperty(
-                    name="rate_limit_enabled",
-                    displayName="Enable Rate Limiting",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="performance"
-                ),
-                NodeProperty(
-                    name="rate_limit_requests",
-                    displayName="Requests per Window",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                    displayOptions={
-                        "show": {
-                            "rate_limit_enabled": True
-                        }
-                    }
-                ),
-                NodeProperty(
-                    name="rate_limit_window",
-                    displayName="Window (seconds)",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                    displayOptions={
-                        "show": {
-                            "rate_limit_enabled": True
-                        }
-                    }
-                ),
-                NodeProperty(
-                    name="title",
-                    displayName="Connection Settings",
-                    type=NodePropertyType.TITLE,
-                    tabName="performance"
-                ),
-                NodeProperty(
-                    name="connection_timeout",
-                    displayName="Connection Timeout (s)",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                ),
-                NodeProperty(
-                    name="read_timeout",
-                    displayName="Read Timeout (s)",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                ),
-                NodeProperty(
-                    name="keep_alive",
-                    displayName="Keep-Alive Connection",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="performance",
-                ),
-                NodeProperty(
-                    name="connection_pooling",
-                    displayName="Connection Pooling",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="performance",
-                ),
-                NodeProperty(
-                    name="title",
-                    displayName="Circuit Breaker",
-                    type=NodePropertyType.TITLE,
-                    tabName="performance"
-                ),
-                NodeProperty(
-                    name="circuit_breaker_enabled",
-                    displayName="Enable Circuit Breaker",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="performance",
-                ),
-                NodeProperty(
-                    name="circuit_breaker_threshold",
-                    displayName="Failure Threshold",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                    displayOptions={
-                        "show": {
-                            "circuit_breaker_enabled": True
-                        }
-                    }
-                ),
-                NodeProperty(
-                    name="circuit_breaker_timeout",
-                    displayName="Timeout (s)",
-                    type=NodePropertyType.NUMBER,
-                    min=1,
-                    tabName="performance",
-                    colSpan= 1,
-                    displayOptions={
-                        "show": {
-                            "circuit_breaker_enabled": True
-                        }
-                    }
-                ),
+                # Advanced Options
+                NodeProperty(name="timeout", displayName="Timeout (s)", type=NodePropertyType.NUMBER,
+                             min=1, max=300, default=30, tabName="advanced"),
+                NodeProperty(name="max_retries", displayName="Max Retries", type=NodePropertyType.NUMBER,
+                             min=0, max=10, default=3, tabName="advanced"),
+                NodeProperty(name="retry_delay", displayName="Retry Delay (s)", type=NodePropertyType.NUMBER,
+                             min=1, max=1000, default=1, tabName="advanced"),
+                NodeProperty(name="verify_ssl", displayName="Verify SSL", type=NodePropertyType.CHECKBOX,
+                             default=True, tabName="advanced"),
+                NodeProperty(name="enable_templating", displayName="Enable Templates", type=NodePropertyType.CHECKBOX,
+                             default=True, tabName="advanced"),
 
-                # Test Tab
-                NodeProperty(
-                    name="title",
-                    displayName="Test Configuration",
-                    type=NodePropertyType.TITLE,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="success_status_codes",
-                    displayName="Success Status Codes",
-                    type=NodePropertyType.TEXT,
-                    placeholder="200,201,202",
-                    colSpan= 1,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="retry_on_status_codes",
-                    displayName="Retry Status Codes",
-                    type=NodePropertyType.TEXT,
-                    placeholder="500,502,503,504",
-                    colSpan= 1,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="retry_exponential_backoff",
-                    displayName="Exponential Backoff",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="title",
-                    displayName="Debug Settings",
-                    type=NodePropertyType.TITLE,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="logging_enabled",
-                    displayName="Enable Logging",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="debug_mode",
-                    displayName="Debug Mode",
-                    type=NodePropertyType.CHECKBOX,
-                    tabName="test"
-                ),
-                NodeProperty(
-                    name="response_validation",
-                    displayName="Response Validation",
-                    type=NodePropertyType.TEXT_AREA,
-                    placeholder="JSON schema or validation rules",
-                    tabName="test"
-                ),
+                # Headers & Body
+                NodeProperty(name="custom_headers", displayName="Custom Headers", type=NodePropertyType.TEXT_AREA,
+                             placeholder='{"X-Custom": "value"}', rows=3, tabName="data"),
+                NodeProperty(name="url_params", displayName="URL Parameters", type=NodePropertyType.TEXT_AREA,
+                             placeholder='{"key": "value"}', rows=2, tabName="data"),
+                NodeProperty(name="request_body", displayName="Request Body", type=NodePropertyType.TEXT_AREA,
+                             placeholder="Request body content", rows=4, tabName="data"),
             ]
         }
-        
+
     def get_required_packages(self) -> list[str]:
-        """
-        DYNAMIC METHOD: HttpClientNode'un ihtiyaç duyduğu Python packages'ini döndür.
-        
-        Bu method dynamic export sisteminin çalışması için kritik!
-        HTTP client için gereken API ve template dependencies.
-        """
+        """Required packages for HTTP client functionality."""
         return [
-            "httpx>=0.25.0",        # Async HTTP client
-            "jinja2>=3.1.0",        # Template engine
-            "pydantic>=2.5.0",      # Data validation
-            "typing-extensions>=4.8.0"  # Advanced typing support
+            "httpx>=0.25.0",
+            "jinja2>=3.1.0",
+            "pydantic>=2.5.0"
         ]
-    
+
     def _render_template(self, template_str: str, context: Dict[str, Any]) -> str:
-        """Render Jinja2 template with provided context."""
+        """Render Jinja2 template with context."""
         try:
             template = self.jinja_env.from_string(template_str)
             return template.render(**context)
         except Exception as e:
             logger.warning(f"Template rendering failed: {e}")
-            return template_str  # Return original if templating fails
-    
-    def _prepare_headers(self, 
-                        headers: Dict[str, str], 
-                        content_type: str,
-                        auth_type: str,
-                        auth_token: Optional[str],
-                        api_key_header: str) -> Dict[str, str]:
-        """Prepare request headers with authentication and content type."""
-        prepared_headers = headers.copy()
-        
-        # Set content type
-        if content_type in CONTENT_TYPES:
-            prepared_headers["Content-Type"] = CONTENT_TYPES[content_type]
-        
-        # Add authentication
-        if auth_type == "bearer" and auth_token:
-            prepared_headers["Authorization"] = f"Bearer {auth_token}"
-        elif auth_type == "api_key" and auth_token:
-            prepared_headers[api_key_header] = auth_token
-        
-        # Add user agent
-        prepared_headers.setdefault("User-Agent", "KAI-Fusion-HttpRequest/1.0")
-        
-        return prepared_headers
-    
-    def _prepare_auth(self, auth_type: str, username: Optional[str], password: Optional[str]) -> Optional[httpx.Auth]:
-        """Prepare authentication for httpx client."""
-        if auth_type == "basic" and username and password:
-            return httpx.BasicAuth(username, password)
-        return None
-    
-    def _prepare_body(self, 
-                     body: Optional[str], 
-                     content_type: str,
-                     context: Dict[str, Any],
-                     enable_templating: bool) -> Optional[Union[str, bytes, Dict[str, Any]]]:
-        """Prepare request body based on content type."""
-        if not body:
-            return None
-        
-        # Apply templating if enabled
-        if enable_templating:
-            body = self._render_template(body, context)
-        
-        # Process based on content type
-        if content_type == "json":
+            return template_str
+
+    def _parse_json_field(self, field_value: Any, default: Dict = None) -> Dict:
+        """Parse JSON field safely."""
+        if default is None:
+            default = {}
+
+        if not field_value:
+            return default
+
+        if isinstance(field_value, dict):
+            return field_value
+
+        if isinstance(field_value, str):
             try:
-                return json.loads(body)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"Invalid JSON in request body: {e}")
-        elif content_type == "form":
-            # Parse form data
-            try:
-                form_data = json.loads(body)
-                return form_data if isinstance(form_data, dict) else {}
+                return json.loads(field_value) if field_value.strip() else default
             except json.JSONDecodeError:
-                # Try to parse as query string format
-                import urllib.parse
-                return dict(urllib.parse.parse_qsl(body))
+                return default
+
+        return default
+
+    def _prepare_request_config(self, inputs: Dict[str, Any], context: Dict[str, Any]) -> HttpRequestConfig:
+        """Prepare HTTP request configuration from inputs."""
+        # Parse complex fields
+        headers = self._parse_json_field(inputs.get("custom_headers", inputs.get("headers", "{}")))
+        params = self._parse_json_field(inputs.get("url_params", inputs.get("params", "{}")))
+
+        # Apply templating if enabled
+        if inputs.get("enable_templating", True):
+            url = self._render_template(inputs.get("url", ""), context)
+            body = self._render_template(inputs.get("request_body", inputs.get("body", "")), context)
         else:
-            return body
-    
-    async def _make_request(self, config: HttpRequestConfig, context: Dict[str, Any]) -> HttpResponse:
-        """Make HTTP request with comprehensive error handling."""
+            url = inputs.get("url", "")
+            body = inputs.get("request_body", inputs.get("body"))
+
+        return HttpRequestConfig(
+            method=inputs.get("method", "GET"),
+            url=url,
+            headers=headers,
+            params=params,
+            body=body,
+            content_type=inputs.get("content_type", "application/json"),
+            auth_type=inputs.get("auth_type", "none"),
+            auth_token=inputs.get("auth_token"),
+            auth_username=inputs.get("auth_username"),
+            auth_password=inputs.get("auth_password"),
+            timeout=int(inputs.get("timeout", 30) or 30),
+            verify_ssl=inputs.get("verify_ssl", True),
+            max_retries=int(inputs.get("max_retries", 3) or 3),
+            retry_delay=float(inputs.get("retry_delay", 1) or 1)
+        )
+
+    def _prepare_headers_and_auth(self, config: HttpRequestConfig) -> tuple[Dict[str, str], Optional[httpx.Auth]]:
+        """Prepare headers and authentication for request."""
+        headers = config.headers.copy()
+
+        # Set content type
+        if config.content_type in CONTENT_TYPES:
+            headers["Content-Type"] = CONTENT_TYPES[config.content_type]
+
+        # Add authentication
+        auth = None
+        if config.auth_type == "bearer" and config.auth_token:
+            headers["Authorization"] = f"Bearer {config.auth_token}"
+        elif config.auth_type == "api_key" and config.auth_token:
+            headers["X-API-Key"] = config.auth_token
+        elif config.auth_type == "basic" and config.auth_username and config.auth_password:
+            auth = httpx.BasicAuth(config.auth_username, config.auth_password)
+
+        # Add user agent
+        headers.setdefault("User-Agent", "KAI-Fusion-HttpRequest/1.0")
+
+        return headers, auth
+
+    async def _make_http_request(self, config: HttpRequestConfig, context: Dict[str, Any]) -> HttpResponse:
+        """Execute HTTP request with comprehensive error handling."""
         request_id = str(uuid.uuid4())
         start_time = time.time()
-        
-        # Apply templating to URL
-        url = config.url
-        if config.url and context:
-            url = self._render_template(config.url, context)
-        
+
         # Validate URL
-        parsed_url = urlparse(url)
+        parsed_url = urlparse(config.url)
         if not parsed_url.scheme or not parsed_url.netloc:
-            raise ValueError(f"Invalid URL: {url}")
-        
+            raise ValueError(f"Invalid URL: {config.url}")
+
         # Prepare request components
-        headers = self._prepare_headers(
-            config.headers,
-            config.content_type,
-            config.auth_type,
-            config.auth_token,
-            getattr(config, "api_key_header", "X-API-Key")
-        )
-        
-        auth = self._prepare_auth(config.auth_type, config.auth_username, config.auth_password)
-        
-        body = self._prepare_body(
-            config.body,
-            config.content_type,
-            context,
-            True  # enable_templating from config
-        )
-        
+        headers, auth = self._prepare_headers_and_auth(config)
+
+        # Prepare body based on content type
+        body = None
+        if config.body and config.method in ["POST", "PUT", "PATCH"]:
+            if config.content_type == "json":
+                try:
+                    body = json.loads(config.body) if isinstance(config.body, str) else config.body
+                except json.JSONDecodeError as e:
+                    raise ValueError(f"Invalid JSON in request body: {e}")
+            else:
+                body = config.body
+
         # Configure httpx client
         client_config = {
             "timeout": httpx.Timeout(config.timeout),
-            "follow_redirects": config.follow_redirects,
             "verify": config.verify_ssl,
         }
-        
         if auth:
             client_config["auth"] = auth
-        
-        logger.info(f"Making {config.method} request to {url} [{request_id}]")
-        
+
+        logger.info(f"Making {config.method} request to {config.url}")
+
         try:
             async with httpx.AsyncClient(**client_config) as client:
-                # Prepare request kwargs
                 request_kwargs = {
                     "method": config.method,
-                    "url": url,
+                    "url": config.url,
                     "headers": headers,
                     "params": config.params,
                 }
-                
-                # Add body for methods that support it
-                if config.method in ["POST", "PUT", "PATCH"] and body is not None:
+
+                # Add body for supported methods
+                if body is not None:
                     if config.content_type == "json":
                         request_kwargs["json"] = body
-                    elif config.content_type == "form":
-                        request_kwargs["data"] = body
                     else:
                         request_kwargs["content"] = body
-                
-                # Make request
+
                 response = await client.request(**request_kwargs)
-                
+
                 # Process response
                 duration_ms = (time.time() - start_time) * 1000
-                
-                # Try to parse JSON content
+
+                # Parse content
                 content = None
                 is_json = False
                 content_type_header = response.headers.get("content-type", "").lower()
-                
+
                 if "application/json" in content_type_header:
                     try:
                         content = response.json()
@@ -1380,7 +342,7 @@ class HttpClientNode(ProcessorNode):
                         content = response.text
                 else:
                     content = response.text
-                
+
                 return HttpResponse(
                     status_code=response.status_code,
                     headers=dict(response.headers),
@@ -1389,133 +351,83 @@ class HttpClientNode(ProcessorNode):
                     url=str(response.url),
                     method=config.method,
                     duration_ms=duration_ms,
-                    request_id=request_id,
-                    timestamp=datetime.now(timezone.utc).isoformat()
+                    request_id=request_id
                 )
-                
+
         except httpx.TimeoutException:
             raise ValueError(f"Request timeout after {config.timeout} seconds")
         except httpx.NetworkError as e:
             raise ValueError(f"Network error: {str(e)}")
         except Exception as e:
             raise ValueError(f"Request failed: {str(e)}")
-    
+
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Execute HTTP request with comprehensive error handling and retries.
-        
-        Args:
-            inputs: User-provided configuration
-            connected_nodes: Connected node outputs for templating
-            
-        Returns:
-            Dict with response data, request statistics, and documents output
-        """
+        """Execute HTTP request with retry logic and error handling."""
         logger.info("Executing HTTP Request")
-        
-        # CRITICAL FIX: Return direct result dict instead of RunnableLambda wrapper
-        # This fixes the HttpClient->ChunkSplitter compatibility issue where
-        # ChunkSplitter receives HttpClientNode instance instead of documents
-        http_result = self._execute_http_request(inputs, connected_nodes)
-        logger.info(f"HTTP Request completed, returning direct result with documents")
-        
-        return http_result
-    
-    def _execute_http_request(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Internal method to execute HTTP request and return raw result.
-        This separates the HTTP logic from the Runnable wrapping.
-        """
+
         try:
-            # Build configuration
-            # Handle headers and url_params - they might already be dicts
-            headers_input = inputs.get("headers", "{}")
-            url_params_input = inputs.get("url_params", "{}")
-            
-            # Convert to dict if they're strings, otherwise use as-is
-            if isinstance(headers_input, str):
-                try:
-                    headers = json.loads(headers_input) if headers_input.strip() else {}
-                except json.JSONDecodeError:
-                    headers = {}
-            else:
-                headers = headers_input if isinstance(headers_input, dict) else {}
-                
-            if isinstance(url_params_input, str):
-                try:
-                    url_params = json.loads(url_params_input) if url_params_input.strip() else {}
-                except json.JSONDecodeError:
-                    url_params = {}
-            else:
-                url_params = url_params_input if isinstance(url_params_input, dict) else {}
-            
-            config = HttpRequestConfig(
-                method=inputs.get("method", "GET").upper(),
-                url=inputs.get("url", ""),
-                headers=headers,
-                params=url_params,
-                body=inputs.get("body"),
-                content_type=inputs.get("content_type", "json"),
-                auth_type=inputs.get("auth_type", "none"),
-                auth_token=inputs.get("auth_token"),
-                auth_username=inputs.get("auth_username"),
-                auth_password=inputs.get("auth_password"),
-                timeout=int(inputs.get("timeout", 30)),
-                follow_redirects=inputs.get("follow_redirects", True),
-                verify_ssl=inputs.get("verify_ssl", True),
-            )
-            
-            # Get template context from connected nodes
+            # Resolve URL (connection-first compatibility)
+            resolved_url = inputs.get("url")
+
+            if not resolved_url:
+                # Prefer connected_nodes for connection-based URL wiring
+                resolved_url = (
+                    connected_nodes.get("url")
+                    or connected_nodes.get("Target Url")
+                    or connected_nodes.get("Target URL")
+                    or connected_nodes.get("target_url")
+                )
+
+            if isinstance(resolved_url, dict):
+                # If a node passes a structured payload, try common keys
+                resolved_url = resolved_url.get("url") or resolved_url.get("value")
+
+            if not resolved_url:
+                # Final fallback: allow manually configured URL stored on the node instance
+                node_user_data = getattr(self, "user_data", {}) or {}
+                if isinstance(node_user_data, dict):
+                    resolved_url = node_user_data.get("url") or node_user_data.get("Target Url") or node_user_data.get("target_url")
+
+            if resolved_url and not inputs.get("url"):
+                # Avoid mutating upstream dicts
+                inputs = dict(inputs)
+                inputs["url"] = resolved_url
+
+            # Get template context
             template_context = connected_nodes.get("template_context", {})
             if not isinstance(template_context, dict):
                 template_context = {}
-            
-            # Add current inputs to context
+
+            # Add execution context
             template_context.update({
                 "inputs": inputs,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "request_id": str(uuid.uuid4()),
             })
-            
+
+            # Prepare request configuration
+            config = self._prepare_request_config(inputs, template_context)
+
             # Retry logic
-            max_retries = int(inputs.get("max_retries", 3))
-            retry_delay = float(inputs.get("retry_delay", 1.0))
+            max_retries = config.max_retries
             last_error = None
-            
+
             for attempt in range(max_retries + 1):
                 try:
-                    # Make request (run async function in sync context)
+                    # Execute request (run async in sync context)
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                     try:
                         response = loop.run_until_complete(
-                            self._make_request(config, template_context)
+                            self._make_http_request(config, template_context)
                         )
                     finally:
                         loop.close()
-                    
-                    # Check if request was successful
+
+                    # Check success
                     success = 200 <= response.status_code < 300
-                    
-                    # Calculate request statistics
-                    request_stats = {
-                        "request_id": response.request_id,
-                        "method": response.method,
-                        "url": response.url,
-                        "duration_ms": response.duration_ms,
-                        "status_code": response.status_code,
-                        "success": success,
-                        "attempt": attempt + 1,
-                        "max_retries": max_retries,
-                        "timestamp": response.timestamp,
-                    }
-                    
-                    logger.info(f"HTTP request completed: {response.status_code} in {response.duration_ms:.1f}ms")
-                    
-                    # Convert response to Document format for ChunkSplitter compatibility
-                    from langchain_core.documents import Document
-                    
-                    # Create a document from the HTTP response
+
+                    # Create response document for downstream processing
                     http_document = Document(
                         page_content=str(response.content),
                         metadata={
@@ -1528,67 +440,63 @@ class HttpClientNode(ProcessorNode):
                             "request_id": response.request_id,
                             "duration_ms": response.duration_ms,
                             "content_type": response.headers.get("content-type", "text/plain"),
-                            "original_response": response.dict()
                         }
                     )
-                    
+
                     return {
-                        "response": response.dict(),
+                        "response": {
+                            "status_code": response.status_code,
+                            "headers": response.headers,
+                            "content": response.content,
+                            "is_json": response.is_json,
+                            "url": response.url,
+                            "method": response.method,
+                            "duration_ms": response.duration_ms,
+                            "request_id": response.request_id,
+                            "timestamp": response.timestamp,
+                        },
                         "status_code": response.status_code,
                         "content": response.content,
                         "headers": response.headers,
                         "success": success,
-                        "request_stats": request_stats,
-                        "documents": [http_document],  # Add documents output for ChunkSplitter
-                        "document": http_document,     # Single document for backward compatibility
+                        "documents": [http_document],
                     }
-                    
+
                 except Exception as e:
                     last_error = str(e)
-                    
+
                     if attempt < max_retries:
-                        logger.warning(f"HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
-                        time.sleep(retry_delay)
+                        logger.warning(
+                            f"HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
+                        time.sleep(config.retry_delay)
                     else:
                         logger.error(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")
-            
+
             # All retries failed
             raise ValueError(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")
-            
+
         except Exception as e:
             error_msg = f"HTTP Request execution failed: {str(e)}"
             logger.error(error_msg)
-            
-            # Return error response as Dict
+
             return {
                 "response": None,
                 "status_code": 0,
                 "content": None,
                 "headers": {},
                 "success": False,
-                "request_stats": {
-                    "error": error_msg,
-                    "timestamp": datetime.now(timezone.utc).isoformat(),
-                },
-                "documents": [],  # Empty documents list for error case
-                "document": None,  # No document for error case
+                "documents": [],
             }
-    
+
     def as_runnable(self) -> Runnable:
-        """
-        Convert node to LangChain Runnable for direct composition.
-        
-        Returns:
-            RunnableLambda that executes HTTP request
-        """
-        # Add LangSmith tracing if enabled
+        """Convert to LangChain Runnable for composition."""
         config = None
         if os.getenv("LANGCHAIN_TRACING_V2"):
             config = RunnableConfig(
                 run_name="HttpRequest",
                 tags=["http", "api", "external"]
             )
-        
+
         runnable = RunnableLambda(
             lambda params: self.execute(
                 inputs=params.get("inputs", {}),
@@ -1596,272 +504,11 @@ class HttpClientNode(ProcessorNode):
             ),
             name="HttpRequest"
         )
-        
+
         if config:
             runnable = runnable.with_config(config)
-        
+
         return runnable
 
-# Export for use
-"""
-═══════════════════════════════════════════════════════════════════════════════
-                         COMPREHENSIVE USAGE GUIDE
-                        HTTP Request Node Documentation
-═══════════════════════════════════════════════════════════════════════════════
 
-NODE CONNECTIONS & COMPATIBILITY:
-=================================
-
-The HTTP Request node can connect to and integrate with all KAI-Fusion node types:
-
-┌─────────────────────────────────────────────────────────────────┐
-│                   HTTP Node Connection Matrix                  │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│ INPUT CONNECTIONS (accepts data from):                          │
-│ • Start Node ...................... (workflow initiation)   │
-│ • LLM Nodes ....................... (dynamic content)       │
-│ • Document Loaders ................ (document data)         │
-│ • Web Scraper ..................... (scraped content)       │
-│ • Vector Stores ................... (search results)        │
-│ • Agent Nodes ..................... (agent outputs)         │
-│ • Memory Nodes .................... (conversation context)  │
-│ • Any ProcessorNode ............... (data processing)       │
-│                                                                 │
-│ OUTPUT CONNECTIONS (provides data to):                          │
-│ • LLM Nodes ....................... (API responses)         │
-│ • Document Loaders ................ (external content)      │
-│ • Agent Nodes ..................... (external tools)        │
-│ • End Node ........................ (workflow completion)    │
-│ • Vector Stores ................... (data ingestion)        │
-│ • Any ProcessorNode ............... (response processing)   │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-
-WORKFLOW INTEGRATION PATTERNS:
-==============================
-
-Pattern 1: API Data Fetcher
-Start Node → HTTP Node → Document Loader
-- Fetch external data and process as documents
-
-Pattern 2: Dynamic Content Generator  
-LLM Node → HTTP Node → End Node
-- LLM generates API parameters, HTTP fetches data
-
-Pattern 3: External Tool Integration
-Agent Node ↔ HTTP Node (bidirectional)
-- Agent uses HTTP node as external tool
-
-Pattern 4: Data Enrichment Pipeline
-Document Loader → HTTP Node → Vector Store
-- Enrich documents with external API data
-
-Pattern 5: Multi-API Orchestration
-Start → HTTP Node 1 → HTTP Node 2 → HTTP Node 3 → End
-- Chain multiple API calls with data flow
-
-COMPLETE INPUT/OUTPUT REFERENCE:
-===============================
-
-INPUT PARAMETERS (17 total):
-
-REQUIRED INPUTS:
-• method (select): HTTP method [GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS]
-• url (text): Target URL with Jinja2 templating support
-
-OPTIONAL INPUTS:
-• headers (json): Request headers as JSON object {}
-• url_params (json): URL query parameters as JSON object {}
-• body (textarea): Request body with Jinja2 templating support
-• content_type (select): Body content type [json, form, multipart, text, xml]
-
-AUTHENTICATION:
-• auth_type (select): Authentication method [none, bearer, basic, api_key]
-• auth_token (password): Token/API key for bearer and api_key auth
-• auth_username (text): Username for basic authentication
-• auth_password (password): Password for basic authentication
-• api_key_header (text): Custom header name for API key (default: X-API-Key)
-
-ADVANCED OPTIONS:
-• timeout (slider): Request timeout 1-300 seconds (default: 30)
-• max_retries (number): Retry attempts 0-10 (default: 3)
-• retry_delay (slider): Delay between retries 0.1-10.0 seconds (default: 1.0)
-• follow_redirects (boolean): Follow HTTP redirects (default: true)
-• verify_ssl (boolean): Verify SSL certificates (default: true)
-• enable_templating (boolean): Enable Jinja2 templating (default: true)
-
-CONNECTION INPUT:
-• template_context (dict): Data from connected nodes for templating
-
-OUTPUT PARAMETERS (6 total):
-
-• response (dict): Complete HTTP response object with metadata
-• status_code (number): HTTP status code (200, 404, 500, etc.)
-• content (any): Parsed response content (JSON object or text string)
-• headers (dict): Response headers as key-value pairs
-• success (boolean): True for 2xx status codes, False otherwise
-• request_stats (dict): Performance and execution statistics
-
-WORKFLOW JSON EXAMPLES:
-======================
-
-Basic HTTP Node Configuration:
-```json
-{
-  "id": "http_1",
-  "type": "HttpRequest", 
-  "data": {
-    "name": "Fetch User Data",
-    "inputs": {
-      "method": "GET",
-      "url": "https://api.example.com/users/1",
-      "headers": "{\\"Accept\\": \\"application/json\\"}",
-      "auth_type": "bearer",
-      "auth_token": "your-token",
-      "timeout": 30,
-      "max_retries": 3
-    }
-  }
-}
-```
-
-Templated HTTP Node with Connections:
-```json
-{
-  "id": "http_dynamic",
-  "type": "HttpRequest",
-  "data": {
-    "name": "Dynamic API Call",
-    "inputs": {
-      "method": "POST",
-      "url": "https://api.example.com/{{ endpoint }}",
-      "body": "{\\"data\\": \\"{{ payload }}\\"}",
-      "content_type": "json",
-      "enable_templating": true
-    }
-  }
-}
-```
-
-TROUBLESHOOTING GUIDE:
-=====================
-
-Common Issues and Solutions:
-
-"Invalid URL" Error:
-• Check URL format includes protocol (https://)
-• Verify template variables are properly substituted
-• Ensure no special characters without encoding
-
-"Request Timeout" Error:
-• Increase timeout value for slow APIs
-• Check network connectivity and DNS resolution
-• Verify target service is responding
-
-"Authentication Failed" Error:
-• Verify auth_type matches API requirements
-• Check token/credentials are valid and not expired
-• Ensure proper header format for API key authentication
-
-"Invalid JSON Body" Error:
-• Validate JSON syntax in body parameter
-• Use proper JSON escaping for quotes
-• Check for unescaped characters in JSON strings
-
-"Template Rendering Failed" Error:
-• Verify template_context contains required variables
-• Check Jinja2 syntax for variables and filters
-• Ensure connected nodes provide expected data structure
-
-PERFORMANCE METRICS:
-===================
-
-Tested Performance Characteristics:
-• Average Response Time: 200-600ms (varies by API)
-• Maximum Concurrent Requests: 100+ per workflow
-• Memory Usage: <5MB per active request
-• CPU Overhead: <10% per request
-• Success Rate: >99% for valid configurations
-
-Best Practices for Performance:
-1. Set appropriate timeouts for different APIs
-2. Configure retries for transient failures only
-3. Keep request bodies under 1MB for best performance
-4. Use connection pooling (automatically handled)
-5. Implement response caching at workflow level if needed
-
-SECURITY FEATURES:
-=================
-
-Built-in Security:
-
-1. **Credential Protection**: 
-   - Passwords/tokens marked as sensitive in UI
-   - No credential logging in request logs
-   - Secure storage of authentication data
-
-2. **Input Validation**:
-   - URL validation and sanitization
-   - Header injection prevention  
-   - Request size limits (max 10MB)
-
-3. **SSL/TLS Security**:
-   - Certificate validation enabled by default
-   - Support for custom CA certificates
-   - TLS 1.2+ enforcement
-
-4. **Template Security**:
-   - Jinja2 sandboxing enabled
-   - XSS prevention in template rendering
-   - Input sanitization for template variables
-
-MONITORING AND OBSERVABILITY:
-============================
-
-Available Metrics in request_stats:
-
-• request_id: Unique identifier for request tracking
-• method: HTTP method used
-• url: Final URL after template processing
-• duration_ms: Total request duration in milliseconds
-• status_code: HTTP response status code
-• success: Boolean success indicator
-• attempt: Current retry attempt number
-• max_retries: Maximum configured retries
-• timestamp: ISO 8601 timestamp of request
-
-Integration with Monitoring Systems:
-• LangSmith tracing support (if LANGCHAIN_TRACING_V2 enabled)
-• Custom metrics export via request_stats output
-• Structured logging for log aggregation systems
-
-PRODUCTION READINESS:
-====================
-
-Production Features:
-• Comprehensive error handling and retry logic
-• Security hardening and input validation
-• Performance optimization and connection pooling
-• Monitoring and observability integration
-• Full test coverage and validation
-
-Version Compatibility:
-• KAI-Fusion Platform: 2.1.0+
-• Python: 3.11+
-• LangChain: 0.1.0+
-• httpx: 0.25.0+
-• Jinja2: 3.1.0+
-
-STATUS: PRODUCTION READY
-LAST_UPDATED: 2025-08-04
-AUTHORS: KAI-Fusion Integration Architecture Team
-
-═══════════════════════════════════════════════════════════════════════════════
-"""
-
-__all__ = [
-    "HttpRequestNode",
-    "HttpRequestConfig", 
-    "HttpResponse",
-]
+__all__ = ["HttpClientNode", "HttpRequestConfig", "HttpResponse"]

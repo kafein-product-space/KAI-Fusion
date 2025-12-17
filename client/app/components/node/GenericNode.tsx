@@ -64,15 +64,21 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
   );
   const [progress, setProgress] = useState<ScrapingProgress | null>(null);
 
-  // Update configData when data prop changes
+  // Update configData when data prop changes, but prevent infinite loops
   useEffect(() => {
-    setConfigData(data);
+    setConfigData((prevData) => {
+      // Only update if the data actually changed
+      if (JSON.stringify(prevData) !== JSON.stringify(data)) {
+        return data;
+      }
+      return prevData;
+    });
   }, [data]);
 
   const handleSaveConfig = (values: Partial<GenericData>) => {
     console.log(values);
     const updatedData = { ...data, ...values };
-    setConfigData(updatedData);
+    // Update node data without affecting local configData to prevent loops
     setNodes((nodes) =>
       nodes.map((node) =>
         node.id === id ? { ...node, data: updatedData } : node

@@ -103,18 +103,11 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     required=True,
                 ),
                 NodeProperty(
-                    name="credential",
+                    name="credential_id",
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False,
-                ),
-                NodeProperty(
-                    name="openai_api_key",
-                    displayName="API Key",
-                    type=NodePropertyType.PASSWORD,
-                    hint="OpenAI API Key.",
-                    required=True,
                 ),
                 NodeProperty(
                     name="organization",
@@ -200,11 +193,16 @@ class OpenAIEmbeddingsProvider(ProviderNode):
         import os
         
         # Extract configuration from user data or kwargs
-        openai_api_key = (
-            kwargs.get("openai_api_key") or 
-            self.user_data.get("openai_api_key") or 
-            os.getenv("OPENAI_API_KEY")
-        )
+        credential_id = self.user_data.get("credential_id")
+        
+        # Get credential with null safety
+        credential = self.get_credential(credential_id) if credential_id else None
+        openai_api_key = None
+        if credential:
+            secret = credential.get('secret')
+            if secret:
+                openai_api_key = secret.get('api_key')
+
         model = kwargs.get("model") or self.user_data.get("model", "text-embedding-3-small")
         request_timeout = kwargs.get("request_timeout") or self.user_data.get("request_timeout", 60)
         max_retries = kwargs.get("max_retries") or self.user_data.get("max_retries", 3)
@@ -218,7 +216,6 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             else:
                 raise ValueError(
                     "OpenAI API key is required. Please provide it in the node configuration "
-                    "or set the OPENAI_API_KEY environment variable."
                 )
         
         # Validate model
@@ -233,7 +230,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             request_timeout=request_timeout,
             max_retries=max_retries,
         )
-        
+
         return embeddings
 
 

@@ -628,7 +628,7 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
     
     request_id = str(uuid.uuid4())
     
-    # Detaylı hata bilgisi topla
+    # Collect detailed error information
     error_details = {
         "exception_type": exc.__class__.__name__,
         "error_message": str(exc),
@@ -637,12 +637,12 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
         "request_id": request_id
     }
     
-    # SQLAlchemy hatalarını detaylandır
+    # Detail SQLAlchemy errors
     if hasattr(exc, 'orig'):
         error_details["original_error"] = str(exc.orig)
         error_details["original_error_type"] = exc.orig.__class__.__name__
     
-    # Constraint violation'ları özel olarak handle et
+    # Handle constraint violations specially
     if "constraint" in str(exc).lower() or "foreign key" in str(exc).lower():
         error_details["error_category"] = "CONSTRAINT_VIOLATION"
         logger.error(f"Database constraint violation [{request_id}]: {exc}", extra=error_details)
@@ -659,7 +659,7 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
             }
         )
     
-    # Foreign key violation'ları
+    # Foreign key violations
     if "foreign key" in str(exc).lower():
         error_details["error_category"] = "FOREIGN_KEY_VIOLATION"
         logger.error(f"Foreign key violation [{request_id}]: {exc}", extra=error_details)
@@ -676,7 +676,7 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
             }
         )
     
-    # Unique constraint violation'ları
+    # Unique constraint violations
     if "unique" in str(exc).lower():
         error_details["error_category"] = "UNIQUE_CONSTRAINT_VIOLATION"
         logger.error(f"Unique constraint violation [{request_id}]: {exc}", extra=error_details)
@@ -693,7 +693,7 @@ async def database_error_handler(request: Request, exc: Exception) -> JSONRespon
             }
         )
     
-    # Genel database hatası
+    # General database error
     logger.error(f"Database error [{request_id}]: {exc}", extra=error_details)
     
     return JSONResponse(

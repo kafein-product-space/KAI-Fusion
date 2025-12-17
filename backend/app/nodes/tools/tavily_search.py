@@ -428,12 +428,6 @@ class TavilySearchNode(ProviderNode):
             "icon": {"name": "tavily_search", "path": "icons/tavily_search.svg", "alt": "tavilysearchicons"},
             "colors": ["blue-500", "cyan-600"],
             "inputs": [
-                NodeInput(
-                    name="tavily_api_key",
-                    type="str",
-                    description="Tavily API Key. If not provided, uses TAVILY_API_KEY environment variable.",
-                    required=False,
-                ),
                 NodeInput(name="max_results", type="int", default=5, description="The maximum number of results to return."),
                 NodeInput(name="search_depth", type="str", default="basic", choices=["basic", "advanced"], description="The depth of the search."),
                 NodeInput(name="include_domains", type="str", description="A comma-separated list of domains to include in the search.", required=False, default=""),
@@ -467,12 +461,6 @@ class TavilySearchNode(ProviderNode):
                     type= NodePropertyType.CREDENTIAL_SELECT,
                     placeholder= "Select Credential",
                     required= False
-                ),
-                NodeProperty(
-                    name="tavily_api_key",
-                    displayName= "API Key",
-                    type= NodePropertyType.PASSWORD,
-                    required= True
                 ),
                 NodeProperty(
                     name="max_results",
@@ -535,8 +523,11 @@ class TavilySearchNode(ProviderNode):
         print("\nTAVILY SEARCH SETUP")
 
         try:
-            # 1. Get API key using the same pattern as OpenAI node
-            api_key = self.user_data.get("tavily_api_key")
+            # Get API key from user configuration (database/UI)
+            api_key = None
+            credential_id = self.user_data.get("credential_id")
+            api_key = self.get_credential(credential_id).get('secret').get('api_key')
+                        
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
             

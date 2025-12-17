@@ -56,6 +56,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 from pydantic import BaseModel, Field, field_validator
 from langchain_core.runnables import Runnable
+from app.models.user_credential import UserCredential
 from enum import Enum
 
 # Import FlowState for LangGraph compatibility
@@ -636,6 +637,7 @@ class BaseNode(ABC):
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
     user_data: Dict[str, Any]
+    credentials: List[Dict[str, Any]]
     
     def __init__(self):
         self.node_id = None  # Will be set by GraphBuilder
@@ -645,10 +647,11 @@ class BaseNode(ABC):
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend
+        self.credentials = []  # List of user credentials (not dict!)
     
     @property
     def metadata(self) -> NodeMetadata:
-        """Metadatayı Pydantic modeline göre doğrular ve döndürür."""
+        """Validates and returns metadata according to the Pydantic model."""
         meta_dict = getattr(self, "_metadata", None) or {}
         if "name" not in meta_dict:
             meta_dict = getattr(self, "_metadatas", {})
@@ -676,11 +679,11 @@ class BaseNode(ABC):
         return meta.get("condition")
 
     def execute(self, *args, **kwargs) -> Runnable:
-        """Ana yürütme metodu.
+        """Main execution method.
 
-        Yeni node'lar bu metodu override edebilir.  Geriye dönük uyumluluk için
-        alt sınıf `execute` yerine `_execute` tanımlamışsa onu çağırırız.  Eğer
-        hiçbiri yoksa `NotImplementedError` fırlatılır."""
+        New nodes can override this method. For backward compatibility,
+        if the subclass has defined `_execute` instead of `execute`, we call that.
+        If neither exists, `NotImplementedError` is raised."""
         if hasattr(self, "_execute") and callable(getattr(self, "_execute")):
             # type: ignore[attr-defined]
             return getattr(self, "_execute")(*args, **kwargs)  # noqa: SLF001
@@ -966,11 +969,22 @@ class BaseNode(ABC):
         
         return runnable
 
+    def get_credential(self, credential_id: str) -> Dict[str, Any]:
+        """Get a credential by its ID"""
+        print(f"🔍 Credentials: {self.credentials}")
+        if self.credentials:
+            for cred in self.credentials:
+                c_id = cred.get('id')
+                if str(c_id) == str(credential_id):
+                    print(f"🔍 Found Credential: {cred}")
+                    return cred
+        return None
+
 # 4. Geliştiricilerin Kullanacağı 3 Standart Node Sınıfı
 
 class ProviderNode(BaseNode):
     """
-    Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
+    Base class for nodes that create LangChain objects (LLM, Tool, Prompt, Memory) from scratch.
     """
     _metadata = {
         "name": "ProviderNode",
@@ -991,7 +1005,7 @@ class ProviderNode(BaseNode):
 
 class ProcessorNode(BaseNode):
     """
-    Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
+    Base class for nodes that combine multiple LangChain objects as inputs (e.g., Agent).
     """
     _metadata = {
         "name": "ProcessorNode",
@@ -1010,8 +1024,8 @@ class ProcessorNode(BaseNode):
 
 class TerminatorNode(BaseNode):
     """
-    Bir zincirin sonuna eklenen ve çıktıyı işleyen/dönüştüren node'lar (örn: OutputParser).
-    Genellikle tek bir node'dan girdi alırlar.
+    Base class for nodes that are added at the end of a chain to process/transform output (e.g., OutputParser).
+    They typically receive input from a single node.
     """
     _metadata = {
         "name": "TerminatorNode",

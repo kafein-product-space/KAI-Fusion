@@ -1,14 +1,14 @@
 # -*- coding: utf-8 -*-
 """
-Dynamic Node Analyzer - Otomatik Environment Variable Detection
+Dynamic Node Analyzer - Automatic Environment Variable Detection
 =============================================================
 
-Bu modül node registry'den otomatik olarak environment variable ve dependency
-detection yaparak workflow export sistemini tamamen dinamik hale getirir.
+This module performs automatic environment variable and dependency
+detection from the node registry, making the workflow export system fully dynamic.
 
-Temel özellikler:
-- Node metadata'dan otomatik credential detection
-- Environment variable naming convention'ları
+Key Features:
+- Automatic credential detection from node metadata
+- Environment variable naming conventions
 - Package dependency analysis
 - Security classification
 - Runtime optimization
@@ -65,7 +65,7 @@ class WorkflowAnalysisResult:
 
 
 class CredentialDetector:
-    """Node metadata'dan credential input'ları detect et"""
+    """Detect credential inputs from node metadata"""
     
     def __init__(self):
         # Primary detection: is_secret flag
@@ -102,7 +102,7 @@ class CredentialDetector:
         }
     
     def is_credential_input(self, input_spec: NodeInput) -> bool:
-        """Input'un credential olup olmadığını kontrol et"""
+        """Check if input is a credential"""
         
         # 1. Primary check: is_secret flag
         if getattr(input_spec, 'is_secret', False):
@@ -133,7 +133,7 @@ class CredentialDetector:
         return False
     
     def get_security_level(self, input_spec: NodeInput) -> str:
-        """Input'un security level'ini belirle"""
+        """Determine the security level of an input"""
         
         input_name_lower = input_spec.name.lower()
         
@@ -146,7 +146,7 @@ class CredentialDetector:
 
 
 class EnvVarNameGenerator:
-    """Node type ve input name'den environment variable name oluştur"""
+    """Generate environment variable name from node type and input name"""
     
     def __init__(self):
         # Node type normalization mappings
@@ -176,15 +176,15 @@ class EnvVarNameGenerator:
         }
     
     def generate_env_var_name(self, node_type: str, input_name: str) -> str:
-        """Standard environment variable name oluştur"""
+        """Generate standard environment variable name"""
         
-        # Node type'ı normalize et
+        # Normalize node type
         normalized_node_type = self.node_type_mappings.get(
             node_type,
             self._normalize_node_type(node_type)
         )
         
-        # Input name'i normalize et
+        # Normalize input name
         normalized_input_name = self.input_name_mappings.get(
             input_name,
             self._normalize_input_name(input_name)
@@ -196,8 +196,8 @@ class EnvVarNameGenerator:
         return env_var_name
     
     def _normalize_node_type(self, node_type: str) -> str:
-        """Node type'ı env var prefix'e çevir"""
-        # CamelCase'den UPPER_CASE'e çevir
+        """Convert node type to env var prefix"""
+        # Convert from CamelCase to UPPER_CASE
         s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', node_type)
         result = re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).upper()
         
@@ -207,12 +207,12 @@ class EnvVarNameGenerator:
         return result
     
     def _normalize_input_name(self, input_name: str) -> str:
-        """Input name'i env var suffix'e çevir"""
+        """Convert input name to env var suffix"""
         return input_name.upper().replace('-', '_')
 
 
 class PackageAnalyzer:
-    """Node tiplerinden package dependencies çıkar"""
+    """Extract package dependencies from node types"""
     
     def __init__(self, node_registry=None):
         # Set node registry reference
@@ -332,7 +332,7 @@ class PackageAnalyzer:
             "DiscordNode": ["discord.py>=2.3.0"]
         }
         
-        # Base packages için her workflow
+        # Base packages for every workflow
         self.base_packages = [
             "fastapi>=0.104.0",
             "uvicorn[standard]>=0.24.0",
@@ -344,12 +344,12 @@ class PackageAnalyzer:
         ]
     
     def analyze_packages(self, node_types: List[str]) -> List[PackageDependency]:
-        """Node tiplerinden package dependencies çıkar"""
+        """Extract package dependencies from node types"""
         
         all_packages = set(self.base_packages)
         package_dependencies = []
 
-        # Base packages'ları ekle
+        # Add base packages
         for package in self.base_packages:
             name, version = self._parse_package_spec(package)
             package_dependencies.append(PackageDependency(
@@ -362,19 +362,19 @@ class PackageAnalyzer:
         
         # Node-specific packages
         for node_type in node_types:
-            logger.info(f"🔍 DYNAMIC: Extracting packages for {node_type}")
+            logger.info(f"[DYNAMIC] Extracting packages for {node_type}")
             
             try:
-                # 1. Node registry'den actual class al
+                # 1. Get actual class from node registry
                 node_class = self.node_registry.get_node(node_type)
                 
                 if node_class:
-                    logger.info(f"✅ Found {node_type} in registry")
+                    logger.info(f"Found {node_type} in registry")
                     
-                    # 2. 🔥 DYNAMIC: Node'dan actual packages çek
+                    # 2. DYNAMIC: Get actual packages from node
                     node_packages = self._extract_packages_from_node(node_class, node_type)
                     
-                    # 3. Extract edilen packages'ları ekle
+                    # 3. Add extracted packages
                     for package in node_packages:
                         if package not in all_packages:
                             all_packages.add(package)
@@ -386,7 +386,7 @@ class PackageAnalyzer:
                                 source_node=node_type,
                                 required=True
                             ))
-                            logger.info(f"   📦 DYNAMIC: Added {package} from {node_type}")
+                            logger.info(f"   [PACKAGE] DYNAMIC: Added {package} from {node_type}")
                     
                     # 4. Category-based fallback (if node doesn't have get_required_packages)
                     try:
@@ -406,12 +406,12 @@ class PackageAnalyzer:
                                         source_node=node_type,
                                         required=True
                                     ))
-                                    logger.info(f"   📦 CATEGORY: Added {package} from {category}")
+                                    logger.info(f"   [PACKAGE] CATEGORY: Added {package} from {category}")
                     except Exception as metadata_error:
                         logger.warning(f"Could not get metadata for {node_type}: {metadata_error}")
                 
                 else:
-                    logger.warning(f"❌ {node_type} not found in registry, using static fallback")
+                    logger.warning(f"[NOT FOUND] {node_type} not found in registry, using static fallback")
                     # Final fallback to static mapping (temporary while migrating)
                     if node_type in self.node_packages:
                         node_packages = self.node_packages[node_type]
@@ -426,36 +426,36 @@ class PackageAnalyzer:
                                     source_node=node_type,
                                     required=True
                                 ))
-                                logger.info(f"   📦 STATIC: Added {package} from mapping")
+                                logger.info(f"   [PACKAGE] STATIC: Added {package} from mapping")
                 
             except Exception as e:
                 logger.warning(f"Could not analyze packages for {node_type}: {e}")
         
-        logger.info(f"✅ DYNAMIC ANALYSIS: Found {len(package_dependencies)} total dependencies")
+        logger.info(f"[SUCCESS] DYNAMIC ANALYSIS: Found {len(package_dependencies)} total dependencies")
         return package_dependencies
     
     def _extract_packages_from_node(self, node_class, node_type: str) -> List[str]:
-        """🔥 DYNAMIC: Node'dan actual required packages'i çek"""
+        """DYNAMIC: Extract actual required packages from node"""
         
         try:
-            # 1. Node instance yarat
+            # 1. Create node instance
             node_instance = node_class()
             
-            # 2. 🔥 DİNAMİK: Node'da get_required_packages methodu var mı kontrol et
+            # 2. DYNAMIC: Check if node has get_required_packages method
             if hasattr(node_instance, 'get_required_packages'):
-                logger.info(f"✅ {node_type} has get_required_packages method - USING DYNAMIC!")
+                logger.info(f"[SUCCESS] {node_type} has get_required_packages method - USING DYNAMIC!")
                 dynamic_packages = node_instance.get_required_packages()
-                logger.info(f"   📦 DYNAMIC PACKAGES: {dynamic_packages}")
+                logger.info(f"   [PACKAGE] DYNAMIC PACKAGES: {dynamic_packages}")
                 return dynamic_packages
             
-            # 3. Alternatif: required_packages attribute var mı kontrol et
+            # 3. Alternative: Check if required_packages attribute exists
             elif hasattr(node_instance, 'required_packages'):
-                logger.info(f"✅ {node_type} has required_packages attribute")
+                logger.info(f"[SUCCESS] {node_type} has required_packages attribute")
                 return node_instance.required_packages
             
-            # 4. 🔥 IMPORT-BASED DETECTION: Node source code'undan import'ları extract et
+            # 4. IMPORT-BASED DETECTION: Extract imports from node source code
             else:
-                logger.info(f"🔍 {node_type} extracting from imports (no get_required_packages method)")
+                logger.info(f"[SEARCH] {node_type} extracting from imports (no get_required_packages method)")
                 return self._extract_packages_from_imports(node_class)
                 
         except Exception as e:
@@ -463,12 +463,12 @@ class PackageAnalyzer:
             return []
     
     def _extract_packages_from_imports(self, node_class) -> List[str]:
-        """Node'un import'larından package'ları extract et"""
+        """Extract packages from node's imports"""
         
         try:
             import inspect
             
-            # Node'un source code'unu al
+            # Get node's source code
             source_code = inspect.getsource(node_class)
             
             # Import statements'ı parse et
@@ -516,7 +516,7 @@ class PackageAnalyzer:
             
             # Unique packages only
             unique_packages = list(set(detected_packages))
-            logger.info(f"📦 AUTO-DETECTED from imports: {unique_packages}")
+            logger.info(f"[PACKAGE] AUTO-DETECTED from imports: {unique_packages}")
             return unique_packages
             
         except Exception as e:
@@ -524,7 +524,7 @@ class PackageAnalyzer:
             return []
     
     def _parse_package_spec(self, package_spec: str) -> Tuple[str, str]:
-        """Package specification'ı parse et"""
+        """Parse package specification"""
         if ">=" in package_spec:
             name, version = package_spec.split(">=")
             return name, f">={version}"
@@ -536,7 +536,7 @@ class PackageAnalyzer:
 
 
 class DynamicNodeAnalyzer:
-    """Node registry'den otomatik workflow analysis ve dependency detection"""
+    """Automatic workflow analysis and dependency detection from node registry"""
     
     def __init__(self, node_registry: NodeRegistry):
         self.node_registry = node_registry
@@ -545,19 +545,19 @@ class DynamicNodeAnalyzer:
         self.package_analyzer = PackageAnalyzer(node_registry)
     
     def analyze_workflow(self, flow_data: Dict[str, Any]) -> WorkflowAnalysisResult:
-        """Workflow'dan complete analysis çıkar"""
+        """Extract complete analysis from workflow"""
         
-        logger.info("🔍 Starting dynamic workflow analysis")
+        logger.info("[SEARCH] Starting dynamic workflow analysis")
         
-        # 1. Node tiplerini çıkar
+        # 1. Extract node types
         node_types = self._extract_node_types(flow_data)
         logger.info(f"Found {len(node_types)} node types: {node_types}")
         
-        # 2. Environment variables analiz et
+        # 2. Analyze environment variables
         environment_variables = self._analyze_environment_variables(node_types, flow_data)
         logger.info(f"Detected {len(environment_variables)} environment variables")
         
-        # 3. Package dependencies analiz et
+        # 3. Analyze package dependencies
         package_dependencies = self.package_analyzer.analyze_packages(node_types)
         logger.info(f"Detected {len(package_dependencies)} package dependencies")
         
@@ -576,14 +576,14 @@ class DynamicNodeAnalyzer:
             analysis_timestamp=datetime.now().isoformat()
         )
         
-        logger.info(f"✅ Dynamic analysis complete: {len(node_types)} nodes, "
+        logger.info(f"[SUCCESS] Dynamic analysis complete: {len(node_types)} nodes, "
                    f"{len(environment_variables)} env vars, "
                    f"complexity score: {complexity_score}")
         
         return result
     
     def _extract_node_types(self, flow_data: Dict[str, Any]) -> List[str]:
-        """Workflow data'dan node tiplerini çıkar"""
+        """Extract node types from workflow data"""
         
         node_types = []
         nodes = flow_data.get("nodes", [])
@@ -597,7 +597,7 @@ class DynamicNodeAnalyzer:
     
     def _analyze_environment_variables(self, node_types: List[str], 
                                       flow_data: Dict[str, Any]) -> List[EnvironmentVariable]:
-        """Node tiplerinden environment variable'ları analiz et"""
+        """Analyze environment variables from node types"""
         
         environment_variables = []
         seen_env_vars = set()
@@ -612,13 +612,13 @@ class DynamicNodeAnalyzer:
                 # Node metadata al
                 metadata = node_class().metadata
                 
-                # Her input için environment variable oluştur
+                # For each input, create an environment variable
                 for input_spec in metadata.inputs:
                     # Connection input'ları skip et
                     if input_spec.is_connection:
                         continue
                     
-                    # Environment variable name oluştur
+                    # Generate environment variable name
                     env_var_name = self.name_generator.generate_env_var_name(
                         node_type, input_spec.name
                     )
@@ -628,11 +628,11 @@ class DynamicNodeAnalyzer:
                         continue
                     seen_env_vars.add(env_var_name)
                     
-                    # Credential mi kontrol et
+                    # Check if credential
                     is_credential = self.credential_detector.is_credential_input(input_spec)
                     security_level = self.credential_detector.get_security_level(input_spec) if is_credential else "low"
                     
-                    # Example value oluştur
+                    # Generate example value
                     example_value = self._generate_example_value(input_spec, node_type)
                     
                     env_var = EnvironmentVariable(
@@ -696,7 +696,7 @@ class DynamicNodeAnalyzer:
         return input_spec.required
     
     def _generate_example_value(self, input_spec: NodeInput, node_type: str) -> str:
-        """Input spec'e göre example value oluştur"""
+        """Generate example value based on input spec"""
         
         input_name_lower = input_spec.name.lower()
         input_type = input_spec.type.lower()
@@ -731,7 +731,7 @@ class DynamicNodeAnalyzer:
             return "your-value-here"
     
     def _analyze_security_requirements(self, environment_variables: List[EnvironmentVariable]) -> Dict[str, Any]:
-        """Security requirements analiz et"""
+        """Analyze security requirements"""
         
         security_levels = {"critical": 0, "high": 0, "medium": 0, "low": 0}
         credential_count = 0
@@ -750,7 +750,7 @@ class DynamicNodeAnalyzer:
     
     def _calculate_complexity_score(self, node_types: List[str], 
                                    environment_variables: List[EnvironmentVariable]) -> float:
-        """Workflow complexity score hesapla"""
+        """Calculate workflow complexity score"""
         
         # Base score
         score = len(node_types) * 1.0

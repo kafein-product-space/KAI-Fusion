@@ -63,12 +63,6 @@ function CustomAnimatedEdge({
           strokeDasharray: isActive ? "12 8" : "none",
           strokeDashoffset: isActive ? 0 : undefined,
           animation: isActive ? "electric-flow 1.2s linear infinite" : "none",
-          filter:
-            status === 'success' || status === 'failed'
-              ? 'none'
-              : isActive
-              ? "url(#glow-" + id + ")"
-              : "none",
           // carry status for BaseEdge consumption
           // @ts-ignore - internal flag
           __status: status,
@@ -118,27 +112,15 @@ function CustomAnimatedEdge({
         <defs>
           <linearGradient
             id={`electric-gradient-${id}`}
-            x1="0%"
-            y1="0%"
-            x2="100%"
-            y2="0%"
+            x1={sourceX}
+            y1={sourceY}
+            x2={targetX}
+            y2={targetY}
+            gradientUnits="userSpaceOnUse"
           >
             <stop offset="0%" stopColor="#00ffff" />
             <stop offset="100%" stopColor="#facc15" />
           </linearGradient>
-          <filter
-            id={`glow-${id}`}
-            x="-50%"
-            y="-50%"
-            width="200%"
-            height="200%"
-          >
-            <feGaussianBlur stdDeviation="4" result="blur" />
-            <feMerge>
-              <feMergeNode in="blur" />
-              <feMergeNode in="SourceGraphic" />
-            </feMerge>
-          </filter>
         </defs>
       </svg>
 

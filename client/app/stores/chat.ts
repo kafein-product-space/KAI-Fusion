@@ -114,6 +114,21 @@ const executeWorkflowWithStreaming = async (
                   user_message: input_text,
                   ...(parsed.metadata?.inputs || {})
                 };
+                // Add inputs_meta to indicate the source of each input
+                nodeExecutionData[parsed.node_id].inputs_meta = {
+                  input: {
+                    sourceNodeId: 'chat_input',
+                    sourceNodeName: 'Chat Input',
+                    sourceNodeAlias: 'Chat Input',
+                    sourceHandle: 'user_message'
+                  },
+                  user_message: {
+                    sourceNodeId: 'chat_input',
+                    sourceNodeName: 'Chat Input',
+                    sourceNodeAlias: 'Chat Input',
+                    sourceHandle: 'user_message'
+                  }
+                };
                 console.log('🤖 Agent inputs captured:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs);
               }
               
@@ -121,17 +136,27 @@ const executeWorkflowWithStreaming = async (
             }
             
             if (eventType === 'node_end' && parsed.node_id) {
+              // Extract output from the event - backend now sends output in node_end events
+              const nodeOutput = parsed.output || {};
+              
+              console.log('📤 Node end output received:', parsed.node_id, nodeOutput);
+              
               if (nodeExecutionData[parsed.node_id]) {
-                nodeExecutionData[parsed.node_id].output = parsed.output || {};
+                // Merge output with existing data
+                nodeExecutionData[parsed.node_id].output = nodeOutput;
+                nodeExecutionData[parsed.node_id].outputs = nodeOutput; // Also store as 'outputs' for compatibility
                 nodeExecutionData[parsed.node_id].status = 'completed';
               } else {
                 // If we missed the start event, create entry for output
                 nodeExecutionData[parsed.node_id] = {
                   inputs: {},
-                  output: parsed.output || {},
+                  output: nodeOutput,
+                  outputs: nodeOutput, // Also store as 'outputs' for compatibility
                   status: 'completed'
                 };
               }
+              
+              console.log('💾 Node execution data updated:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
 
             // Emit custom event for FlowCanvas to listen
@@ -166,7 +191,7 @@ const executeWorkflowWithStreaming = async (
               try {
                 const executionsModule = await import('./executions');
                 const executionsStore = executionsModule.useExecutionsStore.getState();
-                executionsStore.setCurrentExecution(executionResult);
+                executionsStore.setCurrentExecutionForWorkflow(workflow_id, executionResult);
               } catch (error) {
                 console.error('❌ Error setting execution result:', error);
               }

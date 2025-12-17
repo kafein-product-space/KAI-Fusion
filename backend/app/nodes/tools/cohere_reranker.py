@@ -91,12 +91,6 @@ class CohereRerankerNode(ProviderNode):
             "colors": ["orange-500", "red-600"],
             "inputs": [
                 NodeInput(
-                    name="cohere_api_key",
-                    type="str",
-                    description="Cohere API Key (leave empty to use COHERE_API_KEY environment variable)",
-                    required=False,
-                ),
-                NodeInput(
                     name="model",
                     type="str",
                     description="Cohere reranking model to use",
@@ -123,17 +117,11 @@ class CohereRerankerNode(ProviderNode):
             ],
             "properties": [
                 NodeProperty(
-                    name="credential",
+                    name="credential_id",
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False
-                ),
-                NodeProperty(
-                    name="cohere_api_key",
-                    displayName="API Key",
-                    type=NodePropertyType.PASSWORD,
-                    required=True
                 ),
                 NodeProperty(
                     name="model",
@@ -206,10 +194,14 @@ class CohereRerankerNode(ProviderNode):
             ValueError: If API key is missing or model is unsupported
         """
         # Extract configuration from user data or kwargs
-        cohere_api_key = kwargs.get("cohere_api_key") or self.user_data.get("cohere_api_key")
+        cohere_api_key = None
         model = kwargs.get("model") or self.user_data.get("model", "rerank-english-v3.0")
         top_n = kwargs.get("top_n") or self.user_data.get("top_n", 5)
         # Note: max_chunks_per_doc removed as it's not supported by LangChain CohereRerank
+
+        # If credential_id is present, fetch the actual API key
+        credential_id = self.user_data.get("credential_id")
+        cohere_api_key = self.get_credential(credential_id).get('secret').get('api_key')
         
         # Validate API key
         if not cohere_api_key:

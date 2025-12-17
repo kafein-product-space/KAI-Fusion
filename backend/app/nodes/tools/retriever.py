@@ -51,7 +51,7 @@ from app.nodes.base import ProviderNode, NodeInput, NodeOutput, NodeType, NodePr
 
 logger = logging.getLogger(__name__)
 
-# LangChain Vector Search Algorithms (gönderdiğiniz JSON'daki search_type için)
+# LangChain Vector Search Algorithms (for search_type configuration)
 SEARCH_ALGORITHMS = {
     "similarity": {
         "name": "Similarity Search",
@@ -101,8 +101,8 @@ class RetrieverProvider(ProviderNode):
     Retriever Provider - Creates Agent-Ready Vector Search Tools
     ===========================================================
 
-    Bu provider node mevcut vector database'lere bağlanıp agent'ların kullanabileceği
-    retriever tool'ları oluşturur. Gönderdiğiniz JSON konfigürasyonuna göre tasarlandı.
+    This provider node connects to existing vector databases and creates
+    retriever tools that agents can use. Designed according to the provided JSON configuration.
     """
 
     def __init__(self):
@@ -120,17 +120,6 @@ class RetrieverProvider(ProviderNode):
             "documentation_url": None,
             "examples": [],
             "inputs": [
-                # Database Configuration (gönderdiğiniz JSON'dan)
-                NodeInput(
-                    name="database_connection",
-                    type="str",
-                    description="Database connection string (postgresql://user:pass@host:port/db)",
-                    required=True,
-                    is_connection=False,
-                    default=None,
-                    ui_config=None,
-                    validation_rules=None
-                ),
                 NodeInput(
                     name="collection_name",
                     type="str",
@@ -174,7 +163,7 @@ class RetrieverProvider(ProviderNode):
                     validation_rules=None
                 ),
 
-                # Metadata Filtering (gönderdiğiniz JSON'dan)
+                # Metadata Filtering (from JSON config)
                 NodeInput(
                     name="metadata_filter",
                     type="json",
@@ -206,7 +195,7 @@ class RetrieverProvider(ProviderNode):
                     validation_rules=None
                 ),
 
-                # Connected Inputs (gönderdiğiniz JSON'dan)
+                # Connected Inputs (from JSON config)
                 NodeInput(
                     name="embedder",
                     displayName="Embedder",
@@ -245,18 +234,11 @@ class RetrieverProvider(ProviderNode):
             ],
             "properties": [
                 NodeProperty(
-                    name="credential",
+                    name="credential_id",
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False
-                ),
-                NodeProperty(
-                    name="database_connection",
-                    displayName="Database Connection",
-                    type=NodePropertyType.PASSWORD,
-                    description="PostgreSQL connection string",
-                    required=True
                 ),
                 NodeProperty(
                     name="collection_name",
@@ -342,13 +324,12 @@ class RetrieverProvider(ProviderNode):
         """
         Create retriever tool from existing vector database.
 
-        Gönderdiğiniz JSON konfigürasyonunu kullanarak retriever tool oluşturur.
+        Follows the VectorStoreOrchestrator credential pattern.
         """
-        logger.info("Creating Retriever Tool from existing vector database")
+        logger.info("[RETRIEVER] Creating Retriever Tool from existing vector database")
 
         try:
-            # Gönderdiğiniz JSON'daki field'ları extract et
-            database_connection = inputs.get("database_connection")
+            # Extract configuration from inputs
             collection_name = inputs.get("collection_name")
             search_k = inputs.get("search_k", 6)
             search_type = inputs.get("search_type", "similarity")
@@ -359,9 +340,32 @@ class RetrieverProvider(ProviderNode):
             embedder = inputs.get("embedder")
             reranker = inputs.get("reranker")  # Optional
 
+            # Get credential_id and extract credential data (like VectorStoreOrchestrator)
+            credential_id = self.user_data.get("credential_id")
+            credential = self.get_credential(credential_id) if credential_id else None
+            
+            # Extract database connection from credential (with null safety)
+            database_connection = None
+            if credential and credential.get('secret'):
+                secret = credential['secret']
+                
+                # Extract connection components
+                host = secret.get('host', 'localhost')
+                port = secret.get('port', 5432)
+                database = secret.get('database')
+                username = secret.get('username')
+                password = secret.get('password')
+                
+                if database and username and password:
+                    # Build connection string
+                    database_connection = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+                    logger.info(f"✅ Connected to vector database: {host}:{port}/{database}")
+                else:
+                    logger.warning("❌ Missing required database credentials (database, username, or password)")
+
             # Validation
             if not database_connection:
-                raise ValueError("Database connection string is required")
+                raise ValueError("Database connection is required. Please provide database credentials.")
             if not collection_name:
                 raise ValueError("Collection name is required")
             if not embedder:
@@ -405,7 +409,7 @@ class RetrieverProvider(ProviderNode):
                 retriever, collection_name, search_config
             )
 
-            logger.info(f"Retriever tool created for collection '{collection_name}' with {search_type}")
+            logger.info(f"[SUCCESS] Retriever tool created for collection '{collection_name}' with {search_type}")
 
             return {
                 "pg_retriever":{"tool": retriever_tool}
@@ -435,7 +439,7 @@ class RetrieverProvider(ProviderNode):
                 embeddings=embedder,
             )
 
-            logger.info(f"Connected to vector database collection: {collection_name}")
+            logger.info(f"[SUCCESS] Connected to vector database collection: {collection_name}")
             return retriever
 
         except Exception as e:
@@ -456,7 +460,7 @@ class RetrieverProvider(ProviderNode):
         # Auto-convert similarity to similarity_score_threshold if threshold is provided
         if search_type == "similarity" and raw_threshold and float(raw_threshold) > 0:
             search_type = "similarity_score_threshold"
-            logger.info(f"Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
+            logger.info(f"[CONVERT] Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
 
         # Always cap returned results by k unless the underlying retriever ignores it
         k = int(search_config.get("search_k", 4))
@@ -506,7 +510,7 @@ class RetrieverProvider(ProviderNode):
             "lambda_mult": search_kwargs.get("lambda_mult"),
             "has_filter": "filter" in search_kwargs
         }
-        logger.info(f"Created retriever search_type={search_type} details={details}")
+        logger.info(f"[SUCCESS] Created retriever search_type={search_type} details={details}")
         return retriever
 
     def _create_retriever_tool(self, retriever: BaseRetriever, collection_name: str, search_config: Dict[str, Any]) -> Tool:
@@ -515,13 +519,13 @@ class RetrieverProvider(ProviderNode):
         def retriever_search(query: str) -> str:
             """Search function that the agent will call."""
             try:
-                logger.info(f"Agent searching '{collection_name}' for: {query}")
+                logger.info(f"[SEARCH] Agent searching '{collection_name}' for: {query}")
 
                 # Perform search using configured retriever
                 docs = retriever.invoke(query)
 
                 if not docs:
-                    return f"""SEARCH RESULTS - {collection_name}
+                    return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: No documents found for '{query}'.
     
     SEARCH SUMMARY:
@@ -532,7 +536,7 @@ class RetrieverProvider(ProviderNode):
 
                 # Format results for agent consumption
                 result_parts = [
-                    f"SEARCH RESULTS - {collection_name}",
+                    f"[SEARCH] SEARCH RESULTS - {collection_name}",
                     f"Total documents found: {len(docs)}",
                     f"Search Algorithm: {search_config['search_type']}",
                     f"Documents displayed: {min(len(docs), search_config['search_k'])}",
@@ -576,10 +580,10 @@ class RetrieverProvider(ProviderNode):
 
             except Exception as e:
                 error_msg = str(e)
-                return f"""SEARCH RESULTS - {collection_name}
+                return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: A technical issue occurred while searching for '{query}'.
     
-    ERROR DETAILS:
+    [WARNING] ERROR DETAILS:
     {error_msg}
     
     SEARCH SUMMARY:
