@@ -84,8 +84,7 @@ FILTER_STRATEGIES = {
     "exact": {
         "name": "Exact Match",
         "description": "Exact match for all metadata fields"
-    }}
-""",
+    },
     "partial": {
         "name": "Partial Match",
         "description": "Partial/contains match for text fields"
@@ -94,7 +93,7 @@ FILTER_STRATEGIES = {
         "name": "Range Filtering",
         "description": "Range filtering for numeric fields"
     }
-}"""
+}
 
 
 class RetrieverProvider(ProviderNode):

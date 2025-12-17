@@ -306,7 +306,7 @@ class HttpClientNode(ProcessorNode):
         if auth:
             client_config["auth"] = auth
 
-        logger.info(f"🌐 Making {config.method} request to {config.url}")
+        logger.info(f"Making {config.method} request to {config.url}")
 
         try:
             async with httpx.AsyncClient(**client_config) as client:
@@ -363,7 +363,7 @@ class HttpClientNode(ProcessorNode):
 
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """Execute HTTP request with retry logic and error handling."""
-        logger.info("🚀 Executing HTTP Request")
+        logger.info("Executing HTTP Request")
 
         try:
             # Resolve URL (connection-first compatibility)
@@ -467,10 +467,10 @@ class HttpClientNode(ProcessorNode):
 
                     if attempt < max_retries:
                         logger.warning(
-                            f"⚠️ HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
+                            f"HTTP request failed (attempt {attempt + 1}/{max_retries + 1}): {last_error}")
                         time.sleep(config.retry_delay)
                     else:
-                        logger.error(f"❌ HTTP request failed after {max_retries + 1} attempts: {last_error}")
+                        logger.error(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")
 
             # All retries failed
             raise ValueError(f"HTTP request failed after {max_retries + 1} attempts: {last_error}")

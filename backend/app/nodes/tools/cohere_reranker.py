@@ -164,7 +164,7 @@ class CohereRerankerNode(ProviderNode):
     
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: CohereRerankerNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: CohereRerankerNode'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         Cohere reranker için gereken API ve LangChain dependencies.
