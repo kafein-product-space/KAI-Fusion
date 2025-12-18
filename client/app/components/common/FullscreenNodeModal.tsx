@@ -73,17 +73,17 @@ interface FullscreenNodeModalProps {
     inputs_meta?: Record<
       string,
       | {
-          sourceNodeId: string;
-          sourceNodeName?: string;
-          sourceNodeAlias?: string;
-          sourceHandle?: string;
-        }
+        sourceNodeId: string;
+        sourceNodeName?: string;
+        sourceNodeAlias?: string;
+        sourceHandle?: string;
+      }
       | {
-          sourceNodeId: string;
-          sourceNodeName?: string;
-          sourceNodeAlias?: string;
-          sourceHandle?: string;
-        }[]
+        sourceNodeId: string;
+        sourceNodeName?: string;
+        sourceNodeAlias?: string;
+        sourceHandle?: string;
+      }[]
     >;
     outputs?: Record<string, any>;
     status?: "completed" | "failed" | "running" | "pending";
@@ -91,19 +91,56 @@ interface FullscreenNodeModalProps {
 }
 
 export default function FullscreenNodeModal({
-isOpen,
-onClose,
-nodeMetadata,
-configData,
-onSave,
-onExecute,
-ConfigComponent,
-executionData,
+  isOpen,
+  onClose,
+  nodeMetadata,
+  configData,
+  onSave,
+  onExecute,
+  ConfigComponent,
+  executionData,
 }: FullscreenNodeModalProps) {
-const [configValues, setConfigValues] = useState(configData);
-const [nodeAlias, setNodeAlias] = useState(
-  configData?.name || nodeMetadata.display_name || nodeMetadata.name
-);
+  const [configValues, setConfigValues] = useState(configData);
+  const [nodeAlias, setNodeAlias] = useState(
+    configData?.name || nodeMetadata.display_name || nodeMetadata.name
+  );
+  const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
+
+  // Validate node alias for Jinja template compatibility
+  // Rules: letters, numbers, and underscores only; must start with a letter; cannot be reserved keywords
+  // Note: Uppercase letters are allowed but will be auto-converted to lowercase when saving
+  const validateNodeAlias = (name: string): string | null => {
+    if (!name || name.trim() === "") {
+      return "Node name is required";
+    }
+
+    // Check for reserved keywords that conflict with template context
+    const reservedKeywords = ["input"];
+    if (reservedKeywords.includes(name.toLowerCase())) {
+      return `'${name}' is a reserved keyword and cannot be used as a node name`;
+    }
+
+    // Check for invalid characters (allow a-z, A-Z, 0-9, underscore - case will be normalized later)
+    const hasSpace = /\s/.test(name);
+    const hasSpecialChars = /[^a-zA-Z0-9_]/.test(name);
+    const startsWithNumber = /^[0-9]/.test(name);
+
+    if (hasSpace || hasSpecialChars || startsWithNumber) {
+      let suggestion = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+      if (/^[0-9]/.test(suggestion)) {
+        suggestion = "n_" + suggestion;
+      }
+      return `Invalid format. For template {{${name}}}, use: {{${suggestion || "node_name"}}}`;
+    }
+
+    return null;
+  };
+
+  const handleNodeAliasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNodeAlias(value);
+    setNodeAliasError(validateNodeAlias(value));
+  };
 
   // Helper function to filter out metadata and system fields from node data
   const filterNodeData = (data: any, isOutput: boolean = false): any => {
@@ -465,9 +502,8 @@ const [nodeAlias, setNodeAlias] = useState(
         key.toLowerCase().includes("token_usage")
       ) {
         if (maskedValue.totalTokens !== undefined) {
-          return `${maskedValue.totalTokens} total (${
-            maskedValue.promptTokens || 0
-          } prompt + ${maskedValue.completionTokens || 0} completion)`;
+          return `${maskedValue.totalTokens} total (${maskedValue.promptTokens || 0
+            } prompt + ${maskedValue.completionTokens || 0} completion)`;
         }
       }
 
@@ -520,6 +556,20 @@ const [nodeAlias, setNodeAlias] = useState(
 
   const handleSave = (values: any) => {
     try {
+      // Validate node alias before saving
+      const validationError = validateNodeAlias(nodeAlias);
+      if (validationError) {
+        enqueueSnackbar(validationError, {
+          variant: "warning",
+          autoHideDuration: 4000,
+          anchorOrigin: {
+            vertical: "top",
+            horizontal: "right",
+          },
+        });
+        return; // Don't save if validation fails
+      }
+
       const finalValues = { ...values, name: nodeAlias };
       setConfigValues(finalValues);
       onSave(finalValues);
@@ -590,13 +640,21 @@ const [nodeAlias, setNodeAlias] = useState(
                       Specify the node name for using node output.
                     </label>
                     <input
-                      className="w-64 px-2 py-1 rounded bg-gray-900 border border-gray-700 text-sm text-gray-100 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className={`w-64 px-2 py-1 rounded bg-gray-900 border text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
+                        ? "border-yellow-500 focus:ring-yellow-500"
+                        : "border-gray-700 focus:ring-blue-500"
+                        }`}
                       value={nodeAlias}
-                      onChange={(e) => setNodeAlias(e.target.value)}
+                      onChange={handleNodeAliasChange}
                       placeholder={
                         nodeMetadata.display_name || nodeMetadata.name
                       }
                     />
+                    {nodeAliasError && (
+                      <div className="mt-1 text-xs text-yellow-400">
+                        {nodeAliasError}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -644,7 +702,7 @@ const [nodeAlias, setNodeAlias] = useState(
 
                 {/* Execution Data Section */}
                 {executionData?.inputs &&
-                Object.keys(executionData.inputs).length > 0 ? (
+                  Object.keys(executionData.inputs).length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -666,8 +724,8 @@ const [nodeAlias, setNodeAlias] = useState(
                           const metaArray = Array.isArray(rawMeta)
                             ? rawMeta
                             : rawMeta
-                            ? [rawMeta]
-                            : [];
+                              ? [rawMeta]
+                              : [];
 
                           return valuesArray.map((value, index) => {
                             const sourceMeta = metaArray[index] || metaArray[0];
@@ -843,7 +901,7 @@ const [nodeAlias, setNodeAlias] = useState(
 
                     <div className="space-y-4">
                       {typeof executionData.outputs === "object" &&
-                      executionData.outputs !== null ? (
+                        executionData.outputs !== null ? (
                         Object.entries(
                           filterNodeData(executionData.outputs, true)
                         ).map(([key, value]) => (
@@ -870,8 +928,17 @@ const [nodeAlias, setNodeAlias] = useState(
                             </div>
 
                             {/* Value display */}
-                            {typeof value === "object" && value !== null ? (
-                              <DataDisplayModes 
+                            {value && typeof value === "object" && value._placeholder ? (
+                              <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                  <div className="text-sm text-yellow-200">
+                                    {value.message || "Waiting for execution"}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : typeof value === "object" && value !== null ? (
+                              <DataDisplayModes
                                 data={maskSensitiveValue(key, value)}
                                 className="mt-2"
                                 defaultMode="schema"
@@ -921,7 +988,7 @@ const [nodeAlias, setNodeAlias] = useState(
 
                           {/* Value display */}
                           {typeof executionData.outputs === "object" && executionData.outputs !== null ? (
-                            <DataDisplayModes 
+                            <DataDisplayModes
                               data={maskSensitiveValue("result", executionData.outputs)}
                               className="mt-2"
                               defaultMode="schema"

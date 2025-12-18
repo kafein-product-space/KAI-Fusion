@@ -320,7 +320,7 @@ class NodeExecutor:
         if not name:
             return ""
         
-        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name.lower()).strip("_")
+        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name).strip("_")
         if not normalized:
             return ""
         
