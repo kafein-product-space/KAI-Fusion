@@ -817,7 +817,7 @@ async def create_template_from_workflow(
 
 
 class AdhocExecuteRequest(BaseModel):
-    flow_data: Dict[str, Any]
+    flow_data: Optional[Dict[str, Any]] = None
     input_text: str = "Hello"
     session_id: Optional[str] = None
     chatflow_id: Optional[str] = None  # Yeni eklenen alan
@@ -981,6 +981,36 @@ async def execute_adhoc_workflow(
     # Ensure session_id is consistent with chatflow_id
     if not req.session_id:
         session_id = str(chatflow_id)
+
+    # If flow_data is missing, try to fetch it using workflow_id
+    if not req.flow_data:
+        if not req.workflow_id:
+             raise HTTPException(status_code=400, detail="Either flow_data or workflow_id must be provided")
+        
+        try:
+            from app.models.workflow import Workflow
+            from sqlalchemy.future import select
+            
+            # Fetch workflow to get flow_data
+            wf_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
+            wf_result = await db.execute(wf_query)
+            workflow_obj = wf_result.scalar_one_or_none()
+            
+            if not workflow_obj:
+                 raise HTTPException(status_code=404, detail=f"Workflow {req.workflow_id} not found")
+                 
+            # Check access
+            if workflow_obj.user_id != user_id and not workflow_obj.is_public:
+                 raise HTTPException(status_code=403, detail="Access denied")
+                 
+            req.flow_data = workflow_obj.flow_data
+            logger.info(f"Fetched flow_data for workflow {req.workflow_id}")
+            
+        except HTTPException:
+            raise
+        except Exception as e:
+            logger.error(f"Failed to fetch workflow flow_data: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to fetch workflow data: {str(e)}")
     
     # --- EXECUTION KAYDI OLUŞTUR ---
     execution = None
