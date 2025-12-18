@@ -1361,30 +1361,55 @@ class ReactAgentNode(ProcessorNode):
 
     def _extract_user_input_from_templated_inputs(self, runtime_inputs: Any, templated_inputs: Dict[str, Any]) -> str:
         """
-        Extract user input from templated input fields, prioritizing the templated 'input' field.
+        Extract user input from templated input fields.
 
-        This method ensures Jinja templating works correctly for ReactAgent by using
-        templated input fields that have been pre-processed by the node executor.
+        Logic:
+        - Chat mode: user_prompt_template contains {{input}} which gets templated to actual user message
+          -> Use templated user_prompt_template as the user input
+        - StartNode mode: user_prompt_template is empty or not used
+          -> Use the connected 'input' field directly
+
+        This method ensures both modes work correctly.
         """
-        # First priority: templated 'input' field (this is where {{test}} becomes "hello")
+        # Get the templated user_prompt_template (this is where {{input}} becomes "actual message")
+        templated_user_prompt = ""
+        if isinstance(templated_inputs, dict):
+            templated_user_prompt = templated_inputs.get("user_prompt_template", "").strip()
+
+        # Get raw user_prompt_template from user_data
+        raw_template = self.user_data.get("user_prompt_template", "").strip()
+
+        # CHAT MODE: If user_prompt_template was successfully templated (contains actual content)
+        # Use the templated value as user input
+        if templated_user_prompt and raw_template:
+            # Check if templating actually happened (value changed from raw template)
+            if templated_user_prompt != raw_template and "{{" not in templated_user_prompt:
+                print(f"[TEMPLATE] ReactAgent using templated user_prompt_template (Chat mode): '{templated_user_prompt[:50]}...'")
+                return templated_user_prompt
+
+        # STARTNODE MODE or FALLBACK: Use the connected 'input' field
+        # Priority 1: templated 'input' field from connections
         if isinstance(templated_inputs, dict) and "input" in templated_inputs:
             templated_input = templated_inputs["input"]
-            if isinstance(templated_input, str):
-                print(f"[TEMPLATE] ReactAgent using templated input: '{templated_input}'")
+            if isinstance(templated_input, str) and templated_input.strip():
+                print(f"[TEMPLATE] ReactAgent using connected input (StartNode mode): '{templated_input[:50]}...'")
                 return templated_input
 
-        # Fallback: runtime_inputs (for backward compatibility)
-        if isinstance(runtime_inputs, str):
-            print(f"[TEMPLATE] ReactAgent using runtime input (fallback): '{runtime_inputs}'")
+        # Priority 2: runtime_inputs string
+        if isinstance(runtime_inputs, str) and runtime_inputs.strip():
+            print(f"[TEMPLATE] ReactAgent using runtime input: '{runtime_inputs[:50]}...'")
             return runtime_inputs
-        elif isinstance(runtime_inputs, dict):
-            runtime_input = runtime_inputs.get("input", templated_inputs.get("input", ""))
-            print(f"[TEMPLATE] ReactAgent using runtime dict input (fallback): '{runtime_input}'")
-            return runtime_input
-        else:
-            fallback_input = templated_inputs.get("input", "")
-            print(f"[TEMPLATE] ReactAgent using templated input fallback: '{fallback_input}'")
-            return fallback_input
+
+        # Priority 3: runtime_inputs dict
+        if isinstance(runtime_inputs, dict):
+            runtime_input = runtime_inputs.get("input", "")
+            if runtime_input and isinstance(runtime_input, str):
+                print(f"[TEMPLATE] ReactAgent using runtime dict input: '{runtime_input[:50]}...'")
+                return runtime_input
+
+        # Fallback: empty string (should not happen in normal flow)
+        print(f"[TEMPLATE] ReactAgent: No user input found, using empty string")
+        return ""
 
     def _detect_user_language(self, user_input: str) -> str:
         """Detect user's language with Turkish character safety."""
@@ -1454,17 +1479,15 @@ class ReactAgentNode(ProcessorNode):
                         # Skip assistant messages as they'll be regenerated
                         pass
 
-        # Check if user_prompt_template is being used
-        user_prompt_template = self.user_data.get("user_prompt_template", "").strip()
-
-        # If user_prompt_template is defined, user input is handled by the ChatPromptTemplate
-        # Don't add separate user message to avoid duplication
-        if not user_prompt_template:
-            # No user prompt template, add user input as regular message (backward compatibility)
+        # Always add user input as HumanMessage
+        # The _extract_user_input_from_templated_inputs method now correctly returns:
+        # - For Chat mode: the templated user_prompt_template (e.g., "bana baklava tarifi")
+        # - For StartNode mode: the connected input value
+        if user_input and user_input.strip():
+            print(f"[AGENT] Adding HumanMessage: '{user_input[:50]}...'")
             messages.append(HumanMessage(content=user_input))
-
-        # If user_prompt_template exists, the user input will be injected into the prompt template
-        # and sent as part of the system message, not as a separate user message
+        else:
+            print(f"[AGENT] Warning: No user input to add as HumanMessage")
 
         return {
             "messages": messages
@@ -1654,7 +1677,6 @@ class ReactAgentNode(ProcessorNode):
             print(f"[TEMPLATE] Using templated user prompt: '{user_prompt_template[:50]}...'")
             # Add templated user prompt to system instructions
             custom_instructions += f"\n\nUser Input: {user_prompt_template}"
-
         # Get language-specific system context
         language_specific_context = get_language_specific_prompt(language_code)
 

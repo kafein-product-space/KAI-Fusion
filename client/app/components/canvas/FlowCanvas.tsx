@@ -559,7 +559,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         // Prepare execution inputs
         const executionData = {
           flow_data: flowData,
-          input_text: "Start workflow execution",
+          input_text: "",
           node_id: nodeId,
           execution_type: "manual",
           trigger_source: "start_node_double_click",
@@ -1364,13 +1364,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const nodeId = fullscreenModal.nodeData?.id;
                 if (!nodeId) return undefined;
 
-                // Only return actual execution outputs - do not use configuration data as outputs
+                // 1. If execution output exists, use it
                 const executionOutput = currentExecution?.result?.node_outputs?.[nodeId];
                 if (executionOutput) {
                   return executionOutput;
                 }
 
-                // Return undefined if no execution output exists - do not show config data as outputs
+                // 2. Only show fallback/placeholder if a workflow execution exists but this node hasn't run
+                if (currentExecution?.result?.node_outputs) {
+                  // Check node config data for fallback fields
+                  const nodeData = (fullscreenModal.nodeData?.data as any) || {};
+                  const OUTPUT_FALLBACK_FIELDS = ['output', 'text_input', 'text', 'content', 'value', 'result', 'response', 'query', 'prompt'];
+                  const fallbackField = OUTPUT_FALLBACK_FIELDS.find(field => nodeData[field] !== undefined);
+
+                  if (fallbackField) {
+                    return { output: nodeData[fallbackField] };
+                  }
+
+                  // No fallback fields found, return placeholder
+                  return {
+                    output: {
+                      _placeholder: true,
+                      message: "No default value available",
+                      nodeId: nodeId
+                    }
+                  };
+                }
+
+                // 3. No execution exists at all - return undefined (shows "No Output Data Yet")
                 return undefined;
               })(),
               status:

@@ -101,10 +101,11 @@ const Navbar: React.FC<NavbarProps> = ({
       try {
         const json = JSON.parse(event.target?.result as string);
         if (setCurrentWorkflow && setNodes && setEdges) {
-          setCurrentWorkflow(json);
+
+          setCurrentWorkflow(null);
           setNodes(json.flow_data?.nodes || []);
           setEdges(json.flow_data?.edges || []);
-          // Workflow name'ini de güncelle
+          // Update workflow name from loaded file
           if (json.name) {
             setWorkflowName(json.name);
           }
