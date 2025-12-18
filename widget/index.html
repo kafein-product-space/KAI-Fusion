@@ -207,12 +207,17 @@
             
             <div class="input-group">
                 <label for="targetUrl">Target API URL</label>
-                <input type="text" id="targetUrl" value="http://localhost:8001" placeholder="https://your-api.com">
+                <input type="text" id="targetUrl" value="http://localhost:23056" placeholder="https://your-api.com">
             </div>
             
             <div class="input-group">
                 <label for="apiKey">API Key (Optional)</label>
                 <input type="password" id="apiKey" placeholder="Your API key">
+            </div>
+            
+            <div class="input-group">
+                <label for="workflowId">Workflow ID (Required)</label>
+                <input type="text" id="workflowId" value="91c6dc95-d9c9-4578-ab67-f4c5323b866c" placeholder="Workflow UUID">
             </div>
             
             <div class="buttons">
@@ -240,13 +245,15 @@
     <script>
         // Configuration management
         let currentConfig = {
-            targetUrl: 'http://localhost:8001',
-            apiKey: ''
+            targetUrl: 'http://localhost:23056',
+            apiKey: '',
+            workflowId: ''
         };
 
         function updateConfig() {
             const targetUrl = document.getElementById('targetUrl').value.trim();
             const apiKey = document.getElementById('apiKey').value.trim();
+            const workflowId = document.getElementById('workflowId').value.trim();
             
             if (!targetUrl) {
                 showStatus('❌ Please enter a target URL', 'error');
@@ -255,6 +262,7 @@
             
             currentConfig.targetUrl = targetUrl;
             currentConfig.apiKey = apiKey;
+            currentConfig.workflowId = workflowId;
             
             // Update integration code
             updateIntegrationCode();
@@ -271,6 +279,7 @@
             const code = `&lt;script src="./widget.js" 
         data-target-url="${currentConfig.targetUrl}"
         data-api-key="${currentConfig.apiKey}"
+        data-workflow-id="${currentConfig.workflowId}"
         data-position="right"
         data-color="#2563eb"&gt;&lt;/script&gt;`;
             
@@ -307,11 +316,16 @@
         }
 
         function showWidget() {
+            if (!currentConfig.workflowId) {
+                 showStatus('⚠️ Warning: Workflow ID is empty!', 'error');
+            }
+
             if (!window.KAIWidget) {
                 const script = document.createElement('script');
                 script.src = './widget.js';
                 script.setAttribute('data-target-url', currentConfig.targetUrl);
                 script.setAttribute('data-api-key', currentConfig.apiKey);
+                script.setAttribute('data-workflow-id', currentConfig.workflowId);
                 script.setAttribute('data-position', 'right');
                 script.setAttribute('data-color', '#2563eb');
                 document.head.appendChild(script);
