@@ -166,6 +166,7 @@ class NodePropertyType(str, Enum):
     RANGE = "range"
     JSON_EDITOR = "json-editor"
     DATETIME = "datetime"
+    CODE_EDITOR = "code-editor"
 
 
 class NodeProperty(BaseModel):

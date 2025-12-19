@@ -64,7 +64,10 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   OpenAIChat: <img src="icons/openai.svg" alt="openai-chat" />,
   OpenAIEmbeddings: <img src="icons/openai.svg" alt="openai-embeddings" />,
 
+  // Processing Nodes
+  CodeNode: <img src="icons/code.svg" alt="code-node" />,
 
+  
   RedisCache: (
     <svg
       width="25px"

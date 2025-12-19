@@ -104,6 +104,8 @@ SAFE_JS_MODULES = {
     'crypto', 'util', 'url', 'querystring', 'path', 'os'
 }
 
+CODE_INPUT_VARIABLE_NAME = "node_data"
+
 
 def timeout_handler(signum, frame):
     """Handle execution timeout"""
@@ -387,21 +389,25 @@ try {{
 
                 # Extract output from stdout
                 if '__OUTPUT_START__' in stdout and '__OUTPUT_END__' in stdout:
+                    # Get user's console.log output (before __OUTPUT_START__)
+                    user_stdout_end = stdout.find('__OUTPUT_START__')
+                    user_stdout = stdout[:user_stdout_end].strip()
+                    
                     start_idx = stdout.find('__OUTPUT_START__') + len('__OUTPUT_START__\n')
                     end_idx = stdout.find('__OUTPUT_END__')
                     output_json = stdout[start_idx:end_idx].strip()
 
                     try:
                         output_data = json.loads(output_json)
-                        output_data['stdout'] = stdout.replace('__OUTPUT_START__', '').replace('__OUTPUT_END__',
-                                                                                               '').strip()
+                        # Use only user's console.log output as stdout
+                        output_data['stdout'] = user_stdout
                         return output_data
                     except json.JSONDecodeError:
                         return {
                             'success': False,
                             'error': f'Failed to parse output: {output_json}',
                             'output': None,
-                            'stdout': stdout
+                            'stdout': user_stdout
                         }
                 else:
                     # No structured output, check for errors
@@ -503,73 +509,29 @@ class CodeNode(ProcessorNode):
             "category": "Processing",
             "node_type": NodeType.PROCESSOR,
             "icon": {"name": "code", "path": None, "alt": None},
-            "colors": ["gray-600", "gray-700"],
+            "colors": ["orange-500", "red-600"],
 
-            # Connection inputs only
+            # Single connection input - compatible with all nodes and Jinja templating
             "inputs": [
                 NodeInput(
-                    name="input_data",
-                    displayName="Input Data",
+                    name="input",
+                    displayName="Input",
                     type="any",
-                    description="Input data from connected nodes for processing",
-                    is_connection=True,
-                    required=False,
-                    direction=NodePosition.LEFT
-                ),
-                NodeInput(
-                    name="additional_context",
-                    displayName="Context",
-                    type="dict",
-                    description="Additional context variables for code execution",
+                    description=f"Input data from connected nodes. Accessible as '{CODE_INPUT_VARIABLE_NAME}' variable in your code.",
                     is_connection=True,
                     required=False,
                     direction=NodePosition.LEFT
                 ),
             ],
 
-            # Output specifications
+            # Single output - compatible with Jinja templating ({{code_node}})
             "outputs": [
                 NodeOutput(
                     name="output",
                     displayName="Output",
                     type="any",
-                    description="Output from code execution",
+                    description="Result from code execution. Set 'output' or 'result' variable in your code.",
                     is_connection=True,
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="success",
-                    displayName="Success",
-                    type="boolean",
-                    description="Whether code execution was successful",
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="error",
-                    displayName="Error",
-                    type="string",
-                    description="Error message if execution failed",
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="stdout",
-                    displayName="Console Output",
-                    type="string",
-                    description="Console output from print/console.log statements",
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="execution_time",
-                    displayName="Execution Time",
-                    type="number",
-                    description="Code execution time in milliseconds",
-                    direction=NodePosition.RIGHT
-                ),
-                NodeOutput(
-                    name="documents",
-                    displayName="Documents",
-                    type="list",
-                    description="Output as Document objects for compatibility",
                     direction=NodePosition.RIGHT
                 ),
             ],
@@ -606,9 +568,9 @@ class CodeNode(ProcessorNode):
                 NodeProperty(
                     name="code",
                     displayName="Code",
-                    type=NodePropertyType.TEXT_AREA,
-                    description="Code to execute. Use 'output' or 'result' variable to return data.",
-                    default="// JavaScript Example\noutput = {\n  message: 'Hello from Code Node!',\n  timestamp: new Date(),\n  items: items || []\n};\n\n# Python Example\n# output = {\n#     'message': 'Hello from Code Node!',\n#     'timestamp': str(_now()),\n#     'items': items or []\n# }",
+                    type=NodePropertyType.CODE_EDITOR,
+                    description="Code to execute. Use 'input' to access connected data. Set 'output' or 'result' to return data. Supports Jinja: {{node_name}}",
+                    default="# Python Example - Access input from connected nodes\n# The 'input' variable contains data from the connected node\n\noutput = f'Processed: {input}'",
                     required=True,
                     rows=12,
                     maxLength=50000,
@@ -722,14 +684,74 @@ class CodeNode(ProcessorNode):
         logger.info(code)
         logger.info("```")
 
-        # Get input data from connected nodes
-        input_data = connected_nodes.get("input_data", [])
-        additional_context = connected_nodes.get("additional_context", {})
-
-        # Prepare execution context
+        # Get input data from connected node (single input)
+        input_data = connected_nodes.get("input", None)
+        
+        # DEBUG: Print raw input from connected node
+        logger.info(f"📥 RAW INPUT (before extraction): {input_data}")
+        
+        # Handle different input formats - extract page_content from various node outputs
+        if isinstance(input_data, dict):
+            # Priority 1: Check for 'documents' list (StringInputNode, DocumentLoaderNode, etc.)
+            if "documents" in input_data and isinstance(input_data["documents"], list) and len(input_data["documents"]) > 0:
+                docs = input_data["documents"]
+                # Extract page_content from all documents
+                page_contents = []
+                for doc in docs:
+                    if hasattr(doc, 'page_content'):
+                        # LangChain Document object
+                        page_contents.append(doc.page_content)
+                    elif isinstance(doc, dict) and "page_content" in doc:
+                        # Dict with page_content key
+                        page_contents.append(doc["page_content"])
+                
+                if page_contents:
+                    # Join multiple documents with newlines, or use single document content
+                    input_data = "\n\n".join(page_contents) if len(page_contents) > 1 else page_contents[0]
+                    logger.info(f"📄 Extracted page_content from {len(page_contents)} document(s)")
+            
+            # Priority 2: Check for direct 'page_content' key
+            elif "page_content" in input_data:
+                input_data = input_data["page_content"]
+                logger.info("📄 Extracted page_content directly from input")
+            
+            # Priority 3: Check for 'output' key (ReactAgentNode, StringInputNode.output, etc.)
+            elif "output" in input_data:
+                input_data = input_data["output"]
+                logger.info("📤 Extracted output from input")
+            
+            # Priority 4: Check for 'content' key (HttpClientNode)
+            elif "content" in input_data:
+                input_data = input_data["content"]
+                logger.info("📤 Extracted content from input")
+            
+            # Otherwise keep the dict as-is for custom processing
+        
+        # Handle LangChain Document objects directly
+        elif hasattr(input_data, 'page_content'):
+            input_data = input_data.page_content
+            logger.info("📄 Extracted page_content from Document object")
+        
+        # Handle list of Document objects
+        elif isinstance(input_data, list) and len(input_data) > 0:
+            page_contents = []
+            for item in input_data:
+                if hasattr(item, 'page_content'):
+                    page_contents.append(item.page_content)
+                elif isinstance(item, dict) and "page_content" in item:
+                    page_contents.append(item["page_content"])
+            
+            if page_contents:
+                input_data = "\n\n".join(page_contents) if len(page_contents) > 1 else page_contents[0]
+                logger.info(f"📄 Extracted page_content from {len(page_contents)} items in list")
+        
+        # DEBUG: Print processed input
+        logger.info(f"📥 PROCESSED INPUT (after extraction): {input_data}")
+        
+        # Prepare execution context with input available as configured variable name
         context = {
+            CODE_INPUT_VARIABLE_NAME: input_data,  # Dynamic variable name (default: 'input')
             "inputs": inputs,
-            **additional_context
         }
 
         logger.info("🌍 EXECUTION CONTEXT:")
@@ -782,56 +804,21 @@ class CodeNode(ProcessorNode):
                 logger.info(f"⏱️  Execution time: {execution_time:.2f}ms")
 
                 if result['success']:
-                    logger.info("🎉 EXECUTION OUTPUT:")
-                    logger.info(json.dumps(result['output'], default=str, ensure_ascii=False, indent=2))
+                    logger.info("🎉 EXECUTION SUCCESS")
 
                     if result['stdout']:
                         logger.info("📟 CONSOLE OUTPUT:")
                         logger.info(result['stdout'])
 
-                    output = result['output']
-                    serialized_output = serialize_output(output)
-
-                    # Convert to documents if needed
-                    documents = []
-                    if output:
-                        if isinstance(output, list):
-                            for idx, item in enumerate(output):
-                                doc = Document(
-                                    page_content=json.dumps(item, default=str) if not isinstance(item, str) else item,
-                                    metadata={
-                                        "source": "code_node",
-                                        "language": language,
-                                        "index": idx,
-                                        "mode": mode,
-                                        "execution_time": execution_time
-                                    }
-                                )
-                                documents.append(doc)
-                        else:
-                            doc = Document(
-                                page_content=json.dumps(output, default=str) if not isinstance(output, str) else str(
-                                    output),
-                                metadata={
-                                    "source": "code_node",
-                                    "language": language,
-                                    "mode": mode,
-                                    "execution_time": execution_time
-                                }
-                            )
-                            documents = [doc]
-
-                    logger.info(f"📄 Generated {len(documents)} documents")
+                    # Output is always stdout (print statements)
+                    stdout_output = result['stdout'].strip() if result['stdout'] else ""
+                    
                     logger.info(f"✅ {language.title()} code executed successfully in {execution_time:.1f}ms")
                     logger.info("=" * 80)
 
+                    # Return stdout as output for Jinja compatibility
                     return {
-                        "output": serialized_output,
-                        "success": True,
-                        "error": None,
-                        "stdout": result['stdout'],
-                        "execution_time": execution_time,
-                        "documents": documents
+                        "output": stdout_output
                     }
                 else:
                     logger.error("❌ EXECUTION ERROR:")
@@ -845,13 +832,9 @@ class CodeNode(ProcessorNode):
                     logger.info("=" * 80)
 
                     if continue_on_error:
+                        # Return error as output when continue_on_error is enabled
                         return {
-                            "output": "null",
-                            "success": False,
-                            "error": result['error'],
-                            "stdout": result['stdout'],
-                            "execution_time": execution_time,
-                            "documents": []
+                            "output": f"Error: {result['error']}"
                         }
                     else:
                         raise ValueError(f"Code execution failed: {result['error']}")
@@ -886,59 +869,38 @@ class CodeNode(ProcessorNode):
 
                     if result['success']:
                         logger.info(f"  ✅ Item {idx + 1} processed successfully")
-                        logger.info(
-                            f"  📤 Output: {json.dumps(result['output'], default=str, ensure_ascii=False)[:200]}{'...' if len(str(result['output'])) > 200 else ''}")
 
                         if result['stdout']:
                             logger.info(
                                 f"  📟 Console: {result['stdout'][:100]}{'...' if len(result['stdout']) > 100 else ''}")
 
-                        outputs.append(result['output'])
+                        # Output is always stdout (print statements)
+                        item_stdout = result['stdout'].strip() if result['stdout'] else ""
+                        outputs.append(item_stdout)
                         all_stdout.append(result['stdout'])
-
-                        # Create document for this item
-                        if result['output']:
-                            doc = Document(
-                                page_content=json.dumps(result['output'], default=str) if not isinstance(
-                                    result['output'], str) else str(result['output']),
-                                metadata={
-                                    "source": "code_node",
-                                    "language": language,
-                                    "index": idx,
-                                    "mode": mode,
-                                    "item_index": idx
-                                }
-                            )
-                            documents.append(doc)
                     elif continue_on_error:
                         logger.warning(f"  ⚠️ Item {idx + 1} failed (continuing): {result['error'][:100]}...")
-                        outputs.append(None)
+                        outputs.append(f"Error: {result['error']}")
                         all_stdout.append(result['stdout'])
                     else:
                         logger.error(f"  ❌ Item {idx + 1} failed: {result['error']}")
                         raise ValueError(f"Code execution failed for item {idx}: {result['error']}")
 
                 execution_time = (time.time() - start_time) * 1000
-                serialized_outputs = serialize_output(outputs)
 
                 # Log final results
                 logger.info("=" * 80)
                 logger.info("📤 EACH ITEM MODE FINAL RESULTS")
                 logger.info("=" * 80)
                 logger.info(f"✅ Processed {len(items)} items in {execution_time:.2f}ms")
-                logger.info(f"📊 Successful outputs: {len([o for o in outputs if o is not None])}")
-                logger.info(f"📄 Generated {len(documents)} documents")
                 logger.info("=" * 80)
 
                 logger.info(f"✅ {language.title()} code executed for {len(items)} items in {execution_time:.1f}ms")
 
+                # Return combined stdout outputs for Jinja compatibility
+                combined_output = "\n".join(outputs) if len(outputs) > 1 else (outputs[0] if outputs else "")
                 return {
-                    "output": serialized_outputs,
-                    "success": True,
-                    "error": None,
-                    "stdout": '\n'.join(all_stdout),
-                    "execution_time": execution_time,
-                    "documents": documents
+                    "output": combined_output
                 }
 
         except Exception as e:
@@ -957,13 +919,9 @@ class CodeNode(ProcessorNode):
             logger.error("=" * 80)
 
             if continue_on_error:
+                # Return error as output when continue_on_error is enabled
                 return {
-                    "output": "null",
-                    "success": False,
-                    "error": error_msg,
-                    "stdout": "",
-                    "execution_time": execution_time,
-                    "documents": []
+                    "output": f"Error: {error_msg}"
                 }
             else:
                 raise ValueError(error_msg)
