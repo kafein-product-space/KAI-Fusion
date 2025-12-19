@@ -41,7 +41,7 @@ from .triggers.webhook_trigger import WebhookTriggerNode
 from .triggers.timer_start_node import TimerStartNode
 
 # Text Processing Nodes
-from .text_processing.string_input_node import StringInputNode
+from .processing.string_input_node import StringInputNode
 
 
 # ================================================================
