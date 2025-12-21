@@ -28,8 +28,12 @@ async def get_all_nodes():
             
         try:
             instance = node_class()
-            # Use model_dump instead of deprecated dict()
-            metadata = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
+            # Use model_dump instead of deprecated dict() and drop None fields
+            metadata = (
+                instance.metadata.model_dump(exclude_none=True)
+                if hasattr(instance.metadata, "model_dump")
+                else instance.metadata.dict(exclude_none=True)
+            )
             # Add the node name to the metadata and ensure each node has an ID
             metadata["name"] = name
             metadata['id'] = name
@@ -53,8 +57,12 @@ async def get_node_categories():
             
         try:
             instance = node_class()
-            # Use model_dump instead of deprecated dict()
-            metadata_dict = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
+            # Use model_dump instead of deprecated dict() and drop None fields
+            metadata_dict = (
+                instance.metadata.model_dump(exclude_none=True)
+                if hasattr(instance.metadata, "model_dump")
+                else instance.metadata.dict(exclude_none=True)
+            )
             category = metadata_dict.get("category", "Other")
             categories.add(category)
         except Exception as e:
@@ -84,8 +92,12 @@ async def get_node_details(node_type: str):
     
     try:
         instance = node_class()
-        # Use model_dump instead of deprecated dict()
-        metadata = instance.metadata.model_dump() if hasattr(instance.metadata, 'model_dump') else instance.metadata.dict()
+        # Use model_dump instead of deprecated dict() and drop None fields
+        metadata = (
+            instance.metadata.model_dump(exclude_none=True)
+            if hasattr(instance.metadata, "model_dump")
+            else instance.metadata.dict(exclude_none=True)
+        )
         
         # Add detailed configuration schema
         detailed_info = {

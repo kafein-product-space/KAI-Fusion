@@ -56,6 +56,7 @@ from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional, Union, Callable
 from pydantic import BaseModel, Field, field_validator
 from langchain_core.runnables import Runnable
+from app.models.user_credential import UserCredential
 from enum import Enum
 
 # Import FlowState for LangGraph compatibility
@@ -147,6 +148,164 @@ class NodeType(str, Enum):
 # METADATA SYSTEM - TYPE-SAFE NODE CONFIGURATION
 # ================================================================================
 
+class NodePosition(str, Enum):
+    LEFT = "left"
+    TOP = "top"
+    RIGHT = "right"
+    BOTTOM = "bottom"
+
+class NodePropertyType(str, Enum):
+    TEXT_AREA = "textarea"
+    SELECT = "select"
+    CREDENTIAL_SELECT = "credential-select"
+    TEXT = "text"
+    NUMBER = "number"
+    PASSWORD = "password"
+    CHECKBOX = "checkbox"
+    TITLE = "title"
+    RANGE = "range"
+    JSON_EDITOR = "json-editor"
+    DATETIME = "datetime"
+
+
+class NodeProperty(BaseModel):
+    """
+    Comprehensive input specification for node configuration.
+    
+    This model defines the contract for node inputs, enabling type-safe configuration,
+    validation, and automatic UI generation. It supports both user inputs (form fields)
+    and connection inputs (from other nodes).
+    
+    Design Patterns:
+    - Factory Pattern: User inputs create objects
+    - Observer Pattern: Connection inputs receive data from other nodes
+    - Validation Pattern: Type checking and constraint enforcement
+    """
+    
+    # Core Properties (Mandatory in TS interface)
+    name: str = Field(
+        ...,
+        description="Unique identifier for this input within the node",
+        min_length=1,
+        pattern=r"^[a-zA-ZçÇğĞıİöÖşŞüÜ_][a-zA-ZçÇğĞıİöÖşŞüÜ0-9_]*$"  # Valid Python identifier with Turkish characters
+    )
+    
+    displayName: str = Field(
+        ...,
+        description="Human-friendly name displayed in UI",
+        alias="displayName"
+    )
+
+    tabName: Optional[str] = Field(
+        default=None,
+        description="Tab name for the input (basic, advanced, testing, etc.)",
+        alias="tabName"
+    )
+    
+    type: NodePropertyType = Field(
+        ...,
+        description="Node type (textarea, select, credential-select, text, number, password, checkbox, title, range, json-editor, datetime)"
+    )
+    
+    default: Optional[Any] = Field(
+        default=None,
+        description="Default value used when input is not provided (only for non-required inputs)"
+    )
+
+    description: Optional[str] = Field(
+        default=None,
+        description="Human-readable description for UI tooltips and documentation",
+    )
+    
+    hint: Optional[str] = Field(
+        default=None,
+        description="Hint text for the input"
+    )
+    
+    displayOptions: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Display options for UI visibility/rendering",
+        alias="displayOptions"
+    )
+    
+    options: Optional[List[Any]] = Field(
+        default=None,
+        description="List of options for select/multi-select types"
+    )
+    
+    placeholder: Optional[str] = Field(
+        default=None,
+        description="Placeholder text for inputs"
+    )
+    
+    required: bool = Field(
+        default=True,
+        description="Whether this input must be provided for node execution"
+    )
+
+    min: Optional[int] = Field(
+        default=None,
+        description="Minimum value of the input"
+    )
+    
+    max: Optional[int] = Field(
+        default=None,
+        description="Maximum value of the input"
+    )
+
+    step: Optional[float] = Field(
+        default=None,
+        description="Step value of the input (for range inputs)"
+    )
+
+    minLabel: Optional[str] = Field(
+        default=None,
+        description="Label for the minimum value (e.g. 'Few Results')"
+    )
+
+    maxLabel: Optional[str] = Field(
+        default=None,
+        description="Label for the maximum value (e.g. 'Many Results')"
+    )
+
+    maxLength: Optional[int] = Field(
+        default=None,
+        description="Maximum length of the input"
+    )
+
+    color: Optional[str] = Field(
+        default=None,
+        description="Tailwind color class for node value display"
+    )
+
+    minLength: Optional[int] = Field(
+        default=None,
+        description="Minimum length of the input"
+    )
+    
+    colSpan: Optional[int] = Field(
+        default=None,
+        description="Number of columns for the input"
+    )
+    
+    rows: Optional[int] = Field(
+        default=4,
+        description="Number of rows for textarea"
+    )
+
+    @field_validator('displayName', mode='before')
+    def default_display_name(cls, v, info):
+        """Provide a default display_name equal to the input name if omitted."""
+        if v is not None:
+            return v
+        # In mode='before', info.data contains the raw input dict
+        return info.data.get('name')
+
+    @property
+    def type_hint(self) -> str:
+        """Backward compatibility property for type_hint."""
+        return self.type
+
 class NodeInput(BaseModel):
     """
     Comprehensive input specification for node configuration.
@@ -168,6 +327,12 @@ class NodeInput(BaseModel):
         pattern=r"^[a-zA-ZçÇğĞıİöÖşŞüÜ_][a-zA-ZçÇğĞıİöÖşŞüÜ0-9_]*$"  # Valid Python identifier with Turkish characters
     )
     
+    displayName: Optional[str] = Field(
+        default=None,
+        description="Human-friendly name displayed in UI",
+        alias="displayName"
+    )
+    
     type: str = Field(
         ...,
         description="Expected data type (BaseLanguageModel, str, int, bool, etc.)"
@@ -179,6 +344,11 @@ class NodeInput(BaseModel):
         min_length=10
     )
     
+    direction: Optional[NodePosition] = Field(
+        default=None,
+        description="Direction of the output (left, top, right, bottom)"
+    )
+
     required: bool = Field(
         default=True,
         description="Whether this input must be provided for node execution"
@@ -224,6 +394,12 @@ class NodeOutput(BaseModel):
         pattern=r"^[a-zA-Z_][a-zA-Z0-9_]*$"
     )
     
+    displayName: Optional[str] = Field(
+        default=None,
+        description="Human-friendly name displayed in UI",
+        alias="displayName"
+    )
+    
     type: str = Field(
         ...,
         description="Output data type (str, BaseRetriever, Dict[str, Any], etc.)"
@@ -233,6 +409,11 @@ class NodeOutput(BaseModel):
         ...,
         description="Human-readable description of what this output contains",
         min_length=10
+    )
+    
+    direction: Optional[NodePosition] = Field(
+        default=None,
+        description="Direction of the output (left, top, right, bottom)"
     )
     
     # Optional output metadata
@@ -245,6 +426,11 @@ class NodeOutput(BaseModel):
         default=None,
         description="JSON schema for structured outputs",
         alias="schema"  # Keep backward compatibility if needed
+    )
+
+    is_connection: bool = Field(
+        default=False,
+        description="True if output comes from node connections, False if from user form"
     )
 
 class NodeMetadata(BaseModel):
@@ -280,14 +466,14 @@ class NodeMetadata(BaseModel):
     )
     
     # Visual Configuration
-    icon: Optional[str] = Field(
+    icon: Optional[Union[str, Dict[str, Any]]] = Field(
         default=None,
-        description="Icon identifier for UI display (from icon library)"
+        description="Icon identifier or configuration for UI display"
     )
     
-    color: Optional[str] = Field(
+    colors: Optional[List[str]] = Field(
         default=None,
-        description="Hex color code for node visual theming (#RRGGBB)"
+        description="List of Tailwind gradient classes for node visual theming"
     )
     
     category: str = Field(
@@ -307,7 +493,7 @@ class NodeMetadata(BaseModel):
         description="Complete specification of all node inputs"
     )
     
-    outputs: List[NodeOutput] = Field(
+    outputs: List[NodeOutput | str] = Field(
         default_factory=list,
         description="Complete specification of all node outputs"
     )
@@ -331,6 +517,11 @@ class NodeMetadata(BaseModel):
     examples: List[Dict[str, Any]] = Field(
         default_factory=list,
         description="Usage examples with input/output samples"
+    )
+
+    properties: Optional[Union[Dict[str, Any], List[NodeProperty]]] = Field(
+        default=None,
+        description="Additional properties for node configuration"
     )
 
     @field_validator('display_name', mode='before')
@@ -446,6 +637,7 @@ class BaseNode(ABC):
     _input_connections: Dict[str, Dict[str, str]]
     _output_connections: Dict[str, List[Dict[str, str]]]
     user_data: Dict[str, Any]
+    credentials: List[Dict[str, Any]]
     
     def __init__(self):
         self.node_id = None  # Will be set by GraphBuilder
@@ -455,6 +647,7 @@ class BaseNode(ABC):
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend
+        self.credentials = []  # List of user credentials (not dict!)
     
     @property
     def metadata(self) -> NodeMetadata:
@@ -775,6 +968,17 @@ class BaseNode(ABC):
             runnable = runnable.with_config(run_config)
         
         return runnable
+
+    def get_credential(self, credential_id: str) -> Dict[str, Any]:
+        """Get a credential by its ID"""
+        print(f"🔍 Credentials: {self.credentials}")
+        if self.credentials:
+            for cred in self.credentials:
+                c_id = cred.get('id')
+                if str(c_id) == str(credential_id):
+                    print(f"🔍 Found Credential: {cred}")
+                    return cred
+        return None
 
 # 4. Geliştiricilerin Kullanacağı 3 Standart Node Sınıfı
 

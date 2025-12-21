@@ -133,3 +133,5 @@ temp/
 
 
 .venv/
+/.kilocode/mcp.json
+/package.json

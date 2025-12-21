@@ -18,6 +18,7 @@ import {
   Network,
   BookOpen,
   Type,
+  Box,
 } from "lucide-react";
 
 interface NodeType {
@@ -31,13 +32,14 @@ interface NodeType {
 
 interface DraggableNodeProps {
   nodeType: NodeType;
+  icon: string;
 }
 
 const nodeTypeIconMap: Record<string, ReactElement> = {
   // 🔄 Akış Kontrol
   StartNode: <Play className="w-6 h-6 text-green-400" />,
   start: <Play className="w-6 h-6 text-green-400" />,
-  TimerStartNode: <Zap className="w-6 h-6 text-yellow-400" />,
+  TimerStart: <Zap className="w-6 h-6 text-yellow-400" />,
   EndNode: <Square className="w-6 h-6 text-gray-400" />,
   ConditionalChain: <GitCompare className="w-6 h-6 text-orange-400" />,
   RouterChain: <GitBranch className="w-6 h-6 text-lime-400" />,
@@ -154,9 +156,10 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
       />
     </svg>
   ),
+  GenericNode: <Box className="w-6 h-6 text-blue-400" />,
 };
 
-function DraggableNode({ nodeType }: DraggableNodeProps) {
+function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
   const onDragStart = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
     event.dataTransfer.setData(

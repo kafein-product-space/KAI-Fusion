@@ -57,10 +57,10 @@ from langchain_core.vectorstores import VectorStoreRetriever
 
 # Use new langchain_postgres API with legacy fallback
 
-from langchain_postgres import PGEngine, PGVector
+from langchain_postgres import PGVector
 
 
-from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType
+from ..base import ProcessorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 
 logger = logging.getLogger(__name__)
 
@@ -102,40 +102,38 @@ class VectorStoreOrchestrator(ProcessorNode):
             ),
             "category": "VectorStore",
             "node_type": NodeType.PROCESSOR,
-            "icon": "database",
-            "color": "#10b981",
-            
+            "icon": {"name": "postgresql_vectorstore", "path": "icons/postgresql_vectorstore.svg", "alt": "vectorsotreicons"},
+            "colors": ["purple-500", "pink-600"],
             "inputs": [
                 # Connected Inputs (from other nodes)
                 NodeInput(
                     name="documents",
-                    type="documents",
+                    displayName="Documents",
+                    type="List[Document]",
+                    description="Documents to ingest into the vector store.",
                     is_connection=True,
-                    description="Pre-embedded document chunks (will auto-generate embeddings if missing)",
-                    required=True,
                 ),
                 NodeInput(
                     name="embedder",
-                    type="embedder",
+                    displayName="Embedder",
+                    type="Embedder",
+                    description="Embedding model for vectorizing documents.",
+                    direction=NodePosition.BOTTOM,
                     is_connection=True,
-                    description="Embedder service for storage operations (OpenAIEmbeddings, etc.)",
-                    required=True,
                 ),
-                
+
                 # Database Configuration
                 NodeInput(
                     name="connection_string",
                     type="password",
                     description="PostgreSQL connection string (postgresql://user:pass@host:port/db)",
                     required=True,
-                    is_secret=True,
                 ),
                 NodeInput(
                     name="collection_name",
                     type="text",
                     description="Vector collection name - separates different datasets (REQUIRED for data isolation)",
                     required=True,
-                    placeholder="e.g., amazon_products, user_manuals, company_docs",
                 ),
                 NodeInput(
                     name="table_prefix",
@@ -143,7 +141,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Custom table prefix for complete database isolation (optional)",
                     required=False,
                     default="",
-                    placeholder="e.g., project1_, client_a_",
                 ),
                 NodeInput(
                     name="pre_delete_collection",
@@ -160,7 +157,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Custom metadata to add to all documents (JSON format)",
                     required=False,
                     default="{}",
-                    placeholder='{"source": "amazon_catalog", "category": "electronics", "version": "2024"}',
                 ),
                 NodeInput(
                     name="preserve_document_metadata",
@@ -173,11 +169,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     name="metadata_strategy",
                     type="select",
                     description="How to handle metadata conflicts",
-                    choices=[
-                        {"value": "merge", "label": "Merge (custom overrides document)", "description": "Combine both, custom metadata takes priority"},
-                        {"value": "replace", "label": "Replace (only custom metadata)", "description": "Use only custom metadata, ignore document metadata"},
-                        {"value": "document_only", "label": "Document Only", "description": "Use only document metadata, ignore custom metadata"}
-                    ],
                     default="merge",
                     required=False,
                 ),
@@ -196,8 +187,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     description="Embedding vector dimension (auto-detected if 0)",
                     default=0,
                     required=False,
-                    min_value=0,
-                    max_value=4096,
                 ),
                 
                 # Retriever Configuration
@@ -205,10 +194,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     name="search_algorithm",
                     type="select",
                     description="Vector similarity search algorithm",
-                    choices=[
-                        {"value": k, "label": v["name"], "description": v["description"]}
-                        for k, v in SEARCH_ALGORITHMS.items()
-                    ],
                     default="cosine",
                     required=False,
                 ),
@@ -217,9 +202,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Number of documents to retrieve",
                     default=6,
-                    min_value=1,
-                    max_value=50,
-                    step=1,
                     required=False,
                 ),
                 NodeInput(
@@ -227,9 +209,6 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Minimum similarity score threshold (0.0-1.0)",
                     default=0.0,
-                    min_value=0.0,
-                    max_value=1.0,
-                    step=0.05,
                     required=False,
                 ),
                 
@@ -239,33 +218,143 @@ class VectorStoreOrchestrator(ProcessorNode):
                     type="slider",
                     description="Batch size for storing embeddings",
                     default=100,
-                    min_value=10,
-                    max_value=1000,
-                    step=10,
                     required=False,
                 ),
             ],
-            
             "outputs": [
                 NodeOutput(
                     name="result",
-                    type="retriever",
-                    description="Optimized vector store retriever for RAG",
+                    displayName="Retriever",
+                    type="VectorStoreRetriever",
+                    description="Configured retriever for searching the vector store.",
+                    is_connection=True,
+                )
+            ],
+            "properties": [
+                # Data Configuration Tab
+                NodeProperty(
+                    name="credential_id",
+                    displayName="Select Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    tabName="data",
+                    required=False,
                 ),
-                NodeOutput(
-                    name="vectorstore",
-                    type="vectorstore",
-                    description="Direct vector store instance for advanced operations",
+                NodeProperty(
+                    name="collection_name",
+                    displayName="Collection Name",
+                    type=NodePropertyType.TEXT,
+                    placeholder="e.g., amazon_products, user_manuals, company_docs",
+                    hint="Vector collection name - separates different datasets (REQUIRED for data isolation)",
+                    tabName="data",
+                    required=True,
                 ),
-                NodeOutput(
-                    name="optimization_report",
-                    type="dict",
-                    description="Database optimization report and performance metrics",
+                NodeProperty(
+                    name="table_prefix",
+                    displayName="Table Prefix (Optional)",
+                    type=NodePropertyType.TEXT,
+                    placeholder="e.g., project1_, client_a_",
+                    hint="Custom table prefix for complete database isolation (optional)",
+                    tabName="data",
+                    required=False,
                 ),
-                NodeOutput(
-                    name="storage_stats",
-                    type="dict",
-                    description="Storage operation statistics and performance metrics",
+
+                # Metadata Configuration Tab
+                NodeProperty(
+                    name="custom_metadata",
+                    displayName="Custom Metadata",
+                    type=NodePropertyType.JSON_EDITOR,
+                    default='{}',
+                    hint="Custom metadata to add to all documents (JSON format)",
+                    tabName="metadata",
+                    required=False,
+                ),
+                NodeProperty(
+                    name="preserve_document_metadata",
+                    displayName="Preserve Document Metadata",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Keep original document metadata alongside custom metadata",
+                    tabName="metadata",
+                ),
+                NodeProperty(
+                    name="metadata_strategy",
+                    displayName="Metadata Strategy",
+                    type=NodePropertyType.SELECT,
+                    default="merge",
+                    options=[
+                        {"label": "Merge (custom overrides document)", "value": "merge"},
+                        {"label": "Replace (only custom metadata)", "value": "replace"},
+                        {"label": "Document Only", "value": "document_only"},
+                    ],
+                    hint="How to handle metadata conflicts",
+                    tabName="metadata",
+                ),
+
+                # Search Configuration Tab
+                NodeProperty(
+                    name="search_algorithm",
+                    displayName="Search Algorithm",
+                    type=NodePropertyType.SELECT,
+                    default="cosine",
+                    options=[
+                        {"label": "Cosine Similarity", "value": "cosine"},
+                        {"label": "Euclidean Distance", "value": "euclidean"},
+                        {"label": "Inner Product", "value": "inner_product"},
+                    ],
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="search_k",
+                    displayName="Search K",
+                    type=NodePropertyType.RANGE,
+                    default=10,
+                    min=1,
+                    max=50,
+                    step=1,
+                    minLabel="1",
+                    maxLabel="50",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="score_threshold",
+                    displayName="Score Threshold",
+                    type=NodePropertyType.RANGE,
+                    default=0.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.1,
+                    color="purple-400",
+                    minLabel="0.0",
+                    maxLabel="1.0",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="batch_size",
+                    displayName="Batch Size",
+                    type=NodePropertyType.RANGE,
+                    default=100,
+                    min=10,
+                    max=1000,
+                    step=10,
+                    color="green-400",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="pre_delete_collection",
+                    displayName="Pre Delete Collection",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    hint="Delete existing collection before creating new one",
+                    tabName="search",
+                ),
+                NodeProperty(
+                    name="enable_hnsw_index",
+                    displayName="Enable HNSW Index",
+                    type=NodePropertyType.CHECKBOX,
+                    default=True,
+                    hint="Use HNSW index for faster similarity search",
+                    tabName="search",
                 ),
             ],
         }
@@ -669,23 +758,6 @@ class VectorStoreOrchestrator(ProcessorNode):
             "status": "completed" if processed_docs > 0 else "failed",
         }
 
-    def get_required_packages(self) -> list[str]:
-        """
-        🔥 DYNAMIC METHOD: VectorStoreOrchestrator'un ihtiyaç duyduğu Python packages'ini döndür.
-
-        Bu method dynamic export sisteminin çalışması için kritik!
-        Vector store için gereken PostgreSQL, pgvector ve LangChain dependencies.
-        """
-        return [
-            "langchain-postgres>=0.0.15",  # PostgreSQL LangChain integration
-            "pgvector>=0.2.0",  # Vector similarity operations
-            "psycopg2-binary>=2.9.0",  # PostgreSQL database connection
-            "langchain-community>=0.0.10",  # Community vector stores
-            "langchain-core>=0.1.0",  # Core vector store classes
-            "numpy>=1.24.0",  # Vector operations
-            "scipy>=1.11.0",  # Scientific computations
-            "sqlalchemy>=2.0.0"  # Database ORM
-        ]
     def execute(self, inputs: Dict[str, Any], connected_nodes: Dict[str, Any]) -> Dict[str, Any]:
         """
         Execute intelligent vector storage with automatic database optimization.
@@ -716,7 +788,33 @@ class VectorStoreOrchestrator(ProcessorNode):
             
         valid_docs, has_embeddings = self._validate_documents(documents)
         
-        connection_string = inputs.get("connection_string")
+        # Get credential_id and extract credential data
+        credential_id = self.user_data.get("credential_id")
+        credential = self.get_credential(credential_id) if credential_id else None
+        
+        # Build connection string from credential components
+        connection_string = None
+        if credential and credential.get('secret'):
+            secret = credential['secret']
+            
+            # Extract connection components
+            host = secret.get('host', 'localhost')
+            port = secret.get('port', 5432)
+            database = secret.get('database', 'vectorstore')
+            username = secret.get('username', 'postgres')
+            password = secret.get('password', '')
+            
+            # Build connection string
+            if username and password:
+                connection_string = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+            else:
+                connection_string = f"postgresql://{host}:{port}/{database}"
+            
+            logger.info(f"🔑 Built connection string from credential: {credential['name']}")
+        else:
+            # Fallback to direct connection_string input (for backward compatibility)
+            connection_string = inputs.get("connection_string")
+
         if not connection_string:
             raise ValueError("PostgreSQL connection string is required")
             
@@ -770,35 +868,11 @@ class VectorStoreOrchestrator(ProcessorNode):
             valid_docs, custom_metadata, inputs.get("preserve_document_metadata", True), metadata_strategy
         )
         
-        logger.info(f"⚙️ Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
+        logger.info(f"Config: collection={collection_name}, dimension={embedding_dimension}, strategy={search_config['search_algorithm']}")
 
         try:
-
-            # Perform DB optimization
-            #optimization_report = self._optimize_database_schema(
-            #    connection_string, collection_name, embedding_dimension, search_config['search_algorithm']
-            #)
-            
             # Create vector store
-            logger.info(f"💾 Creating vector store: {collection_name} with {len(processed_docs)} docs")
-
-            # Use new PGVectorStore API with async driver
-            # Fix: Convert generic postgresql:// to async-compatible postgresql+asyncpg://
-            """async_connection_string = connection_string.replace('postgresql://', 'postgresql+asyncpg://') if connection_string.startswith('postgresql://') else connection_string
-            engine = PGEngine.from_connection_string(async_connection_string)
-
-            # Initialize vector store table (handle existing tables gracefully)
-            try:
-                engine.init_vectorstore_table(
-                    table_name=collection_name,
-                    vector_size=embedding_dimension
-                )
-                logger.info(f"✅ Created new table: {collection_name}")
-            except Exception as e:
-                if "already exists" in str(e).lower() or "duplicate" in str(e).lower():
-                    logger.info(f"🔄 Table {collection_name} already exists, continuing...")
-                else:
-                    raise  # Re-raise if it's a different error"""
+            logger.info(f"Creating vector store: {collection_name} with {len(processed_docs)} docs")
 
             # Create vector store
             vectorstore = PGVector(
@@ -807,13 +881,9 @@ class VectorStoreOrchestrator(ProcessorNode):
                 embeddings=embedder
             )
 
-
-
             vectorstore.add_documents(processed_docs)
-                
-
-
-            logger.info(f"✅ Stored {len(processed_docs)} docs using API")
+            
+            logger.info(f"Stored {len(processed_docs)} docs using API")
             
             retriever = self._create_retriever(vectorstore, search_config)
             
@@ -822,7 +892,7 @@ class VectorStoreOrchestrator(ProcessorNode):
             storage_stats = self._get_storage_statistics(vectorstore, len(processed_docs), processing_time)
             
             logger.info(
-                f"🎉 Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
+                f" Vector Store completed: {len(processed_docs)} docs in '{collection_name}' in {processing_time:.1f}s"
             )
             
             return {

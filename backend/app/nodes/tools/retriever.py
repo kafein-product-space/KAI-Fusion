@@ -47,7 +47,7 @@ from langchain_core.retrievers import BaseRetriever
 from langchain_postgres import PGVector
 from langchain.retrievers import ContextualCompressionRetriever
 
-from app.nodes.base import ProviderNode, NodeInput, NodeOutput, NodeType
+from app.nodes.base import ProviderNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
 
 logger = logging.getLogger(__name__)
 
@@ -114,25 +114,13 @@ class RetrieverProvider(ProviderNode):
             "description": "Provider node that creates configured retriever tools for agents. Connect to a vector database and embeddings provider to create a search tool for your agents.",
             "category": "Tool",
             "node_type": NodeType.PROVIDER,
-            "icon": "search",
-            "color": "#818cf8",
+            "icon": {"name": "file-stack", "path": None, "alt": None},
+            "colors": ["indigo-500", "purple-600"],
             "version": "1.0.0",
             "tags": [],
             "documentation_url": None,
             "examples": [],
-
             "inputs": [
-                # Database Configuration (gönderdiğiniz JSON'dan)
-                NodeInput(
-                    name="database_connection",
-                    type="str",
-                    description="Database connection string (postgresql://user:pass@host:port/db)",
-                    required=True,
-                    is_connection=False,
-                    default=None,
-                    ui_config=None,
-                    validation_rules=None
-                ),
                 NodeInput(
                     name="collection_name",
                     type="str",
@@ -211,48 +199,138 @@ class RetrieverProvider(ProviderNode):
                 # Connected Inputs (gönderdiğiniz JSON'dan)
                 NodeInput(
                     name="embedder",
+                    displayName="Embedder",
                     type="embedder",
                     description="Embedder service for retrieval (OpenAIEmbeddings, etc.)",
                     required=True,
-                    is_connection=True,
                     default=None,
                     ui_config=None,
-                    validation_rules=None
+                    validation_rules=None,
+                    direction=NodePosition.BOTTOM,
+                    is_connection=True,
                 ),
                 NodeInput(
                     name="reranker",
+                    displayName="Reranker",
                     type="reranker",
                     description="Optional reranker service for enhanced retrieval (CohereReranker, etc.)",
                     required=False,
-                    is_connection=True,
                     default=None,
                     ui_config=None,
+                    direction=NodePosition.BOTTOM,
+                    is_connection=True,
                     validation_rules=None
                 )
             ],
-
             "outputs": [
                 NodeOutput(
                     name="retriever_tool",
+                    displayName="Retriever Tool",
                     type="BaseTool",
                     format=None,
                     description="Configured retriever tool ready for use with agents",
-                    output_schema=None
+                    direction=NodePosition.TOP,
+                    is_connection=True,
                 )
-            ]
+            ],
+            "properties": [
+                NodeProperty(
+                    name="credential_id",
+                    displayName="Select Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    required=False
+                ),
+                NodeProperty(
+                    name="collection_name",
+                    displayName="Collection Name",
+                    type=NodePropertyType.TEXT,
+                    placeholder="e.g., documents, products, knowledge_base",
+                    required=True
+                ),
+                NodeProperty(
+                    name="search_type",
+                    displayName="Search Type",
+                    type=NodePropertyType.SELECT,
+                    default="similarity",
+                    options=[
+                        {"label": "Similarity Search", "value": "similarity"},
+                        {"label": "MMR (Maximal Marginal Relevance)", "value": "mmr"}
+                    ],
+                    hint="Similarity search for exact matches, MMR for diverse results",
+                    required=True
+                ),
+                NodeProperty(
+                    name="search_k",
+                    displayName="Search K",
+                    type=NodePropertyType.RANGE,
+                    default=6,
+                    min=1,
+                    max=50,
+                    minLabel="Few Results",
+                    maxLabel="Many Results",
+                    required=True
+                ),
+                NodeProperty(
+                    name="score_threshold",
+                    displayName="Score Threshold",
+                    type=NodePropertyType.RANGE,
+                    default=0.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.05,
+                    minLabel="Inclusive",
+                    maxLabel="Strict",
+                    required=True
+                ),
+                NodeProperty(
+                    name="enable_metadata_filtering",
+                    displayName="Enable Metadata Filtering",
+                    hint="Enable metadata-based filtering for search results",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False
+                ),
+                NodeProperty(
+                    name="metadata_filter",
+                    displayName="Metadata Filter",
+                    type=NodePropertyType.JSON_EDITOR,
+                    description="Filter documents by metadata (JSON format)",
+                    displayOptions={
+                        "show": {
+                            "enable_metadata_filtering": True
+                        } 
+                    }
+                ),
+                NodeProperty(
+                    name="filter_strategy",
+                    displayName="Filter Strategy",
+                    type=NodePropertyType.SELECT,
+                    default="exact",
+                    options=[
+                        {"label": "Exact Match", "value": "exact"},
+                        {"label": "Contains", "value": "contains"},
+                        {"label": "Any Match (OR)", "value": "or"}
+                    ],
+                    hint="How to apply metadata filters",
+                    displayOptions={
+                        "show": {
+                            "enable_metadata_filtering": True
+                        }
+                    }
+                )
+            ],
         }
 
     def execute(self, **inputs) -> Dict[str, Any]:
         """
         Create retriever tool from existing vector database.
 
-        Gönderdiğiniz JSON konfigürasyonunu kullanarak retriever tool oluşturur.
+        Follows the VectorStoreOrchestrator credential pattern.
         """
         logger.info("🔍 Creating Retriever Tool from existing vector database")
 
         try:
-            # Gönderdiğiniz JSON'daki field'ları extract et
-            database_connection = inputs.get("database_connection")
+            # Extract configuration from inputs
             collection_name = inputs.get("collection_name")
             search_k = inputs.get("search_k", 6)
             search_type = inputs.get("search_type", "similarity")
@@ -263,9 +341,32 @@ class RetrieverProvider(ProviderNode):
             embedder = inputs.get("embedder")
             reranker = inputs.get("reranker")  # Optional
 
+            # Get credential_id and extract credential data (like VectorStoreOrchestrator)
+            credential_id = self.user_data.get("credential_id")
+            credential = self.get_credential(credential_id) if credential_id else None
+            
+            # Extract database connection from credential (with null safety)
+            database_connection = None
+            if credential and credential.get('secret'):
+                secret = credential['secret']
+                
+                # Extract connection components
+                host = secret.get('host', 'localhost')
+                port = secret.get('port', 5432)
+                database = secret.get('database')
+                username = secret.get('username')
+                password = secret.get('password')
+                
+                if database and username and password:
+                    # Build connection string
+                    database_connection = f"postgresql://{username}:{password}@{host}:{port}/{database}"
+                    logger.info(f"✅ Connected to vector database: {host}:{port}/{database}")
+                else:
+                    logger.warning("❌ Missing required database credentials (database, username, or password)")
+
             # Validation
             if not database_connection:
-                raise ValueError("Database connection string is required")
+                raise ValueError("Database connection is required. Please provide database credentials.")
             if not collection_name:
                 raise ValueError("Collection name is required")
             if not embedder:

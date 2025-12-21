@@ -26,7 +26,7 @@ except ImportError:
     from langchain.retrievers.document_compressors import CohereRerank
 from langchain_core.runnables import Runnable
 
-from ..base import ProviderNode, NodeType, NodeInput, NodeOutput
+from ..base import ProviderNode, NodeType, NodeInput, NodeOutput, NodeProperty, NodePosition, NodePropertyType
 import os
 
 
@@ -87,37 +87,20 @@ class CohereRerankerNode(ProviderNode):
             ),
             "category": "Tool",
             "node_type": NodeType.PROVIDER,
-            "icon": "adjustments-horizontal",
-            "color": "#f87171",
+            "icon": {"name": "cohere", "path": "icons/cohere.svg", "alt": "coherererankericons"},
+            "colors": ["orange-500", "red-600"],
             "inputs": [
-                NodeInput(
-                    name="cohere_api_key",
-                    type="str",
-                    description="Cohere API Key (leave empty to use COHERE_API_KEY environment variable)",
-                    required=False,
-                    is_secret=True,
-                ),
                 NodeInput(
                     name="model",
                     type="str",
                     description="Cohere reranking model to use",
                     default="rerank-english-v3.0",
                     required=False,
-                    choices=[
-                        "rerank-english-v3.0",
-                        "rerank-multilingual-v3.0",
-                        "rerank-english-v2.0",
-                        "rerank-multilingual-v2.0"
-                    ]
                 ),
                 NodeInput(
                     name="top_n",
                     type="int",
                     description="Number of top results to return",
-                    default=5,
-                    required=False,
-                    min_value=1,
-                    max_value=50,
                 ),
                 # Note: max_chunks_per_doc is not supported by LangChain CohereRerank
                 # This parameter has been removed to fix validation error
@@ -125,9 +108,57 @@ class CohereRerankerNode(ProviderNode):
             "outputs": [
                 NodeOutput(
                     name="reranker",
+                    displayName="Reranker Model",
                     type="CohereRerank",
                     description="Configured Cohere reranker compressor ready for use",
+                    direction=NodePosition.TOP,
+                    is_connection=True
                 )
+            ],
+            "properties": [
+                NodeProperty(
+                    name="credential_id",
+                    displayName="Select Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    placeholder="Select Credential",
+                    required=False
+                ),
+                NodeProperty(
+                    name="model",
+                    displayName="Model",
+                    type=NodePropertyType.SELECT,
+                    default="rerank-english-v3.0",
+                    options=[
+                        {"label": "Rerank English v3.0", "value": "rerank-english-v3.0"},
+                        {"label": "Rerank Multilingual v3.0", "value": "rerank-multilingual-v3.0"},
+                        {"label": "Rerank English v2.0", "value": "rerank-english-v2.0"},
+                        {"label": "Rerank Multilingual v2.0", "value": "rerank-multilingual-v2.0"}
+                    ],
+                    required=True
+                ),
+                NodeProperty(
+                    name="top_n",
+                    displayName="Top N",
+                    type=NodePropertyType.RANGE,
+                    default=10,
+                    min=1,
+                    max=20,
+                    minLabel="1",
+                    maxLabel="20",
+                    required=True
+                ),
+                NodeProperty(
+                    name="max_chunks_per_doc",
+                    displayName="Max Chunks Per Doc",
+                    type=NodePropertyType.RANGE,
+                    color="green-500",
+                    default=10,
+                    min=1,
+                    max=50,
+                    minLabel="1",
+                    maxLabel="50",
+                    required=True
+                ),
             ]
         }
     
@@ -163,10 +194,14 @@ class CohereRerankerNode(ProviderNode):
             ValueError: If API key is missing or model is unsupported
         """
         # Extract configuration from user data or kwargs
-        cohere_api_key = kwargs.get("cohere_api_key") or self.user_data.get("cohere_api_key")
+        cohere_api_key = None
         model = kwargs.get("model") or self.user_data.get("model", "rerank-english-v3.0")
         top_n = kwargs.get("top_n") or self.user_data.get("top_n", 5)
         # Note: max_chunks_per_doc removed as it's not supported by LangChain CohereRerank
+
+        # If credential_id is present, fetch the actual API key
+        credential_id = self.user_data.get("credential_id")
+        cohere_api_key = self.get_credential(credential_id).get('secret').get('api_key')
         
         # Validate API key
         if not cohere_api_key:
