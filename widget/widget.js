@@ -39,13 +39,16 @@
         }
 
         // Get configuration from script attributes
+        // Token precedence:
+        // 1) data-api-key (explicit embed config)
+        // 2) localStorage auth_access_token (KAI-Fusion frontend session)
         const authToken = localStorage.getItem("auth_access_token");
 
         const script = document.currentScript || getCurrentScript();
         if (script) {
             const dataset = script.dataset || {};
             config.targetUrl = dataset.targetUrl || 'http://localhost:23056';
-            config.apiKey = authToken || '';
+            config.apiKey = dataset.apiKey || authToken || '';
             config.workflowId = dataset.workflowId || '';
             config.position = dataset.position || 'right';
             config.color = dataset.color || '#2563eb';
@@ -53,6 +56,14 @@
             config.height = dataset.height || '600px';
             config.title = dataset.title || 'KAI-Fusion AI';
             config.icon = dataset.emoji ? {data: dataset.emoji, format: "emoji"} : dataset.iconUrl ? {data: dataset.iconUrl, format: 'url'} : {data: '💬', format: 'emoji'};
+            
+            // Log the dynamic src configuration for debugging
+            console.log('[KAI Widget] Configuration loaded:', {
+                targetUrl: config.targetUrl,
+                workflowId: config.workflowId,
+                scriptSrc: script.src,
+                position: config.position
+            });
         }
 
         // Generate session ID
