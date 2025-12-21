@@ -34,20 +34,43 @@ docker compose up -d
 
 ## 🔧 Integration
 
+### Dynamic src based on target URL (Recommended):
+The widget automatically sets its src address based on the target URL, making integration seamless:
+
+```html
+<script src="http://your-api.com/widget/widget.js"
+        data-target-url="http://your-api.com"
+        data-api-key="your-key"></script>
+```
+
 ### From Docker deployment:
 ```html
-<script src="http://localhost:8080/widget.js" 
+<script src="http://localhost:8080/widget.js"
         data-target-url="http://your-api.com"
         data-api-key="your-key"></script>
 ```
 
 ### Local file integration:
 ```html
-<script src="./widget.js" 
+<script src="./widget.js"
         data-target-url="http://your-api.com"
         data-api-key="your-key"
         data-position="right"
         data-color="#2563eb"></script>
+```
+
+### Dynamic Loading (Programmatic):
+You can also load the widget dynamically based on configuration:
+
+```javascript
+function loadWidget(targetUrl, apiKey, workflowId) {
+    const script = document.createElement('script');
+    script.src = `${targetUrl.replace(/\/$/, '')}/widget/widget.js`;
+    script.setAttribute('data-target-url', targetUrl);
+    script.setAttribute('data-api-key', apiKey);
+    script.setAttribute('data-workflow-id', workflowId);
+    document.head.appendChild(script);
+}
 ```
 
 ## 📋 Configuration Options
