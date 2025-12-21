@@ -43,6 +43,8 @@ from .triggers.timer_start_node import TimerStartNode
 # Text Processing Nodes
 from .text_processing.string_input_node import StringInputNode
 
+# Processing Nodes
+from .processing.code_node import CodeNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -85,4 +87,7 @@ __all__ = [
     
     # Other
     "StringInputNode",
+
+    # Processing
+    "CodeNode",
 ]
