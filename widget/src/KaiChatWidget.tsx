@@ -40,6 +40,7 @@ export interface KaiChatWidgetProps {
   targetUrl: string;
   position?: "left" | "right";
   color?: string;
+  icon?: React.ReactNode;
 }
 
 export default function KaiChatWidget({
@@ -49,6 +50,7 @@ export default function KaiChatWidget({
   targetUrl,
   position = "right",
   color = "#526cfe",
+  icon,
 }: KaiChatWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isMaximized, setIsMaximized] = useState(false);
@@ -701,7 +703,7 @@ export default function KaiChatWidget({
         {isOpen ? (
           <X className="w-7 h-7" />
         ) : (
-          <MessageSquare className="w-7 h-7" />
+          icon || <MessageSquare className="w-7 h-7" />
         )}
       </motion.button>
     </div>

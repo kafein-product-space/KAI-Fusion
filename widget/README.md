@@ -49,6 +49,7 @@ function App() {
         title="KAI Assistant" // (Optional) Widget title
         position="right" // (Optional) 'left' or 'right'
         color="#526cfe" // (Optional) Main theme color hex code
+        icon={"💬"} // (Optional) Custom icon for the toggle button
       />
     </div>
   );
@@ -59,11 +60,12 @@ export default App;
 
 ## Props
 
-| Prop         | Type                | Required | Default     | Description                                                                  |
-| ------------ | ------------------- | -------- | ----------- | ---------------------------------------------------------------------------- |
-| `targetUrl`  | `string`            | **Yes**  | -           | The address of the KAI Fusion backend API (e.g., `https://api.example.com`). |
-| `workflowId` | `string`            | **Yes**  | -           | Unique identifier (UUID) of the workflow to run.                             |
-| `authToken`  | `string`            | **Yes**  | -           | Bearer token or API Key for API access.                                      |
-| `title`      | `string`            | No       | `"ChatBot"` | Title of the widget window.                                                  |
-| `position`   | `"left" \| "right"` | No       | `"right"`   | Position of the widget on the screen (bottom-left or bottom-right).          |
-| `color`      | `string`            | No       | `"#526cfe"` | Main theme color of the widget (Hex code).                                   |
+| Prop         | Type                | Required | Default         | Description                                                                  |
+| ------------ | ------------------- | -------- | --------------- | ---------------------------------------------------------------------------- |
+| `targetUrl`  | `string`            | **Yes**  | -               | The address of the KAI Fusion backend API (e.g., `https://api.example.com`). |
+| `workflowId` | `string`            | **Yes**  | -               | Unique identifier (UUID) of the workflow to run.                             |
+| `authToken`  | `string`            | **Yes**  | -               | Bearer token or API Key for API access.                                      |
+| `title`      | `string`            | No       | `"ChatBot"`     | Title of the widget window.                                                  |
+| `position`   | `"left" \| "right"` | No       | `"right"`       | Position of the widget on the screen (bottom-left or bottom-right).          |
+| `color`      | `string`            | No       | `"#526cfe"`     | Main theme color of the widget (Hex code).                                   |
+| `icon`       | `ReactNode`         | No       | `MessageSquare` | Custom icon for the toggle button.                                           |
