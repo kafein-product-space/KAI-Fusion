@@ -32,13 +32,9 @@ class NodeConfigurationService:
         return result.scalar_one_or_none()
 
     async def get_node_configuration_by_node_id(self, workflow_id: UUID, node_id: str) -> Optional[NodeConfiguration]:
+        # Node IDs are globally unique now; ignore workflow_id and lookup by node_id only
         result = await self.db.execute(
-            select(NodeConfiguration).where(
-                and_(
-                    NodeConfiguration.workflow_id == workflow_id,
-                    NodeConfiguration.node_id == node_id
-                )
-            )
+            select(NodeConfiguration).where(NodeConfiguration.node_id == node_id)
         )
         return result.scalar_one_or_none()
 
@@ -82,9 +78,9 @@ class NodeConfigurationService:
         return db_node_config
 
     async def update_node_configuration_by_node_id(
-        self, 
-        workflow_id: UUID, 
-        node_id: str, 
+        self,
+        workflow_id: UUID,
+        node_id: str,
         node_config_update: NodeConfigurationUpdate
     ) -> Optional[NodeConfiguration]:
         db_node_config = await self.get_node_configuration_by_node_id(workflow_id, node_id)

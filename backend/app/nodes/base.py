@@ -166,6 +166,7 @@ class NodePropertyType(str, Enum):
     RANGE = "range"
     JSON_EDITOR = "json-editor"
     DATETIME = "datetime"
+    CODE_EDITOR = "code-editor"
 
 
 class NodeProperty(BaseModel):
@@ -643,7 +644,7 @@ class BaseNode(ABC):
         self.node_id = None  # Will be set by GraphBuilder
         self.context_id = None  # Credential context for provider
         self.session_id = None  # Session ID for conversation continuity
-        # 🔥 NEW: Connection mappings set by GraphBuilder
+        # Connection mappings set by GraphBuilder
         self._input_connections = {}
         self._output_connections = {}
         self.user_data = {}  # User configuration from frontend
@@ -651,7 +652,7 @@ class BaseNode(ABC):
     
     @property
     def metadata(self) -> NodeMetadata:
-        """Metadatayı Pydantic modeline göre doğrular ve döndürür."""
+        """Validates and returns metadata according to the Pydantic model."""
         meta_dict = getattr(self, "_metadata", None) or {}
         if "name" not in meta_dict:
             meta_dict = getattr(self, "_metadatas", {})
@@ -679,11 +680,11 @@ class BaseNode(ABC):
         return meta.get("condition")
 
     def execute(self, *args, **kwargs) -> Runnable:
-        """Ana yürütme metodu.
+        """Main execution method.
 
-        Yeni node'lar bu metodu override edebilir.  Geriye dönük uyumluluk için
-        alt sınıf `execute` yerine `_execute` tanımlamışsa onu çağırırız.  Eğer
-        hiçbiri yoksa `NotImplementedError` fırlatılır."""
+        New nodes can override this method. For backward compatibility,
+        if the subclass has defined `_execute` instead of `execute`, we call that.
+        If neither exists, `NotImplementedError` is raised."""
         if hasattr(self, "_execute") and callable(getattr(self, "_execute")):
             # type: ignore[attr-defined]
             return getattr(self, "_execute")(*args, **kwargs)  # noqa: SLF001
@@ -984,7 +985,7 @@ class BaseNode(ABC):
 
 class ProviderNode(BaseNode):
     """
-    Sıfırdan bir LangChain nesnesi (LLM, Tool, Prompt, Memory) oluşturan node'lar için temel sınıf.
+    Base class for nodes that create LangChain objects (LLM, Tool, Prompt, Memory) from scratch.
     """
     _metadata = {
         "name": "ProviderNode",
@@ -1005,7 +1006,7 @@ class ProviderNode(BaseNode):
 
 class ProcessorNode(BaseNode):
     """
-    Birden fazla LangChain nesnesini girdi olarak alıp birleştiren node'lar (örn: Agent).
+    Base class for nodes that combine multiple LangChain objects as inputs (e.g., Agent).
     """
     _metadata = {
         "name": "ProcessorNode",
@@ -1024,8 +1025,8 @@ class ProcessorNode(BaseNode):
 
 class TerminatorNode(BaseNode):
     """
-    Bir zincirin sonuna eklenen ve çıktıyı işleyen/dönüştüren node'lar (örn: OutputParser).
-    Genellikle tek bir node'dan girdi alırlar.
+    Base class for nodes that are added at the end of a chain to process/transform output (e.g., OutputParser).
+    They typically receive input from a single node.
     """
     _metadata = {
         "name": "TerminatorNode",

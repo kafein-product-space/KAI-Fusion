@@ -70,6 +70,21 @@ interface FullscreenNodeModalProps {
   executionData?: {
     nodeId: string;
     inputs?: Record<string, any>;
+    inputs_meta?: Record<
+      string,
+      | {
+        sourceNodeId: string;
+        sourceNodeName?: string;
+        sourceNodeAlias?: string;
+        sourceHandle?: string;
+      }
+      | {
+        sourceNodeId: string;
+        sourceNodeName?: string;
+        sourceNodeAlias?: string;
+        sourceHandle?: string;
+      }[]
+    >;
     outputs?: Record<string, any>;
     status?: "completed" | "failed" | "running" | "pending";
   };
@@ -86,6 +101,46 @@ export default function FullscreenNodeModal({
   executionData,
 }: FullscreenNodeModalProps) {
   const [configValues, setConfigValues] = useState(configData);
+  const [nodeAlias, setNodeAlias] = useState(
+    configData?.name || nodeMetadata.display_name || nodeMetadata.name
+  );
+  const [nodeAliasError, setNodeAliasError] = useState<string | null>(null);
+
+  // Validate node alias for Jinja template compatibility
+  // Rules: letters, numbers, and underscores only; must start with a letter; cannot be reserved keywords
+  // Note: Uppercase letters are allowed but will be auto-converted to lowercase when saving
+  const validateNodeAlias = (name: string): string | null => {
+    if (!name || name.trim() === "") {
+      return "Node name is required";
+    }
+
+    // Check for reserved keywords that conflict with template context
+    const reservedKeywords = ["input"];
+    if (reservedKeywords.includes(name.toLowerCase())) {
+      return `'${name}' is a reserved keyword and cannot be used as a node name`;
+    }
+
+    // Check for invalid characters (allow a-z, A-Z, 0-9, underscore - case will be normalized later)
+    const hasSpace = /\s/.test(name);
+    const hasSpecialChars = /[^a-zA-Z0-9_]/.test(name);
+    const startsWithNumber = /^[0-9]/.test(name);
+
+    if (hasSpace || hasSpecialChars || startsWithNumber) {
+      let suggestion = name.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+      if (/^[0-9]/.test(suggestion)) {
+        suggestion = "n_" + suggestion;
+      }
+      return `Invalid format. For template {{${name}}}, use: {{${suggestion || "node_name"}}}`;
+    }
+
+    return null;
+  };
+
+  const handleNodeAliasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNodeAlias(value);
+    setNodeAliasError(validateNodeAlias(value));
+  };
 
   // Helper function to filter out metadata and system fields from node data
   const filterNodeData = (data: any, isOutput: boolean = false): any => {
@@ -447,9 +502,8 @@ export default function FullscreenNodeModal({
         key.toLowerCase().includes("token_usage")
       ) {
         if (maskedValue.totalTokens !== undefined) {
-          return `${maskedValue.totalTokens} total (${
-            maskedValue.promptTokens || 0
-          } prompt + ${maskedValue.completionTokens || 0} completion)`;
+          return `${maskedValue.totalTokens} total (${maskedValue.promptTokens || 0
+            } prompt + ${maskedValue.completionTokens || 0} completion)`;
         }
       }
 
@@ -495,12 +549,30 @@ export default function FullscreenNodeModal({
 
   useEffect(() => {
     setConfigValues(configData);
-  }, [configData]);
+    setNodeAlias(
+      configData?.name || nodeMetadata.display_name || nodeMetadata.name
+    );
+  }, [configData, nodeMetadata.display_name, nodeMetadata.name]);
 
   const handleSave = (values: any) => {
     try {
-      setConfigValues(values);
-      onSave(values);
+      // Validate node alias before saving
+      const validationError = validateNodeAlias(nodeAlias);
+      if (validationError) {
+        enqueueSnackbar(validationError, {
+          variant: "warning",
+          autoHideDuration: 4000,
+          anchorOrigin: {
+            vertical: "top",
+            horizontal: "right",
+          },
+        });
+        return; // Don't save if validation fails
+      }
+
+      const finalValues = { ...values, name: nodeAlias };
+      setConfigValues(finalValues);
+      onSave(finalValues);
       enqueueSnackbar("Node configuration saved successfully!", {
         variant: "success",
         autoHideDuration: 3000,
@@ -563,6 +635,27 @@ export default function FullscreenNodeModal({
                   <p className="text-sm text-gray-400">
                     {nodeMetadata.category}
                   </p>
+                  <div className="mt-3">
+                    <label className="block text-xs text-gray-400 mb-1">
+                      Specify the node name for using node output.
+                    </label>
+                    <input
+                      className={`w-64 px-2 py-1 rounded bg-gray-900 border text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
+                        ? "border-yellow-500 focus:ring-yellow-500"
+                        : "border-gray-700 focus:ring-blue-500"
+                        }`}
+                      value={nodeAlias}
+                      onChange={handleNodeAliasChange}
+                      placeholder={
+                        nodeMetadata.display_name || nodeMetadata.name
+                      }
+                    />
+                    {nodeAliasError && (
+                      <div className="mt-1 text-xs text-yellow-400">
+                        {nodeAliasError}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>
@@ -609,7 +702,7 @@ export default function FullscreenNodeModal({
 
                 {/* Execution Data Section */}
                 {executionData?.inputs &&
-                Object.keys(executionData.inputs).length > 0 ? (
+                  Object.keys(executionData.inputs).length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
@@ -622,47 +715,90 @@ export default function FullscreenNodeModal({
                     </div>
 
                     <div className="space-y-4">
-                      {Object.entries(
-                        filterNodeData(executionData.inputs, false)
-                      ).map(([key, value]) => (
-                        <div
-                          key={key}
-                          className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50"
-                        >
-                          {/* Header with icon and user-friendly label */}
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg">
-                              {getDataIcon(key, value)}
-                            </div>
-                            <div className="flex-1">
-                              <div className="text-sm font-medium text-blue-300">
-                                {getDataLabel(key)}
-                              </div>
-                              <div className="text-xs text-gray-400">
-                                {getDataDescription(key, value)}
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
-                              input
-                            </div>
-                          </div>
+                      {Object.entries(executionData.inputs).flatMap(
+                        ([key, rawValue]) => {
+                          const valuesArray = Array.isArray(rawValue)
+                            ? rawValue
+                            : [rawValue];
+                          const rawMeta = executionData.inputs_meta?.[key];
+                          const metaArray = Array.isArray(rawMeta)
+                            ? rawMeta
+                            : rawMeta
+                              ? [rawMeta]
+                              : [];
 
-                          {/* Value display */}
-                          {typeof value === "object" && value !== null ? (
-                            <DataDisplayModes 
-                              data={maskSensitiveValue(key, value)}
-                              className="mt-2"
-                              defaultMode="schema"
-                            />
-                          ) : (
-                            <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
-                              <div className="text-sm text-gray-100 break-words">
-                                {formatValue(value, key)}
+                          return valuesArray.map((value, index) => {
+                            const sourceMeta = metaArray[index] || metaArray[0];
+                            const label =
+                              valuesArray.length > 1
+                                ? `${getDataLabel(key)} [${index + 1}]`
+                                : getDataLabel(key);
+
+                            return (
+                              <div
+                                key={`${key}-${index}`}
+                                className="bg-gradient-to-r from-gray-800 to-gray-800/50 rounded-xl p-4 border border-gray-700/50"
+                              >
+                                {/* Header with icon and user-friendly label */}
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="p-2 bg-blue-600/20 text-blue-400 rounded-lg">
+                                    {getDataIcon(key, value)}
+                                  </div>
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-blue-300">
+                                      {label}
+                                    </div>
+                                    <div className="text-xs text-gray-400">
+                                      {getDataDescription(key, value)}
+                                    </div>
+                                    {sourceMeta && (
+                                      <div className="mt-1 text-[10px] text-gray-500">
+                                        From:{" "}
+                                        {sourceMeta.sourceNodeAlias ||
+                                          sourceMeta.sourceNodeName ||
+                                          sourceMeta.sourceNodeId}
+                                        {sourceMeta.sourceHandle && (
+                                          <>
+                                            {" "}
+                                            · handle: {sourceMeta.sourceHandle}
+                                          </>
+                                        )}
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="text-xs text-gray-500 bg-gray-700/50 px-2 py-1 rounded">
+                                    input
+                                  </div>
+                                </div>
+
+                                {/* Value display */}
+                                {value && typeof value === "object" && value._placeholder ? (
+                                  <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30">
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                      <div className="text-sm text-yellow-200">
+                                        {value.message || "Waiting for execution"}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : typeof value === "object" && value !== null ? (
+                                  <DataDisplayModes
+                                    data={maskSensitiveValue(key, value)}
+                                    className="mt-2"
+                                    defaultMode="schema"
+                                  />
+                                ) : (
+                                  <div className="bg-gray-900/80 rounded-lg p-3 border border-gray-700/30">
+                                    <div className="text-sm text-gray-100 break-words">
+                                      {formatValue(value, key)}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
+                            );
+                          });
+                        }
+                      )}
                     </div>
 
                     {/* Context Variables */}
@@ -765,7 +901,7 @@ export default function FullscreenNodeModal({
 
                     <div className="space-y-4">
                       {typeof executionData.outputs === "object" &&
-                      executionData.outputs !== null ? (
+                        executionData.outputs !== null ? (
                         Object.entries(
                           filterNodeData(executionData.outputs, true)
                         ).map(([key, value]) => (
@@ -792,8 +928,17 @@ export default function FullscreenNodeModal({
                             </div>
 
                             {/* Value display */}
-                            {typeof value === "object" && value !== null ? (
-                              <DataDisplayModes 
+                            {value && typeof value === "object" && value._placeholder ? (
+                              <div className="bg-yellow-900/20 rounded-lg p-3 border border-yellow-500/30">
+                                <div className="flex items-center gap-2">
+                                  <div className="w-2 h-2 bg-yellow-400 rounded-full animate-pulse"></div>
+                                  <div className="text-sm text-yellow-200">
+                                    {value.message || "Waiting for execution"}
+                                  </div>
+                                </div>
+                              </div>
+                            ) : typeof value === "object" && value !== null ? (
+                              <DataDisplayModes
                                 data={maskSensitiveValue(key, value)}
                                 className="mt-2"
                                 defaultMode="schema"
@@ -843,7 +988,7 @@ export default function FullscreenNodeModal({
 
                           {/* Value display */}
                           {typeof executionData.outputs === "object" && executionData.outputs !== null ? (
-                            <DataDisplayModes 
+                            <DataDisplayModes
                               data={maskSensitiveValue("result", executionData.outputs)}
                               className="mt-2"
                               defaultMode="schema"

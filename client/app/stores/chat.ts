@@ -41,10 +41,10 @@ const executeWorkflowWithStreaming = async (
   workflow_id: string
 ) => {
   console.log('🔄 Starting chat execution with streaming...');
-  
+
   // Track all node data during execution
   const nodeExecutionData: Record<string, any> = {};
-  
+
   const executionData = {
     flow_data,
     input_text,
@@ -57,14 +57,14 @@ const executeWorkflowWithStreaming = async (
 
   try {
     console.log('📡 Starting streaming execution for chat...');
-    
+
     // Emit start event to reset node/edge status
     window.dispatchEvent(new CustomEvent('chat-execution-start', { detail: {} }));
-    
+
     const stream = await executeWorkflowStream(executionData);
     const reader = stream.getReader();
     const decoder = new TextDecoder('utf-8');
-    
+
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
@@ -79,59 +79,79 @@ const executeWorkflowWithStreaming = async (
         if (line.startsWith('data: ')) {
           const data = line.slice(6).trim();
           if (data === '[DONE]' || !data) continue;
-          
+
           try {
             const parsed = JSON.parse(data);
             console.log('📦 Stream event:', parsed.event || parsed.type, parsed);
-            
+
             // Log specific node events for debugging
             const eventType = parsed.event || parsed.type;
             if (eventType === 'node_start' || eventType === 'node_end') {
               console.log(`🎯 ${eventType.toUpperCase()}: node_id="${parsed.node_id}" - Looking for match...`);
             }
-            
+
             // Track all node execution data
             if (eventType === 'node_start' && parsed.node_id) {
               console.log('📝 Node start tracking:', parsed.node_id, 'input_text:', input_text);
-              
+
+              // ENHANCEMENT: Use backend-provided input metadata instead of hardcoding
+              const backendInputs = parsed.metadata?.inputs || {};
+              const backendInputsMeta = parsed.metadata?.inputs_meta || {};
+
               nodeExecutionData[parsed.node_id] = {
-                inputs: {},
+                inputs: { ...backendInputs },
+                inputs_meta: { ...backendInputsMeta },
                 metadata: parsed.metadata || {},
                 status: 'running'
               };
-              
+
               // For provider nodes, use metadata inputs
               if (parsed.metadata?.node_type === 'provider' && parsed.metadata.inputs) {
                 nodeExecutionData[parsed.node_id].inputs = parsed.metadata.inputs;
                 console.log('🔧 Provider inputs captured:', parsed.node_id, parsed.metadata.inputs);
               }
-              
-              // For processor nodes like Agent, capture input from the execution context
+
+              // For processor nodes like Agent, merge with user's chat input
               if (parsed.metadata?.node_type === 'processor' || parsed.node_id.includes('Agent')) {
-                // Agent node input includes the user's chat input
-                nodeExecutionData[parsed.node_id].inputs = {
-                  input: input_text,
-                  user_message: input_text,
-                  ...(parsed.metadata?.inputs || {})
-                };
+                // Merge backend inputs with user chat input (if not already present)
+                if (!nodeExecutionData[parsed.node_id].inputs.input) {
+                  nodeExecutionData[parsed.node_id].inputs.input = input_text;
+                  nodeExecutionData[parsed.node_id].inputs_meta.input = {
+                    sourceNodeId: 'chat_input',
+                    sourceNodeName: 'Chat Input',
+                    sourceNodeAlias: 'Chat Input',
+                    sourceHandle: 'user_message'
+                  };
+                }
                 console.log('🤖 Agent inputs captured:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs);
+                console.log('🤖 Agent inputs_meta:', parsed.node_id, nodeExecutionData[parsed.node_id].inputs_meta);
               }
-              
+
               console.log('💾 Node data stored:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
-            
+
             if (eventType === 'node_end' && parsed.node_id) {
+              // Extract output from the event - backend now sends output in node_end events
+              const nodeOutput = parsed.output || {};
+
+              console.log('📤 Node end output received:', parsed.node_id, nodeOutput);
+
               if (nodeExecutionData[parsed.node_id]) {
-                nodeExecutionData[parsed.node_id].output = parsed.output || {};
+                // Merge output with existing data
+                nodeExecutionData[parsed.node_id].output = nodeOutput;
+                nodeExecutionData[parsed.node_id].outputs = nodeOutput; // Also store as 'outputs' for compatibility
                 nodeExecutionData[parsed.node_id].status = 'completed';
               } else {
                 // If we missed the start event, create entry for output
                 nodeExecutionData[parsed.node_id] = {
                   inputs: {},
-                  output: parsed.output || {},
+                  output: nodeOutput,
+                  outputs: nodeOutput, // Also store as 'outputs' for compatibility
                   status: 'completed'
                 };
               }
+
+              console.log('💾 Node execution data updated:', parsed.node_id, nodeExecutionData[parsed.node_id]);
             }
 
             // Emit custom event for FlowCanvas to listen
@@ -141,7 +161,7 @@ const executeWorkflowWithStreaming = async (
                 detail: { ...parsed, event }
               }));
             }
-            
+
             // Handle complete event to capture execution data
             if (event === 'complete' && parsed.result) {
               const executionResult: WorkflowExecution = {
@@ -151,28 +171,27 @@ const executeWorkflowWithStreaming = async (
                 result: {
                   result: parsed.result,
                   executed_nodes: parsed.executed_nodes || [],
-                  node_outputs: { 
-                    ...parsed.node_outputs || {},
-                    ...nodeExecutionData // Add all node execution data
-                  },
+                  // Use backend node_outputs directly - same as StartNode execution
+                  node_outputs: parsed.node_outputs || {},
+                  session_id: parsed.session_id,
                   status: 'completed' as const,
                 },
                 started_at: new Date().toISOString(),
                 completed_at: new Date().toISOString(),
                 status: 'completed' as const,
               };
-              
+
               // Import and use executions store
               try {
                 const executionsModule = await import('./executions');
                 const executionsStore = executionsModule.useExecutionsStore.getState();
-                executionsStore.setCurrentExecution(executionResult);
+                executionsStore.setCurrentExecutionForWorkflow(workflow_id, executionResult);
               } catch (error) {
                 console.error('❌ Error setting execution result:', error);
               }
               console.log('💾 Execution result saved to store');
               console.log('📊 Final node_outputs:', executionResult.result.node_outputs);
-              
+
               // Emit completion event to clear active edges after delay
               setTimeout(() => {
                 window.dispatchEvent(new CustomEvent('chat-execution-complete', { detail: {} }));
@@ -191,7 +210,7 @@ const executeWorkflowWithStreaming = async (
         }
       }
     }
-    
+
     console.log('✅ Chat streaming execution completed successfully');
     reader.releaseLock();
   } catch (error) {
@@ -274,14 +293,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         const existingMessages = state.chats[chatflow_id] || [];
         const existingIds = new Set(existingMessages.map(m => m.id));
         const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
-        
+
         // Only add new messages that don't already exist (by ID or content+role)
-        const newMessages = messages.filter(m => 
-          !existingIds.has(m.id) && 
+        const newMessages = messages.filter(m =>
+          !existingIds.has(m.id) &&
           !existingContents.has(`${m.role}:${m.content}`)
         );
         const mergedMessages = [...existingMessages, ...newMessages];
-        
+
         return {
           chats: { ...state.chats, [chatflow_id]: mergedMessages },
           loading: false,
@@ -315,12 +334,12 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const existingMessages = state.chats[chatflow_id] || [];
       const existingIds = new Set(existingMessages.map(m => m.id));
       const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
-      
+
       // Don't add if message already exists (by ID or content+role)
       if (existingIds.has(message.id) || existingContents.has(`${message.role}:${message.content}`)) {
         return state;
       }
-      
+
       return {
         chats: {
           ...state.chats,
@@ -351,7 +370,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       // Backend'e silme isteği gönder
       await chatService.deleteChatflow(chatflow_id);
-      
+
       // Local state'den de sil
       set((state) => {
         const newChats = { ...state.chats };
@@ -373,14 +392,14 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // LLM entegrasyonu:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
     set({ loading: true, thinking: true, error: null }); // thinking'i true yap
-    
+
     // Use existing activeChatflowId or generate new one
     let chatflow_id = get().activeChatflowId;
     if (!chatflow_id) {
       chatflow_id = uuidv4();
       get().setActiveChatflowId(chatflow_id);
     }
-    
+
     // Immediately add user message to UI
     const userMessage: ChatMessage = {
       id: uuidv4(),
@@ -390,7 +409,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       created_at: new Date().toISOString(),
     };
     get().addMessage(chatflow_id, userMessage);
-    
+
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
       await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
@@ -405,13 +424,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, thinking: true, error: null }); // thinking'i true yap
-    
+
     // Check if this is an edit operation by looking for existing user message
     const existingMessages = get().chats[chatflow_id] || [];
     const lastUserMessage = existingMessages
       .filter(msg => msg.role === 'user')
       .pop();
-    
+
     // Only add new user message if this is not an edit operation
     if (!lastUserMessage || lastUserMessage.content !== input_text) {
       const userMessage: ChatMessage = {
@@ -423,7 +442,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       };
       get().addMessage(chatflow_id, userMessage);
     }
-    
+
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
       await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
@@ -439,7 +458,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   // New function specifically for handling edited messages
   sendEditedMessage: async (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => {
     set({ loading: true, thinking: true, error: null }); // thinking'i true yap
-    
+
     try {
       await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
       // Fetch only new messages (agent responses) instead of all messages

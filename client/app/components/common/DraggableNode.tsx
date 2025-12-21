@@ -1,25 +1,6 @@
 import React from "react";
 import type { ReactElement } from "react";
-import {
-  Archive,
-  Bot,
-  FileText,
-  GitBranch,
-  GitCompare,
-  Globe,
-  MessageCircle,
-  Play,
-  Square,
-  Zap,
-  Link,
-  Send,
-  Scissors,
-  Search,
-  Network,
-  BookOpen,
-  Type,
-  Box,
-} from "lucide-react";
+import { Box } from "lucide-react";
 
 interface NodeType {
   id: string;
@@ -35,106 +16,58 @@ interface DraggableNodeProps {
   icon: string;
 }
 
+// Icon size is controlled by the container, not individual img elements
+// Fixed icon size - all icons will fit within this container
+const ICON_CONTAINER_SIZE = "w-8 h-8";
 const nodeTypeIconMap: Record<string, ReactElement> = {
-  // 🔄 Akış Kontrol
-  StartNode: <Play className="w-6 h-6 text-green-400" />,
-  start: <Play className="w-6 h-6 text-green-400" />,
-  TimerStart: <Zap className="w-6 h-6 text-yellow-400" />,
-  EndNode: <Square className="w-6 h-6 text-gray-400" />,
-  ConditionalChain: <GitCompare className="w-6 h-6 text-orange-400" />,
-  RouterChain: <GitBranch className="w-6 h-6 text-lime-400" />,
+  // Flow Control
+  StartNode: <img src="icons/rocket.svg" alt="start" />,
+  start: <img src="icons/rocket.svg" alt="start" />,
+  TimerStart: <img src="icons/clock.svg" alt="timer" />,
+  EndNode: <img src="icons/flag.svg" alt="end" />,
+  ConditionalChain: <img src="icons/git-compare.svg" alt="conditional" />,
+  RouterChain: <img src="icons/git-branch.svg" alt="router" />,
 
-  // 🤖 AI & Embedding
-  Agent: <Bot className="w-6 h-6 text-blue-400" />,
-  CohereEmbeddings: (
-    <img src="icons/cohere.svg" alt="cohereicons" className="w-20 h-20" />
-  ),
-  OpenAIEmbedder: (
-    <img src="icons/openai.svg" alt="openaiicons" className="w-20 h-20" />
-  ),
+  // AI & Embedding
+  Agent: <img src="icons/bot.svg" alt="agent" />,
+  CohereEmbeddings: <img src="icons/cohere.svg" alt="cohere" />,
+  OpenAIEmbedder: <img src="icons/openai.svg" alt="openai" />,
 
-  // 🧠 Hafıza
-  BufferMemory: <Archive className="w-6 h-6 text-rose-400" />,
-  ConversationMemory: <MessageCircle className="w-6 h-6 text-rose-300" />,
+  // Memory
+  BufferMemory: <img src="icons/database.svg" alt="buffer-memory" />,
+  ConversationMemory: <img src="icons/message-circle.svg" alt="conversation-memory" />,
 
-  // 📄 Belgeler & Veri
-  TextDataLoader: <FileText className="w-6 h-6 text-pink-400" />,
-  DocumentLoader: <FileText className="w-6 h-6 text-blue-400" />,
-  ChunkSplitter: <Scissors className="w-6 h-6 text-pink-300" />,
-  StringInputNode: <Type className="w-6 h-6 text-blue-400" />,
-  PGVectorStore: (
-    <img
-      src="icons/postgresql_vectorstore.svg"
-      alt="postgresqlvectorstoreicons"
-      className="w-20 h-20"
-    />
-  ),
-  VectorStoreOrchestrator: (
-    <img
-      src="icons/postgresql_vectorstore.svg"
-      alt="postgresqlvectorstoreicons"
-      className="w-20 h-20"
-    />
-  ),
-  IntelligentVectorStore: (
-    <img
-      src="icons/postgresql_vectorstore.svg"
-      alt="postgresqlvectorstoreicons"
-      className="w-20 h-20"
-    />
-  ),
+  // Documents & Data
+  TextDataLoader: <img src="icons/file-text.svg" alt="text-loader" />,
+  DocumentLoader: <img src="icons/file-input.svg" alt="document-loader" />,
+  ChunkSplitter: <img src="icons/scissors.svg" alt="chunk-splitter" />,
+  StringInputNode: <img src="icons/type.svg" alt="string-input" />,
+  PGVectorStore: <img src="icons/postgresql_vectorstore.svg" alt="pg-vectorstore" />,
+  VectorStoreOrchestrator: <img src="icons/postgresql_vectorstore.svg" alt="vectorstore-orchestrator" />,
+  IntelligentVectorStore: <img src="icons/postgresql_vectorstore.svg" alt="intelligent-vectorstore" />,
 
-  // 🌐 Web & API
-  TavilySearch: (
-    <img
-      src="icons/tavily-nonbrand.svg"
-      alt="tavilysearchicons"
-      className="w-10 h-10"
-    />
-  ),
-  WebScraper: <Globe className="w-6 h-6 text-blue-400" />,
-  HttpRequest: <Network className="w-6 h-6 text-blue-400" />,
-  WebhookTrigger: <Link className="w-6 h-6 text-emerald-400" />,
+  // Web & API
+  TavilySearch: <img src="icons/tavily-nonbrand.svg" alt="tavily-search" />,
+  WebScraper: <img src="icons/pickaxe.svg" alt="web-scraper" />,
+  HttpRequest: <img src="icons/globe.svg" alt="http-request" />,
+  WebhookTrigger: <img src="icons/webhook.svg" alt="webhook" />,
 
-  // 🧩 RAG & QA
-  RetrievalQA: <BookOpen className="w-6 h-6 text-purple-400" />,
-  Reranker: (
-    <img
-      src="icons/cohere.svg"
-      alt="coherererankericons"
-      className="w-20 h-20"
-    />
-  ),
-  CohereRerankerProvider: (
-    <img
-      src="icons/cohere.svg"
-      alt="coherererankericons"
-      className="w-20 h-20"
-    />
-  ),
-  RetrieverProvider: <Search className="w-6 h-6 text-indigo-400" />,
-  RetrieverNode: <Search className="w-6 h-6 text-indigo-400" />,
-  OpenAIEmbeddingsProvider: (
-    <img
-      src="icons/openai.svg"
-      alt="openaiembeddingsprovidericons"
-      className="w-20 h-20"
-    />
-  ),
+  // RAG & QA
+  RetrievalQA: <img src="icons/book-open.svg" alt="retrieval-qa" />,
+  Reranker: <img src="icons/cohere.svg" alt="reranker" />,
+  CohereRerankerProvider: <img src="icons/cohere.svg" alt="cohere-reranker" />,
+  RetrieverProvider: <img src="icons/file-stack.svg" alt="retriever-provider" />,
+  RetrieverNode: <img src="icons/search.svg" alt="retriever-node" />,
+  OpenAIEmbeddingsProvider: <img src="icons/openai.svg" alt="openai-embeddings-provider" />,
 
-  // ✅ SVG İkonları
-  OpenAIChat: (
-    <img src="icons/openai.svg" alt="openaichaticons" className="w-20 h-20" />
-  ),
+  // ✅ LLM Providers
+  OpenAIChat: <img src="icons/openai.svg" alt="openai-chat" />,
+  OpenAIEmbeddings: <img src="icons/openai.svg" alt="openai-embeddings" />,
 
-  OpenAIEmbeddings: (
-    <img
-      src="icons/openai.svg"
-      alt="openaiembeddingsicons"
-      className="w-20 h-20"
-    />
-  ),
+  // Processing Nodes
+  CodeNode: <img src="icons/code.svg" alt="code-node" />,
 
+  
   RedisCache: (
     <svg
       width="25px"
@@ -159,6 +92,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   GenericNode: <Box className="w-6 h-6 text-blue-400" />,
 };
 
+
 function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
   const onDragStart = (event: React.DragEvent<HTMLDivElement>) => {
     event.stopPropagation();
@@ -175,7 +109,7 @@ function DraggableNode({ nodeType, icon }: DraggableNodeProps) {
       onDragStart={onDragStart}
       className="text-gray-100 flex items-center gap-2 p-3 hover:bg-gray-700/50 transition-all select-none cursor-grab rounded-2xl border border-transparent hover:border-gray-600"
     >
-      <div className="flex items-center m-2 p-2 rounded-3xl  ">
+      <div className={`flex items-center justify-center ${ICON_CONTAINER_SIZE} m-2 shrink-0 [&>img]:max-w-full [&>img]:max-h-full [&>img]:object-contain`}>
         {nodeTypeIconMap[nodeType.type] || <></>}
       </div>
       <div className="flex flex-col gap-2">

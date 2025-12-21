@@ -388,10 +388,10 @@ class ChunkSplitterNode(ProcessorNode):
             
             # Different snippet sizes for different UI contexts
             snippets = {
-                "micro": content[:50] + ("…" if len(content) > 50 else ""),
-                "short": content[:150] + ("…" if len(content) > 150 else ""),
-                "medium": content[:300] + ("…" if len(content) > 300 else ""),
-                "long": content[:600] + ("…" if len(content) > 600 else ""),
+                "micro": content[:50] + ("..." if len(content) > 50 else ""),
+                "short": content[:150] + ("..." if len(content) > 150 else ""),
+                "medium": content[:300] + ("..." if len(content) > 300 else ""),
+                "long": content[:600] + ("..." if len(content) > 600 else ""),
             }
             
             # Extract key metrics
@@ -552,7 +552,7 @@ class ChunkSplitterNode(ProcessorNode):
         Returns:
             Dict with chunks, stats, preview, and metadata_report
         """
-        logger.info("🔄 Starting ChunkSplitter execution")
+        logger.info("Starting ChunkSplitter execution")
         
         # Extract documents from connected nodes
         documents = connected_nodes.get("documents")
@@ -633,7 +633,7 @@ class ChunkSplitterNode(ProcessorNode):
         if not doc_objects:
             raise ValueError("No valid documents found in input")
         
-        logger.info(f"📚 Processing {len(doc_objects)} documents")
+        logger.info(f"Processing {len(doc_objects)} documents")
         
         # Get configuration
         config = {
@@ -649,7 +649,7 @@ class ChunkSplitterNode(ProcessorNode):
             "is_separator_regex": str(inputs.get("is_separator_regex") or inputs.get("isSeparatorRegex", "false")).lower() == "true",
         }
         
-        logger.info(f"⚙️ Configuration: {config['split_strategy']} | size={config['chunk_size']} | overlap={config['chunk_overlap']}")
+        logger.info(f"Configuration: {config['split_strategy']} | size={config['chunk_size']} | overlap={config['chunk_overlap']}")
         
         try:
             # Create the appropriate splitter
@@ -685,7 +685,7 @@ class ChunkSplitterNode(ProcessorNode):
             
             # Log summary
             logger.info(
-                f"✅ ChunkSplitter completed: {config['split_strategy']} strategy produced "
+                f"ChunkSplitter completed: {config['split_strategy']} strategy produced "
                 f"{total_chunks} chunks (avg {stats['avg_chunk_length']} chars, "
                 f"quality score: {metadata_report['quality_score']['overall']}/100)"
             )

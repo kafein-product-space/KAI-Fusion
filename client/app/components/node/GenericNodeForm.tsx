@@ -12,6 +12,7 @@ import {
   NodeRange,
   NodeJsonEditor,
   NodeDateTime,
+  NodeCodeEditor,
 } from "./fields";
 import TabNavigation from "../common/TabNavigation";
 import { useState } from "react";
@@ -83,7 +84,7 @@ export default function GenericNodeForm({
     });
 
   // Use the provided onSubmit or fallback to onSave
-  const handleSubmit = propOnSubmit || onSave || (() => {});
+  const handleSubmit = propOnSubmit || onSave || (() => { });
 
   const handleTabChange = (tabId: string) => {
     setActiveTab(tabId);
@@ -148,6 +149,8 @@ export default function GenericNodeForm({
                     );
                   case "datetime":
                     return <NodeDateTime property={property} values={values} />;
+                  case "code-editor":
+                    return <NodeCodeEditor property={property} values={values} />;
                   default:
                     return null;
                 }

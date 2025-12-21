@@ -368,11 +368,11 @@ class FlowState(BaseModel):
     
     def __init__(self, **data):
         super().__init__(**data)
-        # 🔥 CRITICAL: Ensure session_id is always set
+        # CRITICAL: Ensure session_id is always set
         if not self.session_id or self.session_id == 'None' or len(str(self.session_id).strip()) == 0:
             import uuid
             self.session_id = f"state_session_{uuid.uuid4().hex[:8]}"
-            print(f"⚠️  No valid session_id in FlowState, generated: {self.session_id}")
+            print(f"[WARNING] No valid session_id in FlowState, generated: {self.session_id}")
         
     def add_message(self, message: str, role: str = "user") -> None:
         """Add a message to chat history"""
@@ -397,21 +397,21 @@ class FlowState(BaseModel):
     def get_node_output(self, node_id: str, default: Any = None) -> Any:
         """Get output from a specific node using the unique key format.
 
-        Öncelik sırası:
-        1. Benzersiz anahtar formatı: 'output_<node_id>'
-        2. Eski node_outputs sözlüğü
-        3. Doğrudan node_id attribute'u (eski stil)
+        Priority order:
+        1. Unique key format: 'output_<node_id>'
+        2. Legacy node_outputs dictionary
+        3. Direct node_id attribute (legacy style)
         """
-        # Önce benzersiz anahtar formatını dene
+        # First try the unique key format
         dyn_key = f"output_{node_id}"
         if hasattr(self, dyn_key):
             return getattr(self, dyn_key)
             
-        # Eski node_outputs sözlüğünü kontrol et
+        # Check the legacy node_outputs dictionary
         if node_id in self.node_outputs:
             return self.node_outputs[node_id]
 
-        # Eski stil doğrudan attribute
+        # Legacy style direct attribute
         return getattr(self, node_id, default)
         
     def add_error(self, error: str) -> None:
