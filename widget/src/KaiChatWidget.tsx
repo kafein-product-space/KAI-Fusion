@@ -67,12 +67,34 @@ export default function KaiChatWidget({
   const [userProvidedToken, setUserProvidedToken] = useState<string | null>(
     null
   );
+  const [isTokenValidating, setIsTokenValidating] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
 
   const effectiveToken = authToken || userProvidedToken;
 
-  const handleTokenSubmit = (token: string) => {
-    if (token.trim()) {
-      setUserProvidedToken(token);
+  const handleTokenSubmit = async (token: string) => {
+    if (!token.trim() || isTokenValidating) return;
+
+    setIsTokenValidating(true);
+    setTokenError(null);
+
+    try {
+      const response = await fetch(`${targetUrl}/api/v1/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setUserProvidedToken(token);
+      } else {
+        setTokenError("Geçersiz Erişim Anahtarı. Lütfen tekrar deneyiniz.");
+      }
+    } catch (error) {
+      console.error("Token validation error:", error);
+      setTokenError("Bağlantı hatası. Lütfen tekrar deneyiniz.");
+    } finally {
+      setIsTokenValidating(false);
     }
   };
 
@@ -710,7 +732,10 @@ export default function KaiChatWidget({
                     <input
                       type="password"
                       placeholder="Access Token"
-                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-800"
+                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-800 ${
+                        tokenError ? "border-red-500" : "border-gray-300"
+                      }`}
+                      disabled={isTokenValidating}
                       onKeyDown={(e) => {
                         if (e.key === "Enter") {
                           handleTokenSubmit(e.currentTarget.value);
@@ -718,16 +743,26 @@ export default function KaiChatWidget({
                       }}
                     />
                     <button
-                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 rounded-lg transition-colors text-sm"
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px]"
+                      disabled={isTokenValidating}
                       onClick={(e) => {
                         const inputEl = e.currentTarget
                           .previousElementSibling as HTMLInputElement;
                         handleTokenSubmit(inputEl.value);
                       }}
                     >
-                      Giriş
+                      {isTokenValidating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Giriş"
+                      )}
                     </button>
                   </div>
+                  {tokenError && (
+                    <p className="text-xs text-red-500 text-center">
+                      {tokenError}
+                    </p>
+                  )}
                 </div>
               </div>
             )}
