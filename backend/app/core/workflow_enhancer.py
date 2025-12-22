@@ -30,7 +30,7 @@ class WorkflowExecutionEnhancer:
         self._compiled_graph = None
     
     def create_context_from_request(self, req: Any, current_user: Any = None,
-                                   is_webhook: bool = False) -> DynamicWorkflowContext:
+                                   is_webhook: bool = False, owner_id: str = None) -> DynamicWorkflowContext:
         """Create dynamic context from request parameters"""
         
         # DEBUG LOGGING: Validate assumptions about the error
@@ -64,6 +64,7 @@ class WorkflowExecutionEnhancer:
         context = self.dynamic_engine.create_dynamic_context(
             session_id=session_id,
             user_id=user_id,
+            owner_id=owner_id or user_id,  # Use provided owner_id or fallback to user_id
             workflow_id=req.workflow_id,
             metadata={
                 "chatflow_id": getattr(req, 'chatflow_id', None),
@@ -79,12 +80,17 @@ class WorkflowExecutionEnhancer:
     def enhanced_build(self, flow_data: Dict[str, Any], user_context: Dict[str, Any] = None):
         """Enhanced build with dynamic capabilities - drop-in replacement for engine.build()"""
         
+        # If user_context has owner_id and we have a current context, update it
+        if self._current_context and user_context and 'owner_id' in user_context:
+             self._current_context.owner_id = user_context['owner_id']
+
         if not self._current_context:
             # Create context from user_context if available
             session_id = user_context.get('session_id') if user_context else f"build_{id(flow_data)}"
             self._current_context = self.dynamic_engine.create_dynamic_context(
                 session_id=session_id,
                 user_id=user_context.get('user_id') if user_context else None,
+                owner_id=user_context.get('owner_id') if user_context else None,
                 workflow_id=user_context.get('workflow_id') if user_context else None
             )
         

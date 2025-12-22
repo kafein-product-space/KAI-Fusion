@@ -307,6 +307,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
 
         inputs = inputs or {}
         user_id = user_context.get("user_id") if user_context else None  # type: ignore[attr-defined]
+        owner_id = user_context.get("owner_id") if user_context else None  # type: ignore[attr-defined]
         workflow_id = user_context.get("workflow_id") if user_context else None  # type: ignore[attr-defined]
         session_id = user_context.get("session_id") if user_context else None  # type: ignore[attr-defined]
 
@@ -335,6 +336,7 @@ class LangGraphWorkflowEngine(BaseWorkflowEngine):
             result = await self._builder.execute(
                 inputs,
                 user_id=user_id,
+                owner_id=owner_id,
                 workflow_id=workflow_id,
                 session_id=session_id,
                 stream=stream,

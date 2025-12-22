@@ -10,8 +10,10 @@ import {
 import type { Route } from "./+types/root";
 import "./app.css";
 import { SnackbarProvider } from "notistack";
-import { ReactFlowProvider } from "@xyflow/react";
 import { useThemeStore } from "./stores/theme";
+import { AuthProvider, useAuth as useOidcAuth } from "react-oidc-context";
+import { useEffect } from "react";
+import useAuthStore from "./stores/auth";
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -26,10 +28,45 @@ export const links: Route.LinksFunction = () => [
   },
 ];
 
+const oidcConfig = {
+  authority: import.meta.env.VITE_KEYCLOAK_URL ? `${import.meta.env.VITE_KEYCLOAK_URL}/realms/${import.meta.env.VITE_KEYCLOAK_REALM}` : "",
+  client_id: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "",
+  redirect_uri: typeof window !== "undefined" ? window.location.origin : "",
+  onSigninCallback: () => {
+      window.history.replaceState({}, document.title, window.location.pathname);
+  }
+};
+
+function AuthSynchronizer() {
+    const { user, isAuthenticated } = useOidcAuth();
+    const store = useAuthStore();
+    
+    useEffect(() => {
+        if (isAuthenticated && user?.access_token) {
+            localStorage.setItem('auth_access_token', user.access_token);
+            if (user.refresh_token) {
+                 localStorage.setItem('auth_refresh_token', user.refresh_token);
+            }
+            
+            // Mark auth source as Keycloak
+            sessionStorage.setItem('auth_source', 'keycloak');
+        } else if (!isAuthenticated && !user && store.isAuthenticated && localStorage.getItem('auth_access_token')) {
+            // Keycloak logout detected or sync mismatch
+            // Only force logout if the previous session was from Keycloak
+            if (sessionStorage.getItem('auth_source') === 'keycloak') {
+                store.signOut();
+                sessionStorage.removeItem('auth_source');
+            }
+        }
+    }, [isAuthenticated, user, store.isAuthenticated, store.initialize, store.signOut]);  
+    return null;
+}
+
 export function Layout({ children }: { children: React.ReactNode }) {
   const { mode } = useThemeStore();
+  const isKeycloakEnabled = !!oidcConfig.authority && !!oidcConfig.client_id;
 
-  return (
+  const content = (
     <html lang="en" className="h-full" data-theme={mode}>
       <head>
         <meta charSet="utf-8" />
@@ -43,12 +80,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
           anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
         >
           {children}
+          {isKeycloakEnabled && <AuthSynchronizer />}
           <ScrollRestoration />
           <Scripts />
         </SnackbarProvider>
       </body>
     </html>
   );
+
+  if (isKeycloakEnabled) {
+      return <AuthProvider {...oidcConfig}>{content}</AuthProvider>;
+  }
+
+  return content;
 }
 
 export default function App() {

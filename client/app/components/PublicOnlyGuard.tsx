@@ -20,6 +20,7 @@ export default function PublicOnlyGuard({
       if (accessToken) {
         // Token varsa initialize et
         await initialize();
+        setReady(true);
       } else {
         // Token yoksa direkt ready yap
         setReady(true);

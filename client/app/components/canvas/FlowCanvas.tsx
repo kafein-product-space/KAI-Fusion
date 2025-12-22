@@ -139,6 +139,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     fetchWorkflow,
     deleteWorkflow,
     updateWorkflowStatus,
+    updateWorkflowVisibility,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -1060,6 +1061,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowStatus={updateWorkflowStatus}
+        updateWorkflowVisibility={updateWorkflowVisibility}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
