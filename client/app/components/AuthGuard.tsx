@@ -49,18 +49,15 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
     }
   }, [shouldRedirect, navigate, location]);
 
-  // 3. Auth kontrolü sırasında loading göster
-  if (checking) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-4 h-4 animate-spin" />
-      </div>
-    );
-  }
+  // Auth durumu değişirse ve geçerli değilse yönlendir
+  useEffect(() => {
+    if (!checking && (!isAuthenticated || !user)) {
+      setShouldRedirect(true);
+    }
+  }, [checking, isAuthenticated, user]);
 
-  // 4. Kullanıcı yoksa fallback olarak yönlendir (önlem amaçlı)
-  if (!isAuthenticated || !user) {
-    setShouldRedirect(true);
+  // Auth kontrolü sırasında veya kullanıcı yoksa loading göster
+  if (checking || !isAuthenticated || !user) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="w-4 h-4 animate-spin" />

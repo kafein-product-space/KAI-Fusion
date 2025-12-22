@@ -30,6 +30,7 @@ interface NavbarProps {
   lastAutoSave?: Date | null;
   onAutoSaveSettings?: () => void;
   updateWorkflowStatus?: (id: string, is_active: boolean) => Promise<void>;
+  updateWorkflowVisibility?: (id: string, is_public: boolean) => Promise<void>;
 }
 
 const Navbar: React.FC<NavbarProps> = ({
@@ -47,6 +48,7 @@ const Navbar: React.FC<NavbarProps> = ({
   lastAutoSave,
   onAutoSaveSettings,
   updateWorkflowStatus,
+  updateWorkflowVisibility,
 }) => {
   const { enqueueSnackbar } = useSnackbar();
   const navigate = useNavigate();
@@ -219,6 +221,35 @@ const Navbar: React.FC<NavbarProps> = ({
                   label="Workflow Status"
                   description={
                     currentWorkflow.is_active ? "Active" : "Inactive"
+                  }
+                />
+              </div>
+            )}
+            {/* Workflow Public Status Toggle */}
+            {currentWorkflow && updateWorkflowVisibility && (
+              <div className="flex items-center gap-2">
+                <ToggleSwitch
+                  isActive={currentWorkflow.is_public ?? false}
+                  onToggle={async (isPublic) => {
+                    try {
+                      if (updateWorkflowVisibility) {
+                        await updateWorkflowVisibility(currentWorkflow.id, isPublic);
+                        enqueueSnackbar(
+                          `Workflow is now ${isPublic ? "Public" : "Private"}`,
+                          { variant: "success" }
+                        );
+                        onSave();
+                      }
+                    } catch (error) {
+                      enqueueSnackbar("Workflow visibility could not be updated", {
+                        variant: "error",
+                      });
+                    }
+                  }}
+                  size="sm"
+                  label="Public Access"
+                  description={
+                    currentWorkflow.is_public ? "Public" : "Private"
                   }
                 />
               </div>

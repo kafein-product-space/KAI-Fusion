@@ -589,6 +589,7 @@ class GraphBuilder:
         inputs: Dict[str, Any],
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
         workflow_id: Optional[str] = None,
         stream: bool = False,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
@@ -601,6 +602,7 @@ class GraphBuilder:
             current_input=inputs.get("input", ""),
             session_id=session_id or str(uuid.uuid4()),
             user_id=user_id,
+            owner_id=owner_id,
             workflow_id=workflow_id,
             variables=inputs,
         )
@@ -735,6 +737,7 @@ class GraphBuilder:
             inputs: Dict[str, Any],
             session_id: Optional[str] = None,
             user_id: Optional[str] = None,
+            owner_id: Optional[str] = None,
             workflow_id: Optional[str] = None,
             stream: bool = False,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
@@ -743,7 +746,7 @@ class GraphBuilder:
         execution_start = time.time()
 
         try:
-            result = await self.execute(inputs, session_id, user_id, workflow_id, stream)
+            result = await self.execute(inputs, session_id, user_id, owner_id, workflow_id, stream)
             execution_duration = time.time() - execution_start
             logger.info(f"✅ Enhanced execution completed in {execution_duration:.3f}s")
             return result

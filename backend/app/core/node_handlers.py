@@ -65,8 +65,11 @@ class NodeExecutionHandler(ABC):
 
     def _inject_user_context(self, node_instance: Any, state: FlowState, node_id: str):
         """Inject user context (user_id and credentials) into node instance if supported."""
-        if node_instance.user_data.get('credential_id') and state.user_id:
-            node_instance.credentials = credential_provider.get_credentials_sync(user_id=state.user_id)
+        # Use owner_id if available (workflow owner), otherwise user_id (executor)
+        context_user_id = state.owner_id or state.user_id
+        
+        if node_instance.user_data.get('credential_id') and context_user_id:
+            node_instance.credentials = credential_provider.get_credentials_sync(user_id=context_user_id)
 
 class MemoryNodeHandler(NodeExecutionHandler):
     """
