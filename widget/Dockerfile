@@ -1,6 +1,9 @@
 # Simple nginx-based Dockerfile for serving KAI-Fusion Widget
 FROM nginx:alpine
 
+# Install curl for docker-compose healthcheck compatibility
+RUN apk add --no-cache curl
+
 # Remove default nginx website
 RUN rm -rf /usr/share/nginx/html/*
 

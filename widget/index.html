@@ -276,7 +276,9 @@
         }
 
         function updateIntegrationCode() {
-            const code = `&lt;script src="./widget.js" 
+            // SO widget: set <script src> address from target URL address
+            const widgetSrc = `${currentConfig.targetUrl.replace(/\/$/, '')}/widget/widget.js`;
+            const code = `&lt;script src="${widgetSrc}"
         data-target-url="${currentConfig.targetUrl}"
         data-api-key="${currentConfig.apiKey}"
         data-workflow-id="${currentConfig.workflowId}"
@@ -322,7 +324,9 @@
 
             if (!window.KAIWidget) {
                 const script = document.createElement('script');
-                script.src = './widget.js';
+                // Dynamically set src based on target URL
+                const widgetSrc = `${currentConfig.targetUrl.replace(/\/$/, '')}/widget/widget.js`;
+                script.src = widgetSrc;
                 script.setAttribute('data-target-url', currentConfig.targetUrl);
                 script.setAttribute('data-api-key', currentConfig.apiKey);
                 script.setAttribute('data-workflow-id', currentConfig.workflowId);
@@ -330,7 +334,7 @@
                 script.setAttribute('data-color', '#2563eb');
                 document.head.appendChild(script);
                 
-                showStatus('🚀 Widget loaded! Check bottom-right corner.', 'success');
+                showStatus(`🚀 Widget loaded from ${widgetSrc}! Check bottom-right corner.`, 'success');
             } else {
                 window.KAIWidget.show();
                 showStatus('👁️ Widget shown!', 'success');
