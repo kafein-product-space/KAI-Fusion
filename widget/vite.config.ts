@@ -2,6 +2,7 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import dts from "vite-plugin-dts";
 import { createRequire } from "module";
+import pkg from "./package.json";
 
 const require = createRequire(import.meta.url);
 
@@ -10,6 +11,7 @@ export default defineConfig({
     react(),
     dts({
       insertTypesEntry: true,
+      rollupTypes: true,
     }),
   ],
   build: {
@@ -21,13 +23,22 @@ export default defineConfig({
     },
     sourcemap: true,
     rollupOptions: {
-      external: ["react", "react-dom", "react/jsx-runtime"],
+      external: [
+        "react",
+        "react-dom",
+        "react/jsx-runtime",
+        ...Object.keys(pkg.dependencies || {}),
+      ],
       output: {
         format: "esm",
         dir: "dist",
         entryFileNames: "index.es.js",
         assetFileNames: "[name][extname]",
         inlineDynamicImports: true,
+        globals: {
+          react: "React",
+          "react-dom": "ReactDOM",
+        },
       },
     },
   },
