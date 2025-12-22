@@ -3,6 +3,7 @@ import type { FormikHelpers } from "formik";
 import { ErrorMessage, Formik } from "formik";
 import { Link, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
+import { KeycloakLoginButton } from "~/components/KeycloakLoginButton";
 import PublicOnlyGuard from "~/components/PublicOnlyGuard";
 
 interface SignInFormValues {
@@ -15,6 +16,7 @@ const Signin = () => {
   const { signIn, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<{ loginError?: string } | null>(null);
+  const isKeycloakEnabled = !!import.meta.env.VITE_KEYCLOAK_URL && !!import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
 
   useEffect(() => {
     return () => {
@@ -216,6 +218,10 @@ const Signin = () => {
 
                 {/* Social Login Buttons */}
                 <div className="space-y-3">
+                  {isKeycloakEnabled && (
+                    <KeycloakLoginButton disabled={isLoading || isSubmitting} />
+                  )}
+
                   <button
                     type="button"
                     disabled={isLoading || isSubmitting}

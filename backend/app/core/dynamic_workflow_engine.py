@@ -33,6 +33,7 @@ class DynamicWorkflowContext:
     """Context for dynamic workflow execution"""
     session_id: str
     user_id: Optional[str] = None
+    owner_id: Optional[str] = None
     workflow_id: Optional[str] = None
     metadata: Dict[str, Any] = None
     runtime_config: Dict[str, Any] = None
@@ -211,11 +212,12 @@ class DynamicWorkflowEngine:
         self.dynamic_cache = {}
     
     def create_dynamic_context(self, session_id: str, user_id: Optional[str] = None, 
-                             workflow_id: Optional[str] = None, **kwargs) -> DynamicWorkflowContext:
+                             owner_id: Optional[str] = None, workflow_id: Optional[str] = None, **kwargs) -> DynamicWorkflowContext:
         """Create dynamic execution context"""
         context = DynamicWorkflowContext(
             session_id=session_id,
             user_id=user_id,
+            owner_id=owner_id,
             workflow_id=workflow_id,
             metadata=kwargs.get('metadata', {}),
             runtime_config=kwargs.get('runtime_config', {})
@@ -289,6 +291,7 @@ class DynamicWorkflowEngine:
                 inputs=inputs,
                 session_id=context.session_id,
                 user_id=context.user_id,
+                owner_id=context.owner_id,
                 workflow_id=context.workflow_id,
                 stream=stream
             )
@@ -353,6 +356,7 @@ class ExecuteAdhocWorkflowEnhancer:
         context = self.dynamic_engine.create_dynamic_context(
             session_id=session_id,
             user_id=str(current_user.id) if current_user else None,
+            owner_id=str(current_user.id) if current_user else None,
             workflow_id=req.workflow_id,
             metadata={
                 "chatflow_id": req.chatflow_id,

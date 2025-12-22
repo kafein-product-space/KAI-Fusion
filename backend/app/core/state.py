@@ -344,6 +344,7 @@ class FlowState(BaseModel):
     # Session metadata
     session_id: Optional[str] = Field(default=None, description="Session identifier for persistence")
     user_id: Optional[str] = Field(default=None, description="User identifier")
+    owner_id: Optional[str] = Field(default=None, description="Owner identifier (e.g. workspace owner or workflow creator)")
     workflow_id: Optional[str] = Field(default=None, description="Workflow identifier")
     
     # Execution metadata

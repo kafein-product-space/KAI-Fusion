@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
+import Keycloak from 'keycloak-js';
 import AuthService from '~/services/authService';
 import type { 
   UserResponse, 
@@ -15,6 +16,7 @@ interface AuthState {
   isAuthenticated: boolean;
   isLoading: boolean;
   error: string | null;
+  keycloak: Keycloak | null;
   
   // Actions
   initialize: () => Promise<void>;
@@ -26,6 +28,7 @@ interface AuthState {
   clearError: () => void;
   setUser: (user: UserResponse | null) => void;
   setIsAuthenticated: (auth: boolean) => void;
+  setKeycloak: (keycloak: Keycloak) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -35,6 +38,7 @@ export const useAuthStore = create<AuthState>()(
     isAuthenticated: false,
     isLoading: false,
     error: null,
+    keycloak: null,
 
     // Initialize auth state from localStorage
     initialize: async () => {
@@ -197,6 +201,10 @@ export const useAuthStore = create<AuthState>()(
     setIsAuthenticated: (isAuthenticated: boolean) => {
       set({ isAuthenticated });
     },
+
+    setKeycloak: (keycloak: Keycloak) => {
+      set({ keycloak });
+    },
   }))
 );
 
@@ -221,6 +229,8 @@ export const useAuth = () => {
     clearError: store.clearError,
     setUser: store.setUser,
     setIsAuthenticated: store.setIsAuthenticated,
+    keycloak: store.keycloak,
+    setKeycloak: store.setKeycloak,
   };
 };
 

@@ -63,3 +63,7 @@ class WorkflowTemplateResponse(WorkflowTemplateBase):
 
     class Config:
         from_attributes = True
+
+# Schema for updating workflow visibility
+class WorkflowVisibilityUpdate(BaseModel):
+    is_public: bool

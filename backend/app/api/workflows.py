@@ -292,7 +292,7 @@ from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi import APIRouter, HTTPException, Depends, Request, Body
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -309,7 +309,8 @@ from app.schemas.workflow import (
     WorkflowUpdate, 
     WorkflowResponse,
     WorkflowTemplateCreate,
-    WorkflowTemplateResponse
+    WorkflowTemplateResponse,
+    WorkflowVisibilityUpdate
 )
 from app.services.workflow_service import WorkflowService, WorkflowTemplateService
 from app.services.dependencies import get_workflow_service_dep, get_workflow_template_service_dep, get_execution_service_dep
@@ -319,6 +320,8 @@ from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 from app.core.execution_queue import execution_queue
 from app.core.workflow_enhancer import get_workflow_enhancer
+from app.models.workflow import Workflow
+from sqlalchemy.future import select
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -636,7 +639,7 @@ async def duplicate_workflow(
 @router.patch("/{workflow_id}/visibility")
 async def update_workflow_visibility(
     workflow_id: uuid.UUID,
-    is_public: bool,
+    visibility_data: WorkflowVisibilityUpdate,
     db: AsyncSession = Depends(get_db_session),
     current_user: User = Depends(get_current_user),
     workflow_service: WorkflowService = Depends(get_workflow_service_dep)
@@ -646,6 +649,7 @@ async def update_workflow_visibility(
     """
     try:
         user_id = current_user.id  # Cache user ID
+        is_public = visibility_data.is_public
         workflow = await workflow_service.update_workflow_visibility(
             db, workflow_id, user_id, is_public
         )
@@ -958,6 +962,7 @@ async def execute_adhoc_workflow(
         user_context = {
             "session_id": session_id,
             "user_id": user_id,
+            "owner_id": user_id,
             "user_email": user_email
         }
     else:
@@ -966,6 +971,7 @@ async def execute_adhoc_workflow(
         user_context = {
             "session_id": session_id,
             "user_id": str(user_id),
+            "owner_id": str(user_id),
             "user_email": user_email
         }
 
@@ -987,10 +993,7 @@ async def execute_adhoc_workflow(
         if not req.workflow_id:
              raise HTTPException(status_code=400, detail="Either flow_data or workflow_id must be provided")
         
-        try:
-            from app.models.workflow import Workflow
-            from sqlalchemy.future import select
-            
+        try:            
             # Fetch workflow to get flow_data
             wf_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
             wf_result = await db.execute(wf_query)
@@ -1004,7 +1007,9 @@ async def execute_adhoc_workflow(
                  raise HTTPException(status_code=403, detail="Access denied")
                  
             req.flow_data = workflow_obj.flow_data
-            logger.info(f"Fetched flow_data for workflow {req.workflow_id}")
+            # Set owner_id from workflow owner
+            user_context["owner_id"] = str(workflow_obj.user_id)
+            logger.info(f"Fetched flow_data for workflow {req.workflow_id}, owner: {user_context['owner_id']}")
             
         except HTTPException:
             raise
@@ -1016,10 +1021,7 @@ async def execute_adhoc_workflow(
     execution = None
     if req.workflow_id:
         try:
-            # Workflow'ün var olup olmadığını kontrol et
-            from app.models.workflow import Workflow
-            from sqlalchemy.future import select
-            
+            # Workflow'ün var olup olmadığını kontrol et            
             workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
             workflow_result = await db.execute(workflow_query)
             workflow = workflow_result.scalar_one_or_none()
@@ -1032,7 +1034,7 @@ async def execute_adhoc_workflow(
                 )
             
             # Workflow'ün kullanıcıya ait olup olmadığını kontrol et
-            if workflow.user_id != user_id:
+            if workflow.user_id != user_id and not workflow_obj.is_public:
                 logger.error(f"User {user_id} does not have access to workflow {req.workflow_id}")
                 raise HTTPException(
                     status_code=403,
@@ -1388,6 +1390,7 @@ async def execute_timer_node_manually(
         user_context = {
             "session_id": session_id,
             "user_id": str(user_id),
+            "owner_id": str(workflow.user_id), # Workflow owner
             "user_email": user_email
         }
         
