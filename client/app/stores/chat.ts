@@ -162,6 +162,21 @@ const executeWorkflowWithStreaming = async (
               }));
             }
 
+            // Handle error event to display error in UI
+            if (event === 'error') {
+              console.error('❌ Chat execution error:', parsed.error || parsed.data);
+
+              // Emit error event for FlowCanvas to display
+              window.dispatchEvent(new CustomEvent('chat-execution-error', {
+                detail: {
+                  type: 'error',
+                  error: parsed.error || parsed.data || 'Unknown error',
+                  error_type: parsed.error_type || 'execution',
+                  node_id: parsed.node_id
+                }
+              }));
+            }
+
             // Handle complete event to capture execution data
             if (event === 'complete' && parsed.result) {
               const executionResult: WorkflowExecution = {
@@ -290,19 +305,10 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       const messages = await chatService.getChatMessages(chatflow_id);
       set((state) => {
-        const existingMessages = state.chats[chatflow_id] || [];
-        const existingIds = new Set(existingMessages.map(m => m.id));
-        const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
-
-        // Only add new messages that don't already exist (by ID or content+role)
-        const newMessages = messages.filter(m =>
-          !existingIds.has(m.id) &&
-          !existingContents.has(`${m.role}:${m.content}`)
-        );
-        const mergedMessages = [...existingMessages, ...newMessages];
-
+        // Backend messages are authoritative - just use them directly
+        // This replaces any local optimistic updates with the real data
         return {
-          chats: { ...state.chats, [chatflow_id]: mergedMessages },
+          chats: { ...state.chats, [chatflow_id]: messages },
           loading: false,
         };
       });
@@ -333,10 +339,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set((state) => {
       const existingMessages = state.chats[chatflow_id] || [];
       const existingIds = new Set(existingMessages.map(m => m.id));
-      const existingContents = new Set(existingMessages.map(m => `${m.role}:${m.content}`));
 
-      // Don't add if message already exists (by ID or content+role)
-      if (existingIds.has(message.id) || existingContents.has(`${message.role}:${message.content}`)) {
+      // Only check by ID - don't check content to avoid dropping valid duplicate messages
+      if (existingIds.has(message.id)) {
         return state;
       }
 
@@ -425,28 +430,20 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
     set({ loading: true, thinking: true, error: null }); // thinking'i true yap
 
-    // Check if this is an edit operation by looking for existing user message
-    const existingMessages = get().chats[chatflow_id] || [];
-    const lastUserMessage = existingMessages
-      .filter(msg => msg.role === 'user')
-      .pop();
-
-    // Only add new user message if this is not an edit operation
-    if (!lastUserMessage || lastUserMessage.content !== input_text) {
-      const userMessage: ChatMessage = {
-        id: uuidv4(),
-        chatflow_id,
-        role: 'user',
-        content: input_text,
-        created_at: new Date().toISOString(),
-      };
-      get().addMessage(chatflow_id, userMessage);
-    }
+    // Always add new user message immediately for UI responsiveness
+    const userMessage: ChatMessage = {
+      id: uuidv4(),
+      chatflow_id,
+      role: 'user',
+      content: input_text,
+      created_at: new Date().toISOString(),
+    };
+    get().addMessage(chatflow_id, userMessage);
 
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
       await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
-      // Fetch only new messages (agent responses) instead of all messages
+      // Note: Streaming execution saves messages to backend, so fetch to get the assistant response
       await get().fetchChatMessages(chatflow_id);
     } catch (e: any) {
       set({ error: e.message || 'Mesaj gönderilemedi' });

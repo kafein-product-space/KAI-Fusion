@@ -149,11 +149,10 @@ export default function ChatComponent({
 
   return (
     <div
-      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${
-        isExpanded
+      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-all duration-300 ${isExpanded
           ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
           : "w-148 h-[600px]"
-      }`}
+        }`}
     >
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-700">
         <div className="flex items-center gap-2">
@@ -198,12 +197,13 @@ export default function ChatComponent({
       </div>
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
         {chatError && <div className="text-xs text-red-400">{chatError}</div>}
-        {chatHistory
-          .sort(
-            (a, b) =>
-              new Date(a.created_at).getTime() -
-              new Date(b.created_at).getTime()
-          )
+        {[...chatHistory]
+          .sort((a, b) => {
+            // Sort by created_at timestamp, with fallback for missing values
+            const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+            const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+            return timeA - timeB;
+          })
           .map((msg, i) => (
             <ChatBubble
               key={msg.id || i}

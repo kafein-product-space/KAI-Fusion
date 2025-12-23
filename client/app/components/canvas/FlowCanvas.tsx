@@ -178,7 +178,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     error: chatError,
     addMessage,
     fetchChatMessages,
-    loadChatHistory,
+    fetchWorkflowChats,
     clearAllChats,
   } = useChatStore();
 
@@ -257,12 +257,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
+      // Reset active chat when switching to a different workflow
+      setActiveChatflowId(null);
       // Clear chats when switching to a different workflow
       clearAllChats();
       // Clear execution data for the previous workflow
       setCurrentExecutionForWorkflow(currentWorkflow.id, null);
     }
-  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow]);
+  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -309,13 +311,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Load chat history on component mount
   useEffect(() => {
     if (currentWorkflow?.id) {
-      // Load workflow-specific chats
-      loadChatHistory();
+      // Load workflow-specific chats only
+      fetchWorkflowChats(currentWorkflow.id);
     } else {
       // Clear chats when no workflow is selected (new workflow)
       clearAllChats();
     }
-  }, [currentWorkflow?.id, loadChatHistory, clearAllChats]);
+  }, [currentWorkflow?.id, fetchWorkflowChats, clearAllChats]);
 
   // Load chat messages when active chat changes
   useEffect(() => {
@@ -323,6 +325,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       fetchChatMessages(activeChatflowId);
     }
   }, [activeChatflowId, fetchChatMessages]);
+
+  // Listen for chat execution errors and display them
+  useEffect(() => {
+    const handleChatExecutionError = (event: CustomEvent) => {
+      console.error("❌ Chat execution error received:", event.detail);
+
+      const errorDetails = {
+        message: event.detail.error || "Chat execution failed",
+        type: event.detail.error_type || "execution",
+        nodeId: event.detail.node_id,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+
+      setDetailedExecutionError(errorDetails);
+    };
+
+    window.addEventListener(
+      "chat-execution-error",
+      handleChatExecutionError as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "chat-execution-error",
+        handleChatExecutionError as EventListener
+      );
+    };
+  }, [enqueueSnackbar]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -354,6 +384,55 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [setEdges]
   );
 
+  // Helper function to normalize name for Jinja template compatibility
+  // Rules: lowercase, underscores instead of spaces, no special chars, must start with letter
+  const normalizeForJinja = (name: string): string => {
+    let normalized = name
+      .toLowerCase()           // Convert to lowercase
+      .replace(/\s+/g, "_")    // Replace spaces with underscores
+      .replace(/[^a-z0-9_]/g, ""); // Remove special characters
+
+    // Must start with a letter
+    if (/^[0-9]/.test(normalized)) {
+      normalized = "n_" + normalized;
+    }
+
+    return normalized || "node";
+  };
+
+  // Helper function to generate unique node name with suffix (_1, _2, _3, etc.)
+  // This name is used as the default node alias for Jinja templates
+  const generateUniqueNodeName = useCallback(
+    (baseName: string, nodeType: string, existingNodes: Node[]): string => {
+      // Normalize baseName for Jinja compatibility
+      const normalizedBaseName = normalizeForJinja(baseName);
+
+      // Count nodes of the same type
+      const sameTypeNodes = existingNodes.filter((n) => n.type === nodeType);
+
+      if (sameTypeNodes.length === 0) {
+        return normalizedBaseName;
+      }
+
+      // Find the highest existing suffix number
+      const escapedBaseName = normalizedBaseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const suffixPattern = new RegExp(`^${escapedBaseName}(?:_(\\d+))?$`);
+      let maxSuffix = 0;
+
+      sameTypeNodes.forEach((node) => {
+        const nodeName = String((node.data as any)?.name || "");
+        const match = nodeName.match(suffixPattern);
+        if (match) {
+          const suffix = match[1] ? parseInt(match[1], 10) : 0;
+          maxSuffix = Math.max(maxSuffix, suffix);
+        }
+      });
+
+      return `${normalizedBaseName}_${maxSuffix + 1}`;
+    },
+    []
+  );
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -378,13 +457,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         (n: NodeMetadata) => n.name === nodeType.type
       );
 
+      // Generate unique node name with suffix for Jinja template usage
+      const baseName = nodeType.label || nodeMetadata?.display_name || nodeType.type;
+      const uniqueName = generateUniqueNodeName(baseName, nodeType.type, nodes);
+
       const newNode: Node = {
         id: `${nodeType.type}__${uuidv4()}`,
         type: nodeType.type,
         position,
         data: {
-          name: nodeType.label,
           ...nodeType.data,
+          name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
       };
@@ -397,7 +480,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Update recommendations after setting the last added node
       updateRecommendations(availableNodes);
     },
-    [screenToFlowPosition, availableNodes, setLastAddedNode, updateRecommendations]
+    [screenToFlowPosition, availableNodes, setLastAddedNode, updateRecommendations, generateUniqueNodeName, nodes]
   );
 
   const handleSave = useCallback(async () => {
