@@ -14,7 +14,7 @@ from app.core.database import get_db_session
 from app.core.security import create_access_token, create_refresh_token, verify_password, get_password_hash
 from app.services.user_service import UserService
 from app.services.dependencies import get_user_service_dep
-from app.auth.dependencies import get_current_user
+from app.auth.dependencies import get_current_user, get_current_user_or_master_api_key
 from app.models.user import User
 from app.schemas.auth import (
     SignUpRequest, 
@@ -175,7 +175,7 @@ async def refresh_token(
         )
 
 @router.get("/me", response_model=UserResponse)
-async def get_current_user_profile(current_user: User = Depends(get_current_user)):
+async def get_current_user_profile(current_user: User = Depends(get_current_user_or_master_api_key)):
     """Get current user profile"""
     return create_user_response(current_user)
 

@@ -34,7 +34,7 @@ interface Message {
 }
 
 export interface KaiChatWidgetProps {
-  authToken: string;
+  authToken?: string;
   workflowId: string;
   title?: string;
   targetUrl: string;
@@ -64,6 +64,40 @@ export default function KaiChatWidget({
   ]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [userProvidedToken, setUserProvidedToken] = useState<string | null>(
+    null
+  );
+  const [isTokenValidating, setIsTokenValidating] = useState(false);
+  const [tokenError, setTokenError] = useState<string | null>(null);
+
+  const effectiveToken = authToken || userProvidedToken;
+
+  const handleTokenSubmit = async (token: string) => {
+    if (!token.trim() || isTokenValidating) return;
+
+    setIsTokenValidating(true);
+    setTokenError(null);
+
+    try {
+      const response = await fetch(`${targetUrl}/api/v1/auth/me`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (response.ok) {
+        setUserProvidedToken(token);
+      } else {
+        setTokenError("Geçersiz Erişim Anahtarı. Lütfen tekrar deneyiniz.");
+      }
+    } catch (error) {
+      console.error("Token validation error:", error);
+      setTokenError("Bağlantı hatası. Lütfen tekrar deneyiniz.");
+    } finally {
+      setIsTokenValidating(false);
+    }
+  };
+
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const sessionIdRef = useRef(uuidv4());
@@ -111,7 +145,7 @@ export default function KaiChatWidget({
     ]);
 
     try {
-      const token = authToken || localStorage.getItem("auth_access_token");
+      const token = effectiveToken;
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
@@ -654,39 +688,84 @@ export default function KaiChatWidget({
             </div>
 
             {/* Input Alanı */}
-            <div className="p-4 bg-white border-t border-gray-100">
-              <div className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
-                <input
-                  type="text"
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-                  placeholder="Mesajınızı yazın..."
-                  className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1"
-                  disabled={isLoading}
-                />
-                <button
-                  onClick={sendMessage}
-                  disabled={isLoading || !input.trim()}
-                  className={`p-2 rounded-full transition-all ${
-                    input.trim() && !isLoading
-                      ? "text-blue-600 hover:bg-blue-50"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {isLoading ? (
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                  ) : (
-                    <Send className="w-5 h-5" />
+            {effectiveToken ? (
+              <div className="p-4 bg-white border-t border-gray-100">
+                <div className="flex gap-2 items-center bg-gray-50 rounded-full px-4 py-2 border border-gray-200 focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500 transition-all">
+                  <input
+                    type="text"
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+                    placeholder="Mesajınızı yazın..."
+                    className="flex-1 bg-transparent border-none focus:ring-0 outline-none text-sm py-1 text-black"
+                    disabled={isLoading}
+                  />
+                  <button
+                    onClick={sendMessage}
+                    disabled={isLoading || !input.trim()}
+                    className={`p-2 rounded-full transition-all ${
+                      input.trim() && !isLoading
+                        ? "text-blue-600 hover:bg-blue-50"
+                        : "text-gray-400"
+                    }`}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-5 h-5 animate-spin" />
+                    ) : (
+                      <Send className="w-5 h-5" />
+                    )}
+                  </button>
+                </div>
+                <div className="text-center mt-2">
+                  <span className="text-[10px] text-gray-400">
+                    Powered by Agenticgro
+                  </span>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 bg-white border-t border-gray-100">
+                <div className="flex flex-col gap-3">
+                  <p className="text-sm text-gray-600 text-center">
+                    Devam etmek için lütfen Erişim Anahtarı giriniz:
+                  </p>
+                  <div className="flex gap-2">
+                    <input
+                      type="password"
+                      placeholder="Access Token"
+                      className={`flex-1 px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 outline-none text-sm text-gray-800 ${
+                        tokenError ? "border-red-500" : "border-gray-300"
+                      }`}
+                      disabled={isTokenValidating}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          handleTokenSubmit(e.currentTarget.value);
+                        }
+                      }}
+                    />
+                    <button
+                      className="bg-blue-600 hover:bg-blue-700 text-white font-medium px-4 rounded-lg transition-colors text-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[60px]"
+                      disabled={isTokenValidating}
+                      onClick={(e) => {
+                        const inputEl = e.currentTarget
+                          .previousElementSibling as HTMLInputElement;
+                        handleTokenSubmit(inputEl.value);
+                      }}
+                    >
+                      {isTokenValidating ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        "Giriş"
+                      )}
+                    </button>
+                  </div>
+                  {tokenError && (
+                    <p className="text-xs text-red-500 text-center">
+                      {tokenError}
+                    </p>
                   )}
-                </button>
+                </div>
               </div>
-              <div className="text-center mt-2">
-                <span className="text-[10px] text-gray-400">
-                  Powered by Agenticgro
-                </span>
-              </div>
-            </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

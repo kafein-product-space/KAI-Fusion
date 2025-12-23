@@ -171,3 +171,6 @@ KEYCLOAK_ENABLED = os.getenv("KEYCLOAK_ENABLED", "false").lower() == "true"
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
 KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
+
+# Master API Key for bypassing authorization on execution endpoints
+MASTER_API_KEY = os.getenv("MASTER_API_KEY")
