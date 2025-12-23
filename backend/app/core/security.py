@@ -305,7 +305,7 @@ from jose import JWTError, jwt
 from datetime import datetime, timedelta
 from app.core.constants import (
     SECRET_KEY, ALGORITHM, ACCESS_TOKEN_EXPIRE_MINUTES, REFRESH_TOKEN_EXPIRE_DAYS,
-    KEYCLOAK_ENABLED, KEYCLOAK_URL, KEYCLOAK_REALM
+    KEYCLOAK_ENABLED, KEYCLOAK_URL, KEYCLOAK_REALM, KEYCLOAK_VERIFY_SSL
 )
 from passlib.context import CryptContext
 import requests
@@ -331,7 +331,7 @@ def get_keycloak_jwks() -> Dict[str, Any]:
         
     try:
         jwks_url = f"{KEYCLOAK_URL}/realms/{KEYCLOAK_REALM}/protocol/openid-connect/certs"
-        response = requests.get(jwks_url, timeout=10)
+        response = requests.get(jwks_url, timeout=10, verify=KEYCLOAK_VERIFY_SSL)
         response.raise_for_status()
         _jwks_cache = response.json()
         _jwks_last_update = datetime.utcnow()

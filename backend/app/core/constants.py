@@ -1,6 +1,5 @@
 """
 KAI-Fusion Enterprise Configuration Management - Centralized Environment & Constants System
-===========================================================================================
 
 This module implements the sophisticated configuration management system for the KAI-Fusion
 platform, providing enterprise-grade environment variable handling, secure credential
@@ -13,7 +12,6 @@ designed for enterprise-scale AI workflow automation platforms.
 ```
 
 ENVIRONMENT MANAGEMENT:
-======================
 
 Development Environment:
 ```python
@@ -40,7 +38,6 @@ PRODUCTION_REQUIREMENTS = {
 ```
 
 MONITORING AND OBSERVABILITY:
-============================
 
 Configuration Intelligence:
 
@@ -69,7 +66,6 @@ Configuration Intelligence:
    - Documentation generation with configuration parameter explanations
 
 SECURITY CONSIDERATIONS:
-=======================
 
 Enterprise Security Framework:
 
@@ -171,6 +167,7 @@ KEYCLOAK_ENABLED = os.getenv("KEYCLOAK_ENABLED", "false").lower() == "true"
 KEYCLOAK_URL = os.getenv("KEYCLOAK_URL")
 KEYCLOAK_REALM = os.getenv("KEYCLOAK_REALM")
 KEYCLOAK_CLIENT_ID = os.getenv("KEYCLOAK_CLIENT_ID")
+KEYCLOAK_VERIFY_SSL = os.getenv("KEYCLOAK_VERIFY_SSL", "true").lower() == "true"
 
 # Master API Key for bypassing authorization on execution endpoints
 MASTER_API_KEY = os.getenv("MASTER_API_KEY")
