@@ -39,6 +39,7 @@ services:
       KEYCLOAK_URL: ${KEYCLOAK_URL}
       KEYCLOAK_REALM: ${KEYCLOAK_REALM}
       KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}      
 
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     networks:
