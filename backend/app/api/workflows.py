@@ -301,7 +301,7 @@ from sqlalchemy import desc
 from app.models.execution import WorkflowExecution
 from app.core.engine import get_engine
 from app.core.database import get_db_session, get_db_session_context
-from app.auth.dependencies import get_current_user, get_optional_user
+from app.auth.dependencies import get_current_user, get_optional_user, get_current_user_or_master_api_key
 from app.models.user import User
 from app.models.workflow import Workflow, WorkflowTemplate
 from app.schemas.workflow import (
@@ -360,7 +360,7 @@ async def get_workflows(
 @router.post("", response_model=WorkflowResponse)
 async def create_workflow(
     workflow_data: WorkflowCreate,
-    db: AsyncSession = Depends(get_db_session),
+    db: AsyncSession = Depends(get_current_user_or_master_api_key),
     current_user: User = Depends(get_current_user)
 ):
     """Create a new workflow"""
@@ -924,7 +924,7 @@ async def get_dashboard_stats(
 async def execute_adhoc_workflow(
     req: AdhocExecuteRequest,
     request: Request,
-    current_user: User = Depends(get_optional_user),
+    current_user: User = Depends(get_current_user_or_master_api_key),
     db: AsyncSession = Depends(get_db_session),
     execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
