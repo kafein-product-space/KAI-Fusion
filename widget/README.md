@@ -69,3 +69,52 @@ export default App;
 | `position`   | `"left" \| "right"` | No       | `"right"`       | Position of the widget on the screen (bottom-left or bottom-right).          |
 | `color`      | `string`            | No       | `"#526cfe"`     | Main theme color of the widget (Hex code).                                   |
 | `icon`       | `ReactNode`         | No       | `MessageSquare` | Custom icon for the toggle button.                                           |
+
+## Standalone Usage (HTML / MkDocs)
+
+You can also use the widget in non-React projects or static sites (like MkDocs) by including the standalone script.
+
+### HTML Integration
+
+Add the following script tag to your HTML file:
+
+```html
+<script
+  src="https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"
+  data-title="KAI Fusion Assistant"
+  data-auth-token="your-auth-token"
+  data-workflow-id="your-workflow-id"
+  data-target-url="http://localhost:8000"
+  data-position="right"
+  data-color="#526cfe"
+  defer
+></script>
+```
+
+### MkDocs Integration
+
+For MkDocs, you can inject the script dynamically using JavaScript.
+
+1. Create a javascript file (e.g `docs/js/kai-widget.js`) with the following content:
+
+```javascript
+document.addEventListener("DOMContentLoaded", function () {
+  const script = document.createElement("script");
+  script.src =
+    "https://cdn.jsdelivr.net/npm/@kaifusion/widget@1.0.6/dist/widget.iife.js"; // Adjust URL to your source
+  script.dataset.title = "KAI Fusion Assistant";
+  script.dataset.authToken = "your-auth-token";
+  script.dataset.workflowId = "your-workflow-id";
+  script.dataset.targetUrl = "http://localhost:8000";
+  script.dataset.position = "right";
+  script.dataset.color = "#526cfe";
+  document.body.appendChild(script);
+});
+```
+
+2. Register the script in your `mkdocs.yml`:
+
+```yaml
+extra_javascript:
+  - js/kai-widget.js
+```

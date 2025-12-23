@@ -38,10 +38,9 @@ KEY FEATURES:
    - Safe module imports with whitelist
    - Memory and CPU usage constraints
 
-3. **Flexible Execution Modes**:
-   - Run Once for All Items: Process entire dataset at once
-   - Run Once for Each Item: Process items individually
-   - Support for batch processing
+3. **Batch Processing Support**:
+   - Support for processing datasets efficiently
+   - Optimized for large data processing
 
 4. **Rich Context Access**:
    - Access to input data and workflow variables
@@ -114,24 +113,21 @@ def timeout_handler(signum, frame):
 
 class PythonSandbox:
     """
-    Secure Python execution sandbox with resource limits and safety checks.
+    Secure Python execution sandbox using subprocess for cross-platform timeout support.
+    Runs Python code in a separate process (like JavaScriptSandbox) for reliable timeout on Windows.
     """
 
     def __init__(self, code: str, context: Dict[str, Any], timeout: int = 30):
         self.code = code
         self.context = context
         self.timeout = timeout
-        self.output_buffer = io.StringIO()
 
     def validate_code(self) -> Optional[str]:
         """Validate Python code syntax and check for dangerous operations"""
         try:
-            # Parse the code to check syntax
             tree = ast.parse(self.code)
 
-            # Check for dangerous operations
             for node in ast.walk(tree):
-                # Block import statements except for safe modules
                 if isinstance(node, ast.Import):
                     for alias in node.names:
                         if alias.name.split('.')[0] not in SAFE_PYTHON_MODULES:
@@ -141,56 +137,130 @@ class PythonSandbox:
                     if node.module and node.module.split('.')[0] not in SAFE_PYTHON_MODULES:
                         return f"Import from '{node.module}' is not allowed"
 
-                # Block dangerous built-in functions
-                if isinstance(node, ast.Name) and node.id in ['eval', 'exec', 'compile', '__import__', 'open', 'file',
-                                                              'input']:
+                if isinstance(node, ast.Name) and node.id in ['eval', 'exec', 'compile', '__import__', 'open', 'file', 'input']:
                     return f"Use of '{node.id}' is not allowed"
 
-                # Block file operations
                 if isinstance(node, ast.Attribute):
                     if hasattr(node.value, 'id') and node.value.id in ['os', 'sys', 'subprocess']:
                         return f"Access to '{node.value.id}' module is not allowed"
 
-            return None  # Code is valid
+            return None
 
         except SyntaxError as e:
             return f"Syntax error at line {e.lineno}: {e.msg}"
         except Exception as e:
             return f"Code validation error: {str(e)}"
 
-    def create_safe_globals(self) -> Dict[str, Any]:
-        """Create a safe global namespace for code execution"""
-        # Filter built-ins to only safe ones
-        import builtins
-        safe_builtins = {k: getattr(builtins, k) for k in SAFE_PYTHON_BUILTINS if hasattr(builtins, k)}
+    def _build_wrapper_script(self) -> str:
+        """Build the Python wrapper script that will run in subprocess"""
+        # Serialize context to JSON, escaping properly for embedding in Python string
+        context_json = json.dumps(self.context, default=str, ensure_ascii=False)
+        # Escape backslashes and triple quotes for safe embedding
+        context_json_escaped = context_json.replace('\\', '\\\\').replace('"""', '\\"\\"\\"')
+        
+        # Escape the user code for embedding (handle triple quotes)
+        user_code_escaped = self.code.replace('\\', '\\\\').replace('"""', '\\"\\"\\"')
+        
+        # List of safe builtins as a Python literal
+        safe_builtins_list = list(SAFE_PYTHON_BUILTINS)
 
-        # Add safe modules
-        safe_globals = {
-            '__builtins__': safe_builtins,
-            'json': __import__('json'),
-            'math': __import__('math'),
-            'random': __import__('random'),
-            're': __import__('re'),
-            'datetime': __import__('datetime'),
-            'time': __import__('time'),
-            'itertools': __import__('itertools'),
-            'collections': __import__('collections'),
-        }
+        wrapper = f'''# -*- coding: utf-8 -*-
+import sys
+import json
+import math
+import random
+import re
+import datetime
+import time
+import itertools
+import collections
+import traceback
+import builtins
 
-        # Add context variables
-        safe_globals.update(self.context)
+# Safe builtins whitelist
+SAFE_BUILTINS = {safe_builtins_list!r}
 
-        # Add helper functions
-        safe_globals['_json'] = json
-        safe_globals['_now'] = datetime.now
-        safe_globals['_utcnow'] = lambda: datetime.now(timezone.utc)
-        safe_globals['locals'] = lambda: safe_globals.copy()  # Safe locals implementation
-        safe_globals['globals'] = lambda: safe_globals  # Safe globals implementation
+def main():
+    # Build restricted builtins
+    safe_builtins_dict = {{k: getattr(builtins, k) for k in SAFE_BUILTINS if hasattr(builtins, k)}}
+    
+    # Execution namespace with safe modules
+    exec_globals = {{
+        '__builtins__': safe_builtins_dict,
+        'json': json,
+        'math': math,
+        'random': random,
+        're': re,
+        'datetime': datetime,
+        'time': time,
+        'itertools': itertools,
+        'collections': collections,
+    }}
+    
+    # Load and apply context
+    try:
+        context = json.loads("""{context_json_escaped}""")
+        exec_globals.update(context)
+    except Exception as ctx_err:
+        print('__PY_OUTPUT_START__')
+        print(json.dumps({{'success': False, 'output': None, 'error': f'Context load error: {{ctx_err}}'}}, ensure_ascii=False))
+        print('__PY_OUTPUT_END__')
+        return
+    
+    # Add helper functions
+    exec_globals['_json'] = json
+    exec_globals['_now'] = datetime.datetime.now
+    exec_globals['_utcnow'] = lambda: datetime.datetime.now(datetime.timezone.utc)
+    
+    exec_locals = {{}}
+    
+    try:
+        # Execute user code
+        user_code = """{user_code_escaped}"""
+        exec(user_code, exec_globals, exec_locals)
+        
+        # Get output variable
+        output = exec_locals.get('output', exec_locals.get('result', None))
+        
+        # Prepare locals for serialization (exclude callables and private vars)
+        serializable_locals = {{}}
+        for k, v in exec_locals.items():
+            if not k.startswith('_') and not callable(v):
+                try:
+                    json.dumps(v, default=str)
+                    serializable_locals[k] = v
+                except:
+                    serializable_locals[k] = str(v)
+        
+        print('__PY_OUTPUT_START__')
+        print(json.dumps({{
+            'success': True,
+            'output': output,
+            'error': None,
+            'locals': serializable_locals
+        }}, default=str, ensure_ascii=False))
+        print('__PY_OUTPUT_END__')
+        
+    except Exception as e:
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        tb_lines = traceback.format_exception(exc_type, exc_value, exc_tb)
+        error_msg = ''.join(tb_lines)
+        
+        print('__PY_OUTPUT_START__')
+        print(json.dumps({{
+            'success': False,
+            'output': None,
+            'error': error_msg
+        }}, ensure_ascii=False))
+        print('__PY_OUTPUT_END__')
 
-        return safe_globals
+if __name__ == '__main__':
+    main()
+'''
+        return wrapper
 
     def execute(self) -> Dict[str, Any]:
-        """Execute the Python code in a sandboxed environment"""
+        """Execute Python code in subprocess with timeout support"""
         # Validate code first
         validation_error = self.validate_code()
         if validation_error:
@@ -201,65 +271,99 @@ class PythonSandbox:
                 'stdout': ''
             }
 
-        # Create safe execution environment
-        safe_globals = self.create_safe_globals()
-        safe_locals = {}
-
-        # Capture stdout
-        old_stdout = sys.stdout
-        sys.stdout = self.output_buffer
-
+        temp_file_path = None
         try:
-            # Execute code with timeout
-            if sys.platform != 'win32':
-                # Use signal-based timeout on Unix-like systems
-                signal.signal(signal.SIGALRM, timeout_handler)
-                signal.alarm(self.timeout)
+            # Build wrapper script
+            wrapper_script = self._build_wrapper_script()
+            
+            # Write to temporary file
+            with tempfile.NamedTemporaryFile(
+                mode='w', 
+                suffix='.py', 
+                delete=False, 
+                encoding='utf-8'
+            ) as temp_file:
+                temp_file.write(wrapper_script)
+                temp_file_path = temp_file.name
+
+            # Execute in subprocess with timeout
+            result = subprocess.run(
+                [sys.executable, temp_file_path],
+                capture_output=True,
+                text=True,
+                timeout=self.timeout,
+                encoding='utf-8'
+            )
+
+            stdout = result.stdout
+            stderr = result.stderr
+
+            # Parse structured output
+            if '__PY_OUTPUT_START__' in stdout and '__PY_OUTPUT_END__' in stdout:
+                # Extract user's print statements (before our markers)
+                marker_pos = stdout.find('__PY_OUTPUT_START__')
+                user_stdout = stdout[:marker_pos].strip()
+                
+                # Extract JSON result
+                start_idx = stdout.find('__PY_OUTPUT_START__') + len('__PY_OUTPUT_START__\n')
+                end_idx = stdout.find('__PY_OUTPUT_END__')
+                json_str = stdout[start_idx:end_idx].strip()
+
                 try:
-                    exec(self.code, safe_globals, safe_locals)
-                finally:
-                    signal.alarm(0)
+                    output_data = json.loads(json_str)
+                    output_data['stdout'] = user_stdout
+                    return output_data
+                except json.JSONDecodeError as e:
+                    return {
+                        'success': False,
+                        'error': f'Failed to parse output JSON: {e}',
+                        'output': None,
+                        'stdout': user_stdout
+                    }
             else:
-                # On Windows, use a simpler approach (no timeout for now)
-                exec(self.code, safe_globals, safe_locals)
+                # No structured output found
+                if result.returncode != 0:
+                    return {
+                        'success': False,
+                        'error': stderr or 'Python execution failed with no output',
+                        'output': None,
+                        'stdout': stdout
+                    }
+                return {
+                    'success': True,
+                    'error': None,
+                    'output': None,
+                    'stdout': stdout
+                }
 
-            # Get the return value (if defined)
-            output = safe_locals.get('output', safe_locals.get('result', None))
-
-            # If no explicit output, try to get the last expression value
-            if output is None and 'return' in safe_locals:
-                output = safe_locals['return']
-
-            return {
-                'success': True,
-                'error': None,
-                'output': output,
-                'stdout': self.output_buffer.getvalue(),
-                'locals': {k: v for k, v in safe_locals.items() if not k.startswith('_')}
-            }
-
-        except TimeoutError:
+        except subprocess.TimeoutExpired:
             return {
                 'success': False,
-                'error': f"Code execution timed out after {self.timeout} seconds",
+                'error': f"Python execution timed out after {self.timeout} seconds",
                 'output': None,
-                'stdout': self.output_buffer.getvalue()
+                'stdout': ''
+            }
+        except FileNotFoundError:
+            return {
+                'success': False,
+                'error': "Python interpreter not found",
+                'output': None,
+                'stdout': ''
             }
         except Exception as e:
-            # Get detailed error information
-            exc_type, exc_value, exc_traceback = sys.exc_info()
-            tb_lines = traceback.format_exception(exc_type, exc_value, exc_traceback)
-            error_msg = ''.join(tb_lines)
-
             return {
                 'success': False,
-                'error': error_msg,
+                'error': f"Python execution failed: {str(e)}",
                 'output': None,
-                'stdout': self.output_buffer.getvalue()
+                'stdout': ''
             }
         finally:
-            # Restore stdout
-            sys.stdout = old_stdout
+            # Clean up temp file
+            if temp_file_path:
+                try:
+                    os.unlink(temp_file_path)
+                except:
+                    pass
 
 
 class JavaScriptSandbox:
@@ -292,8 +396,8 @@ class JavaScriptSandbox:
 
     def create_wrapper_code(self) -> str:
         """Create JavaScript wrapper code with context and safety measures"""
-        # Convert Python context to JavaScript
-        context_json = json.dumps(self.context, default=str)
+        # Convert Python context to JavaScript (preserve Unicode characters)
+        context_json = json.dumps(self.context, default=str, ensure_ascii=False)
 
         wrapper = f"""
 // Sandbox environment setup
@@ -370,18 +474,19 @@ try {{
             # Create wrapper code
             wrapper_code = self.create_wrapper_code()
 
-            # Create temporary file
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False) as temp_file:
+            # Create temporary file with UTF-8 encoding for Unicode support
+            with tempfile.NamedTemporaryFile(mode='w', suffix='.js', delete=False, encoding='utf-8') as temp_file:
                 temp_file.write(wrapper_code)
                 temp_file_path = temp_file.name
 
             try:
-                # Execute with Node.js
+                # Execute with Node.js (UTF-8 encoding for Unicode support)
                 result = subprocess.run(
                     ['node', temp_file_path],
                     capture_output=True,
                     text=True,
-                    timeout=self.timeout
+                    timeout=self.timeout,
+                    encoding='utf-8'
                 )
 
                 stdout = result.stdout
@@ -473,10 +578,9 @@ class CodeNode(ProcessorNode):
        - JavaScript (Node.js) runtime environment
        - Language-specific helper functions and utilities
 
-    2. **Flexible Execution Modes**:
-       - Run Once for All Items: Process entire dataset in a single execution
-       - Run Once for Each Item: Process each item individually
-       - Batch processing support for large datasets
+    2. **Efficient Data Processing**:
+       - Optimized for processing datasets efficiently
+       - Support for large data processing with resource management
 
     3. **Rich Context Access**:
        - Access to input data from connected nodes
@@ -552,25 +656,17 @@ class CodeNode(ProcessorNode):
                     ],
                     tabName="basic"
                 ),
-                NodeProperty(
-                    name="mode",
-                    displayName="Execution Mode",
-                    type=NodePropertyType.SELECT,
-                    description="How to process the input data",
-                    default="all_items",
-                    required=True,
-                    options=[
-                        {"label": "Run Once for All Items", "value": "all_items"},
-                        {"label": "Run Once for Each Item", "value": "each_item"}
-                    ],
-                    tabName="basic"
-                ),
+
                 NodeProperty(
                     name="code",
                     displayName="Code",
                     type=NodePropertyType.CODE_EDITOR,
-                    description="Code to execute. Use 'input' to access connected data. Set 'output' or 'result' to return data. Supports Jinja: {{node_name}}",
-                    default="# Python Example - Access input from connected nodes\n# The 'input' variable contains data from the connected node\n\noutput = f'Processed: {input}'",
+                    description=(
+                        "You can access the output content of the node connected to the code node using the node_data expression. "
+                        "You can refer to the output content of previous nodes in your code using the Jinja structure {{node_name}}. "
+                        "Note: If there is a possibility of special characters in the output content accessed via Jinja, it is recommended to use {{node_name|tojson}}."
+                    ),
+                    default="# Python Example\nprint(node_data)",
                     required=True,
                     rows=12,
                     maxLength=50000,
@@ -627,13 +723,12 @@ class CodeNode(ProcessorNode):
 
         # Get configuration from inputs (properties)
         language = inputs.get("language", "python")
-        mode = inputs.get("mode", "all_items")
         raw_code = inputs.get("code", "")
         timeout = int(inputs.get("timeout", 30))
         continue_on_error = inputs.get("continue_on_error", False)
         enable_validation = inputs.get("enable_validation", True)
 
-        logger.info(f"⚙️ EXECUTION CONFIG: Language={language}, Mode={mode}, Timeout={timeout}s")
+        logger.info(f"⚙️ EXECUTION CONFIG: Language={language}, Timeout={timeout}s")
 
         # Handle mixed language default code - extract appropriate section
         if "// JavaScript Example" in raw_code and "# Python Example" in raw_code:
@@ -658,7 +753,7 @@ class CodeNode(ProcessorNode):
                 code = '\n'.join(python_lines) if python_lines else """output = {
     'message': 'Hello from Code Node!',
     'timestamp': str(__import__('datetime').datetime.now()),
-    'items': items or []
+    'input_data': node_data
 }"""
             else:  # javascript
                 # Extract JavaScript code from the default template
@@ -674,7 +769,7 @@ class CodeNode(ProcessorNode):
                 code = '\n'.join(js_lines) if js_lines else """output = {
   message: 'Hello from Code Node!',
   timestamp: new Date(),
-  items: items || []
+  input_data: node_data
 };"""
         else:
             code = raw_code
@@ -777,131 +872,62 @@ class CodeNode(ProcessorNode):
                     logger.warning(f"Failed to serialize output: {e}")
                     return str(output_data)
 
-            # Process based on mode
-            if mode == "all_items":
-                # Run once for all items
-                context["items"] = input_data if isinstance(input_data, list) else [input_data]
+            # Execute code based on language
+            if language == "python":
+                sandbox = PythonSandbox(code, context, timeout)
+            elif language == "javascript":
+                sandbox = JavaScriptSandbox(code, context, timeout)
+            else:
+                raise ValueError(f"Unsupported language: {language}")
 
-                logger.info(f"🎯 EXECUTING {language.upper()} CODE (ALL ITEMS MODE)")
+            logger.info(f"🎯 EXECUTING {language.upper()} CODE")
 
-                # Execute code based on language
-                if language == "python":
-                    sandbox = PythonSandbox(code, context, timeout)
-                elif language == "javascript":
-                    sandbox = JavaScriptSandbox(code, context, timeout)
-                else:
-                    raise ValueError(f"Unsupported language: {language}")
+            result = sandbox.execute()
 
-                result = sandbox.execute()
+            execution_time = (time.time() - start_time) * 1000
 
-                execution_time = (time.time() - start_time) * 1000
+            # Log execution result details
+            logger.info("=" * 80)
+            logger.info("📤 CODE EXECUTION RESULT LOGGING")
+            logger.info("=" * 80)
+            logger.info(f"✅ Success: {result['success']}")
+            logger.info(f"⏱️  Execution time: {execution_time:.2f}ms")
 
-                # Log execution result details
+            if result['success']:
+                logger.info("🎉 EXECUTION SUCCESS")
+
+                if result['stdout']:
+                    logger.info("📟 CONSOLE OUTPUT:")
+                    logger.info(result['stdout'])
+
+                # Output is always stdout (print statements)
+                stdout_output = result['stdout'].strip() if result['stdout'] else ""
+                
+                logger.info(f"✅ {language.title()} code executed successfully in {execution_time:.1f}ms")
                 logger.info("=" * 80)
-                logger.info("📤 CODE EXECUTION RESULT LOGGING")
+
+                # Return stdout as output for Jinja compatibility
+                return {
+                    "output": stdout_output
+                }
+            else:
+                logger.error("❌ EXECUTION ERROR:")
+                logger.error(result['error'])
+
+                if result['stdout']:
+                    logger.error("📟 CONSOLE OUTPUT (ERROR):")
+                    logger.error(result['stdout'])
+
+                logger.error(f"❌ {language.title()} code execution failed: {result['error']}")
                 logger.info("=" * 80)
-                logger.info(f"✅ Success: {result['success']}")
-                logger.info(f"⏱️  Execution time: {execution_time:.2f}ms")
 
-                if result['success']:
-                    logger.info("🎉 EXECUTION SUCCESS")
-
-                    if result['stdout']:
-                        logger.info("📟 CONSOLE OUTPUT:")
-                        logger.info(result['stdout'])
-
-                    # Output is always stdout (print statements)
-                    stdout_output = result['stdout'].strip() if result['stdout'] else ""
-                    
-                    logger.info(f"✅ {language.title()} code executed successfully in {execution_time:.1f}ms")
-                    logger.info("=" * 80)
-
-                    # Return stdout as output for Jinja compatibility
+                if continue_on_error:
+                    # Return error as output when continue_on_error is enabled
                     return {
-                        "output": stdout_output
+                        "output": f"Error: {result['error']}"
                     }
                 else:
-                    logger.error("❌ EXECUTION ERROR:")
-                    logger.error(result['error'])
-
-                    if result['stdout']:
-                        logger.error("📟 CONSOLE OUTPUT (ERROR):")
-                        logger.error(result['stdout'])
-
-                    logger.error(f"❌ {language.title()} code execution failed: {result['error']}")
-                    logger.info("=" * 80)
-
-                    if continue_on_error:
-                        # Return error as output when continue_on_error is enabled
-                        return {
-                            "output": f"Error: {result['error']}"
-                        }
-                    else:
-                        raise ValueError(f"Code execution failed: {result['error']}")
-
-            else:  # each_item mode
-                # Run once for each item
-                items = input_data if isinstance(input_data, list) else [input_data]
-                outputs = []
-                all_stdout = []
-                documents = []
-
-                logger.info(f"🎯 EXECUTING {language.upper()} CODE (EACH ITEM MODE)")
-                logger.info(f"📊 Processing {len(items)} items")
-
-                for idx, item in enumerate(items):
-                    logger.info(f"🔄 Processing item {idx + 1}/{len(items)}")
-                    logger.info(
-                        f"  📊 Item data: {json.dumps(item, default=str, ensure_ascii=False)[:300]}{'...' if len(str(item)) > 300 else ''}")
-
-                    context["item"] = item
-                    context["item_index"] = idx
-
-                    # Execute code for this item
-                    if language == "python":
-                        sandbox = PythonSandbox(code, context, timeout)
-                    elif language == "javascript":
-                        sandbox = JavaScriptSandbox(code, context, timeout)
-                    else:
-                        raise ValueError(f"Unsupported language: {language}")
-
-                    result = sandbox.execute()
-
-                    if result['success']:
-                        logger.info(f"  ✅ Item {idx + 1} processed successfully")
-
-                        if result['stdout']:
-                            logger.info(
-                                f"  📟 Console: {result['stdout'][:100]}{'...' if len(result['stdout']) > 100 else ''}")
-
-                        # Output is always stdout (print statements)
-                        item_stdout = result['stdout'].strip() if result['stdout'] else ""
-                        outputs.append(item_stdout)
-                        all_stdout.append(result['stdout'])
-                    elif continue_on_error:
-                        logger.warning(f"  ⚠️ Item {idx + 1} failed (continuing): {result['error'][:100]}...")
-                        outputs.append(f"Error: {result['error']}")
-                        all_stdout.append(result['stdout'])
-                    else:
-                        logger.error(f"  ❌ Item {idx + 1} failed: {result['error']}")
-                        raise ValueError(f"Code execution failed for item {idx}: {result['error']}")
-
-                execution_time = (time.time() - start_time) * 1000
-
-                # Log final results
-                logger.info("=" * 80)
-                logger.info("📤 EACH ITEM MODE FINAL RESULTS")
-                logger.info("=" * 80)
-                logger.info(f"✅ Processed {len(items)} items in {execution_time:.2f}ms")
-                logger.info("=" * 80)
-
-                logger.info(f"✅ {language.title()} code executed for {len(items)} items in {execution_time:.1f}ms")
-
-                # Return combined stdout outputs for Jinja compatibility
-                combined_output = "\n".join(outputs) if len(outputs) > 1 else (outputs[0] if outputs else "")
-                return {
-                    "output": combined_output
-                }
+                    raise ValueError(f"Code execution failed: {result['error']}")
 
         except Exception as e:
             execution_time = (time.time() - start_time) * 1000

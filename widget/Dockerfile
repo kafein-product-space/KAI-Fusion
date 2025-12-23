@@ -9,7 +9,7 @@ RUN rm -rf /usr/share/nginx/html/*
 
 # Copy widget files to nginx html directory
 COPY index.html /usr/share/nginx/html/
-COPY widget.js /usr/share/nginx/html/
+COPY ./dist/widget.iife.js /usr/share/nginx/html/
 COPY README.md /usr/share/nginx/html/
 
 # Create nginx configuration for widget serving
