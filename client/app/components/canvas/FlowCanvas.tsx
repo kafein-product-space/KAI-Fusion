@@ -178,7 +178,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     error: chatError,
     addMessage,
     fetchChatMessages,
-    loadChatHistory,
+    fetchWorkflowChats,
     clearAllChats,
   } = useChatStore();
 
@@ -257,12 +257,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
+      // Reset active chat when switching to a different workflow
+      setActiveChatflowId(null);
       // Clear chats when switching to a different workflow
       clearAllChats();
       // Clear execution data for the previous workflow
       setCurrentExecutionForWorkflow(currentWorkflow.id, null);
     }
-  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow]);
+  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -309,13 +311,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Load chat history on component mount
   useEffect(() => {
     if (currentWorkflow?.id) {
-      // Load workflow-specific chats
-      loadChatHistory();
+      // Load workflow-specific chats only
+      fetchWorkflowChats(currentWorkflow.id);
     } else {
       // Clear chats when no workflow is selected (new workflow)
       clearAllChats();
     }
-  }, [currentWorkflow?.id, loadChatHistory, clearAllChats]);
+  }, [currentWorkflow?.id, fetchWorkflowChats, clearAllChats]);
 
   // Load chat messages when active chat changes
   useEffect(() => {

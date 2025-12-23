@@ -141,6 +141,10 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 className="text-red-400 text-sm mt-1"
             />
 
+            {property.description && (
+                <p className="text-slate-400 text-xs mt-2">{property.description}</p>
+            )}
+
             {property.hint && (
                 <p className="text-slate-400 text-sm mt-1">{property.hint}</p>
             )}
