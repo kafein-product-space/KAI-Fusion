@@ -162,6 +162,21 @@ const executeWorkflowWithStreaming = async (
               }));
             }
 
+            // Handle error event to display error in UI
+            if (event === 'error') {
+              console.error('❌ Chat execution error:', parsed.error || parsed.data);
+
+              // Emit error event for FlowCanvas to display
+              window.dispatchEvent(new CustomEvent('chat-execution-error', {
+                detail: {
+                  type: 'error',
+                  error: parsed.error || parsed.data || 'Unknown error',
+                  error_type: parsed.error_type || 'execution',
+                  node_id: parsed.node_id
+                }
+              }));
+            }
+
             // Handle complete event to capture execution data
             if (event === 'complete' && parsed.result) {
               const executionResult: WorkflowExecution = {

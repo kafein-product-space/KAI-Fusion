@@ -20,7 +20,17 @@ import concurrent.futures
 import datetime
 import traceback
 import re
-from jinja2 import Template
+import json
+from jinja2 import Environment
+
+# Custom Jinja2 environment with Unicode-safe tojson filter
+# This prevents Turkish/Unicode characters from being escaped to \uXXXX format
+def _tojson_unicode(value):
+    """JSON encode preserving Unicode characters (no ASCII escaping)"""
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+_jinja_env = Environment()
+_jinja_env.filters['tojson'] = _tojson_unicode
 
 from .types import (
     GraphNodeInstance,
@@ -370,7 +380,7 @@ class NodeExecutor:
             return template_str
         
         try:
-            template = Template(template_str)
+            template = _jinja_env.from_string(template_str)
             return template.render(**context)
         except Exception as e:
             logger.warning(f"Node templating failed for {node_id}: {e}")
