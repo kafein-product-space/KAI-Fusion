@@ -14,6 +14,19 @@ export default function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const checkAuth = async () => {
+      const searchParams = new URLSearchParams(window.location.search);
+      if (searchParams.has("code") && searchParams.has("state")) {
+        let retries = 0;
+        while (retries < 10) { 
+          await new Promise((resolve) => setTimeout(resolve, 500));
+          const currentParams = new URLSearchParams(window.location.search);
+          if (!currentParams.has("code")) {
+            break;
+          }
+          retries++;
+        }
+      }
+
       // 1. Token yoksa signin'e yönlendir
       if (!apiClient.isAuthenticated()) {
         setShouldRedirect(true);
