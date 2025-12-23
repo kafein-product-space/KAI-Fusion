@@ -22,7 +22,7 @@ services:
       DISABLE_DATABASE: ${DISABLE_DATABASE}
 
       # Security
-      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+      MASTER_API_KEY: ${MASTER_API_KEY}
 
       # Basic Settings
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
