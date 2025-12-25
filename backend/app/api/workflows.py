@@ -360,8 +360,8 @@ async def get_workflows(
 @router.post("", response_model=WorkflowResponse)
 async def create_workflow(
     workflow_data: WorkflowCreate,
-    db: AsyncSession = Depends(get_current_user_or_master_api_key),
-    current_user: User = Depends(get_current_user)
+    db: AsyncSession = Depends(get_db_session),
+    current_user: User = Depends(get_current_user_or_master_api_key)
 ):
     """Create a new workflow"""
     try:
