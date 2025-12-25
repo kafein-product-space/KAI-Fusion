@@ -335,7 +335,7 @@ KAI-Fusion/
 
 ---
 
-## ✨ Features
+## ✨ App Overview (What you can build)
 
 * **Visual Workflow Builder**: Drag-and-drop interface powered by XYFlow 12 for creating AI agents and chains.
 * **Modern Tech Stack**: React 19.1, React Router 7, Vite 6.3, Tailwind 4.1, DaisyUI 5 (Frontend) + FastAPI 0.116, LangChain 0.3, LangGraph 0.6 (Backend).
