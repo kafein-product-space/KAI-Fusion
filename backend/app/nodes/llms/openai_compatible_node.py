@@ -110,6 +110,27 @@ class OpenAICompatibleNode(BaseNode):
                     description="Your site name (for OpenRouter rankings)",
                     default="KAI-Fusion",
                     required=False
+                ),
+                NodeInput(
+                    name="frequency_penalty",
+                    type="float",
+                    description="Frequency penalty (-2.0 to 2.0)",
+                    default=0.0,
+                    required=False,
+                ),
+                NodeInput(
+                    name="presence_penalty",
+                    type="float",
+                    description="Presence penalty (-2.0 to 2.0)",
+                    default=0.0,
+                    required=False,
+                ),
+                NodeInput(
+                    name="timeout",
+                    type="int",
+                    description="Request timeout in seconds",
+                    default=60,
+                    required=False,
                 )
             ],
             "outputs": [
@@ -131,6 +152,7 @@ class OpenAICompatibleNode(BaseNode):
                 NodeProperty(
                     name="credential_id",
                     displayName="API Key (Credential)",
+                    tabName="basic",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select API Key",
                     required=False, # Some local servers don't need keys
@@ -139,6 +161,7 @@ class OpenAICompatibleNode(BaseNode):
                 NodeProperty(
                     name="base_url",
                     displayName="Base URL",
+                    tabName="basic",
                     type=NodePropertyType.TEXT,
                     default="https://openrouter.ai/api/v1",
                     placeholder="https://api.openai.com/v1",
@@ -148,6 +171,7 @@ class OpenAICompatibleNode(BaseNode):
                 NodeProperty(
                     name="model_name",
                     displayName="Model Name",
+                    tabName="basic",
                     type=NodePropertyType.TEXT,
                     default="anthropic/claude-3.5-sonnet",
                     placeholder="e.g. meta-llama/llama-3-70b-instruct",
@@ -157,6 +181,7 @@ class OpenAICompatibleNode(BaseNode):
                 NodeProperty(
                     name="temperature",
                     displayName="Temperature",
+                    tabName="basic",
                     type=NodePropertyType.RANGE,
                     default=0.7,
                     min=0.0,
@@ -167,11 +192,69 @@ class OpenAICompatibleNode(BaseNode):
                 NodeProperty(
                     name="max_tokens",
                     displayName="Max Tokens",
+                    tabName="basic",
                     type=NodePropertyType.NUMBER,
                     default=4096,
                     min=1,
                     max=200000,
                     required=True
+                ),
+                # ADVANCED TAB - Advanced sampling and performance parameters
+                NodeProperty(
+                    name="streaming",
+                    displayName="Streaming",
+                    tabName="advanced",
+                    type=NodePropertyType.CHECKBOX,
+                    default=False,
+                    description="Enable streaming responses for real-time output",
+                    required=False
+                ),
+                NodeProperty(
+                    name="top_p",
+                    displayName="Top Probability",
+                    tabName="advanced",
+                    type=NodePropertyType.RANGE,
+                    default=1.0,
+                    min=0.0,
+                    max=1.0,
+                    step=0.01,
+                    description="Nucleus sampling parameter. Controls diversity via nucleus sampling",
+                    required=False
+                ),
+                NodeProperty(
+                    name="frequency_penalty",
+                    displayName="Frequency Penalty",
+                    tabName="advanced",
+                    type=NodePropertyType.RANGE,
+                    default=0.0,
+                    min=-2.0,
+                    max=2.0,
+                    step=0.1,
+                    description="Reduces the likelihood of repeating tokens. Positive values decrease repetition",
+                    required=False
+                ),
+                NodeProperty(
+                    name="presence_penalty",
+                    displayName="Presence Penalty",
+                    tabName="advanced",
+                    type=NodePropertyType.RANGE,
+                    default=0.0,
+                    min=-2.0,
+                    max=2.0,
+                    step=0.1,
+                    description="Increases the likelihood of discussing new topics. Positive values encourage new topics",
+                    required=False
+                ),
+                NodeProperty(
+                    name="timeout",
+                    displayName="Timeout",
+                    tabName="advanced",
+                    type=NodePropertyType.NUMBER,
+                    default=60,
+                    min=1,
+                    max=600,
+                    description="Request timeout in seconds",
+                    required=False
                 )
             ]
         }
@@ -192,6 +275,9 @@ class OpenAICompatibleNode(BaseNode):
         temperature = float(self.user_data.get("temperature", 0.7))
         max_tokens = int(self.user_data.get("max_tokens", 4096))
         top_p = float(self.user_data.get("top_p", 1.0))
+        frequency_penalty = float(self.user_data.get("frequency_penalty", 0.0))
+        presence_penalty = float(self.user_data.get("presence_penalty", 0.0))
+        timeout = int(self.user_data.get("timeout", 60))
         streaming = bool(self.user_data.get("streaming", False))
         
         # OpenRouter specific params
@@ -230,6 +316,9 @@ class OpenAICompatibleNode(BaseNode):
             "temperature": temperature,
             "max_tokens": max_tokens,
             "top_p": top_p,
+            "frequency_penalty": frequency_penalty,
+            "presence_penalty": presence_penalty,
+            "timeout": timeout,
             "streaming": streaming,
             "model_kwargs": {
                 "extra_headers": extra_headers
