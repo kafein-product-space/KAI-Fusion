@@ -67,8 +67,9 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
 
   // Processing Nodes
   CodeNode: <img src="icons/code.svg" alt="code-node" />,
+  ConditionNode: <img src="icons/condition.svg" alt="condition-node" />,
 
-  
+
   RedisCache: (
     <svg
       width="25px"

@@ -45,6 +45,7 @@ from .text_processing.string_input_node import StringInputNode
 
 # Processing Nodes
 from .processing.code_node import CodeNode
+from .processing.condition_node import ConditionNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -90,4 +91,5 @@ __all__ = [
 
     # Processing
     "CodeNode",
+    "ConditionNode",
 ]
