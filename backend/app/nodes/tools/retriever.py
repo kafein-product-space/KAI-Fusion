@@ -51,7 +51,7 @@ from app.nodes.base import ProviderNode, NodeInput, NodeOutput, NodeType, NodePr
 
 logger = logging.getLogger(__name__)
 
-# LangChain Vector Search Algorithms (gönderdiğiniz JSON'daki search_type için)
+# LangChain Vector Search Algorithms (for search_type configuration)
 SEARCH_ALGORITHMS = {
     "similarity": {
         "name": "Similarity Search",
@@ -84,8 +84,7 @@ FILTER_STRATEGIES = {
     "exact": {
         "name": "Exact Match",
         "description": "Exact match for all metadata fields"
-    }}
-""",
+    },
     "partial": {
         "name": "Partial Match",
         "description": "Partial/contains match for text fields"
@@ -94,7 +93,7 @@ FILTER_STRATEGIES = {
         "name": "Range Filtering",
         "description": "Range filtering for numeric fields"
     }
-}"""
+}
 
 
 class RetrieverProvider(ProviderNode):
@@ -102,8 +101,8 @@ class RetrieverProvider(ProviderNode):
     Retriever Provider - Creates Agent-Ready Vector Search Tools
     ===========================================================
 
-    Bu provider node mevcut vector database'lere bağlanıp agent'ların kullanabileceği
-    retriever tool'ları oluşturur. Gönderdiğiniz JSON konfigürasyonuna göre tasarlandı.
+    This provider node connects to existing vector databases and creates
+    retriever tools that agents can use. Designed according to the provided JSON configuration.
     """
 
     def __init__(self):
@@ -164,7 +163,7 @@ class RetrieverProvider(ProviderNode):
                     validation_rules=None
                 ),
 
-                # Metadata Filtering (gönderdiğiniz JSON'dan)
+                # Metadata Filtering (from JSON config)
                 NodeInput(
                     name="metadata_filter",
                     type="json",
@@ -196,7 +195,7 @@ class RetrieverProvider(ProviderNode):
                     validation_rules=None
                 ),
 
-                # Connected Inputs (gönderdiğiniz JSON'dan)
+                # Connected Inputs (from JSON config)
                 NodeInput(
                     name="embedder",
                     displayName="Embedder",
@@ -327,7 +326,7 @@ class RetrieverProvider(ProviderNode):
 
         Follows the VectorStoreOrchestrator credential pattern.
         """
-        logger.info("🔍 Creating Retriever Tool from existing vector database")
+        logger.info("[RETRIEVER] Creating Retriever Tool from existing vector database")
 
         try:
             # Extract configuration from inputs
@@ -410,7 +409,7 @@ class RetrieverProvider(ProviderNode):
                 retriever, collection_name, search_config
             )
 
-            logger.info(f"✅ Retriever tool created for collection '{collection_name}' with {search_type}")
+            logger.info(f"[SUCCESS] Retriever tool created for collection '{collection_name}' with {search_type}")
 
             return {
                 "pg_retriever":{"tool": retriever_tool}
@@ -440,7 +439,7 @@ class RetrieverProvider(ProviderNode):
                 embeddings=embedder,
             )
 
-            logger.info(f"✅ Connected to vector database collection: {collection_name}")
+            logger.info(f"[SUCCESS] Connected to vector database collection: {collection_name}")
             return retriever
 
         except Exception as e:
@@ -461,7 +460,7 @@ class RetrieverProvider(ProviderNode):
         # Auto-convert similarity to similarity_score_threshold if threshold is provided
         if search_type == "similarity" and raw_threshold and float(raw_threshold) > 0:
             search_type = "similarity_score_threshold"
-            logger.info(f"🔄 Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
+            logger.info(f"[CONVERT] Auto-converted search_type from 'similarity' to 'similarity_score_threshold' due to score_threshold={raw_threshold}")
 
         # Always cap returned results by k unless the underlying retriever ignores it
         k = int(search_config.get("search_k", 4))
@@ -511,7 +510,7 @@ class RetrieverProvider(ProviderNode):
             "lambda_mult": search_kwargs.get("lambda_mult"),
             "has_filter": "filter" in search_kwargs
         }
-        logger.info(f"✅ Created retriever search_type={search_type} details={details}")
+        logger.info(f"[SUCCESS] Created retriever search_type={search_type} details={details}")
         return retriever
 
     def _create_retriever_tool(self, retriever: BaseRetriever, collection_name: str, search_config: Dict[str, Any]) -> Tool:
@@ -520,16 +519,16 @@ class RetrieverProvider(ProviderNode):
         def retriever_search(query: str) -> str:
             """Search function that the agent will call."""
             try:
-                logger.info(f"🔍 Agent searching '{collection_name}' for: {query}")
+                logger.info(f"[SEARCH] Agent searching '{collection_name}' for: {query}")
 
                 # Perform search using configured retriever
                 docs = retriever.invoke(query)
 
                 if not docs:
-                    return f"""🔍 SEARCH RESULTS - {collection_name}
+                    return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: No documents found for '{query}'.
     
-    📊 SEARCH SUMMARY:
+    SEARCH SUMMARY:
     - Search completed but no relevant documents were found
     - You may try using more specific search terms
     - Collection: {collection_name}
@@ -537,7 +536,7 @@ class RetrieverProvider(ProviderNode):
 
                 # Format results for agent consumption
                 result_parts = [
-                    f"🔍 SEARCH RESULTS - {collection_name}",
+                    f"[SEARCH] SEARCH RESULTS - {collection_name}",
                     f"Total documents found: {len(docs)}",
                     f"Search Algorithm: {search_config['search_type']}",
                     f"Documents displayed: {min(len(docs), search_config['search_k'])}",
@@ -570,7 +569,7 @@ class RetrieverProvider(ProviderNode):
 
                 result_parts.extend([
                     "",
-                    "📊 SEARCH SUMMARY:",
+                    "SEARCH SUMMARY:",
                     f"- These results contain the most relevant documents for the query '{query}'",
                     f"- Collection: {collection_name}",
                     f"- Search Algorithm: {search_config['search_type']}",
@@ -581,13 +580,13 @@ class RetrieverProvider(ProviderNode):
 
             except Exception as e:
                 error_msg = str(e)
-                return f"""🔍 SEARCH RESULTS - {collection_name}
+                return f"""[SEARCH] SEARCH RESULTS - {collection_name}
     Query: A technical issue occurred while searching for '{query}'.
     
-    ⚠️ ERROR DETAILS:
+    [WARNING] ERROR DETAILS:
     {error_msg}
     
-    📊 SEARCH SUMMARY:
+    SEARCH SUMMARY:
     - Search could not be completed due to technical issues
     - Collection: {collection_name}
     - Please try again with different search terms"""

@@ -31,6 +31,8 @@ import type {
   Variable,
 } from "~/types/api";
 
+import { useAuth as useOidcAuth } from "react-oidc-context";
+
 interface SearchResult {
   id: string;
   type: "workflow" | "execution" | "credential" | "variable";
@@ -48,6 +50,7 @@ interface SearchResult {
 const Sidebar = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { user, signOut } = useAuth();
+  const oidcAuth = useOidcAuth(); // Keycloak auth hook
   const location = useLocation();
   const router = useNavigate();
   const mode = useThemeStore((s) => s.mode);
@@ -204,10 +207,22 @@ const Sidebar = () => {
     setShowSearchResults(false);
   };
 
+  const isKeycloakEnabled = !!import.meta.env.VITE_KEYCLOAK_URL && !!import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
+
   const handleLogOut = async () => {
     try {
-      await signOut();
-      router("/signin");
+      if (isKeycloakEnabled && oidcAuth?.signoutRedirect) {
+          // Keycloak logout
+          await signOut(); // Clear local state first
+          // Keycloak çıkışından sonra signin sayfasına yönlendirilebilmesi için post_logout_redirect_uri parametresi eklenebilir
+          // Ancak oidc-client-ts bunu config'den alır.
+          await oidcAuth.signoutRedirect({ post_logout_redirect_uri: window.location.origin + "/signin" });
+      } else {
+          // Normal logout
+          await signOut();
+          router("/signin");
+      }
+      
       enqueueSnackbar("Başarıyla çıkış yapıldı", {
         variant: "success",
       });
@@ -216,6 +231,7 @@ const Sidebar = () => {
       enqueueSnackbar("Çıkış yapılırken hata oluştu", {
         variant: "error",
       });
+      // Fallback redirect
       router("/signin");
     }
   };

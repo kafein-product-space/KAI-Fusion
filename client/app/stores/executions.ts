@@ -4,7 +4,7 @@ import type { WorkflowExecution } from '../types/api';
 
 interface ExecutionsStore {
   executions: WorkflowExecution[];
-  currentExecution: WorkflowExecution | null;
+  currentExecutions: Record<string, WorkflowExecution | null>; // workflow_id -> execution
   loading: boolean;
   error: string | null;
   fetchExecutions: (workflow_id?: string, params?: { skip?: number; limit?: number }) => Promise<void>;
@@ -19,13 +19,15 @@ interface ExecutionsStore {
     trigger_source?: string;
   }) => Promise<void>;
   setCurrentExecution: (execution: WorkflowExecution) => void;
+  setCurrentExecutionForWorkflow: (workflow_id: string, execution: WorkflowExecution | null) => void;
+  getCurrentExecutionForWorkflow: (workflow_id: string) => WorkflowExecution | null;
   deleteExecution: (execution_id: string) => Promise<void>;
   clearError: () => void;
 }
 
-export const useExecutionsStore = create<ExecutionsStore>((set) => ({
+export const useExecutionsStore = create<ExecutionsStore>((set, get) => ({
   executions: [],
-  currentExecution: null,
+  currentExecutions: {},
   loading: false,
   error: null,
   fetchExecutions: async (workflow_id, params) => {
@@ -72,16 +74,29 @@ export const useExecutionsStore = create<ExecutionsStore>((set) => ({
     set({ loading: true, error: null });
     try {
       const execution = await executionService.executeWorkflow(workflow_id, executionData);
-      set((state) => ({ 
-        currentExecution: execution, 
-        executions: [execution, ...state.executions], 
-        loading: false 
+      set((state) => ({
+        currentExecutions: { ...state.currentExecutions, [workflow_id]: execution },
+        executions: [execution, ...state.executions],
+        loading: false
       }));
     } catch (e: any) {
       set({ error: e.message || 'Failed to execute workflow', loading: false });
     }
   },
-  setCurrentExecution: (execution) => set({ currentExecution: execution }),
+  setCurrentExecution: (execution) => {
+    // Backward compatibility - set for current workflow if available
+    // This is kept for legacy support but should be replaced with setCurrentExecutionForWorkflow
+    console.warn('setCurrentExecution is deprecated, use setCurrentExecutionForWorkflow instead');
+    set((state) => ({ currentExecutions: { ...state.currentExecutions } }));
+  },
+  setCurrentExecutionForWorkflow: (workflow_id, execution) => {
+    set((state) => ({
+      currentExecutions: { ...state.currentExecutions, [workflow_id]: execution }
+    }));
+  },
+  getCurrentExecutionForWorkflow: (workflow_id) => {
+    return get().currentExecutions[workflow_id] || null;
+  },
   deleteExecution: async (execution_id) => {
     set({ loading: true, error: null });
     try {

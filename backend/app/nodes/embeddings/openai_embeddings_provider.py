@@ -160,7 +160,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
     
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: OpenAIEmbeddingsProvider'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: OpenAIEmbeddingsProvider'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         OpenAI embeddings için gereken API ve LangChain dependencies.
@@ -212,7 +212,7 @@ class OpenAIEmbeddingsProvider(ProviderNode):
             # Check for development/test environment
             if os.getenv("NODE_ENV") == "development" or os.getenv("ENVIRONMENT") == "test":
                 openai_api_key = "sk-test-development-key-placeholder"
-                print("⚠️ Using development placeholder API key for OpenAI Embeddings")
+                print("Using development placeholder API key for OpenAI Embeddings")
             else:
                 raise ValueError(
                     "OpenAI API key is required. Please provide it in the node configuration "

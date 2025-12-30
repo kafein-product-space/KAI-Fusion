@@ -502,7 +502,7 @@ class TavilySearchNode(ProviderNode):
     
     def get_required_packages(self) -> List[str]:
         """
-        🔥 DYNAMIC METHOD: Bu node'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: Bu node'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         Yeni node eklendiğinde bu method tanımlanmalı.
@@ -520,7 +520,7 @@ class TavilySearchNode(ProviderNode):
 
         Following the RetrieverProvider pattern for consistent tool creation.
         """
-        print("\n🔍 TAVILY SEARCH SETUP")
+        print("\nTAVILY SEARCH SETUP")
 
         try:
             # Get API key from user configuration (database/UI)
@@ -531,9 +531,9 @@ class TavilySearchNode(ProviderNode):
             if not api_key:
                 api_key = os.getenv("TAVILY_API_KEY")
             
-            print(f"   🔑 API Key: {'✅ Found' if api_key else '❌ Missing'}")
+            print(f"   API Key: {'Found' if api_key else 'Missing'}")
             if api_key:
-                print(f"   🔑 Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
+                print(f"   Source: {'User Config' if self.user_data.get('tavily_api_key') else 'Environment'}")
             
             if not api_key:
                 raise ValueError(
@@ -572,14 +572,14 @@ class TavilySearchNode(ProviderNode):
             # 6. Test the API connection
             try:
                 test_result = tavily_search.run("test query")
-                print(f"   🧪 API Test: ✅ Success ({len(str(test_result))} chars)")
+                print(f"   API Test: Success ({len(str(test_result))} chars)")
             except Exception as test_error:
-                print(f"   🧪 API Test: ❌ Failed ({str(test_error)[:50]}...)")
+                print(f"   API Test: Failed ({str(test_error)[:50]}...)")
 
             # 7. Create agent-ready tool
             search_tool = self._create_search_tool(tavily_search, search_config)
 
-            print(f"   ✅ Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
+            print(f"   Tool Created: {search_tool.name} | Max Results: {max_results} | Depth: {search_depth}")
 
             return {
                 "taviliy_web_search": {"tool": search_tool}
@@ -587,7 +587,7 @@ class TavilySearchNode(ProviderNode):
 
         except Exception as e:
             error_msg = f"TavilySearchNode execution failed: {str(e)}"
-            print(f"❌ {error_msg}")
+            print(f"{error_msg}")
             raise ValueError(error_msg) from e
 
     def _create_tavily_search(self, api_key: str, search_config: Dict[str, Any]) -> TavilySearch:
@@ -620,17 +620,17 @@ class TavilySearchNode(ProviderNode):
         def tavily_web_search(query: str) -> str:
             """Web search function that agents will call."""
             try:
-                print(f"🔍 Agent performing web search for: {query}")
+                print(f"Agent performing web search for: {query}")
 
                 # Perform search using Tavily
                 raw_results = tavily_search.run(query)
 
                 # Handle empty results
                 if not raw_results or (isinstance(raw_results, str) and not raw_results.strip()):
-                    return f"""🌐 WEB SEARCH RESULTS - Tavily
+                    return f"""WEB SEARCH RESULTS - Tavily
 Query: No web results found for '{query}'.
 
-📊 SEARCH SUMMARY:
+SEARCH SUMMARY:
 - Search completed but no relevant web pages were found
 - You may try using different search terms or be more specific
 - Search Engine: Tavily
@@ -639,7 +639,7 @@ Query: No web results found for '{query}'.
 
                 # Format results for agent consumption
                 result_parts = [
-                    "🌐 WEB SEARCH RESULTS - Tavily",
+                    "WEB SEARCH RESULTS - Tavily",
                     f"Query: {query}",
                     f"Search Depth: {search_config['search_depth']}",
                     f"Max Results: {search_config['max_results']}",
@@ -696,7 +696,7 @@ Query: No web results found for '{query}'.
 
                 result_parts.extend([
                     "",
-                    "📊 SEARCH SUMMARY:",
+                    "SEARCH SUMMARY:",
                     f"- These web search results are the most relevant for the query '{query}'",
                     f"- Search Engine: Tavily API",
                     f"- Search Depth: {search_config['search_depth']} (higher depth = more comprehensive results)",
@@ -708,13 +708,13 @@ Query: No web results found for '{query}'.
 
             except Exception as e:
                 error_msg = str(e)
-                return f"""🌐 WEB SEARCH RESULTS - Tavily
+                return f"""WEB SEARCH RESULTS - Tavily
 Query: A technical issue occurred while searching for '{query}'.
 
-⚠️ ERROR DETAILS:
+ERROR DETAILS:
 {error_msg}
 
-📊 SEARCH SUMMARY:
+SEARCH SUMMARY:
 - Web search could not be completed due to technical issues
 - Search Engine: Tavily API
 - Please try again with different search terms"""

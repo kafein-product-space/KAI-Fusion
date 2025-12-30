@@ -19,6 +19,18 @@ import asyncio
 import concurrent.futures
 import datetime
 import traceback
+import re
+import json
+from jinja2 import Environment
+
+# Custom Jinja2 environment with Unicode-safe tojson filter
+# This prevents Turkish/Unicode characters from being escaped to \uXXXX format
+def _tojson_unicode(value):
+    """JSON encode preserving Unicode characters (no ASCII escaping)"""
+    return json.dumps(value, ensure_ascii=False, default=str)
+
+_jinja_env = Environment()
+_jinja_env.filters['tojson'] = _tojson_unicode
 
 from .types import (
     GraphNodeInstance,
@@ -123,11 +135,16 @@ class NodeExecutor:
             NodeExecutionError: If processor execution fails
         """
         try:
-            logger.info(f"🔄 Executing processor node: {node_id} ({gnode.type})")
+            logger.info(f"[PROCESSING] Executing processor node: {node_id} ({gnode.type})")
             
             # Extract user inputs for processor
             user_inputs = self.extract_user_inputs_for_processor(gnode, state)
             logger.debug(f"User inputs extracted: {list(user_inputs.keys())}")
+            
+            # Apply node-output templating so processor inputs can reference upstream node outputs
+            user_inputs = self._apply_node_output_templating(gnode, user_inputs, state)
+            logger.debug(f"Templated user inputs: {list(user_inputs.keys())}")
+            print(f"ana data {user_inputs}")
             
             # Extract connected node instances
             connected_nodes = self.extract_connected_node_instances(gnode, state)
@@ -156,21 +173,16 @@ class NodeExecutor:
                 last_output = processed_result["output"]
             else:
                 last_output = str(processed_result)
-            
             # Update the state directly
             state.last_output = last_output
-            state.executed_nodes = updated_executed_nodes
-            
-            # Filter out complex objects before storing in state
+            state.executed_nodes = updated_executed_nodes           # Filter out complex objects before storing in state
             if gnode.type in PROCESSOR_NODE_TYPES:
                 serializable_result = self._filter_complex_objects(processed_result)
                 serializable_output = last_output
                 logger.debug(f"Agent serializable output: {type(serializable_output)} - '{str(serializable_output)[:100]}...'")
             else:
                 serializable_result = self._make_serializable(processed_result)
-                serializable_output = serializable_result
-            
-            # Store only serializable data in state for connected nodes to access
+                serializable_output = serializable_result            # Store only serializable data in state for connected nodes to access
             if not hasattr(state, 'node_outputs'):
                 state.node_outputs = {}
             state.node_outputs[node_id] = serializable_result
@@ -182,7 +194,7 @@ class NodeExecutor:
                 "node_outputs": state.node_outputs
             }
             
-            logger.info(f"✅ Processor node {node_id} completed successfully")
+            logger.info(f"[SUCCESS] Processor node {node_id} completed successfully")
             logger.debug(f"Output: '{last_output[:80]}...' ({len(str(last_output))} chars)")
             
             return result_dict
@@ -213,13 +225,29 @@ class NodeExecutor:
             NodeExecutionError: If standard execution fails
         """
         try:
-            logger.info(f"🔄 Executing standard node: {node_id} ({gnode.type})")
+            logger.info(f"[PROCESSING] Executing standard node: {node_id} ({gnode.type})")
             
             # Use the standard graph node function
             node_func = gnode.node_instance.to_graph_node()
             result = node_func(state)
+
+            # Store primary output for standard nodes as well so templating can see them
+            try:
+                if isinstance(result, dict):
+                    output_key = f"output_{node_id}"
+                    if output_key in result:
+                        primary_raw = result[output_key]
+                        if not hasattr(state, "node_outputs"):
+                            state.node_outputs = {}
+                        state.node_outputs[node_id] = primary_raw
+                        logger.debug(
+                            f"[TEMPLATE] Standard node {node_id} stored in state.node_outputs "
+                            f"with type={type(primary_raw)}"
+                        )
+            except Exception as e:
+                logger.warning(f"[TEMPLATE] Failed to store standard node output for {node_id}: {e}")
             
-            logger.info(f"✅ Standard node {node_id} completed successfully")
+            logger.info(f"[SUCCESS] Standard node {node_id} completed successfully")
             logger.debug(f"Node {node_id} output: {str(result)[:200]}...")
             
             return result
@@ -247,29 +275,285 @@ class NodeExecutor:
         """
         user_inputs = {}
         input_specs = gnode.node_instance.metadata.inputs
-        
+
+        # Frontend typically stores node configs under gnode.user_data["inputs"].
+        # We first try to read from there, then fallback to plain gnode.user_data and state.variables.
+        inputs_group = {}
+        try:
+            if isinstance(gnode.user_data, dict):
+                inputs_group = gnode.user_data.get("inputs", {}) or {}
+        except Exception:
+            inputs_group = {}
+
         for input_spec in input_specs:
             if not input_spec.is_connection:
-                # Check user_data first (from frontend form)
-                if input_spec.name in gnode.user_data:
+                # 1) Priority: data.inputs[...] (frontend form values)
+                if isinstance(inputs_group, dict) and input_spec.name in inputs_group:
+                    user_inputs[input_spec.name] = inputs_group[input_spec.name]
+                    logger.debug(f"Found user input {input_spec.name} in user_data['inputs']")
+                # 2) Then: data[...] (flat user_data field)
+                elif input_spec.name in gnode.user_data:
                     user_inputs[input_spec.name] = gnode.user_data[input_spec.name]
-                    logger.debug(f"Found user input {input_spec.name} in user_data")
-                # Then check state variables
+                    logger.debug(f"Found user input {input_spec.name} in user_data (top-level)")
+                # 3) Then: state.variables
                 elif hasattr(state, 'variables') and input_spec.name in state.variables:
                     user_inputs[input_spec.name] = state.get_variable(input_spec.name)
-                    logger.debug(f"Found user input {input_spec.name} in state variables")
-                # Use default if available
+                    logger.debug(f"Found user input {input_spec.name} in state.variables")
+                # 4) Default value
                 elif input_spec.default is not None:
                     user_inputs[input_spec.name] = input_spec.default
                     logger.debug(f"Using default for {input_spec.name}: {input_spec.default}")
-                # Skip non-required inputs without defaults
+                # 5) Skip if not required and no value found
                 elif not input_spec.required:
                     logger.debug(f"Skipping non-required input: {input_spec.name}")
                     continue
                 else:
-                    logger.debug(f"Using default for {input_spec.name}: {input_spec.default}")
+                    logger.debug(f"No value found for required input {input_spec.name}, using default if any")
                     
+        # Also include properties from user_data (for nodes with properties like ReactAgent)
+        if hasattr(gnode.node_instance, 'metadata') and hasattr(gnode.node_instance.metadata, 'properties'):    
+            for prop in gnode.node_instance.metadata.properties:
+                if prop.name in gnode.user_data:
+                    user_inputs[prop.name] = gnode.user_data[prop.name]
+                    logger.debug(f"Found property {prop.name} in user_data")
+
+        logger.debug(f"Processor {gnode.id} resolved user_inputs: {user_inputs}")
         return user_inputs
+    
+    def _normalize_display_name_for_template(self, name: str) -> str:
+        """
+        Normalize a node display name to a Jinja-safe identifier.
+        
+        Example:
+            "OpenAI GPT" -> "openai_gpt"
+        """
+        if not name:
+            return ""
+        
+        normalized = re.sub(r"[^0-9a-zA-Z_]+", "_", name).strip("_")
+        if not normalized:
+            return ""
+        
+        # Jinja identifiers should not start with a digit
+        if normalized[0].isdigit():
+            normalized = f"n_{normalized}"
+        
+        return normalized
+    
+    def _get_primary_output_for_node(self, node_id: str, state: FlowState) -> Any:
+        """
+        Determine the primary output value for a given node from FlowState.
+
+        Heuristic:
+        - If node_outputs[node_id] is a dict:
+          - Prefer 'output'
+          - Then 'content'
+          - If only one key, return that single value
+          - Otherwise return the entire dict
+        - Otherwise, return the stored value directly.
+        """
+        if not hasattr(state, "node_outputs"):
+            return None
+        
+        node_output = state.node_outputs.get(node_id)
+        if node_output is None:
+            return None
+        
+        if isinstance(node_output, dict):
+            if "output" in node_output:
+                return node_output["output"]
+            if "content" in node_output:
+                return node_output["content"]
+            if len(node_output) == 1:
+                return next(iter(node_output.values()))
+            return node_output
+        
+        return node_output
+    
+    def _render_template_string(self, template_str: str, context: Dict[str, Any], node_id: str) -> str:
+        """
+        Render a Jinja2 template string with the given context.
+        If rendering fails, return the original string and log a warning.
+        """
+        # Quick check to avoid unnecessary Jinja processing
+        if "{{" not in template_str or "}}" not in template_str:
+            return template_str
+        
+        try:
+            template = _jinja_env.from_string(template_str)
+            return template.render(**context)
+        except Exception as e:
+            logger.warning(f"Node templating failed for {node_id}: {e}")
+            return template_str
+    
+    def _apply_node_output_templating(
+        self,
+        gnode: GraphNodeInstance,
+        user_inputs: Dict[str, Any],
+        state: FlowState
+    ) -> Dict[str, Any]:
+        """
+        Apply Jinja2 templating to processor user inputs so they can reference upstream node outputs by normalized display name.
+
+        Example usage in processor node input:
+        "Use previous answer: {{openai_gpt}}"
+        where "OpenAI GPT" is the display name of the upstream node.
+        """
+        try:
+            # This method is only called from execute_processor_node, so no additional gnode.type filter needed here.
+
+            # Apply templating for all processor nodes.
+
+            # We need node_outputs and a populated nodes_registry.
+            if not hasattr(state, "node_outputs") or not state.node_outputs:
+                return user_inputs
+            if not getattr(self, "_nodes_registry", None):
+                return user_inputs
+            
+            # Build templating context from executed nodes' primary outputs
+            context: Dict[str, Any] = {}
+
+            # SPECIAL CASE: Add current_input as 'input' for chat-like behavior
+            # This allows {{input}} to work even when running with StartNode
+            if hasattr(state, 'current_input') and state.current_input is not None:
+                context['input'] = state.current_input
+
+            for other_node_id in state.node_outputs.keys():
+                graph_node = self._nodes_registry.get(other_node_id)
+                if not graph_node:
+                    continue
+
+                # Build a prioritized list of candidate names for this node:
+
+                # 1) UI-visible name from user_data["name"] (what you see on the canvas)
+                # 2) NodeMetadata.display_name
+                # 3) NodeMetadata.name
+                # 4) GraphNodeInstance.metadata["display_name"/"name"]
+                # 5) Fallback: node_id
+                alias_candidates: list[tuple[str, str]] = []
+
+                # 1) UI name (highest priority, what the user edited on the frontend)
+                ui_name = None
+                try:
+                    user_data = getattr(graph_node, "user_data", {}) or {}
+                    if isinstance(user_data, dict):
+                        ui_name = user_data.get("name")
+                except Exception:
+                    user_data = {}
+                    ui_name = None
+
+                if ui_name:
+                    alias_candidates.append(("ui_name", str(ui_name)))
+
+                # 2) Pydantic NodeMetadata from node instance
+                node_meta_model = None
+                try:
+                    node_meta_model = getattr(graph_node.node_instance, "metadata", None)
+                except Exception:
+                    node_meta_model = None
+
+                if node_meta_model is not None:
+                    display_name = getattr(node_meta_model, "display_name", None)
+                    meta_name = getattr(node_meta_model, "name", None)
+
+                    if display_name:
+                        alias_candidates.append(("display_name", str(display_name)))
+                    if meta_name and meta_name != display_name:
+                        alias_candidates.append(("meta_name", str(meta_name)))
+
+                # 3) Fallback to GraphNodeInstance.metadata dict
+                metadata_dict = getattr(graph_node, "metadata", {}) or {}
+                if isinstance(metadata_dict, dict):
+                    md_display = metadata_dict.get("display_name")
+                    md_name = metadata_dict.get("name")
+
+                    if md_display:
+                        alias_candidates.append(("graph_display_name", str(md_display)))
+                    if md_name and md_name != md_display:
+                        alias_candidates.append(("graph_name", str(md_name)))
+
+                # 4) Final fallback: raw node_id
+                alias_candidates.append(("node_id", str(other_node_id)))
+
+                primary_value = self._get_primary_output_for_node(other_node_id, state)
+                if primary_value is None:
+                    continue
+
+                # SPECIAL CASE: If this is a StartNode, also add its output as 'input'.
+                # This allows {{input}} to work like a chat system with StartNode.
+                is_start_node = False
+                try:
+                    if hasattr(graph_node, 'type') and graph_node.type == 'StartNode':
+                        is_start_node = True
+                        if 'input' not in context:  # Don't overwrite if already set
+                            context['input'] = primary_value
+                            print(f"[TEMPLATE DEBUG] Added 'input' context from StartNode output: {primary_value}")
+                except Exception:
+                    pass
+
+                # Normalize and save all aliases without overwriting existing keys.
+                # This preserves backward compatibility (type-based aliases) while
+                # allowing clean UI-based aliases like {{openai_gpt}}.
+                for source_type, raw_name in alias_candidates:
+                    normalized = self._normalize_display_name_for_template(raw_name)
+                    if not normalized:
+                        continue
+
+                    if normalized in context:
+                        # Do not overwrite existing mapping; just log once for visibility
+                        logger.debug(
+                            f"[TEMPLATE] Skipping duplicate alias '{normalized}' from {source_type} "
+                            f"for node {other_node_id} while building context for {gnode.id}"
+                        )
+                        continue
+
+                    context[normalized] = primary_value
+                    print(f"context-data= {primary_value}")
+                    logger.debug(
+                        f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
+                        f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
+                    )
+            
+            if not context:
+                logger.debug(f"[TEMPLATE] No context built for node {gnode.id}; skipping templating")
+                return user_inputs
+            
+            logger.debug(
+                f"[TEMPLATE] Built templating context for node {gnode.id}: "
+                f"keys={list(context.keys())}"
+            )
+            
+            # Apply templating only to string inputs containing '{{' and '}}'
+            rendered_inputs: Dict[str, Any] = {}
+            for key, value in user_inputs.items():
+                if isinstance(value, str) and "{{" in value and "}}" in value:
+                    original = value
+                    rendered = self._render_template_string(
+                        original, context, gnode.id
+                    )
+                    print(
+                        f"[TEMPLATE DEBUG] Node {gnode.id} input '{key}' "
+                        f"before='{original}' after='{rendered}'"
+                    )
+                    if rendered != original:
+                        logger.info(
+                            f"[TEMPLATE] Node {gnode.id} input '{key}' templated from "
+                            f"'{original}' to '{rendered}'"
+                        )
+                    else:
+                        logger.info(
+                            f"[TEMPLATE] Node {gnode.id} input '{key}' contained templates "
+                            f"but rendered unchanged: '{original}'"
+                        )
+                    rendered_inputs[key] = rendered
+                else:
+                    rendered_inputs[key] = value
+            
+            return rendered_inputs
+        
+        except Exception as e:
+            logger.error(f"Failed to apply node output templating for {gnode.id}: {e}")
+            return user_inputs
     
     def extract_connected_node_instances(self, gnode: GraphNodeInstance, state: FlowState) -> Dict[str, Any]:
         """
@@ -285,9 +569,9 @@ class NodeExecutor:
         # Check for pool-based connections first
         has_pool = self._has_pool_connections(gnode)
         if has_pool:
-            logger.debug(f"🔗 Extracting pool-enabled connections for {gnode.id}")
+            logger.debug(f"[CONNECT] Extracting pool-enabled connections for {gnode.id}")
         else:
-            logger.debug(f"🔗 Extracting connections for {gnode.id} (Clean Architecture)")
+            logger.debug(f"[CONNECT] Extracting connections for {gnode.id} (Clean Architecture)")
         
         try:
             # Use the clean connection extractor with proper nodes registry
@@ -298,9 +582,9 @@ class NodeExecutor:
             )
             
             if has_pool:
-                logger.debug(f"✅ Pool-aware connection extraction completed: {len(connected)} connections")
+                logger.debug(f"[SUCCESS] Pool-aware connection extraction completed: {len(connected)} connections")
             else:
-                logger.debug(f"✅ Clean connection extraction completed: {len(connected)} connections")
+                logger.debug(f"[SUCCESS] Clean connection extraction completed: {len(connected)} connections")
             
             # CRITICAL FIX: Validate connection formats before returning
             validated_connected = self._validate_and_fix_connection_formats(connected, gnode.id)
@@ -516,9 +800,10 @@ class NodeExecutor:
                 logger.error(f"[ERROR] Expected dict but got list with {len(connection_info)} items: {connection_info}")
                 
                 # If it's a single-item list, extract the dict
-                if len(connection_info) == 1 and isinstance(connection_info[0], dict):
+                conn_list = list(connection_info)
+                if len(conn_list) == 1 and isinstance(conn_list[0], dict):
                     logger.debug("[FIX] Extracting single dict from list format")
-                    connection_info = connection_info[0]
+                    connection_info = conn_list[0]
                 else:
                     logger.error("[ERROR] Cannot process multi-item list in single connection context")
                     return None

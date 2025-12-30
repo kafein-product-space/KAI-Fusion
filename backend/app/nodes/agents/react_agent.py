@@ -124,8 +124,25 @@ from langchain_core.callbacks import BaseCallbackHandler
 # DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
 # ================================================================================
 class AgentDebugCallback(BaseCallbackHandler):
+    """
+    Debug callback handler for LangChain agent execution tracing.
+    
+    This handler provides detailed console output for debugging purposes,
+    capturing events from chains, LLMs, and tools during agent execution.
+    Useful for development and troubleshooting agent behavior.
+    """
+    
     @staticmethod
     def _safe_name(serialized) -> str:
+        """
+        Safely extract component name from serialized data.
+        
+        Args:
+            serialized: The serialized component data, can be dict, object, or None.
+            
+        Returns:
+            str: The extracted name or 'unknown' if extraction fails.
+        """
         try:
             if serialized is None:
                 return "unknown"
@@ -138,6 +155,14 @@ class AgentDebugCallback(BaseCallbackHandler):
             return "unknown"
 
     def on_chain_start(self, serialized, inputs, **kwargs):
+        """
+        Callback triggered when a chain starts execution.
+        
+        Args:
+            serialized: Serialized chain data.
+            inputs: Input data being passed to the chain.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             name = self._safe_name(serialized)
             keys = list(inputs.keys()) if isinstance(inputs, dict) else type(inputs)
@@ -146,6 +171,13 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][CHAIN.START] error={e}")
 
     def on_chain_end(self, outputs, **kwargs):
+        """
+        Callback triggered when a chain completes execution.
+        
+        Args:
+            outputs: Output data produced by the chain.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             keys = list(outputs.keys()) if isinstance(outputs, dict) else type(outputs)
             print(f"[TRACE][CHAIN.END] outputs_keys={keys}")
@@ -153,12 +185,27 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][CHAIN.END] error={e}")
 
     def on_chain_error(self, error, **kwargs):
+        """
+        Callback triggered when a chain encounters an error.
+        
+        Args:
+            error: The exception that occurred.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             print(f"[TRACE][CHAIN.ERROR] {type(error).__name__}: {error}")
         except Exception:
             pass
 
     def on_llm_start(self, serialized, prompts, **kwargs):
+        """
+        Callback triggered when an LLM call starts.
+        
+        Args:
+            serialized: Serialized LLM data.
+            prompts: List of prompts being sent to the LLM.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             name = self._safe_name(serialized)
             count = len(prompts) if hasattr(prompts, "__len__") else "unknown"
@@ -171,6 +218,13 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][LLM.START] error={e}")
 
     def on_llm_end(self, response, **kwargs):
+        """
+        Callback triggered when an LLM call completes.
+        
+        Args:
+            response: The LLM response object containing generations and usage info.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             gens = getattr(response, "generations", None)
             text = gens[0][0].text if gens and gens[0] and gens[0][0] else ""
@@ -183,12 +237,27 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][LLM.END] parse_error={e}")
 
     def on_llm_error(self, error, **kwargs):
+        """
+        Callback triggered when an LLM call encounters an error.
+        
+        Args:
+            error: The exception that occurred.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             print(f"[TRACE][LLM.ERROR] {type(error).__name__}: {error}")
         except Exception:
             pass
 
     def on_tool_start(self, serialized, input_str, **kwargs):
+        """
+        Callback triggered when a tool execution starts.
+        
+        Args:
+            serialized: Serialized tool data.
+            input_str: Input string being passed to the tool.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             name = self._safe_name(serialized)
             print(f"[TRACE][TOOL.START] {name} args={input_str}")
@@ -196,6 +265,13 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][TOOL.START] error={e}")
 
     def on_tool_end(self, output, **kwargs):
+        """
+        Callback triggered when a tool execution completes.
+        
+        Args:
+            output: The output produced by the tool.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             out_snippet = str(output)[:300].replace("\n", " ")
             print(f"[TRACE][TOOL.END] output={out_snippet}")
@@ -203,6 +279,13 @@ class AgentDebugCallback(BaseCallbackHandler):
             print(f"[TRACE][TOOL.END] error={e}")
 
     def on_tool_error(self, error, **kwargs):
+        """
+        Callback triggered when a tool execution encounters an error.
+        
+        Args:
+            error: The exception that occurred.
+            **kwargs: Additional keyword arguments.
+        """
         try:
             print(f"[TRACE][TOOL.ERROR] {type(error).__name__}: {error}")
         except Exception:
@@ -996,9 +1079,17 @@ class ReactAgentNode(ProcessorNode):
                 name="system_prompt",
                 displayName="System Prompt",
                 type=NodePropertyType.TEXT_AREA,
-                default="You are a helpful assistant. Use tools to answer: {input}",
-                hint="Use {input} for user input. Define agent behavior and capabilities.",
+                default="You are a helpful assistant. Use tools to answer questions.",
+                hint="Define agent behavior and capabilities. This is the core system instruction.",
                 required=True,
+            ),
+            NodeProperty(
+                name="user_prompt_template",
+                displayName="User Prompt Template",
+                type=NodePropertyType.TEXT_AREA,
+                default="{{input}}",
+                hint="Template for user input",
+                required=False,
             ),
             NodeProperty(
                 name="max_iterations",
@@ -1163,10 +1254,10 @@ class ReactAgentNode(ProcessorNode):
     
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: ReactAgentNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: Returns the Python packages required by ReactAgentNode.
         
-        Bu method dynamic export sisteminin çalışması için kritik!
-        ReactAgent için gereken LangGraph ve agent dependencies.
+        This method is critical for the dynamic export system to work.
+        Returns LangGraph and agent dependencies required for ReactAgent.
         """
         return [
             "langgraph>=0.2.0",            # LangGraph for new agent orchestration
@@ -1194,11 +1285,14 @@ class ReactAgentNode(ProcessorNode):
                 print(f"[TRACE][AGENT.TOOLS] prepared={len(tools_list)} tools={tool_names}")
             except Exception as e:
                 print(f"[TRACE][AGENT.TOOLS] error listing tools: {e}")
-            user_input = self._extract_user_input(runtime_inputs, inputs)
+
+            # CRITICAL FIX: Use templated inputs instead of extracting separately
+            # The templating has already been applied to the 'inputs' parameter by node_executor.py
+            user_input = self._extract_user_input_from_templated_inputs(runtime_inputs, inputs)
             detected_language = self._detect_user_language(user_input)
 
-            # Create agent graph using new API
-            agent_graph = self._create_agent(llm, tools_list, detected_language, memory)
+            # Create agent graph using new API (now with user_input for system prompt templating)
+            agent_graph = self._create_agent(llm, tools_list, detected_language, memory, inputs)
 
             # Prepare final input and execute
             final_input = self._prepare_final_input_for_graph(user_input, memory)
@@ -1265,30 +1359,81 @@ class ReactAgentNode(ProcessorNode):
         else:
             return inputs.get("input", "")
 
+    def _extract_user_input_from_templated_inputs(self, runtime_inputs: Any, templated_inputs: Dict[str, Any]) -> str:
+        """
+        Extract user input from templated input fields.
+
+        Logic:
+        - Chat mode: user_prompt_template contains {{input}} which gets templated to actual user message
+          -> Use templated user_prompt_template as the user input
+        - StartNode mode: user_prompt_template is empty or not used
+          -> Use the connected 'input' field directly
+
+        This method ensures both modes work correctly.
+        """
+        # Get the templated user_prompt_template (this is where {{input}} becomes "actual message")
+        templated_user_prompt = ""
+        if isinstance(templated_inputs, dict):
+            templated_user_prompt = templated_inputs.get("user_prompt_template", "").strip()
+
+        # Get raw user_prompt_template from user_data
+        raw_template = self.user_data.get("user_prompt_template", "").strip()
+
+        # CHAT MODE: If user_prompt_template was successfully templated (contains actual content)
+        # Use the templated value as user input
+        if templated_user_prompt and raw_template:
+            # Check if templating actually happened (value changed from raw template)
+            if templated_user_prompt != raw_template and "{{" not in templated_user_prompt:
+                print(f"[TEMPLATE] ReactAgent using templated user_prompt_template (Chat mode): '{templated_user_prompt[:50]}...'")
+                return templated_user_prompt
+
+        # STARTNODE MODE or FALLBACK: Use the connected 'input' field
+        # Priority 1: templated 'input' field from connections
+        if isinstance(templated_inputs, dict) and "input" in templated_inputs:
+            templated_input = templated_inputs["input"]
+            if isinstance(templated_input, str) and templated_input.strip():
+                print(f"[TEMPLATE] ReactAgent using connected input (StartNode mode): '{templated_input[:50]}...'")
+                return templated_input
+
+        # Priority 2: runtime_inputs string
+        if isinstance(runtime_inputs, str) and runtime_inputs.strip():
+            print(f"[TEMPLATE] ReactAgent using runtime input: '{runtime_inputs[:50]}...'")
+            return runtime_inputs
+
+        # Priority 3: runtime_inputs dict
+        if isinstance(runtime_inputs, dict):
+            runtime_input = runtime_inputs.get("input", "")
+            if runtime_input and isinstance(runtime_input, str):
+                print(f"[TEMPLATE] ReactAgent using runtime dict input: '{runtime_input[:50]}...'")
+                return runtime_input
+
+        # Fallback: empty string (should not happen in normal flow)
+        print(f"[TEMPLATE] ReactAgent: No user input found, using empty string")
+        return ""
+
     def _detect_user_language(self, user_input: str) -> str:
         """Detect user's language with Turkish character safety."""
         try:
             detected_language = detect_language(user_input)
-            print(f"[LANGUAGE DETECTION] User input: '{user_input[:50]}...' -> Detected: {detected_language}")
             return detected_language
         except UnicodeEncodeError as lang_error:
             print(f"[WARNING] Language detection encoding error: {lang_error}")
             print(f"[LANGUAGE DETECTION] Defaulting to Turkish due to encoding error")
             return 'tr'  # Default to Turkish for Turkish characters
 
-    def _create_agent(self, llm: BaseLanguageModel, tools_list: list, detected_language: str, memory: Any = None) -> CompiledStateGraph:
+    def _create_agent(self, llm: BaseLanguageModel, tools_list: list, detected_language: str, memory: Any = None, user_inputs: Dict[str, Any] = None) -> CompiledStateGraph:
         """Create the React agent with language-specific prompt using new LangGraph API."""
         # Create language-specific prompt
-        agent_prompt = self._create_language_specific_prompt(tools_list, detected_language)
+        agent_prompt = self._create_language_specific_prompt(tools_list, detected_language, user_inputs)
         
         # Create checkpointer for memory if memory is provided
         checkpointer = None
         if memory is not None:
             try:
                 checkpointer = MemorySaver()
-                print("   💭 Memory: Using MemorySaver checkpointer")
+                print("   [MEMORY] Using MemorySaver checkpointer")
             except Exception as e:
-                print(f"   💭 Memory: Failed to create checkpointer ({str(e)}), proceeding without memory")
+                print(f"   [MEMORY] Failed to create checkpointer ({str(e)}), proceeding without memory")
         
         # Create the agent using new API
         agent_graph = create_react_agent(
@@ -1306,23 +1451,23 @@ class ReactAgentNode(ProcessorNode):
         try:
             if hasattr(memory, 'load_memory_variables'):
                 test_vars = memory.load_memory_variables({})
-                print("   💭 Memory: Valid memory object found")
+                print("   [MEMORY] Valid memory object found")
                 return True
             else:
-                print("   💭 Memory: Invalid memory object, proceeding without memory")
+                print("   [MEMORY] Invalid memory object, proceeding without memory")
                 return False
         except Exception as e:
-            print(f"   💭 Memory: Failed to validate ({str(e)}), proceeding without memory")
+            print(f"   [MEMORY] Failed to validate ({str(e)}), proceeding without memory")
             return False
 
     def _prepare_final_input_for_graph(self, user_input: str, memory: Any) -> Dict[str, Any]:
         """Prepare the final input dictionary for graph execution using new state format."""
         # Load conversation history from memory
         conversation_history = self._load_conversation_history(memory)
-        
+
         # Create messages list in the format expected by the new API
         messages = []
-        
+
         # Add conversation history if available
         if conversation_history:
             # Parse conversation history and add to messages
@@ -1333,9 +1478,16 @@ class ReactAgentNode(ProcessorNode):
                     elif line.startswith('Assistant:'):
                         # Skip assistant messages as they'll be regenerated
                         pass
-        
-        # Add current user input
-        messages.append(HumanMessage(content=user_input))
+
+        # Always add user input as HumanMessage
+        # The _extract_user_input_from_templated_inputs method now correctly returns:
+        # - For Chat mode: the templated user_prompt_template (e.g., "bana baklava tarifi")
+        # - For StartNode mode: the connected input value
+        if user_input and user_input.strip():
+            print(f"[AGENT] Adding HumanMessage: '{user_input[:50]}...'")
+            messages.append(HumanMessage(content=user_input))
+        else:
+            print(f"[AGENT] Warning: No user input to add as HumanMessage")
 
         return {
             "messages": messages
@@ -1343,59 +1495,59 @@ class ReactAgentNode(ProcessorNode):
 
     def _load_conversation_history(self, memory: Any) -> str:
         """Load and format conversation history from memory."""
-        print(f"🔍 [AGENT MEMORY DEBUG] Starting memory history load")
+        print(f"[AGENT MEMORY DEBUG] Starting memory history load")
         
         if memory is None:
-            print("   💭 Memory: None")
-            print("🔍 [AGENT MEMORY DEBUG] Memory object is None")
+            print("   [MEMORY] None")
+            print("[AGENT MEMORY DEBUG] Memory object is None")
             return ""
 
-        print(f"🔍 [AGENT MEMORY DEBUG] Memory object type: {type(memory)}")
-        print(f"🔍 [AGENT MEMORY DEBUG] Memory object attributes: {dir(memory)}")
+        print(f"[AGENT MEMORY DEBUG] Memory object type: {type(memory)}")
+        print(f"[AGENT MEMORY DEBUG] Memory object attributes: {dir(memory)}")
 
         try:
             # Check if memory has chat_memory attribute
             if hasattr(memory, 'chat_memory') and hasattr(memory.chat_memory, 'messages'):
                 messages = memory.chat_memory.messages
-                print(f"🔍 [AGENT MEMORY DEBUG] Direct access: {len(messages)} messages in chat_memory")
+                print(f"[AGENT MEMORY DEBUG] Direct access: {len(messages)} messages in chat_memory")
                 
                 if messages:
                     for i, msg in enumerate(messages[:3]):
                         msg_type = getattr(msg, 'type', 'unknown')
                         msg_content = getattr(msg, 'content', '')
-                        print(f"🔍 [AGENT MEMORY DEBUG] Direct message {i+1}: type={msg_type}, content='{msg_content[:50]}...'")
+                        print(f"[AGENT MEMORY DEBUG] Direct message {i+1}: type={msg_type}, content='{msg_content[:50]}...'")
 
             # Try to load memory variables
-            print(f"🔍 [AGENT MEMORY DEBUG] Attempting to load memory variables...")
+            print(f"[AGENT MEMORY DEBUG] Attempting to load memory variables...")
             memory_vars = memory.load_memory_variables({})
-            print(f"🔍 [AGENT MEMORY DEBUG] Memory variables loaded: {list(memory_vars.keys()) if memory_vars else 'None'}")
+            print(f"[AGENT MEMORY DEBUG] Memory variables loaded: {list(memory_vars.keys()) if memory_vars else 'None'}")
             
             if not memory_vars:
-                print("   💭 Memory: None")
-                print("🔍 [AGENT MEMORY DEBUG] Memory variables are empty or None")
+                print("   [MEMORY] None")
+                print("[AGENT MEMORY DEBUG] Memory variables are empty or None")
                 return ""
 
             memory_key = getattr(memory, 'memory_key', 'memory')
-            print(f"🔍 [AGENT MEMORY DEBUG] Using memory key: {memory_key}")
+            print(f"[AGENT MEMORY DEBUG] Using memory key: {memory_key}")
             
             if memory_key not in memory_vars:
-                print("   💭 Memory: None")
-                print(f"🔍 [AGENT MEMORY DEBUG] Memory key '{memory_key}' not found in variables: {list(memory_vars.keys())}")
+                print("   [MEMORY] None")
+                print(f"[AGENT MEMORY DEBUG] Memory key '{memory_key}' not found in variables: {list(memory_vars.keys())}")
                 return ""
 
             history_content = memory_vars[memory_key]
-            print(f"🔍 [AGENT MEMORY DEBUG] History content type: {type(history_content)}")
-            print(f"🔍 [AGENT MEMORY DEBUG] History content length: {len(history_content) if hasattr(history_content, '__len__') else 'no length'}")
+            print(f"[AGENT MEMORY DEBUG] History content type: {type(history_content)}")
+            print(f"[AGENT MEMORY DEBUG] History content length: {len(history_content) if hasattr(history_content, '__len__') else 'no length'}")
             
             formatted_history = self._format_conversation_history(history_content)
-            print(f"🔍 [AGENT MEMORY DEBUG] Formatted history length: {len(formatted_history)} chars")
+            print(f"[AGENT MEMORY DEBUG] Formatted history length: {len(formatted_history)} chars")
             
             return formatted_history
 
         except Exception as memory_error:
-            print(f"   ⚠️  Failed to load memory variables: {memory_error}")
+            print(f"   [WARNING] Failed to load memory variables: {memory_error}")
             import traceback
-            print(f"🔍 [AGENT MEMORY DEBUG] Memory load error traceback: {traceback.format_exc()}")
+            print(f"[AGENT MEMORY DEBUG] Memory load error traceback: {traceback.format_exc()}")
             return ""
 
     def _format_conversation_history(self, history_content: Any) -> str:
@@ -1412,11 +1564,11 @@ class ReactAgentNode(ProcessorNode):
 
             if formatted_history:
                 conversation_history = "\n".join(formatted_history[-10:])  # Last 10 messages
-                print(f"   💭 Loaded conversation history: {len(formatted_history)} messages")
+                print(f"   [MEMORY] Loaded conversation history: {len(formatted_history)} messages")
                 return conversation_history
 
         elif isinstance(history_content, str) and history_content.strip():
-            print(f"   💭 Loaded conversation history: {len(history_content)} chars")
+            print(f"   [MEMORY] Loaded conversation history: {len(history_content)} chars")
             return history_content
 
         return ""
@@ -1431,21 +1583,24 @@ class ReactAgentNode(ProcessorNode):
             if 'messages' in result and result['messages']:
                 last_ai_message = result['messages'][-1]
                 output_content = last_ai_message.content if hasattr(last_ai_message, 'content') else str(last_ai_message)
+                print(f"[AGENT OUTPUT] {output_content}")
                 # Debug: Check memory after execution and save to database
                 if memory:
                     try:
-                        print("   💾 Persisting conversation to database via memory node...")
+                        print("   [PERSIST] Persisting conversation to database via memory node...")
                         session_id = memory.memory_key
 
                         BufferMemoryNode().save_messages(session_id=session_id, messages=[last_ai_message])
-                        print(f"   ✅ Conversation persisted for session {session_id[:8]}...")
+                        print(f"   [SUCCESS] Conversation persisted for session {session_id[:8]}...")
                     except Exception as e:
-                        print(f"   ❌ Failed to persist memory via _persist_to_database: {e}")
+                        print(f"   [ERROR] Failed to persist memory via _persist_to_database: {e}")
 
 
                 return {"output": output_content}
             else:
-                return {"output": str(result)}
+                fallback_output = str(result)
+                print(f"[AGENT OUTPUT] {fallback_output}")
+                return {"output": fallback_output}
 
         except UnicodeEncodeError as unicode_error:
             print(f"[ERROR] Unicode encoding error: {unicode_error}")
@@ -1457,11 +1612,11 @@ class ReactAgentNode(ProcessorNode):
             return {"error": error_msg}
 
     def _handle_unicode_error(self, unicode_error: UnicodeEncodeError) -> Dict[str, Any]:
-        """Handle Unicode encoding errors with Turkish-specific fallback."""
+        """Handle Unicode encoding errors with locale-specific fallback."""
         try:
             return {
-                "error": f"Türkçe karakter encoding hatası: {str(unicode_error)}",
-                "suggestion": "Lütfen Türkçe karakterleri doğru şekilde kullanın veya sistem dil ayarlarını kontrol edin."
+                "error": f"Character encoding error: {str(unicode_error)}",
+                "suggestion": "Please ensure characters are properly encoded or check system language settings."
             }
         except:
             return {"error": "Unicode encoding error occurred"}
@@ -1484,7 +1639,7 @@ class ReactAgentNode(ProcessorNode):
                 converted_tool = self.auto_tool_manager.converter.convert_to_tool(tool_input)
                 if converted_tool:
                     tools_list.append(converted_tool)
-                    print(f"🔧 Auto-converted {type(tool_input).__name__} to tool: {converted_tool.name}")
+                    print(f"[TOOL] Auto-converted {type(tool_input).__name__} to tool: {converted_tool.name}")
         
         return tools_list
 
@@ -1494,13 +1649,34 @@ class ReactAgentNode(ProcessorNode):
         """
         return self._create_language_specific_prompt(tools, 'en')  # Default to English
 
-    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str) -> ChatPromptTemplate:
+    def _create_language_specific_prompt(self, tools: list[BaseTool], language_code: str, user_inputs: Dict[str, Any] = None) -> ChatPromptTemplate:
         """
         Creates a language-specific ChatPromptTemplate compatible with the new API.
         Uses custom prompt_instructions if provided, otherwise falls back to smart orchestration.
+        Now supports user prompt templating within system prompt.
         """
-        custom_instructions = self.user_data.get("system_prompt", "").strip()
+        # Get system_prompt from user_inputs (which has been templated) instead of self.user_data
+        custom_instructions = ""
+        if user_inputs and isinstance(user_inputs, dict):
+            custom_instructions = user_inputs.get("system_prompt", "").strip()
+        if not custom_instructions:
+            # Fallback to self.user_data if not in user_inputs
+            custom_instructions = self.user_data.get("system_prompt", "").strip()
 
+        # Get user_prompt_template from user_inputs (which has been templated) instead of self.user_data
+        user_prompt_template = ""
+        if user_inputs and isinstance(user_inputs, dict):
+            user_prompt_template = user_inputs.get("user_prompt_template", "").strip()
+        if not user_prompt_template:
+            # Fallback to self.user_data if not in user_inputs
+            user_prompt_template = self.user_data.get("user_prompt_template", "").strip()
+
+        # If user_prompt_template is provided, integrate it into system prompt
+        # Note: user_prompt_template has already been templated by node_executor.py
+        if user_prompt_template:
+            print(f"[TEMPLATE] Using templated user prompt: '{user_prompt_template[:50]}...'")
+            # Add templated user prompt to system instructions
+            custom_instructions += f"\n\nUser Input: {user_prompt_template}"
         # Get language-specific system context
         language_specific_context = get_language_specific_prompt(language_code)
 
@@ -1576,14 +1752,14 @@ When using tools, always provide comprehensive explanations of what you found an
                     }
                 )
                 if result:
-                    print(f"   ✅ Database save successful: {result[:8]}...")
+                    print(f"   [SUCCESS] Database save successful: {result[:8]}...")
                 else:
-                    print(f"   ❌ Database save failed: empty result")
+                    print(f"   [ERROR] Database save failed: empty result")
             else:
-                print(f"   ⚠️ Database store not available")
+                print(f"   [WARNING] Database store not available")
                 
         except Exception as e:
-            print(f"   ⚠️ Database save exception: {e}")
+            print(f"   [WARNING] Database save exception: {e}")
 
 # Alias for frontend compatibility
 ToolAgentNode = ReactAgentNode

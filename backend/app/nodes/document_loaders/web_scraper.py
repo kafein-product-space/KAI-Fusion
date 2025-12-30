@@ -806,7 +806,7 @@ class WebScraperNode(ProcessorNode):
 
     def get_required_packages(self) -> list[str]:
         """
-        🔥 DYNAMIC METHOD: WebScraperNode'un ihtiyaç duyduğu Python packages'ini döndür.
+        DYNAMIC METHOD: WebScraperNode'un ihtiyaç duyduğu Python packages'ini döndür.
         
         Bu method dynamic export sisteminin çalışması için kritik!
         Web scraper için gereken HTTP ve parsing dependencies.
@@ -889,7 +889,7 @@ class WebScraperNode(ProcessorNode):
         Returns:
             List[Document]: Cleaned documents ready for LangChain processing
         """
-        logger.info("🌐 Starting Web Scraper execution")
+        logger.info("Starting Web Scraper execution")
         
         # Get URLs from user input
         raw_urls = inputs.get("urls", "")
@@ -941,7 +941,7 @@ class WebScraperNode(ProcessorNode):
         if not all_urls:
             raise ValueError("No URLs provided. Please enter URLs in the configuration or connect to a node that provides URLs.")
         
-        logger.info(f"📋 Found {len(all_urls)} URLs to scrape")
+        logger.info(f"Found {len(all_urls)} URLs to scrape")
         
         # Get parameters
         remove_selectors_str = inputs.get("remove_selectors", "nav,footer,header,script,style,aside,noscript,form")
@@ -989,7 +989,7 @@ class WebScraperNode(ProcessorNode):
             'Upgrade-Insecure-Requests': '1',
         })
         
-        logger.info("✅ HTTP session initialized successfully")
+        logger.info("HTTP session initialized successfully")
         
         documents: List[Document] = []
         successful_scrapes = 0
@@ -1001,9 +1001,9 @@ class WebScraperNode(ProcessorNode):
                 # Fix URL scheme if missing
                 if not url.startswith(('http://', 'https://')):
                     url = f'https://{url}'
-                    logger.info(f"🔧 Fixed URL scheme: {url}")
+                    logger.info(f"Fixed URL scheme: {url}")
                 
-                logger.info(f"🔄 [{i}/{len(all_urls)}] Scraping: {url}")
+                logger.info(f"[{i}/{len(all_urls)}] Scraping: {url}")
                 
                 # Make HTTP request to fetch the page
                 response = session.get(url, timeout=timeout_seconds)
@@ -1013,7 +1013,7 @@ class WebScraperNode(ProcessorNode):
                 html_content = response.text
                 
                 if not html_content:
-                    logger.warning(f"⚠️ No content retrieved for {url}")
+                    logger.warning(f"No content retrieved for {url}")
                     failed_scrapes += 1
                     continue
                 
@@ -1021,7 +1021,7 @@ class WebScraperNode(ProcessorNode):
                 clean_text = self._clean_html_content(html_content, remove_selectors)
                 
                 if len(clean_text) < min_content_length:
-                    logger.warning(f"⚠️ Content too short for {url} ({len(clean_text)} chars)")
+                    logger.warning(f"Content too short for {url} ({len(clean_text)} chars)")
                     failed_scrapes += 1
                     continue
                 
@@ -1039,15 +1039,15 @@ class WebScraperNode(ProcessorNode):
                 
                 documents.append(document)
                 successful_scrapes += 1
-                logger.info(f"✅ Successfully scraped {url} ({len(clean_text)} chars)")
+                logger.info(f"Successfully scraped {url} ({len(clean_text)} chars)")
                 
             except Exception as e:
-                logger.error(f"❌ Failed to scrape {url}: {e}")
+                logger.error(f"Failed to scrape {url}: {e}")
                 failed_scrapes += 1
                 continue
         
         # Log summary
-        logger.info(f"📊 Scraping complete: {successful_scrapes} successful, {failed_scrapes} failed")
+        logger.info(f"Scraping complete: {successful_scrapes} successful, {failed_scrapes} failed")
         
         if not documents:
             raise ValueError(
@@ -1055,7 +1055,7 @@ class WebScraperNode(ProcessorNode):
                 "Please check the URLs and network connectivity."
             )
         
-        logger.info(f"🎉 Returning {len(documents)} documents for downstream processing")
+        logger.info(f"Returning {len(documents)} documents for downstream processing")
         return documents
 
 

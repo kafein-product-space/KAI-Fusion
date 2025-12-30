@@ -22,7 +22,7 @@ services:
       DISABLE_DATABASE: ${DISABLE_DATABASE}
 
       # Security
-      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
+      MASTER_API_KEY: ${MASTER_API_KEY}
 
       # Basic Settings
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
@@ -33,6 +33,13 @@ services:
       LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
       LANGCHAIN_API_KEY: ${LANGCHAIN_API_KEY}
       LANGCHAIN_PROJECT: ${LANGCHAIN_PROJECT}
+
+      # Keycloak Settings
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-false}
+      KEYCLOAK_URL: ${KEYCLOAK_URL}
+      KEYCLOAK_REALM: ${KEYCLOAK_REALM}
+      KEYCLOAK_CLIENT_ID: ${KEYCLOAK_CLIENT_ID}
+      KEYCLOAK_VERIFY_SSL: ${KEYCLOAK_VERIFY_SSL}      
 
     command: uvicorn main:app --host 0.0.0.0 --port 8000
     networks:
@@ -51,6 +58,9 @@ services:
         VITE_API_VERSION: ${VITE_API_VERSION}
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
+        VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+        VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
+        VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
     container_name: kai-fusion-frontend
     ports:
       - "23058:3000"
@@ -59,6 +69,9 @@ services:
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
+      VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
+      VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
+      VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
     networks:
       - kai_network
     restart: unless-stopped

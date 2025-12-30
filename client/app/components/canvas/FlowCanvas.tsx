@@ -63,7 +63,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const { screenToFlowPosition } = useReactFlow();
-  const [nodeId, setNodeId] = useState(1);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [activeEdges, setActiveEdges] = useState<string[]>([]);
   const [activeNodes, setActiveNodes] = useState<string[]>([]);
@@ -140,6 +139,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     fetchWorkflow,
     deleteWorkflow,
     updateWorkflowStatus,
+    updateWorkflowVisibility,
   } = useWorkflows();
 
   const { nodes: availableNodes } = useNodes();
@@ -150,12 +150,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Execution store integration
   const {
     executeWorkflow,
-    currentExecution,
-    setCurrentExecution,
+    getCurrentExecutionForWorkflow,
+    setCurrentExecutionForWorkflow,
     loading: executionLoading,
     error: executionError,
     clearError: clearExecutionError,
   } = useExecutionsStore();
+
+  // Get current execution for the current workflow
+  const currentExecution = currentWorkflow?.id
+    ? getCurrentExecutionForWorkflow(currentWorkflow.id)
+    : null;
 
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
@@ -173,7 +178,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     error: chatError,
     addMessage,
     fetchChatMessages,
-    loadChatHistory,
+    fetchWorkflowChats,
     clearAllChats,
   } = useChatStore();
 
@@ -249,13 +254,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     }
   }, [currentWorkflow?.name]);
 
-  // Clear chats when workflow changes to prevent accumulation
+  // Clear chats and execution data when workflow changes to prevent accumulation
   useEffect(() => {
     if (currentWorkflow?.id) {
+      // Reset active chat when switching to a different workflow
+      setActiveChatflowId(null);
       // Clear chats when switching to a different workflow
       clearAllChats();
+      // Clear execution data for the previous workflow
+      setCurrentExecutionForWorkflow(currentWorkflow.id, null);
     }
-  }, [currentWorkflow?.id, clearAllChats]);
+  }, [currentWorkflow?.id, clearAllChats, setCurrentExecutionForWorkflow, setActiveChatflowId]);
 
   useEffect(() => {
     if (currentWorkflow?.flow_data) {
@@ -302,13 +311,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Load chat history on component mount
   useEffect(() => {
     if (currentWorkflow?.id) {
-      // Load workflow-specific chats
-      loadChatHistory();
+      // Load workflow-specific chats only
+      fetchWorkflowChats(currentWorkflow.id);
     } else {
       // Clear chats when no workflow is selected (new workflow)
       clearAllChats();
     }
-  }, [currentWorkflow?.id, loadChatHistory, clearAllChats]);
+  }, [currentWorkflow?.id, fetchWorkflowChats, clearAllChats]);
 
   // Load chat messages when active chat changes
   useEffect(() => {
@@ -316,6 +325,34 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       fetchChatMessages(activeChatflowId);
     }
   }, [activeChatflowId, fetchChatMessages]);
+
+  // Listen for chat execution errors and display them
+  useEffect(() => {
+    const handleChatExecutionError = (event: CustomEvent) => {
+      console.error("❌ Chat execution error received:", event.detail);
+
+      const errorDetails = {
+        message: event.detail.error || "Chat execution failed",
+        type: event.detail.error_type || "execution",
+        nodeId: event.detail.node_id,
+        timestamp: new Date().toLocaleTimeString(),
+      };
+
+      setDetailedExecutionError(errorDetails);
+    };
+
+    window.addEventListener(
+      "chat-execution-error",
+      handleChatExecutionError as EventListener
+    );
+
+    return () => {
+      window.removeEventListener(
+        "chat-execution-error",
+        handleChatExecutionError as EventListener
+      );
+    };
+  }, [enqueueSnackbar]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -347,6 +384,55 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [setEdges]
   );
 
+  // Helper function to normalize name for Jinja template compatibility
+  // Rules: lowercase, underscores instead of spaces, no special chars, must start with letter
+  const normalizeForJinja = (name: string): string => {
+    let normalized = name
+      .toLowerCase()           // Convert to lowercase
+      .replace(/\s+/g, "_")    // Replace spaces with underscores
+      .replace(/[^a-z0-9_]/g, ""); // Remove special characters
+
+    // Must start with a letter
+    if (/^[0-9]/.test(normalized)) {
+      normalized = "n_" + normalized;
+    }
+
+    return normalized || "node";
+  };
+
+  // Helper function to generate unique node name with suffix (_1, _2, _3, etc.)
+  // This name is used as the default node alias for Jinja templates
+  const generateUniqueNodeName = useCallback(
+    (baseName: string, nodeType: string, existingNodes: Node[]): string => {
+      // Normalize baseName for Jinja compatibility
+      const normalizedBaseName = normalizeForJinja(baseName);
+
+      // Count nodes of the same type
+      const sameTypeNodes = existingNodes.filter((n) => n.type === nodeType);
+
+      if (sameTypeNodes.length === 0) {
+        return normalizedBaseName;
+      }
+
+      // Find the highest existing suffix number
+      const escapedBaseName = normalizedBaseName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const suffixPattern = new RegExp(`^${escapedBaseName}(?:_(\\d+))?$`);
+      let maxSuffix = 0;
+
+      sameTypeNodes.forEach((node) => {
+        const nodeName = String((node.data as any)?.name || "");
+        const match = nodeName.match(suffixPattern);
+        if (match) {
+          const suffix = match[1] ? parseInt(match[1], 10) : 0;
+          maxSuffix = Math.max(maxSuffix, suffix);
+        }
+      });
+
+      return `${normalizedBaseName}_${maxSuffix + 1}`;
+    },
+    []
+  );
+
   const onDragOver = useCallback((event: React.DragEvent) => {
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
@@ -371,19 +457,22 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         (n: NodeMetadata) => n.name === nodeType.type
       );
 
+      // Generate unique node name with suffix for Jinja template usage
+      const baseName = nodeType.label || nodeMetadata?.display_name || nodeType.type;
+      const uniqueName = generateUniqueNodeName(baseName, nodeType.type, nodes);
+
       const newNode: Node = {
-        id: `${nodeType.type}-${nodeId}`,
+        id: `${nodeType.type}__${uuidv4()}`,
         type: nodeType.type,
         position,
         data: {
-          name: nodeType.label,
           ...nodeType.data,
+          name: uniqueName,  // Must be after spread to override nodeType.data.name
           metadata: nodeMetadata,
         },
       };
 
       setNodes((nds: Node[]) => nds.concat(newNode));
-      setNodeId((id: number) => id + 1);
 
       // Update smart suggestions with the last added node
       setLastAddedNode(nodeType.type);
@@ -391,13 +480,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       // Update recommendations after setting the last added node
       updateRecommendations(availableNodes);
     },
-    [
-      screenToFlowPosition,
-      nodeId,
-      availableNodes,
-      setLastAddedNode,
-      updateRecommendations,
-    ]
+    [screenToFlowPosition, availableNodes, setLastAddedNode, updateRecommendations, generateUniqueNodeName, nodes]
   );
 
   const handleSave = useCallback(async () => {
@@ -560,7 +643,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         // Prepare execution inputs
         const executionData = {
           flow_data: flowData,
-          input_text: "Start workflow execution",
+          input_text: "",
           node_id: nodeId,
           execution_type: "manual",
           trigger_source: "start_node_double_click",
@@ -647,8 +730,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     nodeType: evt.node_id
                       ? nodes.find((n) => n.id === evt.node_id)?.type
                       : failedNodeId
-                      ? nodes.find((n) => n.id === failedNodeId)?.type
-                      : undefined,
+                        ? nodes.find((n) => n.id === failedNodeId)?.type
+                        : undefined,
                     timestamp: evt.timestamp || new Date().toLocaleTimeString(),
                     stackTrace:
                       evt.stack_trace || evt.details || evt.stack_trace,
@@ -673,7 +756,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     status: "completed" as const,
                   };
 
-                  setCurrentExecution(executionResult);
+                  setCurrentExecutionForWorkflow(currentWorkflow.id, executionResult);
 
                   setTimeout(() => {
                     setActiveEdges([]);
@@ -700,7 +783,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
             } finally {
               try {
                 reader.releaseLock();
-              } catch {}
+              } catch { }
             }
           })();
         } catch (_) {
@@ -1014,9 +1097,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           nodes.map((node) =>
             node.id === fullscreenModal.nodeData.id
               ? {
-                  ...node,
-                  data: { ...node.data, ...values },
-                }
+                ...node,
+                data: { ...node.data, ...values },
+              }
               : node
           )
         );
@@ -1061,6 +1144,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowStatus={updateWorkflowStatus}
+        updateWorkflowVisibility={updateWorkflowVisibility}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Sidebar Toggle Button */}
@@ -1101,18 +1185,16 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
           {/* Chat Toggle Button */}
           <button
-            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${
-              chatOpen
-                ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
-                : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
-            }`}
+            className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-all duration-300 backdrop-blur-sm border ${chatOpen
+              ? "bg-gradient-to-r from-blue-600 to-purple-600 text-white border-blue-400/30 shadow-blue-500/25"
+              : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
+              }`}
             onClick={() => setChatOpen((v) => !v)}
           >
             <div className="relative">
               <svg
-                className={`w-5 h-5 transition-transform duration-300 ${
-                  chatOpen ? "rotate-12" : ""
-                }`}
+                className={`w-5 h-5 transition-transform duration-300 ${chatOpen ? "rotate-12" : ""
+                  }`}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="2"
@@ -1236,7 +1318,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                 // First try to get tracked inputs from execution data
                 const nodeExecutionData =
-                  currentExecution.result.node_outputs?.[nodeId];
+                  currentExecution?.result?.node_outputs?.[nodeId];
                 if (
                   nodeExecutionData?.inputs &&
                   Object.keys(nodeExecutionData.inputs).length > 0
@@ -1248,31 +1330,163 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const inputEdges = edges.filter(
                   (edge) => edge.target === nodeId
                 );
-                const inputs: Record<string, any> = {};
+                if (inputEdges.length === 0) {
+                  return {};
+                }
+
+                const inputs: Record<string, any[]> = {};
 
                 inputEdges.forEach((edge) => {
                   const sourceNodeOutput =
-                    currentExecution.result.node_outputs?.[edge.source];
+                    currentExecution?.result?.node_outputs?.[edge.source];
+                  const inputKey = edge.targetHandle || "input";
+                  const sourceNodeId = edge.source;
+                  const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+
+                  // Extract actual output value if it's wrapped in execution data structure
+                  let value: any;
                   if (sourceNodeOutput !== undefined) {
-                    const inputKey = edge.targetHandle || "input";
-                    inputs[inputKey] = sourceNodeOutput;
+                    // Check for wrapped output fields in order of priority
+                    const OUTPUT_FIELDS = ['output', 'outputs'];
+                    const isObject = sourceNodeOutput && typeof sourceNodeOutput === "object";
+                    const outputField = isObject
+                      ? OUTPUT_FIELDS.find(field => sourceNodeOutput[field] !== undefined)
+                      : null;
+
+                    value = outputField ? sourceNodeOutput[outputField] : sourceNodeOutput;
+                  } else {
+                    // Try to get default value from source node config
+                    const sourceData = (sourceNode?.data as any) || {};
+
+                    // List of fallback fields to check in order of priority
+                    const FALLBACK_FIELDS = ['text_input', 'text', 'content', 'value', 'query', 'prompt'];
+                    const fallbackField = FALLBACK_FIELDS.find(field => sourceData[field] !== undefined);
+
+                    if (fallbackField) {
+                      value = sourceData[fallbackField];
+                    } else {
+                      // Placeholder for nodes that haven't executed yet and have no default value
+                      value = {
+                        _placeholder: true,
+                        message: "No default value available",
+                        sourceNodeId: edge.source
+                      };
+                    }
                   }
+
+                  if (!Array.isArray(inputs[inputKey])) {
+                    inputs[inputKey] = [];
+                  }
+                  inputs[inputKey].push(value);
                 });
 
                 return inputs;
               })(),
-              outputs:
-                currentExecution?.result?.node_outputs?.[
-                  fullscreenModal.nodeData?.id || ""
-                ],
+              inputs_meta: (() => {
+                const nodeId = fullscreenModal.nodeData?.id;
+                if (!nodeId || !currentExecution?.result?.node_outputs)
+                  return undefined;
+
+                // 1) If engine already tracked inputs_meta explicitly (e.g., from chat), use it
+                const nodeExecutionData =
+                  currentExecution?.result?.node_outputs?.[nodeId];
+                if (
+                  nodeExecutionData?.inputs_meta &&
+                  Object.keys(nodeExecutionData.inputs_meta).length > 0
+                ) {
+                  return nodeExecutionData.inputs_meta;
+                }
+
+                // 2) Fallback: build inputs_meta from incoming edges
+                const inputEdges = edges.filter(
+                  (edge) => edge.target === nodeId
+                );
+                if (inputEdges.length === 0) {
+                  return undefined;
+                }
+
+                const meta: Record<
+                  string,
+                  {
+                    sourceNodeId: string;
+                    sourceNodeName?: string;
+                    sourceNodeAlias?: string;
+                    sourceHandle?: string;
+                  }[]
+                > = {};
+
+                inputEdges.forEach((edge) => {
+                  const inputKey = edge.targetHandle || "input";
+                  const sourceNodeId = edge.source;
+                  const sourceNode = nodes.find((n) => n.id === sourceNodeId);
+
+                  const sourceData = (sourceNode?.data as any) || {};
+                  const sourceMetadata = (sourceData.metadata as any) || {};
+
+                  const sourceAlias =
+                    sourceData.name || sourceMetadata.display_name;
+                  const sourceName =
+                    sourceMetadata.display_name ||
+                    sourceNode?.type ||
+                    sourceNodeId;
+
+                  const entry = {
+                    sourceNodeId,
+                    sourceNodeName: sourceName,
+                    sourceNodeAlias: sourceAlias,
+                    sourceHandle: edge.sourceHandle || undefined,
+                  };
+
+                  if (!Array.isArray(meta[inputKey])) {
+                    meta[inputKey] = [];
+                  }
+                  meta[inputKey].push(entry);
+                });
+
+                return meta;
+              })(),
+              outputs: (() => {
+                const nodeId = fullscreenModal.nodeData?.id;
+                if (!nodeId) return undefined;
+
+                // 1. If execution output exists, use it
+                const executionOutput = currentExecution?.result?.node_outputs?.[nodeId];
+                if (executionOutput) {
+                  return executionOutput;
+                }
+
+                // 2. Only show fallback/placeholder if a workflow execution exists but this node hasn't run
+                if (currentExecution?.result?.node_outputs) {
+                  // Check node config data for fallback fields
+                  const nodeData = (fullscreenModal.nodeData?.data as any) || {};
+                  const OUTPUT_FALLBACK_FIELDS = ['output', 'text_input', 'text', 'content', 'value', 'result', 'response', 'query', 'prompt'];
+                  const fallbackField = OUTPUT_FALLBACK_FIELDS.find(field => nodeData[field] !== undefined);
+
+                  if (fallbackField) {
+                    return { output: nodeData[fallbackField] };
+                  }
+
+                  // No fallback fields found, return placeholder
+                  return {
+                    output: {
+                      _placeholder: true,
+                      message: "No default value available",
+                      nodeId: nodeId
+                    }
+                  };
+                }
+
+                // 3. No execution exists at all - return undefined (shows "No Output Data Yet")
+                return undefined;
+              })(),
               status:
                 currentExecution?.status === "completed"
                   ? "completed"
                   : currentExecution?.status === "running"
-                  ? "running"
-                  : currentExecution?.status === "failed"
-                  ? "failed"
-                  : "pending",
+                    ? "running"
+                    : currentExecution?.status === "failed"
+                      ? "failed"
+                      : "pending",
             }}
           />
         )}
@@ -1346,8 +1560,10 @@ function useChatExecutionListener(
             return true;
           }
 
-          // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          // Derive a clean node type/id token. New ids use `Type__UUID`.
+          const cleanNodeId = node_id.includes("__")
+            ? node_id.split("__")[0]
+            : node_id.replace(/\-\d+$/, "");
           if (
             n.type &&
             (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
@@ -1435,8 +1651,10 @@ function useChatExecutionListener(
             return true;
           }
 
-          // Remove trailing numbers like Agent-2 -> Agent
-          const cleanNodeId = node_id.replace(/\-\d+$/, "");
+          // Derive a clean node type/id token. New ids use `Type__UUID`.
+          const cleanNodeId = node_id.includes("__")
+            ? node_id.split("__")[0]
+            : node_id.replace(/\-\d+$/, "");
           if (
             n.type &&
             (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))

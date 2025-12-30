@@ -589,6 +589,7 @@ class GraphBuilder:
         inputs: Dict[str, Any],
         session_id: Optional[str] = None,
         user_id: Optional[str] = None,
+        owner_id: Optional[str] = None,
         workflow_id: Optional[str] = None,
         stream: bool = False,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
@@ -601,6 +602,7 @@ class GraphBuilder:
             current_input=inputs.get("input", ""),
             session_id=session_id or str(uuid.uuid4()),
             user_id=user_id,
+            owner_id=owner_id,
             workflow_id=workflow_id,
             variables=inputs,
         )
@@ -667,10 +669,35 @@ class GraphBuilder:
                 
                 # Process and yield events (simplified version of original logic)
                 ev_type = ev.get("event", "")
+                node_name = ev.get("name", "unknown")
+                
                 if ev_type == "on_chain_start":
-                    yield {"type": "node_start", "node_id": ev.get("name", "unknown")}
+                    yield {"type": "node_start", "node_id": node_name}
                 elif ev_type == "on_chain_end":
-                    yield {"type": "node_end", "node_id": ev.get("name", "unknown")}
+                    # Extract output from the event data for node_end
+                    ev_data = ev.get("data", {})
+                    node_output = ev_data.get("output", {})
+                    
+                    # Try to extract meaningful output from various formats
+                    output_data = {}
+                    if isinstance(node_output, dict):
+                        # Check for common output keys
+                        if "last_output" in node_output:
+                            output_data["output"] = node_output.get("last_output")
+                        elif "output" in node_output:
+                            output_data["output"] = node_output.get("output")
+                        elif "node_outputs" in node_output:
+                            output_data = node_output.get("node_outputs", {})
+                        else:
+                            output_data = node_output
+                    elif node_output:
+                        output_data["output"] = str(node_output)
+                    
+                    yield {
+                        "type": "node_end",
+                        "node_id": node_name,
+                        "output": output_data
+                    }
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
@@ -682,15 +709,18 @@ class GraphBuilder:
             if hasattr(final_state, 'values') and final_state.values:
                 last_output = final_state.values.get('last_output', 'No output')
                 executed_nodes = final_state.values.get('executed_nodes', [])
+                node_outputs = final_state.values.get('node_outputs', {})
             else:
                 last_output = ""
                 executed_nodes = []
+                node_outputs = {}
             
-            # Yield completion event
+            # Yield completion event with node_outputs for frontend display
             yield {
                 "type": "complete",
                 "result": last_output,
                 "executed_nodes": executed_nodes,
+                "node_outputs": node_outputs,
                 "session_id": init_state.session_id,
             }
             
@@ -707,6 +737,7 @@ class GraphBuilder:
             inputs: Dict[str, Any],
             session_id: Optional[str] = None,
             user_id: Optional[str] = None,
+            owner_id: Optional[str] = None,
             workflow_id: Optional[str] = None,
             stream: bool = False,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
@@ -715,7 +746,7 @@ class GraphBuilder:
         execution_start = time.time()
 
         try:
-            result = await self.execute(inputs, session_id, user_id, workflow_id, stream)
+            result = await self.execute(inputs, session_id, user_id, owner_id, workflow_id, stream)
             execution_duration = time.time() - execution_start
             logger.info(f"✅ Enhanced execution completed in {execution_duration:.3f}s")
             return result
