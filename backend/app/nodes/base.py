@@ -824,7 +824,13 @@ class BaseNode(ABC):
         return inputs
     
     def _extract_connected_inputs(self, state: FlowState, input_specs: List[NodeInput]) -> Dict[str, Any]:
-        """Extract connected node inputs from state using connection mappings"""
+        """Extract connected node inputs from state using connection mappings.
+        
+        DYNAMIC ROUTE DETECTION:
+        For many-to-many connections (e.g., Condition Node with True/False outputs),
+        this method checks which source nodes were actually executed and only uses
+        output from the executed path.
+        """
         connected = {}
 
         for input_spec in input_specs:
@@ -832,11 +838,42 @@ class BaseNode(ABC):
                 # Use connection mapping if available
                 if input_spec.name in self._input_connections:
                     connection_info = self._input_connections[input_spec.name]
-                    source_node_id = connection_info.get("source_node_id")
+                    
+                    # Handle both list (many-to-many) and dict (single connection) formats
+                    if isinstance(connection_info, list):
+                        # Many-to-many connections: DYNAMICALLY find which source node was executed
+                        executed_nodes = getattr(state, 'executed_nodes', []) or []
+                        print(f"[DEBUG] Many-to-many connection detected with {len(connection_info)} sources")
+                        print(f"[DEBUG] Executed nodes: {executed_nodes}")
+                        
+                        # Find the source node that was actually executed
+                        source_node_id = None
+                        for conn in connection_info:
+                            candidate_id = conn.get("source_node_id")
+                            if candidate_id in executed_nodes:
+                                source_node_id = candidate_id
+                                print(f"[DEBUG] Found executed source node: {source_node_id}")
+                                break
+                        
+                        # If no executed source found, try to use last_output as fallback
+                        if source_node_id is None:
+                            print(f"[DEBUG] No executed source found in connections, using last_output fallback")
+                            if state.last_output:
+                                connected[input_spec.name] = state.last_output
+                                print(f"[DEBUG] Using last_output: {str(state.last_output)[:100]}...")
+                            continue
+                    else:
+                        # Single connection: direct dict format
+                        source_node_id = connection_info.get("source_node_id")
+                    
+                    if source_node_id is None:
+                        print(f"[DEBUG] No source_node_id found for input: {input_spec.name}")
+                        continue
+                        
                     output_key = f"output_{source_node_id}"
                     
                     # Debug output to see what's in state
-                    print(f"[DEBUG] EndNode looking for output_key: {output_key}")
+                    print(f"[DEBUG] Looking for output_key: {output_key}")
                     print(f"[DEBUG] Available state variables: {list(state.variables.keys())}")
                     print(f"[DEBUG] State.last_output: {state.last_output}")
                     
@@ -874,8 +911,8 @@ class BaseNode(ABC):
                     # 5. Fallback: use last_output if it's from the expected source node
                     if found_output is None and state.last_output:
                         # Check if the last executed node matches our source
-                        if (hasattr(state, 'executed_nodes') and state.executed_nodes and
-                            state.executed_nodes[-1] == source_node_id):
+                        executed_nodes = getattr(state, 'executed_nodes', []) or []
+                        if executed_nodes and executed_nodes[-1] == source_node_id:
                             found_output = state.last_output
                             print(f"[DEBUG] Using last_output as fallback: {found_output}")
                     
@@ -889,7 +926,7 @@ class BaseNode(ABC):
                             f"Checked locations: dynamic attribute ({output_key}), state.variables, "
                             f"node_outputs, get_node_output method. Available in state: "
                             f"variables={list(state.variables.keys())}, "
-                            f"last_output={'Yes' if state.last_output else 'No'}, "
+                            f"last_output={'True' if state.last_output else 'False'}, "
                             f"executed_nodes={getattr(state, 'executed_nodes', [])}"
                         )
                         print(f"[ERROR] {error_msg}")

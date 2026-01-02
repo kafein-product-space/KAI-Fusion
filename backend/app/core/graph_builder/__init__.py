@@ -521,21 +521,119 @@ class GraphBuilder:
         """Add regular node-to-node edges to the LangGraph."""
         logger.info(f"🔗 ADDING REGULAR EDGES ({len(self.connections)} connections)")
         
+        # Track ConditionNode connections for conditional routing
+        condition_node_connections: Dict[str, Dict[str, str]] = {}
+        
         for conn in self.connections:
             source_id = conn.source_node_id
             target_id = conn.target_node_id
+            source_handle = conn.source_handle
             
             # Skip if either node is not in our graph (StartNode/EndNode handled separately)
             if source_id not in self.nodes or target_id not in self.nodes:
                 logger.debug(f"   ⏭️ Skipping edge {source_id} -> {target_id} (node not in graph)")
                 continue
+            
+            # Check if source is a ConditionNode
+            source_node = self.nodes.get(source_id)
+            if source_node and source_node.type == "ConditionNode":
+                # Collect connections for conditional routing
+                if source_id not in condition_node_connections:
+                    condition_node_connections[source_id] = {}
+                condition_node_connections[source_id][source_handle] = target_id
+                logger.debug(f"   📌 Collected ConditionNode connection: {source_id}[{source_handle}] -> {target_id}")
+                continue  # Don't add regular edge - will use conditional edge
                 
-            # Add edge to LangGraph
+            # Add regular edge to LangGraph
             try:
                 graph.add_edge(source_id, target_id)
                 logger.debug(f"   ✅ Added edge: {source_id} -> {target_id}")
             except Exception as e:
                 logger.error(f"   ❌ Failed to add edge {source_id} -> {target_id}: {e}")
+        
+        # Add conditional edges for ConditionNodes
+        for node_id, targets in condition_node_connections.items():
+            self._add_condition_node_edges(graph, node_id, targets)
+    
+    def _add_condition_node_edges(self, graph: StateGraph, node_id: str, targets: Dict[str, str]):
+        """Add conditional edges for a ConditionNode based on its _route output."""
+        logger.info(f"🔀 Adding conditional edges for ConditionNode: {node_id}")
+        
+        true_target = targets.get("true_output")
+        false_target = targets.get("false_output")
+        
+        # Fallback to "output" handle if specific handles not found
+        if not true_target and not false_target:
+            default_target = targets.get("output")
+            if default_target:
+                logger.debug(f"   Using default output target: {default_target}")
+                graph.add_edge(node_id, default_target)
+                return
+            else:
+                # No connections at all - raise error
+                raise ValidationError(
+                    f"ConditionNode '{node_id}' has no output connections. "
+                    "Connect at least one output (True or False) to continue.",
+                    validation_errors=[f"Missing output connections for {node_id}"]
+                )
+        
+        # Store connection status for runtime error handling
+        has_true = true_target is not None
+        has_false = false_target is not None
+        
+        def route_condition(state: FlowState) -> str:
+            """Route based on ConditionNode's _route output."""
+            # Get the node's output from state
+            node_outputs = getattr(state, 'node_outputs', {})
+            condition_output = node_outputs.get(node_id, {})
+            
+            # Check for _route key in output
+            route = condition_output.get("_route", "true_output")
+            condition_result = condition_output.get("condition_result", True)
+            
+            logger.info(f"🔀 ConditionNode {node_id} - Result: {condition_result}, Route: {route}")
+            
+            # Route based on condition result
+            if condition_result:
+                # Condition is TRUE - need true_output connection
+                if has_true:
+                    logger.info(f"   ✅ Routing to TRUE path: {true_target}")
+                    return true_target
+                else:
+                    # TRUE path not connected - raise error
+                    error_msg = (
+                        f"ConditionNode '{node_id}' evaluated to TRUE but 'True' output is not connected. "
+                        "Please connect the 'True' output to a node."
+                    )
+                    logger.error(f"   ❌ {error_msg}")
+                    raise NodeExecutionError(node_id, "ConditionNode", Exception(error_msg))
+            else:
+                # Condition is FALSE - need false_output connection
+                if has_false:
+                    logger.info(f"   ✅ Routing to FALSE path: {false_target}")
+                    return false_target
+                else:
+                    # FALSE path not connected - raise error
+                    error_msg = (
+                        f"ConditionNode '{node_id}' evaluated to FALSE but 'False' output is not connected. "
+                        "Please connect the 'False' output to a node."
+                    )
+                    logger.error(f"   ❌ {error_msg}")
+                    raise NodeExecutionError(node_id, "ConditionNode", Exception(error_msg))
+        
+        # Build routing map - only include connected paths
+        routing_map = {}
+        if true_target:
+            routing_map[true_target] = true_target
+        if false_target:
+            routing_map[false_target] = false_target
+            
+        try:
+            graph.add_conditional_edges(node_id, route_condition, routing_map)
+            logger.info(f"   ✅ Added conditional edges: {node_id} -> True:{true_target}, False:{false_target}")
+        except Exception as e:
+            logger.error(f"   ❌ Failed to add conditional edges for {node_id}: {e}")
+            raise
 
     def _add_start_end_connections(self, graph: StateGraph):
         """Add START and END connections to the LangGraph."""
@@ -662,6 +760,9 @@ class GraphBuilder:
             logger.info(f"Starting streaming execution for session: {init_state.session_id}")
             yield {"type": "start", "session_id": init_state.session_id, "message": "Starting workflow execution"}
             
+            # Track previously executed node to help frontend animate correct edge
+            previous_node_id: str | None = None
+            
             # Stream workflow execution events
             event_count = 0
             async for ev in self.graph.astream_events(init_state, config=config):
@@ -672,7 +773,11 @@ class GraphBuilder:
                 node_name = ev.get("name", "unknown")
                 
                 if ev_type == "on_chain_start":
-                    yield {"type": "node_start", "node_id": node_name}
+                    yield {
+                        "type": "node_start", 
+                        "node_id": node_name,
+                        "previous_node_id": previous_node_id  # Include previous node for edge animation
+                    }
                 elif ev_type == "on_chain_end":
                     # Extract output from the event data for node_end
                     ev_data = ev.get("data", {})
@@ -698,6 +803,9 @@ class GraphBuilder:
                         "node_id": node_name,
                         "output": output_data
                     }
+                    
+                    # Update previous node after successful completion
+                    previous_node_id = node_name
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
@@ -754,4 +862,5 @@ class GraphBuilder:
         except Exception as e:
             execution_duration = time.time() - execution_start
             logger.error(f"❌ Enhanced execution failed after {execution_duration:.3f}s: {e}")
+            raise
             raise

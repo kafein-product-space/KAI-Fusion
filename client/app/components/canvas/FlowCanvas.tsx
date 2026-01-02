@@ -680,33 +680,112 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                 const t = evt.type as string | undefined;
                 if (t === "node_start") {
                   const nid = String(evt.node_id || "");
+                  const previousNodeId = evt.previous_node_id;
+
                   if (nid) {
                     setActiveNodes([nid]);
                     setNodeStatus((s) => ({ ...s, [nid]: "pending" }));
-                    const incoming = (edges as Edge[]).filter(
+
+                    // Get all incoming edges to this node
+                    const allIncomingEdges = (edges as Edge[]).filter(
                       (e) => e.target === nid
                     );
-                    setActiveEdges(incoming.map((e) => e.id));
-                    setEdgeStatus((s) => ({
-                      ...s,
-                      ...Object.fromEntries(
-                        incoming.map((e) => [e.id, "pending" as const])
-                      ),
-                    }));
+
+                    // Separate edges into execution flow (from previous node) and provider inputs
+                    const executionFlowEdge = previousNodeId
+                      ? allIncomingEdges.find((e) => e.source === previousNodeId)
+                      : null;
+
+                    // Check if THIS node is a processor type that accepts provider inputs
+                    const currentNode = nodes.find((n) => n.id === nid);
+                    const processorTypes = [
+                      'ReactAgentNode', 'Agent', // Added 'Agent'
+                      'VectorStoreOrchestrator',
+                      'ChunkSplitterNode', 'ChunkSplitter',
+                      'CodeNode', 'ConditionNode'
+                    ];
+                    const isProcessorNode = currentNode && processorTypes.some(pt =>
+                      currentNode.type?.includes(pt) || currentNode.type === pt
+                    );
+
+                    // Provider input edges - ONLY for processor nodes
+                    let providerInputEdges: Edge[] = [];
+                    if (isProcessorNode) {
+                      providerInputEdges = allIncomingEdges.filter((e) => {
+                        // Skip the execution flow edge
+                        if (executionFlowEdge && e.id === executionFlowEdge.id) return false;
+
+                        // Check if source node is a provider type
+                        const sourceNode = nodes.find((n) => n.id === e.source);
+                        if (!sourceNode) return false;
+
+                        // Provider node types that supply data to processors
+                        const providerTypes = [
+                          'OpenAINode', 'OpenAIChat', 'OpenAICompatibleNode',
+                          'OpenAIEmbeddingsProvider',
+                          'BufferMemoryNode', 'BufferMemory',
+                          'ConversationMemoryNode', 'ConversationMemory',
+                          'RetrieverProvider',
+                          'TavilySearchNode', 'TavilySearch',
+                          'CohereRerankerNode',
+                          'VectorStoreOrchestrator',
+                          'ChunkSplitterNode', 'ChunkSplitter',
+                          'DocumentLoaderNode',
+                          'WebScraperNode', 'WebScraper',
+                          'StringInputNode'
+                        ];
+
+                        return providerTypes.some(pt =>
+                          sourceNode.type?.includes(pt) ||
+                          (sourceNode.type && pt.includes(sourceNode.type)) ||
+                          sourceNode.type === pt
+                        );
+                      });
+                    }
+
+                    // Combine edges to animate
+                    const edgesToAnimate: Edge[] = [];
+
+                    if (executionFlowEdge) {
+                      edgesToAnimate.push(executionFlowEdge);
+                    } else if (!previousNodeId && allIncomingEdges.length === 1) {
+                      // First node with single incoming edge
+                      edgesToAnimate.push(allIncomingEdges[0]);
+                    }
+
+                    // Add provider input edges (only for processor nodes)
+                    edgesToAnimate.push(...providerInputEdges);
+
+                    if (edgesToAnimate.length > 0) {
+                      console.log(
+                        "🔄 StartNode: Setting edges as pending:",
+                        edgesToAnimate.map(e => e.id),
+                        `(${edgesToAnimate.length} edges to ${nid})`
+                      );
+                      setActiveEdges(edgesToAnimate.map((e) => e.id));
+                      setEdgeStatus((s) => ({
+                        ...s,
+                        ...Object.fromEntries(
+                          edgesToAnimate.map((e) => [e.id, "pending" as const])
+                        ),
+                      }));
+                    }
                   }
                 } else if (t === "node_end") {
                   const nid = String(evt.node_id || "");
                   if (nid) {
                     setNodeStatus((s) => ({ ...s, [nid]: "success" }));
-                    const incoming = (edges as Edge[]).filter(
-                      (e) => e.target === nid
-                    );
-                    setEdgeStatus((s) => ({
-                      ...s,
-                      ...Object.fromEntries(
-                        incoming.map((e) => [e.id, "success" as const])
-                      ),
-                    }));
+                    // Only mark pending edges as success
+                    setEdgeStatus((s) => {
+                      const updated = { ...s };
+                      Object.keys(updated).forEach((edgeId) => {
+                        const edge = (edges as Edge[]).find((e) => e.id === edgeId);
+                        if (edge && edge.target === nid && updated[edgeId] === "pending") {
+                          updated[edgeId] = "success";
+                        }
+                      });
+                      return updated;
+                    });
                   }
                 } else if (t === "error") {
                   // Mark current active items as failed
@@ -1549,69 +1628,42 @@ function useChatExecutionListener(
       }
 
       if (eventType === "node_start" && node_id) {
-        // Enhanced node matching for different node types
-        const actualNode = nodes.find((n) => {
-          // Direct matches
-          if (
-            n.id === node_id ||
-            n.data.name === node_id ||
-            n.type === node_id
-          ) {
-            return true;
-          }
+        // PRIORITY 1: Exact ID match (most reliable)
+        let actualNode = nodes.find((n) => n.id === node_id);
 
-          // Derive a clean node type/id token. New ids use `Type__UUID`.
-          const cleanNodeId = node_id.includes("__")
-            ? node_id.split("__")[0]
-            : node_id.replace(/\-\d+$/, "");
-          if (
-            n.type &&
-            (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
-          ) {
-            return true;
-          }
-
-          // Special matching for embedding providers
-          if (node_id.includes("Embedding") || node_id.includes("embedding")) {
-            if (
-              n.type &&
-              (n.type.includes("Embedding") || n.type.includes("OpenAI"))
-            ) {
+        // PRIORITY 2: If no exact match, try fuzzy matching as fallback
+        if (!actualNode) {
+          actualNode = nodes.find((n) => {
+            // Match by data.name (user-defined name)
+            if (n.data.name === node_id) {
               return true;
             }
-          }
 
-          // Special matching for rerankers
-          if (
-            node_id.includes("Reranker") ||
-            node_id.includes("reranker") ||
-            node_id.includes("Cohere")
-          ) {
-            if (
-              n.type &&
-              (n.type.includes("Reranker") || n.type.includes("Cohere"))
-            ) {
+            // Match by type (only if exactly one node of this type exists)
+            if (n.type === node_id) {
+              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
+              return sameTypeNodes.length === 1;
+            }
+
+            // Derive a clean node type/id token. New ids use `Type__UUID`.
+            const cleanNodeId = node_id.includes("__")
+              ? node_id.split("__")[0]
+              : node_id.replace(/\-\d+$/, "");
+
+            // Only use includes matching if there's exactly one node of this type
+            if (n.type && n.type === cleanNodeId) {
+              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
+              return sameTypeNodes.length === 1;
+            }
+
+            // Match by data properties if available
+            if (n.data?.node_name && n.data.node_name === node_id) {
               return true;
             }
-          }
 
-          // Special matching for retrievers
-          if (node_id.includes("Retriever") || node_id.includes("retriever")) {
-            if (
-              n.type &&
-              (n.type.includes("Retriever") || n.type.includes("VectorStore"))
-            ) {
-              return true;
-            }
-          }
-
-          // Match by data properties if available
-          if (n.data?.node_name && n.data.node_name === node_id) {
-            return true;
-          }
-
-          return false;
-        });
+            return false;
+          });
+        }
 
         if (actualNode) {
           // Set active node (for flow animation)
@@ -1621,88 +1673,158 @@ function useChatExecutionListener(
             [actualNode.id]: "pending", // Start with pending like in start node execution
           }));
 
-          // Set incoming edges to pending and active (like in start node execution)
-          const incomingEdges = edges.filter((e) => e.target === actualNode.id);
-          if (incomingEdges.length > 0) {
+          // Get all incoming edges to this node
+          const allIncomingEdges = edges.filter((e) => e.target === actualNode.id);
+
+          // Use previous_node_id from backend to find execution flow edge
+          const previousNodeId = data.previous_node_id;
+
+          // Find execution flow edge (from previous node in sequence)
+          let executionFlowEdge: Edge | null = null;
+          if (previousNodeId) {
+            executionFlowEdge = allIncomingEdges.find(
+              (e) => e.source === previousNodeId
+            ) || null;
+
+            // Fuzzy match if exact not found
+            if (!executionFlowEdge) {
+              const cleanPrevId = previousNodeId.includes("__")
+                ? previousNodeId.split("__")[0]
+                : previousNodeId;
+              executionFlowEdge = allIncomingEdges.find((e) =>
+                e.source.startsWith(cleanPrevId + "__") || e.source === cleanPrevId
+              ) || null;
+            }
+          }
+
+          // Check if THIS node is a processor type that accepts provider inputs
+          const processorTypes = [
+            'ReactAgentNode', 'Agent', // Added 'Agent'
+            'VectorStoreOrchestrator',
+            'ChunkSplitterNode', 'ChunkSplitter',
+            'CodeNode', 'ConditionNode'
+          ];
+          const isProcessorNode = actualNode.type && processorTypes.some(pt =>
+            actualNode.type?.includes(pt) || actualNode.type === pt
+          );
+
+          console.log(`🔍 Node Analysis for ${actualNode.id}:`, {
+            type: actualNode.type,
+            isProcessor: isProcessorNode,
+            previousNodeId,
+            allIncomingCount: allIncomingEdges.length
+          });
+
+          // Provider input edges - ONLY for processor nodes
+          let providerInputEdges: Edge[] = [];
+          if (isProcessorNode) {
+            providerInputEdges = allIncomingEdges.filter((e) => {
+              // Skip execution flow edge
+              if (executionFlowEdge && e.id === executionFlowEdge.id) return false;
+
+              // Check if source is a provider node
+              const sourceNode = nodes.find((n) => n.id === e.source);
+              if (!sourceNode) return false;
+
+              const providerTypes = [
+                'OpenAINode', 'OpenAIChat', 'OpenAICompatibleNode',
+                'OpenAIEmbeddingsProvider',
+                'BufferMemoryNode', 'BufferMemory',
+                'ConversationMemoryNode', 'ConversationMemory',
+                'RetrieverProvider',
+                'TavilySearchNode', 'TavilySearch',
+                'CohereRerankerNode',
+                'VectorStoreOrchestrator',
+                'ChunkSplitterNode', 'ChunkSplitter',
+                'DocumentLoaderNode',
+                'WebScraperNode', 'WebScraper',
+                'StringInputNode'
+              ];
+
+              const isProvider = providerTypes.some(pt =>
+                sourceNode.type?.includes(pt) ||
+                (sourceNode.type && pt.includes(sourceNode.type)) ||
+                sourceNode.type === pt
+              );
+
+              if (!isProvider) {
+                console.log(`   ❌ Edge ${e.id} rejected. Source ${sourceNode.id} type '${sourceNode.type}' not in provider list.`);
+              } else {
+                console.log(`   ✅ Edge ${e.id} accepted. Source ${sourceNode.id} type '${sourceNode.type}' is provider.`);
+              }
+
+              return isProvider;
+            });
+          }
+
+          // Combine edges to animate
+          const edgesToAnimate: Edge[] = [];
+
+          if (executionFlowEdge) {
+            edgesToAnimate.push(executionFlowEdge);
+          } else if (!previousNodeId && allIncomingEdges.length === 1) {
+            edgesToAnimate.push(allIncomingEdges[0]);
+          }
+
+          // Add provider edges (only for processor nodes)
+          edgesToAnimate.push(...providerInputEdges);
+
+          if (edgesToAnimate.length > 0) {
             console.log(
-              "🔄 Setting edges as active/pending:",
-              incomingEdges.map((e) => e.id)
+              "🔄 Chat: Setting edges as pending:",
+              edgesToAnimate.map(e => e.id),
+              `(${edgesToAnimate.length} edges to ${actualNode.id})`
             );
-            setActiveEdges(incomingEdges.map((e) => e.id)); // This creates the flow animation!
+            setActiveEdges(edgesToAnimate.map((e) => e.id));
             setEdgeStatus((prev) => ({
               ...prev,
               ...Object.fromEntries(
-                incomingEdges.map((e) => [e.id, "pending" as const])
+                edgesToAnimate.map((e) => [e.id, "pending" as const])
               ),
             }));
+          } else if (allIncomingEdges.length > 0) {
+            console.log("⚠️ No matching edges to animate for", actualNode.id);
           }
         }
       }
 
       if (eventType === "node_end" && node_id) {
-        // Enhanced node matching for different node types
-        const actualNode = nodes.find((n) => {
-          // Direct matches
-          if (
-            n.id === node_id ||
-            n.data.name === node_id ||
-            n.type === node_id
-          ) {
-            return true;
-          }
+        // PRIORITY 1: Exact ID match (most reliable)
+        let actualNode = nodes.find((n) => n.id === node_id);
 
-          // Derive a clean node type/id token. New ids use `Type__UUID`.
-          const cleanNodeId = node_id.includes("__")
-            ? node_id.split("__")[0]
-            : node_id.replace(/\-\d+$/, "");
-          if (
-            n.type &&
-            (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
-          ) {
-            return true;
-          }
-
-          // Special matching for embedding providers
-          if (node_id.includes("Embedding") || node_id.includes("embedding")) {
-            if (
-              n.type &&
-              (n.type.includes("Embedding") || n.type.includes("OpenAI"))
-            ) {
+        // PRIORITY 2: If no exact match, try fuzzy matching as fallback
+        if (!actualNode) {
+          actualNode = nodes.find((n) => {
+            // Match by data.name (user-defined name)
+            if (n.data.name === node_id) {
               return true;
             }
-          }
 
-          // Special matching for rerankers
-          if (
-            node_id.includes("Reranker") ||
-            node_id.includes("reranker") ||
-            node_id.includes("Cohere")
-          ) {
-            if (
-              n.type &&
-              (n.type.includes("Reranker") || n.type.includes("Cohere"))
-            ) {
+            // Match by type (only if exactly one node of this type exists)
+            if (n.type === node_id) {
+              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
+              return sameTypeNodes.length === 1;
+            }
+
+            // Derive a clean node type/id token. New ids use `Type__UUID`.
+            const cleanNodeId = node_id.includes("__")
+              ? node_id.split("__")[0]
+              : node_id.replace(/\-\d+$/, "");
+
+            // Only use includes matching if there's exactly one node of this type
+            if (n.type && n.type === cleanNodeId) {
+              const sameTypeNodes = nodes.filter((node) => node.type === n.type);
+              return sameTypeNodes.length === 1;
+            }
+
+            // Match by data properties if available
+            if (n.data?.node_name && n.data.node_name === node_id) {
               return true;
             }
-          }
 
-          // Special matching for retrievers
-          if (node_id.includes("Retriever") || node_id.includes("retriever")) {
-            if (
-              n.type &&
-              (n.type.includes("Retriever") || n.type.includes("VectorStore"))
-            ) {
-              return true;
-            }
-          }
-
-          // Match by data properties if available
-          if (n.data?.node_name && n.data.node_name === node_id) {
-            return true;
-          }
-
-          return false;
-        });
+            return false;
+          });
+        }
 
         if (actualNode) {
           console.log("🟢 Setting node as success:", actualNode.id);
@@ -1711,20 +1833,19 @@ function useChatExecutionListener(
             [actualNode.id]: "success",
           }));
 
-          // Set incoming edges to success (like in start node execution)
-          const incomingEdges = edges.filter((e) => e.target === actualNode.id);
-          if (incomingEdges.length > 0) {
-            console.log(
-              "✅ Setting edges as success:",
-              incomingEdges.map((e) => e.id)
-            );
-            setEdgeStatus((prev) => ({
-              ...prev,
-              ...Object.fromEntries(
-                incomingEdges.map((e) => [e.id, "success" as const])
-              ),
-            }));
-          }
+          // Only mark the edge that was set as pending (from node_start) as success
+          // This ensures only the actual execution flow edge gets marked
+          setEdgeStatus((prev) => {
+            const updated = { ...prev };
+            Object.keys(updated).forEach((edgeId) => {
+              const edge = edges.find((e) => e.id === edgeId);
+              if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
+                updated[edgeId] = "success";
+                console.log("✅ Setting edge as success:", edgeId);
+              }
+            });
+            return updated;
+          });
         }
       }
     };

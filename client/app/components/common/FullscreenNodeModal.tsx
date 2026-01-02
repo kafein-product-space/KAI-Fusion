@@ -465,7 +465,7 @@ export default function FullscreenNodeModal({
     }
 
     if (typeof maskedValue === "boolean") {
-      return maskedValue ? "Yes" : "No";
+      return maskedValue ? "True" : "False";
     }
 
     if (typeof maskedValue === "number") {
