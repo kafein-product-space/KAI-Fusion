@@ -281,7 +281,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         // Log if any edges were cleaned up
         if (validEdges.length !== edges.length) {
           console.log(
-            `🧹 Cleaned up ${edges.length - validEdges.length} invalid edges`
+            `Cleaned up ${edges.length - validEdges.length} invalid edges`
           );
         }
 
@@ -364,7 +364,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       if (validEdges.length !== edges.length) {
         console.log(
-          `🧹 Auto-cleaned ${edges.length - validEdges.length} orphaned edges`
+          `Auto-cleaned ${edges.length - validEdges.length} orphaned edges`
         );
         // Use callback to prevent infinite loop
         setEdges((prevEdges: Edge[]) => {
@@ -758,7 +758,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
                     if (edgesToAnimate.length > 0) {
                       console.log(
-                        "🔄 StartNode: Setting edges as pending:",
+                        "StartNode: Setting edges as pending:",
                         edgesToAnimate.map(e => e.id),
                         `(${edgesToAnimate.length} edges to ${nid})`
                       );
@@ -1588,7 +1588,7 @@ function useChatExecutionListener(
 ) {
   useEffect(() => {
     const handleChatExecutionStart = () => {
-      console.log("🔄 Resetting node/edge/active status for chat execution");
+      console.log("Resetting node/edge/active status for chat execution");
       setNodeStatus({});
       setEdgeStatus({});
       setActiveEdges([]);
@@ -1596,7 +1596,7 @@ function useChatExecutionListener(
     };
 
     const handleChatExecutionComplete = () => {
-      console.log("✅ Chat execution complete - clearing active edges/nodes");
+      console.log("Chat execution complete - clearing active edges/nodes");
       setActiveEdges([]);
       setActiveNodes([]);
     };
@@ -1605,7 +1605,7 @@ function useChatExecutionListener(
       const { event: eventType, node_id, ...data } = event.detail;
 
       console.log(
-        "🚀 Chat execution event:",
+        "Chat execution event:",
         eventType,
         "node_id:",
         node_id,
@@ -1618,7 +1618,7 @@ function useChatExecutionListener(
         data.metadata?.node_type === "provider" ||
         data.metadata?.provider_type
       ) {
-        console.log("🔧 Provider event details:", {
+        console.log("Provider event details:", {
           eventType,
           node_id,
           provider_type: data.metadata?.provider_type,
@@ -1708,7 +1708,7 @@ function useChatExecutionListener(
             actualNode.type?.includes(pt) || actualNode.type === pt
           );
 
-          console.log(`🔍 Node Analysis for ${actualNode.id}:`, {
+          console.log(`Node Analysis for ${actualNode.id}:`, {
             type: actualNode.type,
             isProcessor: isProcessorNode,
             previousNodeId,
@@ -1748,9 +1748,9 @@ function useChatExecutionListener(
               );
 
               if (!isProvider) {
-                console.log(`   ❌ Edge ${e.id} rejected. Source ${sourceNode.id} type '${sourceNode.type}' not in provider list.`);
+                console.log(`Edge ${e.id} rejected. Source ${sourceNode.id} type '${sourceNode.type}' not in provider list.`);
               } else {
-                console.log(`   ✅ Edge ${e.id} accepted. Source ${sourceNode.id} type '${sourceNode.type}' is provider.`);
+                console.log(`Edge ${e.id} accepted. Source ${sourceNode.id} type '${sourceNode.type}' is provider.`);
               }
 
               return isProvider;
@@ -1771,7 +1771,7 @@ function useChatExecutionListener(
 
           if (edgesToAnimate.length > 0) {
             console.log(
-              "🔄 Chat: Setting edges as pending:",
+              "Chat: Setting edges as pending:",
               edgesToAnimate.map(e => e.id),
               `(${edgesToAnimate.length} edges to ${actualNode.id})`
             );
@@ -1783,7 +1783,7 @@ function useChatExecutionListener(
               ),
             }));
           } else if (allIncomingEdges.length > 0) {
-            console.log("⚠️ No matching edges to animate for", actualNode.id);
+            console.log("No matching edges to animate for", actualNode.id);
           }
         }
       }
@@ -1827,7 +1827,7 @@ function useChatExecutionListener(
         }
 
         if (actualNode) {
-          console.log("🟢 Setting node as success:", actualNode.id);
+          console.log("Setting node as success:", actualNode.id);
           setNodeStatus((prev) => ({
             ...prev,
             [actualNode.id]: "success",
@@ -1841,7 +1841,7 @@ function useChatExecutionListener(
               const edge = edges.find((e) => e.id === edgeId);
               if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
                 updated[edgeId] = "success";
-                console.log("✅ Setting edge as success:", edgeId);
+                console.log("Setting edge as success:", edgeId);
               }
             });
             return updated;

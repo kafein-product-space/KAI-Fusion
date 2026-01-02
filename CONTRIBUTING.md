@@ -39,6 +39,93 @@ Not sure where to start? Ideas:
 * Improve backend APIs (pagination, auth, tracing)
 * Frontend UX (canvas interactions, node inspector, dark mode polish)
 
+### Nodes
+
+| NodeType   | Node Name                  |
+| ---------- | ------------------------- |
+| Provider   | OpenAINode                |
+| Provider   | OpenAIEmbeddingsProvider  |
+| Provider   | TavilySearchNode          |
+| Provider   | RetrieverProvider         |
+| Provider   | CohereRerankerNode        |
+| Processor  | ReactAgentNode            |
+| Processor  | CodeNode                  |
+| Processor  | ConditionNode             |
+| Processor  | StringInputNode           |
+| Processor  | ChunkSplitterNode         |
+| Processor  | HttpClientNode            |
+| Processor  | WebScraperNode            |
+| Processor  | DocumentLoaderNode        |
+| Processor  | VectorStoreOrchestrator   |
+| Terminator | StartNode                 |
+| Terminator | EndNode                   |
+| Terminator | WebhookTriggerNode        |
+| Terminator | TimerStartNode            |
+| Memory     | ConversationMemoryNode    |
+| Memory     | BufferMemoryNode          |
+
+#### 1. PROVIDER (Factory Pattern)
+
+**Purpose:** Creates and configures LangChain objects from user inputs.
+
+**Features:**
+- No dependency on other nodes
+- Pure configuration-to-object transformation
+- Stateless operation
+- High reusability across workflows
+
+**Examples:** OpenAINode, TavilySearchNode, OpenAIEmbeddingsProvider, BaseRetriever
+
+**Output Type:** LangChain objects (Runnable, BaseTool, BaseRetriever)
+
+#### 2. PROCESSOR (Orchestrator Pattern)
+
+**Purpose:** Combines and orchestrates multiple LangChain objects.
+
+**Features:**
+- Multi-input dependency management
+- Complex business logic orchestration
+- Stateful operation with memory
+- Context-aware processing
+
+**Examples:** ReactAgentNode, CodeNode, ConditionNode, StartNode
+
+**Input Source:** Connected nodes + user configuration
+
+**Output Type:** Composed Runnable or execution results
+
+#### 3. TERMINATOR (Transformer Pattern)
+
+**Purpose:** Transforms, formats, or terminates workflow outputs.
+
+**Features:**
+- Single input focused (previous node output)
+- Output formatting and transformation
+- Result validation and sanitization
+- Chain termination logic
+
+**Examples:** EndNode, WebhookTriggerNode, TimerStartNode
+
+**Input Source:** Previous node output + formatting rules
+
+**Output Type:** Formatted/transformed final results
+
+#### 4. MEMORY (Persistence Pattern)
+
+**Purpose:** Manages conversation state and context persistence.
+
+**Features:**
+- Session-aware state management
+- Conversation history persistence
+- Context injection capabilities
+- Multi-turn conversation support
+
+**Examples:** ConversationMemoryNode, BufferMemoryNode
+
+**Input Source:** Session context + conversation state
+
+**Output Type:** Conversation-stateful memory objects
+
 ---
 
 ## 👩‍🚀 Developers
@@ -51,7 +138,7 @@ KAI‑Fusion is a dual‑stack app:
 
 ### Prerequisites
 
-* **Python** ≥ 3.10
+* **Python** = 3.11
 * **Node.js** ≥ 18.15 (Vite)
 * **Docker** & **Docker Compose**
 
