@@ -1,6 +1,5 @@
 """
 KAI-Fusion Graph Builder - Enterprise Workflow Orchestration & Execution Engine
-===============================================================================
 
 This module implements sophisticated workflow graph construction for the KAI-Fusion platform,
 providing enterprise-grade LangGraph orchestration with advanced control flow management,
@@ -8,14 +7,12 @@ intelligent node connectivity, and production-ready execution capabilities. Buil
 complex AI workflows requiring reliable state management and seamless node integration.
 
 ARCHITECTURAL OVERVIEW:
-======================
 
 The Graph Builder system serves as the workflow orchestration engine of KAI-Fusion,
 transforming visual flow definitions into executable LangGraph pipelines with advanced
 control flow, state management, and comprehensive error handling for production environments.
 
 PHASE 3 ARCHITECTURE: Clean, Modular Components
-===============================================
 This version implements Phase 3 of the refactoring, extracting specialized components
 into separate modules while maintaining a clean main GraphBuilder orchestrator class.
 
@@ -109,6 +106,14 @@ class GraphBuilder:
         self.node_registry = node_registry
         self.checkpointer = checkpointer or self._get_checkpointer()
         
+        # Ensure node_registry has get_node method if it's a dict
+        if isinstance(self.node_registry, dict) and not hasattr(self.node_registry, 'get_node'):
+             # It's a dict, we need to wrap it or handle it
+            self._node_registry_dict = self.node_registry
+            self.get_node = lambda type_name: self._node_registry_dict.get(type_name)
+        else:
+            self.get_node = self.node_registry.get_node
+
         # Initialize specialized components
         self.connection_mapper = ConnectionMapper(ConnectionManager())
         self.node_executor = NodeExecutor(default_connection_extractor, node_handler_registry)
@@ -228,29 +233,40 @@ class GraphBuilder:
 
         # Analyze existing nodes
         start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
+        webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
+        entry_nodes = start_nodes + webhook_trigger_nodes
         end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
         start_node_ids = {n["id"] for n in start_nodes}
+        webhook_trigger_node_ids = {n["id"] for n in webhook_trigger_nodes}
+        entry_node_ids = start_node_ids | webhook_trigger_node_ids
         end_node_ids = {n["id"] for n in end_nodes}
 
-        if not start_nodes:
-            raise ValueError("Workflow must contain at least one StartNode.")
+        if not entry_nodes:
+            raise ValueError("Workflow must contain at least one StartNode or WebhookTrigger node.")
 
         return {
             "nodes": nodes,
             "edges": edges,
             "start_nodes": start_nodes,
+            "webhook_trigger_nodes": webhook_trigger_nodes,
+            "entry_nodes": entry_nodes,
             "end_nodes": end_nodes,
             "start_node_ids": start_node_ids,
+            "webhook_trigger_node_ids": webhook_trigger_node_ids,
+            "entry_node_ids": entry_node_ids,
             "end_node_ids": end_node_ids
         }
 
     def _handle_start_end_nodes(self, workflow_data: Dict) -> Dict[str, Any]:
-        """Handle StartNode and EndNode special cases - unchanged from original."""
+        """Handle StartNode, WebhookTrigger, and EndNode special cases."""
         nodes = workflow_data["nodes"]
         edges = workflow_data["edges"]
         start_nodes = workflow_data["start_nodes"]
+        webhook_trigger_nodes = workflow_data.get("webhook_trigger_nodes", [])
         end_nodes = workflow_data["end_nodes"]
         start_node_ids = workflow_data["start_node_ids"]
+        webhook_trigger_node_ids = workflow_data.get("webhook_trigger_node_ids", set())
+        entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids)
         end_node_ids = workflow_data["end_node_ids"]
 
         # Handle missing EndNode BEFORE any filtering
@@ -275,7 +291,7 @@ class GraphBuilder:
             # Find the last nodes in the workflow (BEFORE filtering)
             all_targets = {e["target"] for e in edges}
             all_sources = {e["source"] for e in edges}
-            last_nodes = all_sources - all_targets - start_node_ids
+            last_nodes = all_sources - all_targets - entry_node_ids
 
             # SAFE: Add virtual edges to working copy
             for node_id in last_nodes:
@@ -293,13 +309,32 @@ class GraphBuilder:
             end_nodes.append(virtual_end_node)
             end_node_ids.add("virtual-end-node")
 
-        # Identify explicit start connections
-        self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
+        # Identify explicit start connections from StartNodes
+        start_node_targets = {e["target"] for e in edges if e.get("source") in start_node_ids}
+        
+        # Identify explicit start connections from WebhookTrigger nodes
+        webhook_trigger_targets = {e["target"] for e in edges if e.get("source") in webhook_trigger_node_ids}
+        
+        # If WebhookTrigger nodes have outgoing edges, use those targets as start nodes
+        # Otherwise, use the WebhookTrigger nodes themselves as start nodes
+        webhook_start_nodes = set()
+        if webhook_trigger_targets:
+            # WebhookTrigger nodes have outgoing edges, use the targets
+            webhook_start_nodes = webhook_trigger_targets
+        elif webhook_trigger_node_ids:
+            # WebhookTrigger nodes have no outgoing edges, use the nodes themselves
+            webhook_start_nodes = webhook_trigger_node_ids
+        
+        # Combine all start targets
+        self.explicit_start_nodes = start_node_targets | webhook_start_nodes
 
         # Debug logging
         logger.debug(f"Edge filtering analysis: {len(edges)} edges")
         edges_from_start_nodes = [e for e in edges if e.get("source") in start_node_ids]
+        edges_from_webhook_triggers = [e for e in edges if e.get("source") in webhook_trigger_node_ids]
         logger.debug(f"Found {len(edges_from_start_nodes)} edges FROM StartNodes")
+        logger.debug(f"Found {len(edges_from_webhook_triggers)} edges FROM WebhookTrigger nodes")
+        logger.debug(f"Explicit start nodes: {self.explicit_start_nodes}")
 
         # SAFE filtering AFTER all additions
         # Filter out StartNodes for processing, but keep EndNodes
@@ -359,7 +394,8 @@ class GraphBuilder:
 
             try:
                 # Get node class and create instance
-                node_cls = self.node_registry.get_node(node_type)
+                # Use self.get_node helper which handles both dict and NodeRegistry object
+                node_cls = self.get_node(node_type)
                 if not node_cls:
                     available_nodes = self.node_registry.get_all_nodes()
                     available_types = [node.name for node in available_nodes]

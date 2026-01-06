@@ -159,6 +159,7 @@ class NodePropertyType(str, Enum):
     SELECT = "select"
     CREDENTIAL_SELECT = "credential-select"
     TEXT = "text"
+    READONLY_TEXT = "readonly-text"
     NUMBER = "number"
     PASSWORD = "password"
     CHECKBOX = "checkbox"

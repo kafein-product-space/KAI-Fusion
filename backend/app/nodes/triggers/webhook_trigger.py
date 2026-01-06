@@ -14,26 +14,89 @@ import asyncio
 import json
 import logging
 import os
+import time
+import traceback
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, AsyncGenerator, Union
+from typing import Any, Dict, List, Optional, AsyncGenerator
 from urllib.parse import urljoin
 
 from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks
 from fastapi.responses import StreamingResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
-from langchain_core.runnables.utils import Input, Output
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text, bindparam
 
-from ..base import ProviderNode, TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
-from app.models.node import NodeCategory
+from ..base import TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePropertyType
+from app.core.database import get_db_session_context
+from app.models.workflow import Workflow
+from app.services.workflow_executor import (
+    get_workflow_executor
+)
 
 logger = logging.getLogger(__name__)
 
 # Security
 security = HTTPBearer(auto_error=False)
+
+
+async def find_workflow(
+    db: AsyncSession,
+    webhook_id: str,
+) -> Optional[Workflow]:
+    """
+    Find workflow by webhook_id.
+    
+    Args:
+        db: Database session
+        webhook_id: Webhook ID to lookup workflow via flow_data
+        
+    Returns:
+        Workflow object or None if not found
+    """
+    
+    try:
+        logger.info(f"Searching workflows for webhook_id {webhook_id} in flow_data")
+        
+        # Use optimized PostgreSQL JSONB query to find workflow by webhook path
+        # Searches in node data->path directly or in metadata->properties->default
+        # Based on the provided SQL query pattern
+        search_stmt = select(Workflow).where(
+            text("""
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(workflows.flow_data->'nodes') AS node
+                    LEFT JOIN LATERAL jsonb_array_elements(node->'data'->'metadata'->'properties') AS prop ON TRUE
+                    WHERE
+                        (node->>'id') LIKE 'WebhookTrigger__%'
+                        AND (
+                            node->'data'->>'path' = :webhook_id
+                            OR (
+                                prop->>'name' = 'path'
+                                AND prop->>'default' = :webhook_id
+                            )
+                        )
+                )
+            """).bindparams(bindparam("webhook_id", webhook_id))
+        ).limit(1)
+        
+        result = await db.execute(search_stmt)
+        workflow = result.scalars().first()
+        
+        if workflow:
+            logger.info(f"Found workflow by webhook_id in flow_data: {webhook_id} -> {workflow.id} ({workflow.name})")
+            return workflow
+        else:
+            # Debug: Log that we didn't find it but query succeeded
+            logger.debug(f"Workflow query completed but no match found for webhook_id: {webhook_id}")
+    except Exception as e:
+        logger.warning(f"Error searching workflows by webhook_id {webhook_id}: {e}", exc_info=True)
+
+    logger.warning(f"Workflow not found: webhook_id={webhook_id}")
+    return None
 
 # Global webhook router (will be included in main FastAPI app)
 webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
@@ -61,15 +124,9 @@ async def handle_webhook_request(
     # Check if webhook exists, create if not (for dynamic webhook support)
     if webhook_id not in webhook_events:
         # Auto-create webhook entry for valid webhook IDs
-        if webhook_id.startswith("wh_") and len(webhook_id) > 5:
-            webhook_events[webhook_id] = []
-            webhook_subscribers[webhook_id] = []
-            logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Invalid webhook ID format: {webhook_id}"
-            )
+        webhook_events[webhook_id] = []
+        webhook_subscribers[webhook_id] = []
+        logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
     
     correlation_id = str(uuid.uuid4())
     received_at = datetime.now(timezone.utc)
@@ -158,93 +215,60 @@ async def handle_webhook_request(
             async def execute_webhook_workflow():
                 try:
                     logger.info(f"🚀 Starting workflow execution for webhook: {webhook_id}")
-                    
-                    import httpx
-                    import time
-                    from sqlalchemy import select
-                    from sqlalchemy.ext.asyncio import AsyncSession
-                    from app.core.database import get_db_session
-                    from app.models.webhook import WebhookEndpoint
-                    from app.models.workflow import Workflow
-                    
-                    # Use direct fallback workflow (skip database lookup)
-                    logger.info(f"🔄 Using direct fallback workflow execution for webhook {webhook_id}")
-                    
-                    # Create a simple workflow structure for testing
-                    execution_payload = {
-                        "flow_data": {
-                            "nodes": [
-                                {
-                                    "id": "start_1",
-                                    "type": "StartNode",
-                                    "data": {"initial_input": f"Webhook {webhook_id} triggered"}
-                                },
-                                {
-                                    "id": "http_1", 
-                                    "type": "HttpRequest",
-                                    "data": {
-                                        "url": "https://www.bahakizil.com",
-                                        "method": "GET",
-                                        "headers": '{"User-Agent": "Mozilla/5.0 (compatible; KAI-Fusion-Webhook/1.0)"}',
-                                        "timeout": 30
-                                    }
-                                },
-                                {
-                                    "id": "end_1",
-                                    "type": "EndNode", 
-                                    "data": {
-                                        "output_format": "json"
-                                    }
-                                }
-                            ],
-                            "edges": [
-                                {"source": "start_1", "target": "http_1", "sourceHandle": "output", "targetHandle": "input"},
-                                {"source": "http_1", "target": "end_1", "sourceHandle": "output", "targetHandle": "target"}
-                            ]
-                        },
-                        "input_text": f"Webhook triggered: {webhook_id} (direct mode)",
-                        "session_id": f"webhook_{webhook_id}_{int(time.time())}_direct",
-                        "user_id": "webhook_system",  # Webhook system identifier
-                        "webhook_data": webhook_event
-                    }
-                    
-                    logger.info(f"🚀 Using direct workflow with HTTP scraping for webhook {webhook_id}")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error preparing fallback workflow: {e}")
-                    return
-                    
-                # Step 4: Execute the workflow via API
-                try:
-                    api_url = "http://localhost:8000/api/v1/workflows/execute"
-                    headers = {
-                        "Content-Type": "application/json",
-                        "X-Internal-Call": "true"  # Internal webhook call
-                    }
-                    
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            api_url,
-                            json=execution_payload,
-                            headers=headers,
-                            timeout=30
+
+                    async with get_db_session_context() as session:
+                        executor = get_workflow_executor()
+                        workflow = await find_workflow(
+                            db=session,
+                            webhook_id=webhook_id
                         )
-                        
-                        if response.status_code == 200:
-                            # Workflow API returns streaming response, not JSON
-                            logger.info(f"✅ Workflow executed successfully via webhook: {webhook_id}")
-                            logger.debug(f"Response: {response.text[:200]}...")  # Log first 200 chars
-                        else:
-                            logger.error(f"❌ Workflow execution failed: {response.status_code} - {response.text}")
-                
+
+                        if not workflow:
+                            logger.error(f"Workflow not found for webhook: {webhook_id}")
+                            return
+
+
+                        # Create session ID
+                        session_id = f"webhook_{webhook_id}_{int(time.time())}"
+
+                        # Prepare execution inputs (add webhook data)
+                        execution_inputs = {
+                            "input_text": f"Webhook triggered: {webhook_id}",
+                            "webhook_data": webhook_event,
+                            "webhook_id": webhook_id,
+                            "http_method": request.method,
+                        }
+
+                        # Prepare execution context
+                        ctx = await executor.prepare_execution_context(
+                            db=session,
+                            workflow=workflow,
+                            execution_inputs=execution_inputs,
+                            session_id=session_id,
+                            is_webhook=True,
+                            owner_id=workflow.user_id,  # Use workflow owner as owner
+                        )
+
+                        # Execute workflow
+                        logger.info(f"▶️ Executing workflow {workflow.id} for webhook {webhook_id}")
+                        result = await executor.execute_workflow(
+                            ctx=ctx,
+                            db=session,
+                            stream=False,  # Sync execution for webhook
+                        )
+
+                        logger.info(f"✅ Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}")
+                        logger.debug(f"Execution Result: {str(result)[:200]}...")
+
                 except Exception as e:
                     logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
-            
+                    logger.error(traceback.format_exc())
+
             # Start workflow execution in background
             background_tasks.add_task(execute_webhook_workflow)
-            
+
             logger.info(f"📨 Webhook received and workflow queued: {webhook_id} - {request.method}")
-            
+
             return WebhookResponse(
                 success=True,
                 message=f"Webhook received and workflow started via {request.method}",
@@ -252,7 +276,7 @@ async def handle_webhook_request(
                 received_at=received_at.isoformat(),
                 correlation_id=correlation_id
             )
-            
+
         except Exception as e:
             logger.error(f"❌ Workflow execution setup failed: {e}")
             # Fall back to regular webhook response
@@ -550,10 +574,30 @@ class WebhookTriggerNode(TerminatorNode):
             "properties": [
                 # Basic Tab
                 NodeProperty(
+                    name="path",
+                    displayName="Path",
+                    type=NodePropertyType.TEXT,
+                    default=str(uuid.uuid4()),
+                    placeholder="Leave empty to auto-generate UUID v4",
+                    hint="Customizable path value for webhook endpoint",
+                    required=False,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="webhook_exact_url",
+                    displayName="Exact Webhook URL",
+                    type=NodePropertyType.READONLY_TEXT,
+                    placeholder="Full webhook URL will be displayed here and can be copied",
+                    hint="This field is read-only and automatically updates based on the Path field",
+                    required=False,
+                    tabName="basic",
+                    colSpan=2,
+                ),
+                NodeProperty(
                     name="http_method",
                     displayName="HTTP Method",
                     type=NodePropertyType.SELECT,
-                    default="POST",
+                    default="GET",
                     options=[
                         {"label": "POST - JSON Body (Default)", "value": "POST"},
                         {"label": "GET - Query Parameters", "value": "GET"},
@@ -789,8 +833,6 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict containing webhook data and configuration
         """
-        from app.core.state import FlowState
-        
         logger.info(f"🔧 Executing Webhook Trigger: {self.webhook_id}")
         
         # Get webhook payload from user data or latest event
@@ -871,6 +913,7 @@ class WebhookTriggerNode(TerminatorNode):
             "allowed_event_types": kwargs.get("allowed_event_types", ""),
             "max_payload_size_kb": kwargs.get("max_payload_size", 1024),
             "rate_limit_per_minute": kwargs.get("rate_limit_per_minute", 60),
+            "path": self.endpoint_path,
             "enable_cors": kwargs.get("enable_cors", True),
             "timeout_seconds": kwargs.get("webhook_timeout", 30),
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -1516,5 +1559,6 @@ __all__ = [
     "WebhookResponse",
     "webhook_router",
     "get_active_webhooks",
-    "cleanup_webhook_events"
+    "cleanup_webhook_events",
+    "find_workflow"
 ]

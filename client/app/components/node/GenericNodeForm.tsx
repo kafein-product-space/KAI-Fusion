@@ -4,6 +4,7 @@ import {
   NodeTextArea,
   NodeCredentialSelect,
   NodeText,
+  NodeReadonlyText,
   NodeNumber,
   NodePassword,
   NodeSelect,
@@ -117,6 +118,14 @@ export default function GenericNodeForm({
                 switch (property.type) {
                   case "textarea":
                     return <NodeTextArea property={property} values={values} />;
+                  case "readonly-text":
+                    return (
+                      <NodeReadonlyText
+                        property={property}
+                        values={values}
+                        setFieldValue={setFieldValue}
+                      />
+                    );
                   case "select":
                     return <NodeSelect property={property} values={values} />;
                   case "credential-select":
