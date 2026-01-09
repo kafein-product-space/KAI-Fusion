@@ -60,7 +60,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   RetrieverNode: <img src="icons/search.svg" alt="retriever-node" />,
   OpenAIEmbeddingsProvider: <img src="icons/openai.svg" alt="openai-embeddings-provider" />,
 
-  // ✅ LLM Providers
+  // LLM Providers
   OpenAICompatibleNode: <img src="icons/openai.svg" alt="openai-compatible" />,
   OpenAIChat: <img src="icons/openai.svg" alt="openai-chat" />,
   OpenAIEmbeddings: <img src="icons/openai.svg" alt="openai-embeddings" />,

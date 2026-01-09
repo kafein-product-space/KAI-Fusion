@@ -199,7 +199,7 @@ class ConditionNode(ProcessorNode):
             ]
         }
 
-        logger.info("🔀 Condition Node initialized")
+        logger.info("Condition Node initialized")
 
     def _evaluate_condition(
         self, 
@@ -352,7 +352,7 @@ class ConditionNode(ProcessorNode):
         Returns:
             Dict with condition result and routed outputs
         """
-        logger.info("🔀 Executing Condition Node")
+        logger.info("Executing Condition Node")
 
         # Get configuration from inputs (properties)
         data_type = inputs.get("data_type", "string")
@@ -361,7 +361,7 @@ class ConditionNode(ProcessorNode):
         value2 = inputs.get("value2", "")
         case_sensitive = inputs.get("case_sensitive", False)
 
-        logger.info(f"⚙️ CONDITION CONFIG: DataType={data_type}, Operation={operation}, CaseSensitive={case_sensitive}")
+        logger.info(f"CONDITION CONFIG: DataType={data_type}, Operation={operation}, CaseSensitive={case_sensitive}")
 
         # Get value to evaluate - use value1 from properties directly
         # Jinja templating will already be resolved by the time we get here
@@ -374,16 +374,16 @@ class ConditionNode(ProcessorNode):
             raw_input = input_data  # Store raw input for type validation
             
             # DEBUG: Log what we received from connected node
-            logger.info(f"📥 RAW connected_nodes: {connected_nodes}")
-            logger.info(f"📥 RAW input_data type: {type(input_data)}")
-            logger.info(f"📥 RAW input_data: {str(input_data)[:500]}")
+            logger.info(f"RAW connected_nodes: {connected_nodes}")
+            logger.info(f"RAW input_data type: {type(input_data)}")
+            logger.info(f"RAW input_data: {str(input_data)[:500]}")
             if isinstance(input_data, dict):
-                logger.info(f"📥 input_data keys: {list(input_data.keys())}")
+                logger.info(f"input_data keys: {list(input_data.keys())}")
             
             # Extract primary output using same logic as Jinja templating
             # This ensures consistent behavior between {{node}} and connection
             actual_value = self._extract_primary_output(input_data)
-            logger.info(f"📥 EXTRACTED actual_value: {str(actual_value)[:200]}")
+            logger.info(f"EXTRACTED actual_value: {str(actual_value)[:200]}")
         
         # Data type validation
         if data_type == "string":
@@ -406,8 +406,8 @@ class ConditionNode(ProcessorNode):
                 logger.warning(f"Converting {type(actual_value).__name__} to string for comparison")
                 actual_value = str(actual_value)
 
-        logger.info(f"📥 Evaluating value: '{actual_value[:100] if len(str(actual_value)) > 100 else actual_value}'")
-        logger.info(f"📊 Comparing with: '{value2}'")
+        logger.info(f"Evaluating value: '{actual_value[:100] if len(str(actual_value)) > 100 else actual_value}'")
+        logger.info(f"Comparing with: '{value2}'")
 
         # Evaluate the condition
         condition_result = self._evaluate_condition(
@@ -417,7 +417,7 @@ class ConditionNode(ProcessorNode):
             case_sensitive
         )
 
-        logger.info(f"✅ Condition result: {condition_result}")
+        logger.info(f"Condition result: {condition_result}")
 
         # Return results with routing information
         # For conditional routing, we set the result in a special way
