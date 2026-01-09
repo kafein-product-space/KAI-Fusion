@@ -137,7 +137,7 @@ class GraphBuilder:
         This method coordinates all specialized components to transform flow data
         into an executable LangGraph while maintaining full backward compatibility.
         """
-        logger.info("🎯 Starting workflow build with Phase 3 architecture")
+        logger.info("Starting workflow build with Phase 3 architecture")
         start_time = time.time()
         
         try:
@@ -176,14 +176,14 @@ class GraphBuilder:
                 "validation_stats": self.validation_engine.get_validation_stats()
             }
             
-            logger.info(f"✅ Workflow build completed successfully in {build_duration:.3f}s")
-            logger.info(f"📊 Build metrics: {self._build_metrics}")
+            logger.info(f"Workflow build completed successfully in {build_duration:.3f}s")
+            logger.info(f"Build metrics: {self._build_metrics}")
             
             return compiled_graph
             
         except Exception as e:
             build_duration = time.time() - start_time
-            logger.error(f"❌ Workflow build failed after {build_duration:.3f}s: {e}")
+            logger.error(f"Workflow build failed after {build_duration:.3f}s: {e}")
             
             if isinstance(e, (ValidationError, ConnectionError, NodeExecutionError)):
                 raise  # Re-raise our custom exceptions
@@ -255,7 +255,7 @@ class GraphBuilder:
 
         # Handle missing EndNode BEFORE any filtering
         if not end_nodes:
-            logger.info("⚠️  No EndNode found. Creating virtual EndNode for workflow completion.")
+            logger.info("No EndNode found. Creating virtual EndNode for workflow completion.")
 
             # Create virtual EndNode
             virtual_end_node = {
@@ -287,7 +287,7 @@ class GraphBuilder:
                     "targetHandle": "input"
                 }
                 edges.append(virtual_edge)
-                logger.debug(f"🔗 Auto-connected {node_id} -> virtual-end-node")
+                logger.debug(f"Auto-connected {node_id} -> virtual-end-node")
 
             # Update end_nodes and end_node_ids after adding virtual node
             end_nodes.append(virtual_end_node)
@@ -326,7 +326,7 @@ class GraphBuilder:
         processed_nodes = processed_data["processed_nodes"]
         processed_edges = processed_data["processed_edges"]
         
-        logger.info("🔧 Building workflow components with specialized classes")
+        logger.info("Building workflow components with specialized classes")
         
         # Step 1: Parse connections using ConnectionMapper
         self.connections = self.connection_mapper.parse_connections(processed_edges)
@@ -344,7 +344,7 @@ class GraphBuilder:
     def _instantiate_nodes_with_components(self, nodes: List[Dict[str, Any]]) -> None:
         """Enhanced node instantiation using ConnectionMapper."""
         if nodes:
-            logger.info(f"🏭 ENHANCED NODE INSTANTIATION with Components ({len(nodes)} nodes)")
+            logger.info(f"ENHANCED NODE INSTANTIATION with Components ({len(nodes)} nodes)")
         
         start_time = time.time()
         
@@ -363,7 +363,7 @@ class GraphBuilder:
                 if not node_cls:
                     available_nodes = self.node_registry.get_all_nodes()
                     available_types = [node.name for node in available_nodes]
-                    logger.error(f"❌ Unknown node type: {node_type}. Available: {available_types}")
+                    logger.error(f"Unknown node type: {node_type}. Available: {available_types}")
                     raise ValueError(f"Unknown node type: {node_type}. Available types: {available_types}")
 
                 instance = node_cls()
@@ -379,15 +379,15 @@ class GraphBuilder:
                     user_data=user_data,
                 )
                 
-                logger.debug(f"   ✅ Created {node_id} ({node_type})")
+                logger.debug(f"Created {node_id} ({node_type})")
                 
             except Exception as e:
-                logger.error(f"❌ Failed to create node {node_id}: {e}")
+                logger.error(f"Failed to create node {node_id}: {e}")
                 raise NodeExecutionError(node_id, node_type, e) from e
         
         # Second pass: Build connection mappings using ConnectionMapper
         try:
-            logger.info("🔗 Building enhanced connection mappings with ConnectionMapper")
+            logger.info("Building enhanced connection mappings with ConnectionMapper")
             
             # Build enhanced mappings
             connection_mappings = self.connection_mapper.build_enhanced_connection_mappings(
@@ -402,17 +402,17 @@ class GraphBuilder:
             self.node_executor.set_nodes_registry(self.nodes)
             
         except Exception as e:
-            logger.error(f"❌ Enhanced connection mapping failed, falling back to basic mapping: {e}")
+            logger.error(f"Enhanced connection mapping failed, falling back to basic mapping: {e}")
             # Fallback to basic connection mapping
             self.connection_mapper.build_basic_connection_mappings(self.connections, self.nodes)
         
         # Record build metrics
         build_duration = time.time() - start_time
-        logger.info(f"⚡ Enhanced instantiation completed in {build_duration:.3f}s")
+        logger.info(f"Enhanced instantiation completed in {build_duration:.3f}s")
 
     def _compile_final_graph(self) -> CompiledStateGraph:
         """Compile final LangGraph using all components."""
-        logger.info("🔨 Compiling final LangGraph")
+        logger.info("Compiling final LangGraph")
         
         try:
             graph = StateGraph(FlowState)
@@ -434,12 +434,12 @@ class GraphBuilder:
             compiled_graph = graph.compile(checkpointer=self.checkpointer)
             
             self.graph = compiled_graph
-            logger.info("✅ LangGraph compilation successful")
+            logger.info("LangGraph compilation successful")
             
             return compiled_graph
             
         except Exception as e:
-            logger.error(f"❌ LangGraph compilation failed: {e}")
+            logger.error(f"LangGraph compilation failed: {e}")
             raise GraphCompilationError(
                 f"LangGraph compilation failed: {str(e)}",
                 compilation_stage="graph_compile",
@@ -453,7 +453,7 @@ class GraphBuilder:
         
         def wrapper(state: FlowState) -> Dict[str, Any]:
             try:
-                logger.info(f"🎯 EXECUTING: {node_id} ({gnode.type}) with NodeExecutor")
+                logger.info(f"EXECUTING: {node_id} ({gnode.type}) with NodeExecutor")
                 
                 # Merge user data into node instance before execution
                 gnode.node_instance.user_data.update(gnode.user_data)
@@ -469,7 +469,7 @@ class GraphBuilder:
                     # Use NodeExecutor for standard nodes
                     result = self.node_executor.execute_standard_node(gnode, state, node_id)
                 
-                logger.info(f"✅ Node {node_id} ({gnode.type}) completed successfully with NodeExecutor")
+                logger.info(f"Node {node_id} ({gnode.type}) completed successfully with NodeExecutor")
                 return result
                 
             except Exception as e:
@@ -483,7 +483,7 @@ class GraphBuilder:
                     "stack_trace": traceback.format_exc()
                 }
                 
-                logger.error(f"❌ Node {node_id} ({gnode.type}) execution failed: {str(e)}")
+                logger.error(f"Node {node_id} ({gnode.type}) execution failed: {str(e)}")
                 
                 # Update state with error
                 if hasattr(state, 'add_error'):
@@ -519,39 +519,137 @@ class GraphBuilder:
 
     def _add_regular_edges(self, graph: StateGraph):
         """Add regular node-to-node edges to the LangGraph."""
-        logger.info(f"🔗 ADDING REGULAR EDGES ({len(self.connections)} connections)")
+        logger.info(f"ADDING REGULAR EDGES ({len(self.connections)} connections)")
+        
+        # Track ConditionNode connections for conditional routing
+        condition_node_connections: Dict[str, Dict[str, str]] = {}
         
         for conn in self.connections:
             source_id = conn.source_node_id
             target_id = conn.target_node_id
+            source_handle = conn.source_handle
             
             # Skip if either node is not in our graph (StartNode/EndNode handled separately)
             if source_id not in self.nodes or target_id not in self.nodes:
-                logger.debug(f"   ⏭️ Skipping edge {source_id} -> {target_id} (node not in graph)")
+                logger.debug(f"Skipping edge {source_id} -> {target_id} (node not in graph)")
                 continue
+            
+            # Check if source is a ConditionNode
+            source_node = self.nodes.get(source_id)
+            if source_node and source_node.type == "ConditionNode":
+                # Collect connections for conditional routing
+                if source_id not in condition_node_connections:
+                    condition_node_connections[source_id] = {}
+                condition_node_connections[source_id][source_handle] = target_id
+                logger.debug(f"Collected ConditionNode connection: {source_id}[{source_handle}] -> {target_id}")
+                continue  # Don't add regular edge - will use conditional edge
                 
-            # Add edge to LangGraph
+            # Add regular edge to LangGraph
             try:
                 graph.add_edge(source_id, target_id)
-                logger.debug(f"   ✅ Added edge: {source_id} -> {target_id}")
+                logger.debug(f"Added edge: {source_id} -> {target_id}")
             except Exception as e:
-                logger.error(f"   ❌ Failed to add edge {source_id} -> {target_id}: {e}")
+                logger.error(f"Failed to add edge {source_id} -> {target_id}: {e}")
+        
+        # Add conditional edges for ConditionNodes
+        for node_id, targets in condition_node_connections.items():
+            self._add_condition_node_edges(graph, node_id, targets)
+    
+    def _add_condition_node_edges(self, graph: StateGraph, node_id: str, targets: Dict[str, str]):
+        """Add conditional edges for a ConditionNode based on its _route output."""
+        logger.info(f"Adding conditional edges for ConditionNode: {node_id}")
+        
+        true_target = targets.get("true_output")
+        false_target = targets.get("false_output")
+        
+        # Fallback to "output" handle if specific handles not found
+        if not true_target and not false_target:
+            default_target = targets.get("output")
+            if default_target:
+                logger.debug(f"   Using default output target: {default_target}")
+                graph.add_edge(node_id, default_target)
+                return
+            else:
+                # No connections at all - raise error
+                raise ValidationError(
+                    f"ConditionNode '{node_id}' has no output connections. "
+                    "Connect at least one output (True or False) to continue.",
+                    validation_errors=[f"Missing output connections for {node_id}"]
+                )
+        
+        # Store connection status for runtime error handling
+        has_true = true_target is not None
+        has_false = false_target is not None
+        
+        def route_condition(state: FlowState) -> str:
+            """Route based on ConditionNode's _route output."""
+            # Get the node's output from state
+            node_outputs = getattr(state, 'node_outputs', {})
+            condition_output = node_outputs.get(node_id, {})
+            
+            # Check for _route key in output
+            route = condition_output.get("_route", "true_output")
+            condition_result = condition_output.get("condition_result", True)
+            
+            logger.info(f"ConditionNode {node_id} - Result: {condition_result}, Route: {route}")
+            
+            # Route based on condition result
+            if condition_result:
+                # Condition is TRUE - need true_output connection
+                if has_true:
+                    logger.info(f"Routing to TRUE path: {true_target}")
+                    return true_target
+                else:
+                    # TRUE path not connected - raise error
+                    error_msg = (
+                        f"ConditionNode '{node_id}' evaluated to TRUE but 'True' output is not connected. "
+                        "Please connect the 'True' output to a node."
+                    )
+                    logger.error(f"{error_msg}")
+                    raise NodeExecutionError(node_id, "ConditionNode", Exception(error_msg))
+            else:
+                # Condition is FALSE - need false_output connection
+                if has_false:
+                    logger.info(f"Routing to FALSE path: {false_target}")
+                    return false_target
+                else:
+                    # FALSE path not connected - raise error
+                    error_msg = (
+                        f"ConditionNode '{node_id}' evaluated to FALSE but 'False' output is not connected. "
+                        "Please connect the 'False' output to a node."
+                    )
+                    logger.error(f"{error_msg}")
+                    raise NodeExecutionError(node_id, "ConditionNode", Exception(error_msg))
+        
+        # Build routing map - only include connected paths
+        routing_map = {}
+        if true_target:
+            routing_map[true_target] = true_target
+        if false_target:
+            routing_map[false_target] = false_target
+            
+        try:
+            graph.add_conditional_edges(node_id, route_condition, routing_map)
+            logger.info(f"Added conditional edges: {node_id} -> True:{true_target}, False:{false_target}")
+        except Exception as e:
+            logger.error(f"Failed to add conditional edges for {node_id}: {e}")
+            raise
 
     def _add_start_end_connections(self, graph: StateGraph):
         """Add START and END connections to the LangGraph."""
-        logger.info(f"🚀 ADDING START/END CONNECTIONS")
+        logger.info(f"ADDING START/END CONNECTIONS")
         
         # Add START connections
         if self.explicit_start_nodes:
-            logger.info(f"🚀 START ➜ {list(self.explicit_start_nodes)}")
+            logger.info(f"START -> {list(self.explicit_start_nodes)}")
             for start_target in self.explicit_start_nodes:
                 if start_target in self.nodes:
                     graph.add_edge(START, start_target)
-                    logger.debug(f"   ✅ START -> {start_target}")
+                    logger.debug(f"START -> {start_target}")
                 else:
-                    logger.warning(f"   ⚠️ START target {start_target} not found in nodes")
+                    logger.warning(f"START target {start_target} not found in nodes")
         else:
-            logger.warning("   ⚠️ No explicit start nodes found")
+            logger.warning("No explicit start nodes found")
         
         # Add END connections - find nodes that connect to EndNodes
         end_connections = []
@@ -560,25 +658,25 @@ class GraphBuilder:
                 end_connections.append(conn.source_node_id)
         
         if end_connections:
-            logger.info(f"🏁 {end_connections} ➜ END")
+            logger.info(f"{end_connections} -> END")
             for end_source in end_connections:
                 if end_source in self.nodes:
                     graph.add_edge(end_source, END)
-                    logger.debug(f"   ✅ {end_source} -> END")
+                    logger.debug(f"{end_source} -> END")
                 else:
-                    logger.warning(f"   ⚠️ END source {end_source} not found in nodes")
+                    logger.warning(f"END source {end_source} not found in nodes")
         else:
             # If no explicit END connections, connect the last nodes
-            logger.debug("   🔍 No explicit END connections, finding last nodes")
+            logger.debug("No explicit END connections, finding last nodes")
             all_targets = {conn.target_node_id for conn in self.connections}
             all_sources = {conn.source_node_id for conn in self.connections}
             last_nodes = [node_id for node_id in all_sources if node_id not in all_targets and node_id in self.nodes]
             
             if last_nodes:
-                logger.info(f"   🏁 Auto-connecting last nodes to END: {last_nodes}")
+                logger.info(f"Auto-connecting last nodes to END: {last_nodes}")
                 for last_node in last_nodes:
                     graph.add_edge(last_node, END)
-                    logger.debug(f"   ✅ {last_node} -> END")
+                    logger.debug(f"{last_node} -> END")
 
     # ---------------------------------------------------------------------
     # Execution methods - preserved for backward compatibility
@@ -615,11 +713,11 @@ class GraphBuilder:
 
     async def _execute_sync(self, init_state: FlowState, config: RunnableConfig) -> Dict[str, Any]:
         """Synchronous execution - preserved from original."""
-        logger.info(f"🚀 Starting synchronous workflow execution")
+        logger.info(f"Starting synchronous workflow execution")
         
         try:
             result_state = await self.graph.ainvoke(init_state, config=config)
-            logger.info(f"✅ Graph execution completed successfully")
+            logger.info(f"Graph execution completed successfully")
             
             # Convert FlowState to serializable format
             try:
@@ -662,6 +760,9 @@ class GraphBuilder:
             logger.info(f"Starting streaming execution for session: {init_state.session_id}")
             yield {"type": "start", "session_id": init_state.session_id, "message": "Starting workflow execution"}
             
+            # Track previously executed node to help frontend animate correct edge
+            previous_node_id: str | None = None
+            
             # Stream workflow execution events
             event_count = 0
             async for ev in self.graph.astream_events(init_state, config=config):
@@ -672,7 +773,11 @@ class GraphBuilder:
                 node_name = ev.get("name", "unknown")
                 
                 if ev_type == "on_chain_start":
-                    yield {"type": "node_start", "node_id": node_name}
+                    yield {
+                        "type": "node_start", 
+                        "node_id": node_name,
+                        "previous_node_id": previous_node_id  # Include previous node for edge animation
+                    }
                 elif ev_type == "on_chain_end":
                     # Extract output from the event data for node_end
                     ev_data = ev.get("data", {})
@@ -698,6 +803,9 @@ class GraphBuilder:
                         "node_id": node_name,
                         "output": output_data
                     }
+                    
+                    # Update previous node after successful completion
+                    previous_node_id = node_name
                 elif ev_type == "on_llm_new_token":
                     yield {"type": "token", "content": ev.get("data", {}).get("chunk", "")}
                 elif ev_type == "on_chain_error":
@@ -742,16 +850,17 @@ class GraphBuilder:
             stream: bool = False,
     ) -> Union[Dict[str, Any], AsyncGenerator[Dict[str, Any], None]]:
         """Execute workflow with enhanced monitoring - preserved from original."""
-        logger.info(f"🎯 Starting enhanced execution (session: {session_id})")
+        logger.info(f"Starting enhanced execution (session: {session_id})")
         execution_start = time.time()
 
         try:
             result = await self.execute(inputs, session_id, user_id, owner_id, workflow_id, stream)
             execution_duration = time.time() - execution_start
-            logger.info(f"✅ Enhanced execution completed in {execution_duration:.3f}s")
+            logger.info(f"Enhanced execution completed in {execution_duration:.3f}s")
             return result
 
         except Exception as e:
             execution_duration = time.time() - execution_start
-            logger.error(f"❌ Enhanced execution failed after {execution_duration:.3f}s: {e}")
+            logger.error(f"Enhanced execution failed after {execution_duration:.3f}s: {e}")
+            raise
             raise
