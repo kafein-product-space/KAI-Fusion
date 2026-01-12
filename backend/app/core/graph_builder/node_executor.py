@@ -373,14 +373,20 @@ class NodeExecutor:
     def _render_template_string(self, template_str: str, context: Dict[str, Any], node_id: str) -> str:
         """
         Render a Jinja2 template string with the given context.
-        If rendering fails, return the original string and log a warning.
+
+        Supports both ${{var}} and {{var}} syntax for variables.
+        ${{var}} syntax avoids conflicts with { } characters commonly used in system prompts (JSON schemas, etc.).
+        {{var}} syntax is also supported for compatibility.
         """
-        # Quick check to avoid unnecessary Jinja processing
+        # Only process templates with {{...}} syntax (either ${{...}} or {{...}})
         if "{{" not in template_str or "}}" not in template_str:
             return template_str
-        
+
         try:
-            template = _jinja_env.from_string(template_str)
+            # Convert ${{var}} to {{var}} for Jinja2 rendering (if not already)
+            processed_template = template_str.replace("${" + "{", "{{").replace("}}", "}}")
+
+            template = _jinja_env.from_string(processed_template)
             return template.render(**context)
         except Exception as e:
             logger.warning(f"Node templating failed for {node_id}: {e}")
