@@ -663,7 +663,7 @@ class CodeNode(ProcessorNode):
                     type=NodePropertyType.CODE_EDITOR,
                     description=(
                         "You can access the output content of the node connected to the code node using the node_data expression. "
-                        "You can refer to the output content of previous nodes in your code using the Jinja structure {{node_name}}. "
+                        "You can refer to the output content of previous nodes in your code using the Jinja structure ${{node_name}}. "
                         "Note: If there is a possibility of special characters in the output content accessed via Jinja, it is recommended to use {{node_name|tojson}}."
                     ),
                     default="# Python Example\nprint(node_data)",
