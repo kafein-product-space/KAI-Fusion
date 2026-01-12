@@ -6,13 +6,16 @@ import tsconfigPaths from "vite-tsconfig-paths";
 const isDev = process.env.NODE_ENV !== 'production';
 
 export default defineConfig({
+  base: '/kai',
   plugins: [tailwindcss(), reactRouter(), tsconfigPaths()],
   server: {
+    port: 80,
     ...(isDev && {
       proxy: {
-        '/api': {
+        '/api/kai': {
           target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
           changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/kai/, ''),
           secure: false,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {

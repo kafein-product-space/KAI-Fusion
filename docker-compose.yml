@@ -62,10 +62,8 @@ services:
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
     container_name: kai-fusion-frontend
-    ports:
-      - "23058:3000"
     environment:
-      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_API_BASE_URL: /api/kai
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
@@ -77,6 +75,19 @@ services:
     restart: unless-stopped
     depends_on:
       - kaifusion-be
+
+  nginx:
+    image: nginx:alpine
+    container_name: kai-fusion-nginx
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
+    depends_on:
+      - kaifusion-fe
+      - kaifusion-be
+    networks:
+      - kai_network
 
   kai-widget:
     build:

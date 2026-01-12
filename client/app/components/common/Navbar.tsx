@@ -10,7 +10,7 @@ import {
   Container,
 } from "lucide-react";
 import React, { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { useSnackbar } from "notistack";
 import ToggleSwitch from "./ToggleSwitch";
 import WorkflowExportModal from "../modals/WorkflowExportModal";
@@ -58,6 +58,7 @@ const Navbar: React.FC<NavbarProps> = ({
   const dropdownRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const deleteDialogRef = useRef<HTMLDialogElement>(null);
+
   // Dışarı tıklayınca dropdown'u kapat
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -78,13 +79,13 @@ const Navbar: React.FC<NavbarProps> = ({
     };
   }, [isDropdownOpen]);
 
-  const handleRouteBack = () => {
-    if (checkUnsavedChanges) {
-      const canNavigate = checkUnsavedChanges("/workflows");
-      if (!canNavigate) return;
-    }
-    navigate("/workflows");
-  };
+  // Determine the base path from Vite env
+  const baseUrl = (import.meta.env.BASE_URL?.endsWith('/')
+    ? import.meta.env.BASE_URL.slice(0, -1)
+    : import.meta.env.BASE_URL) || "";
+
+  // Helper to prepend base url
+  const getPath = (path: string) => `${baseUrl}${path}`;
 
   const handleBlur = () => {
     if (workflowName.trim() === "") {
@@ -181,10 +182,18 @@ const Navbar: React.FC<NavbarProps> = ({
       <header className="w-full h-16 bg-[#18181B] text-foreground  fixed top-0 left-0 z-20 ">
         <nav className="flex justify-between items-center p-4 bg-background text-foreground m-auto">
           <div className="flex items-center gap-2">
-            <ArrowLeft
-              className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500"
-              onClick={handleRouteBack}
-            />
+            <Link
+              to="/workflows"
+              className="flex items-center"
+              onClick={(e) => {
+                if (checkUnsavedChanges) {
+                  const canNavigate = checkUnsavedChanges(getPath("/workflows"));
+                  if (!canNavigate) e.preventDefault();
+                }
+              }}
+            >
+              <ArrowLeft className="text-white cursor-pointer w-10 h-10 p-2 rounded-4xl hover:bg-muted transition duration-500" />
+            </Link>
           </div>
 
           <div className="flex flex-col items-center justify-center gap-3">

@@ -173,7 +173,8 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
+    root_path="/api/kai"
 )
 
 # Serve embeddable widget assets from the backend (e.g. /widget/widget.js)
