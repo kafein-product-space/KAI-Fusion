@@ -15,6 +15,7 @@ import secrets
 import string
 import time
 import uuid
+import json
 from datetime import datetime
 from typing import Any, Dict, Optional, Union, AsyncGenerator
 
@@ -28,6 +29,7 @@ from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpda
 from app.schemas.auth import UserSignUpData
 from app.services.user_service import UserService
 from app.services.execution_service import ExecutionService
+from app.core.json_utils import make_json_serializable
 
 logger = logging.getLogger(__name__)
 
@@ -373,11 +375,47 @@ class WorkflowExecutor:
             
             logger.info(f"Workflow execution completed: workflow={ctx.workflow.id}")
             
+            # Extract webhook_response from result if available (for webhook-triggered workflows)
+            webhook_response = None
+            if isinstance(result, dict):
+                # Check directly in result
+                webhook_response = result.get("webhook_response")
+                
+                # Check in state if available
+                if not webhook_response and "state" in result:
+                    state = result.get("state")
+                    if hasattr(state, "webhook_response") and state.webhook_response:
+                        webhook_response = state.webhook_response
+                    elif hasattr(state, "memory_data") and isinstance(state.memory_data, dict):
+                        webhook_response = state.memory_data.get("webhook_response")
+                
+                # Check in node_outputs
+                if not webhook_response and "node_outputs" in result:
+                    for node_id, node_output in result.get("node_outputs", {}).items():
+                        if isinstance(node_output, dict):
+                            if "webhook_response" in node_output:
+                                webhook_response = node_output.get("webhook_response")
+                                break
+                            # Also check in node's output dict
+                            if "output" in node_output and isinstance(node_output["output"], dict):
+                                webhook_response = node_output["output"].get("webhook_response")
+                                if webhook_response:
+                                    break
+                
+                # Add webhook_response to result for easy access
+                if webhook_response:
+                    result["webhook_response"] = webhook_response
+                    logger.info(f"✅ Extracted webhook_response from workflow execution")
+            
             # Update execution status to completed
             try:
                 # For streaming results, we might want to handle this differently
                 # For now, update when execution completes
-                outputs = result if isinstance(result, dict) and not stream else {"result": "streamed"}
+                if isinstance(result, dict) and not stream:
+                    # Make outputs JSON-serializable by converting datetime objects to strings
+                    outputs = make_json_serializable(result)
+                else:
+                    outputs = {"result": "streamed"}
                 
                 await self.update_execution_status(
                     db,

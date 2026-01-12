@@ -498,11 +498,12 @@ class GraphBuilder:
                 self.node_executor.setup_node_session(gnode, state, node_id)
                 
                 # Execute node using NodeExecutor based on node type
-                if gnode.node_instance.metadata.node_type.value == "processor":
-                    # Use NodeExecutor for processor nodes
+                # Both 'processor' and 'terminator' nodes benefit from NodeExecutor's templating and connection handling
+                if gnode.node_instance.metadata.node_type.value in ["processor", "terminator"]:
+                    # Use NodeExecutor for processor and terminator nodes
                     result = self.node_executor.execute_processor_node(gnode, state, node_id)
                 else:
-                    # Use NodeExecutor for standard nodes
+                    # Use NodeExecutor for standard nodes (provider, etc.)
                     result = self.node_executor.execute_standard_node(gnode, state, node_id)
                 
                 logger.info(f"Node {node_id} ({gnode.type}) completed successfully with NodeExecutor")
@@ -732,8 +733,10 @@ class GraphBuilder:
             raise ValueError("Graph has not been built. Call build_from_flow().")
 
         # Prepare initial FlowState
+        initial_input = inputs.get("input", "")
         init_state = FlowState(
-            current_input=inputs.get("input", ""),
+            current_input=initial_input,
+            last_output=initial_input,
             session_id=session_id or str(uuid.uuid4()),
             user_id=user_id,
             owner_id=owner_id,
@@ -757,26 +760,78 @@ class GraphBuilder:
             
             # Convert FlowState to serializable format
             try:
-                if hasattr(result_state, 'model_dump'):
+                # Check if result_state is a dict (LangGraph sometimes returns dict)
+                if isinstance(result_state, dict):
+                    state_dict = result_state
+                    logger.debug(f"Result state is dict, keys: {list(state_dict.keys())}")
+                elif hasattr(result_state, 'model_dump'):
                     state_dict = result_state.model_dump()
+                    logger.debug(f"Result state is FlowState, dumped to dict")
+                elif hasattr(result_state, 'values') and isinstance(result_state.values, dict):
+                    # LangGraph StateSnapshot format
+                    state_dict = result_state.values
+                    logger.debug(f"Result state is StateSnapshot, using values dict")
                 else:
+                    # Try to get attributes directly
                     state_dict = {
                         "last_output": getattr(result_state, "last_output", ""),
                         "executed_nodes": getattr(result_state, "executed_nodes", []),
                         "node_outputs": getattr(result_state, "node_outputs", {}),
                         "session_id": getattr(result_state, "session_id", init_state.session_id)
                     }
-            except Exception:
+                    logger.debug(f"Result state extracted via getattr")
+                
+                # Ensure last_output is set correctly
+                if not state_dict.get("last_output"):
+                    # Try to get from node_outputs if last_output is empty
+                    node_outputs = state_dict.get("node_outputs", {})
+                    if node_outputs:
+                        # Get the last node's output
+                        last_node_output = None
+                        for node_id, output in node_outputs.items():
+                            if output:
+                                if isinstance(output, dict):
+                                    last_node_output = output.get("output") or output.get("result") or str(output)
+                                else:
+                                    last_node_output = str(output)
+                                break
+                        
+                        if last_node_output:
+                            state_dict["last_output"] = last_node_output
+                            logger.info(f"✅ Extracted last_output from node_outputs: {last_node_output[:100]}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error converting result_state to dict: {e}", exc_info=True)
                 state_dict = {
-                    "last_output": str(result_state),
+                    "last_output": str(result_state) if result_state else "",
                     "executed_nodes": [],
                     "node_outputs": {},
                     "session_id": init_state.session_id
                 }
             
+            # Extract result from state_dict, with fallback to node_outputs
+            result_output = state_dict.get("last_output", "")
+            
+            # If last_output is empty, try to extract from node_outputs
+            if not result_output:
+                node_outputs = state_dict.get("node_outputs", {})
+                if node_outputs:
+                    # Get the first non-empty output
+                    for node_id, output in node_outputs.items():
+                        if output:
+                            if isinstance(output, dict):
+                                result_output = output.get("output") or output.get("result") or str(output)
+                            else:
+                                result_output = str(output)
+                            if result_output:
+                                logger.info(f"✅ Extracted result from node_outputs[{node_id}]: {result_output[:100]}")
+                                break
+            
+            logger.info(f"📤 Final result output: {result_output[:100] if result_output else '(empty)'}")
+            
             return {
                 "success": True,
-                "result": state_dict.get("last_output", ""),
+                "result": result_output,
                 "state": state_dict,
                 "executed_nodes": state_dict.get("executed_nodes", []),
                 "session_id": state_dict.get("session_id", init_state.session_id),

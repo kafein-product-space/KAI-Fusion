@@ -51,6 +51,7 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   WebScraper: <img src="icons/pickaxe.svg" alt="web-scraper" />,
   HttpRequest: <img src="icons/globe.svg" alt="http-request" />,
   WebhookTrigger: <img src="icons/webhook.svg" alt="webhook" />,
+  RespondToWebhook: <img src="icons/webhook.svg" alt="respond-to-webhook" />,
 
   // RAG & QA
   RetrievalQA: <img src="icons/book-open.svg" alt="retrieval-qa" />,

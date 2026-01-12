@@ -320,6 +320,7 @@ from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpda
 from app.core.execution_queue import execution_queue
 from app.models.workflow import Workflow
 from app.services.workflow_executor import get_workflow_executor
+from app.core.json_utils import make_json_serializable
 from sqlalchemy.future import select
 
 logger = logging.getLogger(__name__)
@@ -827,27 +828,8 @@ class AdhocExecuteRequest(BaseModel):
     workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
 
 
-def _make_chunk_serializable(obj):
-    """Convert any object to a JSON-serializable format."""
-    from datetime import datetime, date
-    import uuid as uuid_mod
-    if obj is None or isinstance(obj, (bool, int, float, str)):
-        return obj
-    elif isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    elif isinstance(obj, uuid_mod.UUID):
-        return str(obj)
-    elif isinstance(obj, (list, tuple)):
-        return [_make_chunk_serializable(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {k: _make_chunk_serializable(v) for k, v in obj.items()}
-    elif hasattr(obj, 'model_dump'):
-        try:
-            return obj.model_dump()
-        except Exception:
-            return str(obj)
-    else:
-        return str(obj)
+# Use centralized JSON serialization utility
+_make_chunk_serializable = make_json_serializable
 @router.get("/dashboard/stats/")
 async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db_session),
