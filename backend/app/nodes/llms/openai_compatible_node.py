@@ -290,7 +290,7 @@ class OpenAICompatibleNode(BaseNode):
         if credential_id:
             cred = self.get_credential(credential_id)
             if cred and cred.get('secret'):
-                api_key_value = cred.get('secret').get('api_key')
+                api_key_value = str(cred.get('secret').get('api_key')).strip()
         
         if not api_key_value:
              # Some local endpoints might not require a key.
