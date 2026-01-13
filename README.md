@@ -29,7 +29,7 @@ KAI‑Fusion is an open‑source, Flowise‑like visual workflow builder. It shi
 
 ### 🔗 Quick Links
 
-* **Website (Preview)**: [https://kai-fusion-blond.vercel.app](https://kai-fusion-blond.vercel.app)
+* **Website (Preview)**: [kai-fusion.vercel.app/)
 * **API Docs (local)**: [http://localhost:8000/docs](http://localhost:8000/docs) (FastAPI Swagger UI)
 * **Star / Fork**: [https://github.com/kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion)
 
