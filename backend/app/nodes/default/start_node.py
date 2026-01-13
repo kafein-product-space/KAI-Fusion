@@ -1,11 +1,11 @@
 """Start Node - Entry point for workflows."""
 
 from typing import Dict, Any
-from app.nodes.base import ProcessorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
+from app.nodes.base import TerminatorNode, NodeMetadata, NodeInput, NodeOutput, NodeType
 from app.core.state import FlowState
 
 
-class StartNode(ProcessorNode):
+class StartNode(TerminatorNode):
     """
     Start node serves as the entry point for workflows.
     It receives initial input and forwards it to connected nodes.
@@ -17,7 +17,7 @@ class StartNode(ProcessorNode):
             "name": "StartNode",
             "display_name": "Start",
             "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
-            "node_type": NodeType.PROCESSOR,
+            "node_type": NodeType.TERMINATOR,
             "category": "Special",
             "inputs": [
                 NodeInput(

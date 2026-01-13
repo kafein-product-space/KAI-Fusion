@@ -7,7 +7,9 @@
 ![GitHub forks](https://img.shields.io/github/forks/kafein-product-space/KAI-Fusion?style=social)
 ![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)
 
-KAI‑Fusion is an open‑source, Flowise‑like visual workflow builder. It ships with a **Python FastAPI** backend, a **React (Vite)** frontend, and a **PostgreSQL** database. You can self‑host locally with Docker or run a classic dev stack (Python venv + Node + Postgres).
+KAI‑Fusion is an open‑source, visual workflow builder for AI agents. It features a robust **Python 3.11 (FastAPI 0.116)** backend with **LangChain** and **LangGraph**, a modern **React 19.1 (React Router 7, Vite 6.3, Tailwind 4, DaisyUI 5)** frontend, and uses **PostgreSQL** with **pgvector** for persistence.
+
+You can run the full stack locally using Docker (with an external DB) or set up a development environment with Python and Node.js.
 
 ---
 
@@ -61,7 +63,7 @@ KAI‑Fusion is an open‑source, Flowise‑like visual workflow builder. It shi
 
 **Prerequisites**
 
-* **Python** ≥ 3.10
+* **Python** = 3.11
 * **Node.js** ≥ 18.15 (Vite)
 * **Docker** & **Docker Compose**
 
@@ -188,7 +190,7 @@ pip install -r backend/requirements.txt
 ### Option B — Conda
 
 ```bash
-conda create -n kai-fusion python=3.10 -y
+conda create -n kai-fusion python=3.11 -y
 conda activate kai-fusion
 pip install -r backend/requirements.txt
 ```
@@ -213,6 +215,15 @@ cd client
 npm install
 npm run dev
 # Open the printed Vite URL (e.g. http://localhost:5173)
+```
+
+### Widget (Embeddable)
+A standalone chat widget for embedding KAI-Fusion agents into other sites.
+
+```bash
+cd widget
+npm install
+npm run dev
 ```
 
 ---
@@ -248,6 +259,7 @@ Create the folder: `.vscode/` at the repository root and add `launch.json`:
 If your repo includes a `docker-compose.yml` at the root, simply run:
 
 ```bash
+# Start Backend and Frontend
 docker compose up -d
 ```
 
@@ -281,30 +293,58 @@ docker run -d --name kai-fusion \
 
 ```
 KAI-Fusion/
-├─ backend/
-│  ├─ app.py                # FastAPI entrypoint
-│  ├─ requirements.txt
-│  ├─ .env                  # Backend runtime env
-│  └─ migrations/
-│     ├─ database_setup.py  # Initializes DB schema
-│     └─ .env               # Migrations env
-├─ client/
-│  ├─ src/
-│  ├─ index.html
-│  └─ .env                  # Frontend env
-├─ docker/                  # (Optional) Docker files
-├─ .vscode/
-│  └─ launch.json
+├─ backend/                 # FastAPI 0.116 Backend (Python 3.11)
+│  ├─ app/
+│  │  ├─ api/               # REST API endpoints
+│  │  ├─ nodes/             # Workflow node definitions
+│  │  │  ├─ agents/         # AI Agent nodes
+│  │  │  ├─ llms/           # LLM provider nodes
+│  │  │  ├─ tools/          # Tool nodes (web search, code, etc.)
+│  │  │  ├─ memory/         # Memory/context nodes
+│  │  │  ├─ embeddings/     # Embedding nodes
+│  │  │  ├─ vector_stores/  # Vector store nodes
+│  │  │  ├─ splitters/      # Text splitter nodes
+│  │  │  ├─ triggers/       # Workflow trigger nodes
+│  │  │  └─ document_loaders/
+│  │  ├─ services/          # Business logic services
+│  │  ├─ models/            # Database models
+│  │  └─ core/              # Core utilities (graph builder, etc.)
+│  ├─ migrations/           # DB setup scripts
+│  ├─ main.py               # Application entrypoint
+│  └─ requirements.txt      # Python dependencies
+├─ client/                  # React 19.1 Frontend
+│  ├─ app/
+│  │  ├─ components/        # React components
+│  │  │  ├─ canvas/         # Workflow canvas components
+│  │  │  ├─ nodes/          # Node UI components
+│  │  │  └─ modals/         # Configuration modals
+│  │  ├─ routes/            # Page routes
+│  │  ├─ services/          # API service layer
+│  │  ├─ stores/            # Zustand state stores
+│  │  └─ lib/               # Utilities
+│  ├─ package.json          # React Router 7, Vite 6.3
+│  └─ vite.config.ts
+├─ widget/                  # Embeddable Chat Widget (@kaifusion/widget)
+│  ├─ src/                  # Widget source
+│  ├─ widget.js             # Pre-built widget bundle
+│  └─ package.json          # v1.0.6
+├─ docs/                    # Documentation
+├─ docker-compose.yml       # Backend, Frontend, Widget services
+└─ README.md
 ```
 
 ---
 
 ## ✨ App Overview (What you can build)
 
-* **Visual AI Workflows**: Drag‑and‑drop nodes (LLM, tools, retrievers, memory, agents). Wire inputs/outputs, set parameters, and persist runs.
-* **Observability**: Toggle **LangChain/LangSmith** tracing using the env flags provided (great for debugging prompts and tool calls).
-* **PostgreSQL Persistence**: Store workflows, runs, artifacts, and user data in Postgres.
-* **REST API**: The backend exposes API routes under `/api/v1` (see Swagger UI at `/docs`).
+* **Visual Workflow Builder**: Drag-and-drop interface powered by XYFlow 12 for creating AI agents and chains.
+* **Modern Tech Stack**: React 19.1, React Router 7, Vite 6.3, Tailwind 4.1, DaisyUI 5 (Frontend) + FastAPI 0.116, LangChain 0.3, LangGraph 0.6 (Backend).
+* **AI/ML Framework**: Integrated LangChain, LangGraph, and LangSmith for building and debugging complex agent flows.
+* **Vector Database**: PostgreSQL with pgvector for embedding storage and semantic search.
+* **Node Types**: LLMs, Agents, Tools (Web Search, Code Execution), Memory, Embeddings, Vector Stores, Document Loaders, Text Splitters, Triggers.
+* **Embeddable Widget**: Export your agents as an embeddable widget (`@kaifusion/widget` on npm).
+* **Secure**: JWT-based authentication with Keycloak integration support.
+* **Scheduling**: Built-in cron-based workflow scheduling with APScheduler.
 
 ---
 
