@@ -64,8 +64,11 @@ services:
         VITE_KEYCLOAK_REALM: ${VITE_KEYCLOAK_REALM}
         VITE_KEYCLOAK_CLIENT_ID: ${VITE_KEYCLOAK_CLIENT_ID}
     container_name: kai-fusion-frontend
+    ports:
+      - "23058:3000"
     environment:
-      VITE_API_BASE_URL: /api/kai
+      VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_BASE_PATH: ${VITE_BASE_PATH}
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
