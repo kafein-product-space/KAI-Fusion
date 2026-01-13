@@ -5,5 +5,5 @@ export default {
   // Server-side render by default, to enable SPA mode set this to `false`
   // Server-side render by default, to enable SPA mode set this to `false`
   ssr: true,
-  basename: "/kai",
+  basename: process.env.VITE_BASE_PATH || "/kai",
 } satisfies Config;

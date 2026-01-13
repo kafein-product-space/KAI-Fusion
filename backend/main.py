@@ -80,7 +80,7 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-from app.core.constants import PORT
+from app.core.constants import PORT, ROOT_PATH
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
@@ -174,7 +174,7 @@ app = FastAPI(
     docs_url="/docs",
     redoc_url="/redoc",
     lifespan=lifespan,
-    root_path="/api/kai"
+    root_path=ROOT_PATH
 )
 
 # Serve embeddable widget assets from the backend (e.g. /widget/widget.js)

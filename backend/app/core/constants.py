@@ -113,6 +113,7 @@ if env_file.exists():
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
 PORT = int(os.getenv("BACKEND_PORT"))
+ROOT_PATH = os.getenv("ROOT_PATH")
 
 # Database Settings
 DATABASE_URL = os.getenv("DATABASE_URL")

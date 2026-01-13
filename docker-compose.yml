@@ -12,6 +12,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       BACKEND_PORT: ${BACKEND_PORT:-23056}
       BACKEND_DEBUG: ${BACKEND_DEBUG:-true}
+      ROOT_PATH: ${ROOT_PATH}
 
       # Database Settings
       CREATE_DATABASE: ${CREATE_DATABASE}
@@ -56,6 +57,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_API_VERSION: ${VITE_API_VERSION}
+        VITE_BASE_PATH: ${VITE_BASE_PATH}
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
@@ -76,18 +78,7 @@ services:
     depends_on:
       - kaifusion-be
 
-  nginx:
-    image: nginx:alpine
-    container_name: kai-fusion-nginx
-    volumes:
-      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
-    ports:
-      - "80:80"
-    depends_on:
-      - kaifusion-fe
-      - kaifusion-be
-    networks:
-      - kai_network
+
 
   kai-widget:
     build:
