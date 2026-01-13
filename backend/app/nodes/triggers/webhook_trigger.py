@@ -113,13 +113,20 @@ async def webhook_router_health():
         "message": "Webhook router is operational"
     }
 
+# Test webhook router (with frontend streaming enabled)
+webhook_test_router = APIRouter(prefix="/api/v1/webhook-test", tags=["webhooks-test"])
+
+# Production webhook router (without frontend streaming)
+webhook_production_router = APIRouter(prefix="/api/v1/webhook", tags=["webhooks-production"])
+
 # Catch-all webhook handler for all HTTP methods
 async def handle_webhook_request(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
-) -> WebhookResponse:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    enable_frontend_stream: bool = True
+) -> WebhookResponse | JSONResponse | HTMLResponse | PlainTextResponse | Response:
     """Handle incoming webhook requests for any HTTP method."""
     
     # Check if webhook exists, create if not (for dynamic webhook support)
@@ -312,7 +319,7 @@ async def handle_webhook_request(
                             
                             # Broadcast event to UI via webhook subscribers
                             # This allows UI to visualize execution in real-time
-                            if webhook_id in webhook_subscribers:
+                            if enable_frontend_stream and webhook_id in webhook_subscribers:
                                 # Make event_chunk serializable before creating UI event
                                 serializable_event_chunk = make_json_serializable(event_chunk)
 
@@ -572,64 +579,64 @@ async def handle_webhook_request(
             detail=f"Webhook processing failed: {str(e)}"
         )
 
-# Register catch-all routes for all HTTP methods
-@webhook_router.get("/{webhook_id}")
-async def get_webhook(
+# Register catch-all routes for all HTTP methods - TEST ROUTER
+@webhook_test_router.get("/{webhook_id}")
+async def get_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.post("/{webhook_id}")
-async def post_webhook(
+@webhook_test_router.post("/{webhook_id}")
+async def post_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.put("/{webhook_id}")
-async def put_webhook(
+@webhook_test_router.put("/{webhook_id}")
+async def put_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.patch("/{webhook_id}")
-async def patch_webhook(
+@webhook_test_router.patch("/{webhook_id}")
+async def patch_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.delete("/{webhook_id}")
-async def delete_webhook(
+@webhook_test_router.delete("/{webhook_id}")
+async def delete_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.head("/{webhook_id}")
-async def head_webhook(
+@webhook_test_router.head("/{webhook_id}")
+async def head_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-# Webhook streaming endpoint
-@webhook_router.get("/{webhook_id}/stream")
-async def webhook_stream(webhook_id: str):
+# Webhook streaming endpoint - TEST ROUTER
+@webhook_test_router.get("/{webhook_id}/stream")
+async def webhook_stream_test(webhook_id: str):
     """Stream webhook events for a specific webhook"""
     # Auto-create webhook entry if it doesn't exist (for UI connections)
     if webhook_id not in webhook_events:
@@ -689,6 +696,88 @@ async def webhook_stream(webhook_id: str):
         finally:
             if webhook_id in webhook_subscribers and queue in webhook_subscribers[webhook_id]:
                 webhook_subscribers[webhook_id].remove(queue)
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+# Register catch-all routes for all HTTP methods - PRODUCTION ROUTER
+@webhook_production_router.get("/{webhook_id}")
+async def get_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.post("/{webhook_id}")
+async def post_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.put("/{webhook_id}")
+async def put_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.patch("/{webhook_id}")
+async def patch_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.delete("/{webhook_id}")
+async def delete_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.head("/{webhook_id}")
+async def head_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+# Webhook streaming endpoint - PRODUCTION ROUTER (empty stream, no frontend events)
+@webhook_production_router.get("/{webhook_id}/stream")
+async def webhook_stream_production(webhook_id: str):
+    """Stream webhook events for production (empty stream, frontend streaming disabled)"""
+    async def event_stream():
+        # Send initial connection message
+        yield f"data: {json.dumps({'type': 'connected', 'webhook_id': webhook_id, 'message': 'Production webhook - streaming disabled', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+        
+        # Keep connection alive with pings only, no actual events
+        while True:
+            try:
+                await asyncio.sleep(30.0)
+                yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+            except asyncio.CancelledError:
+                break
     
     return StreamingResponse(
         event_stream(),
@@ -798,7 +887,7 @@ class WebhookTriggerNode(TerminatorNode):
             "display_name": "Webhook Trigger",
             "description": (
                 "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). "
-                f"Send requests to /api/v1/webhooks{self.endpoint_path} with optional JSON payload."
+                f"Send requests to /api/v1/webhook{self.endpoint_path} with optional JSON payload."
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
@@ -894,11 +983,24 @@ class WebhookTriggerNode(TerminatorNode):
                     tabName="basic"
                 ),
                 NodeProperty(
+                    name="webhook_environment",
+                    displayName="Environment",
+                    type=NodePropertyType.SELECT,
+                    default="test",
+                    options=[
+                        {"label": "Test", "value": "test"},
+                        {"label": "Production", "value": "production"},
+                    ],
+                    hint="Test environment supports frontend streaming, Production does not",
+                    required=True,
+                    tabName="basic"
+                ),
+                NodeProperty(
                     name="webhook_exact_url",
                     displayName="Exact Webhook URL",
                     type=NodePropertyType.READONLY_TEXT,
                     placeholder="Full webhook URL will be displayed here and can be copied",
-                    hint="This field is read-only and automatically updates based on the Path field",
+                    hint="This field is read-only and automatically updates based on the Path and Environment fields",
                     required=False,
                     tabName="basic",
                     colSpan=2,
@@ -1039,7 +1141,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/api/v1/webhook{self.endpoint_path}")
         
         webhook_data = {
             "payload": webhook_payload,
@@ -1093,7 +1195,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/api/v1/webhook{self.endpoint_path}")
         
         webhook_config = {
             "webhook_id": self.webhook_id,
@@ -1748,6 +1850,8 @@ __all__ = [
     "WebhookPayload", 
     "WebhookResponse",
     "webhook_router",
+    "webhook_test_router",
+    "webhook_production_router",
     "get_active_webhooks",
     "cleanup_webhook_events",
     "find_workflow"

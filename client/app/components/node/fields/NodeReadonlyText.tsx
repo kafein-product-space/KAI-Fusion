@@ -15,12 +15,13 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
       const pathValue = (values?.path || "").trim();
       if (pathValue) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL;
-        const prefix = "/api/v1/webhooks";
+        const environment = values?.webhook_environment || "test";
+        const prefix = environment === "production" ? "/api/v1/webhook" : "/api/v1/webhook-test";
         return `${baseUrl}${prefix}/${pathValue}`;
       }
     }
     return null;
-  }, [property.name, values?.path]);
+  }, [property.name, values?.path, values?.webhook_environment]);
 
   // Değer hesaplama: computed value varsa onu kullan, yoksa values veya default
   const value: string = useMemo(() => {

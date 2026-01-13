@@ -104,7 +104,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_3f3fead612b4",
                     workflow_id=None,  # Will be set when workflow is associated
                     node_id="WebhookTrigger-1",
-                    endpoint_path="/api/v1/webhooks/wh_3f3fead612b4",
+                    endpoint_path="/api/v1/webhook/wh_3f3fead612b4",
                     secret_token="webhook_token_123",
                     config={
                         "authentication_required": True,
@@ -121,7 +121,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_second_workflow_123",
                     workflow_id=None,
                     node_id="WebhookTrigger-2", 
-                    endpoint_path="/api/v1/webhooks/wh_second_workflow_123",
+                    endpoint_path="/api/v1/webhook/wh_second_workflow_123",
                     secret_token="webhook_token_456",
                     config={
                         "authentication_required": True,
@@ -138,7 +138,7 @@ async def insert_test_webhook_endpoints():
                     webhook_id="wh_http_scraping_test_456",
                     workflow_id=None,
                     node_id="WebhookTrigger-3",
-                    endpoint_path="/api/v1/webhooks/wh_http_scraping_test_456", 
+                    endpoint_path="/api/v1/webhook/wh_http_scraping_test_456", 
                     secret_token="http_scraping_token_789",
                     config={
                         "authentication_required": True,

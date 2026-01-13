@@ -1919,7 +1919,7 @@ function useWebhookExecutionListener(
       }
 
       try {
-        const streamUrl = `${baseUrl}/api/v1/webhooks/${webhookId}/stream`;
+        const streamUrl = `${baseUrl}/api/v1/webhook-test/${webhookId}/stream`;
         const eventSource = new EventSource(streamUrl);
 
         eventSource.onerror = (error) => {
