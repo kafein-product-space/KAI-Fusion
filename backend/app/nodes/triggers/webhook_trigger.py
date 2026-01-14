@@ -11,6 +11,7 @@ Webhook Trigger Node - Inbound REST API Integration
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
@@ -21,7 +22,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Any, Dict, List, Optional, AsyncGenerator
 from urllib.parse import urljoin
 
-from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks, Response
+from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks, Response, status
 from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, PlainTextResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel, Field
@@ -33,6 +34,7 @@ from sqlalchemy import select, text, bindparam
 from ..base import TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePropertyType
 from app.core.database import get_db_session_context
 from app.core.json_utils import make_json_serializable
+from app.core.credential_provider import credential_provider
 from app.models.workflow import Workflow
 from app.services.workflow_executor import (
     get_workflow_executor
@@ -99,6 +101,102 @@ async def find_workflow(
     logger.warning(f"Workflow not found: webhook_id={webhook_id}")
     return None
 
+async def get_webhook_auth_config(
+    db: AsyncSession,
+    webhook_id: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Get authentication configuration for a webhook from workflow node data.
+    
+    Args:
+        db: Database session
+        webhook_id: Webhook ID to lookup workflow
+        
+    Returns:
+        Dict with authentication_type, credential_id, and other auth config, or None
+    """
+    try:
+        workflow = await find_workflow(db, webhook_id)
+        if not workflow or not workflow.flow_data:
+            return None
+        
+        nodes = workflow.flow_data.get("nodes", [])
+        for node in nodes:
+            if node.get("type") == "WebhookTrigger":
+                node_data = node.get("data", {})
+                authentication_type = node_data.get("authentication_type")
+                basic_auth_credential_id = node_data.get("basic_auth_credential_id")
+                header_auth_credential_id = node_data.get("header_auth_credential_id")
+
+                # Build auth_config from node_data
+                auth_config = {}
+                if authentication_type:
+                    auth_config["authentication_type"] = authentication_type
+                    if authentication_type == "basic_auth":
+                        auth_config["basic_auth_credential_id"] = basic_auth_credential_id or ""
+                    elif authentication_type == "header_auth":
+                        auth_config["header_auth_credential_id"] = header_auth_credential_id or ""
+                return auth_config if auth_config.get("authentication_type") != "none" else None
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Error getting webhook auth config for {webhook_id}: {e}", exc_info=True)
+        return None
+
+def validate_basic_auth(request: Request, credential_data: Dict[str, Any]) -> bool:
+    """
+    Validate Basic Auth from Authorization header.
+    
+    Args:
+        request: FastAPI Request object
+        credential_data: Decrypted credential data with username and password
+        
+    Returns:
+        True if authentication is valid, False otherwise
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Basic "):
+        return False
+    
+    try:
+        encoded = auth_header.replace("Basic ", "").strip()
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        
+        secret = credential_data.get("secret", {})
+        expected_username = secret.get("username")
+        expected_password = secret.get("password")
+        
+        if not expected_username or not expected_password:
+            logger.warning("Basic Auth credential missing username or password")
+            return False
+        
+        return username == expected_username and password == expected_password
+    except Exception as e:
+        logger.warning(f"Basic Auth validation failed: {e}")
+        return False
+
+def validate_header_auth(request: Request, credential_data: Dict[str, Any]) -> bool:
+    """
+    Validate Header Auth from custom header.
+    
+    Args:
+        request: FastAPI Request object
+        credential_data: Decrypted credential data with header_value
+        
+    Returns:
+        True if authentication is valid, False otherwise
+    """
+    secret = credential_data.get("secret", {})
+    header_name = secret.get("header_name")
+    expected_value = secret.get("header_value")
+    header_value = request.headers.get(header_name)
+
+    if not header_value or not expected_value:
+        return False
+    
+    return header_value == expected_value
+
 # Global webhook router (will be included in main FastAPI app)
 webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
 
@@ -140,6 +238,97 @@ async def handle_webhook_request(
     received_at = datetime.now(timezone.utc)
     
     try:
+        async with get_db_session_context() as session:
+            auth_config = await get_webhook_auth_config(session, webhook_id)
+            
+            if auth_config:
+                auth_type = auth_config.get("authentication_type", "none")
+                
+                # Get workflow once for all auth types
+                workflow = await find_workflow(session, webhook_id)
+                if not workflow or not workflow.user_id:
+                    logger.warning(f"Workflow not found or missing user_id for webhook {webhook_id}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Webhook authentication configuration not found",
+                    )
+                
+                user_id = workflow.user_id
+                if isinstance(user_id, str):
+                    user_id = uuid.UUID(user_id)
+                
+                if auth_type == "basic_auth":
+                    credential_id = auth_config.get("basic_auth_credential_id")
+                    if not credential_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Basic Auth credential not configured",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                        
+                    try:
+                        credential = await credential_provider.get_credential(
+                            uuid.UUID(credential_id),
+                            user_id,
+                            "basic_auth"
+                        )
+                        if not credential or not validate_basic_auth(request, credential):
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Basic authentication failed",
+                                headers={"WWW-Authenticate": "Basic"},
+                            )
+                    except ValueError:
+                        logger.warning(f"Invalid credential_id format: {credential_id}")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid credential configuration",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error validating Basic Auth: {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Authentication failed",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                
+                elif auth_type == "header_auth":
+                    credential_id = auth_config.get("header_auth_credential_id")
+                    if not credential_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Header Auth credential not configured",
+                        )
+                   
+                    try:
+                        credential = await credential_provider.get_credential(
+                            uuid.UUID(credential_id),
+                            user_id,
+                            "header_auth"
+                        )
+                        if not credential or not validate_header_auth(request, credential):
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Header authentication failed",
+                            )
+                    except ValueError:
+                        logger.warning(f"Invalid credential_id format: {credential_id}")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid credential configuration",
+                        )
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error validating Header Auth: {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Authentication failed",
+                        )
+  
         # Parse request body based on HTTP method and content
         payload_data = {}
         event_type = "webhook.received"
@@ -902,10 +1091,10 @@ class WebhookTriggerNode(TerminatorNode):
                     required=False,
                 ),
                 NodeInput(
-                    name="authentication_required",
-                    type="boolean",
-                    description="Require bearer token authentication",
-                    default=True,
+                    name="authentication_type",
+                    type="select",
+                    description="Authentication type for webhook requests",
+                    default="none",
                     required=False,
                 ),
                 NodeInput(
@@ -1023,24 +1212,42 @@ class WebhookTriggerNode(TerminatorNode):
                     tabName="basic"
                 ),
                 NodeProperty(
-                    name="authentication_required",
-                    displayName="Authentication Required",
+                    name="authentication_type",
+                    displayName="Authentication Type",
                     type=NodePropertyType.SELECT,
-                    default="true",
+                    default="none",
                     options=[
-                        {"label": "Yes", "value": "true"},
-                        {"label": "No", "value": "false"},
+                        {"label": "None", "value": "none"},
+                        {"label": "Basic Auth", "value": "basic_auth"},
+                        {"label": "Header Auth", "value": "header_auth"},
                     ],
-                    description="Require bearer token authentication",
+                    description="Select authentication method for webhook requests",
                     required=True,
                     tabName="basic"
                 ),
                 NodeProperty(
-                    name="allowed_event_types",
-                    displayName="Allowed Event Types",
-                    type=NodePropertyType.TEXT_AREA,
-                    placeholder="user.created, order.completed, data.updated (comma-separated, empty = all)",
-                    tabName="basic"
+                    name="basic_auth_credential_id",
+                    displayName="Basic Auth Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    serviceType="basic_auth",
+                    description="Credential containing username and password for Basic Auth",
+                    required=False,
+                    tabName="basic",
+                    displayOptions={
+                        "show": {"authentication_type": "basic_auth"}
+                    }
+                ),
+                NodeProperty(
+                    name="header_auth_credential_id",
+                    displayName="Header Auth Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    serviceType="header_auth",
+                    description="Credential containing header value for Header Auth",
+                    required=False,
+                    tabName="basic",
+                    displayOptions={
+                        "show": {"authentication_type": "header_auth"}
+                    }
                 ),
 
                 # Security Tab
@@ -1172,7 +1379,7 @@ class WebhookTriggerNode(TerminatorNode):
             "webhook_config": {
                 "webhook_id": self.webhook_id,
                 "endpoint_url": full_endpoint,
-                "authentication_required": self.user_data.get("authentication_required", True),
+                "authentication_type": self.user_data.get("authentication_type", "none"),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             },
             "output": initial_input,
@@ -1197,13 +1404,14 @@ class WebhookTriggerNode(TerminatorNode):
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
         full_endpoint = urljoin(base_url, f"/api/v1/webhook{self.endpoint_path}")
         
+        authentication_type = kwargs.get("authentication_type", "none")
         webhook_config = {
             "webhook_id": self.webhook_id,
             "endpoint_url": full_endpoint,
             "endpoint_path": f"/api/webhooks{self.endpoint_path}",
             "http_method": kwargs.get("http_method", "POST").upper(),
-            "authentication_required": kwargs.get("authentication_required", True),
-            "secret_token": self.secret_token if kwargs.get("authentication_required", True) else None,
+            "authentication_type": authentication_type,
+            "secret_token": self.secret_token if authentication_type != "none" else None,
             "allowed_event_types": kwargs.get("allowed_event_types", ""),
             "max_payload_size_kb": kwargs.get("max_payload_size", 1024),
             "rate_limit_per_minute": kwargs.get("rate_limit_per_minute", 60),

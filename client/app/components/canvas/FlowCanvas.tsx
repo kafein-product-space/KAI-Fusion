@@ -1604,7 +1604,7 @@ function useChatExecutionListener(
     };
 
     const handleChatExecutionEvent = (event: CustomEvent) => {
-      const { event: eventType, node_id } = event.detail;
+      const { event: eventType, node_id, ...data} = event.detail;
 
       if (eventType === "node_start" && node_id) {
         // PRIORITY 1: Exact ID match (most reliable)

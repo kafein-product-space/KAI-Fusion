@@ -27,7 +27,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
           <div className="w-6 h-6 flex items-center justify-center">
             {!iconFailed && (
               <img
-                src={`/icons/${credential.service_type}.svg`}
+                src={`/icons/${serviceDefinition?.icon}`}
                 alt={`${
                   serviceDefinition?.name || credential.service_type
                 } logo`}

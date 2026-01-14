@@ -295,6 +295,12 @@ class NodeProperty(BaseModel):
         default=4,
         description="Number of rows for textarea"
     )
+    
+    serviceType: Optional[str] = Field(
+        default=None,
+        description="Service type for credential-select fields (e.g., 'basic_auth', 'openai', 'cohere')",
+        alias="serviceType"
+    )
 
     @field_validator('displayName', mode='before')
     def default_display_name(cls, v, info):
