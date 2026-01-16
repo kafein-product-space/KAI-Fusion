@@ -1,6 +1,6 @@
-# KAI‑Fusion
-
-**Build AI Agents & Workflows, Visually — Python backend • React frontend • PostgreSQL**
+<p>
+  <img src="./banner.png" alt="KAI‑Fusion Banner" width="100%" />
+</p>
 
 [![License](https://img.shields.io/github/license/kafein-product-space/KAI-Fusion)](./LICENSE)
 ![GitHub Repo stars](https://img.shields.io/github/stars/kafein-product-space/KAI-Fusion?style=social)
@@ -24,7 +24,7 @@ You can run the full stack locally using Docker (with an external DB) or set up 
 <!-- Screenshot -->
 
 <p>
-  <img src="https://github.com/kafein-product-space/KAI-Fusion/blob/readme/demo.png?raw=1" alt="KAI‑Fusion Demo" width="100%" />
+  <img src="./demo.png" alt="KAI‑Fusion Screenshot" width="100%" />
 </p>
 
 ---
@@ -379,12 +379,14 @@ We welcome PRs! Please:
   <img src="https://contrib.rocks/image?repo=kafein-product-space/KAI-Fusion" alt="Contributors" />
 </a>
 
+
+
 ### ⭐ Stargazers & 🍴 Forkers
 
-[![Stargazers repo roster for @kafein-product-space/KAI-Fusion](https://reporoster.com/stars/kafein-product-space/KAI-Fusion)](https://github.com/kafein-product-space/KAI-Fusion/stargazers)
-[![Forkers repo roster for @kafein-product-space/KAI-Fusion](https://reporoster.com/forks/kafein-product-space/KAI-Fusion)](https://github.com/kafein-product-space/KAI-Fusion/network/members)
+[⭐ Stargazers repo roster for @kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion/stargazers) 
 
----
+[🍴 Forkers repo roster for @kafein-product-space/KAI-Fusion](https://github.com/kafein-product-space/KAI-Fusion/network/members)
+
 
 ## 🆘 Troubleshooting
 
