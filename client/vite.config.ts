@@ -4,8 +4,10 @@ import { defineConfig } from "vite";
 import tsconfigPaths from "vite-tsconfig-paths";
 
 const isDev = process.env.NODE_ENV !== 'production';
+const basePath = process.env.VITE_BASE_PATH || '/kai';
 
 export default defineConfig({
+  base: basePath,
   plugins: [react(), tailwindcss(), tsconfigPaths()],
   build: {
     outDir: 'dist',
@@ -21,9 +23,10 @@ export default defineConfig({
   server: {
     ...(isDev && {
       proxy: {
-        '/api': {
+        '/api/kai': {
           target: process.env.VITE_API_BASE_URL || 'http://localhost:8000',
           changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/api\/kai/, ''),
           secure: false,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {
