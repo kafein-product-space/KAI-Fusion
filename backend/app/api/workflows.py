@@ -292,18 +292,17 @@ from typing import Any, Dict, Optional, AsyncGenerator, List
 from datetime import datetime, timedelta
 from sqlalchemy import and_
 
-from fastapi import APIRouter, HTTPException, Depends, Request, Body
+from fastapi import APIRouter, HTTPException, Depends, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
 from sqlalchemy import desc
 from app.models.execution import WorkflowExecution
 from app.core.engine import get_engine
-from app.core.database import get_db_session, get_db_session_context
+from app.core.database import get_db_session
 from app.auth.dependencies import get_current_user, get_optional_user, get_current_user_or_master_api_key
 from app.models.user import User
-from app.models.workflow import Workflow, WorkflowTemplate
+from app.models.workflow import WorkflowTemplate
 from app.schemas.workflow import (
     WorkflowCreate, 
     WorkflowUpdate, 
@@ -319,8 +318,9 @@ from app.services.chat_service import ChatService
 from app.schemas.chat import ChatMessageCreate
 from app.schemas.execution import WorkflowExecutionCreate, WorkflowExecutionUpdate
 from app.core.execution_queue import execution_queue
-from app.core.workflow_enhancer import get_workflow_enhancer
 from app.models.workflow import Workflow
+from app.services.workflow_executor import get_workflow_executor
+from app.core.json_utils import make_json_serializable
 from sqlalchemy.future import select
 
 logger = logging.getLogger(__name__)
@@ -828,27 +828,8 @@ class AdhocExecuteRequest(BaseModel):
     workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
 
 
-def _make_chunk_serializable(obj):
-    """Convert any object to a JSON-serializable format."""
-    from datetime import datetime, date
-    import uuid as uuid_mod
-    if obj is None or isinstance(obj, (bool, int, float, str)):
-        return obj
-    elif isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-    elif isinstance(obj, uuid_mod.UUID):
-        return str(obj)
-    elif isinstance(obj, (list, tuple)):
-        return [_make_chunk_serializable(item) for item in obj]
-    elif isinstance(obj, dict):
-        return {k: _make_chunk_serializable(v) for k, v in obj.items()}
-    elif hasattr(obj, 'model_dump'):
-        try:
-            return obj.model_dump()
-        except Exception:
-            return str(obj)
-    else:
-        return str(obj)
+# Use centralized JSON serialization utility
+_make_chunk_serializable = make_json_serializable
 @router.get("/dashboard/stats/")
 async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db_session),
@@ -926,7 +907,6 @@ async def execute_adhoc_workflow(
     request: Request,
     current_user: User = Depends(get_current_user_or_master_api_key),
     db: AsyncSession = Depends(get_db_session),
-    execution_service: ExecutionService = Depends(get_execution_service_dep)
 ):
     """
     Execute a workflow directly from flow data and stream the output.
@@ -942,233 +922,107 @@ async def execute_adhoc_workflow(
             detail="Authentication required"
         )
     
-    engine = get_engine()
+    executor = get_workflow_executor()
     chat_service = ChatService(db)
-    
-    # Enhanced workflow capabilities
-    workflow_enhancer = get_workflow_enhancer()
-    enhancer_context = workflow_enhancer.create_context_from_request(
-        req, current_user, is_internal_call
-    )
     
     # Use chatflow_id as session_id for memory persistence
     chatflow_id = uuid.UUID(req.chatflow_id) if req.chatflow_id else uuid.uuid4()
     session_id = req.session_id or str(chatflow_id)
     
-    # Handle user context for internal calls
-    if is_internal_call:
-        user_id = "webhook_system"  # Webhook system identifier
-        user_email = "webhook@system.internal"
-        user_context = {
-            "session_id": session_id,
-            "user_id": user_id,
-            "owner_id": user_id,
-            "user_email": user_email
-        }
-    else:
-        user_id = current_user.id
-        user_email = current_user.email
-        user_context = {
-            "session_id": session_id,
-            "user_id": str(user_id),
-            "owner_id": str(user_id),
-            "user_email": user_email
-        }
-
-    print(f"🔍 DEBUG: Received session_id: {req.session_id}")
-    print(f"🔍 DEBUG: Received chatflow_id: {req.chatflow_id}")
-    print(f"🔍 DEBUG: Final session_id: {session_id}")
-    
-    # 🔥 CRITICAL: session_id her zaman olmalı
+    # 🔥 CRITICAL: session_id must always be present
     if not session_id or session_id == 'None' or len(str(session_id).strip()) == 0:
         session_id = str(chatflow_id)
-        print(f"⚠️  Invalid session_id in workflow execution, using chatflow_id: {session_id}")
+        logger.warning(f"Invalid session_id in workflow execution, using chatflow_id: {session_id}")
     
     # Ensure session_id is consistent with chatflow_id
     if not req.session_id:
         session_id = str(chatflow_id)
-
-    # If flow_data is missing, try to fetch it using workflow_id
-    if not req.flow_data:
-        if not req.workflow_id:
-             raise HTTPException(status_code=400, detail="Either flow_data or workflow_id must be provided")
-        
-        try:            
-            # Fetch workflow to get flow_data
-            wf_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
-            wf_result = await db.execute(wf_query)
-            workflow_obj = wf_result.scalar_one_or_none()
-            
-            if not workflow_obj:
-                 raise HTTPException(status_code=404, detail=f"Workflow {req.workflow_id} not found")
-                 
-            # Check access
-            if workflow_obj.user_id != user_id and not workflow_obj.is_public:
-                 raise HTTPException(status_code=403, detail="Access denied")
-                 
-            req.flow_data = workflow_obj.flow_data
-            # Set owner_id from workflow owner
-            user_context["owner_id"] = str(workflow_obj.user_id)
-            logger.info(f"Fetched flow_data for workflow {req.workflow_id}, owner: {user_context['owner_id']}")
-            
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to fetch workflow flow_data: {e}")
-            raise HTTPException(status_code=500, detail=f"Failed to fetch workflow data: {str(e)}")
     
-    # --- EXECUTION KAYDI OLUŞTUR ---
-    execution = None
+    # Handle user for internal calls
+    if is_internal_call:
+        user = await executor.get_or_create_master_user(db)
+        user_id = user.id
+    else:
+        user = current_user
+        user_id = current_user.id
+    
+    # Get or create workflow object
+    workflow = None
     if req.workflow_id:
-        try:
-            # Workflow'ün var olup olmadığını kontrol et            
-            workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
-            workflow_result = await db.execute(workflow_query)
-            workflow = workflow_result.scalar_one_or_none()
-            
-            if not workflow:
-                logger.error(f"Workflow not found: {req.workflow_id}")
-                raise HTTPException(
-                    status_code=404, 
-                    detail=f"Workflow with ID {req.workflow_id} not found"
-                )
-            
-            # Workflow'ün kullanıcıya ait olup olmadığını kontrol et
-            if workflow.user_id != user_id and not workflow_obj.is_public:
-                logger.error(f"User {user_id} does not have access to workflow {req.workflow_id}")
-                raise HTTPException(
-                    status_code=403,
-                    detail="Access denied to this workflow"
-                )
-            
-            # Mevcut pending execution'ları kontrol et ve temizle
-            from app.models.execution import WorkflowExecution
-            existing_execution_query = select(WorkflowExecution).filter(
-                WorkflowExecution.workflow_id == uuid.UUID(req.workflow_id),
-                WorkflowExecution.user_id == user_id,
-                WorkflowExecution.status.in_(["pending", "running"])
-            ).order_by(WorkflowExecution.created_at.desc())
-            
-            existing_result = await db.execute(existing_execution_query)
-            existing_executions = existing_result.scalars().all()
-            
-            # Eski execution'ları temizle
-            for old_execution in existing_executions:
-                try:
-                    await db.delete(old_execution)
-                except Exception as delete_error:
-                    logger.warning(f"Failed to delete old execution {old_execution.id}: {delete_error}")
-            
-            await db.commit()
-            
-            # Yeni execution oluştur
-            execution_create = WorkflowExecutionCreate(
-                workflow_id=uuid.UUID(req.workflow_id),
-                user_id=user_id,
-                status="pending",
-                inputs={"input": req.input_text, "flow_data": req.flow_data}
-            )
-            
-            execution = await execution_service.create_execution(db, execution_in=execution_create)
-            logger.info(f"Created new execution {execution.id} for workflow {req.workflow_id}")
-                
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.error(f"Failed to create execution record: {e}", exc_info=True)
-            await db.rollback()
-            raise HTTPException(
-                status_code=500,
-                detail=f"Failed to create execution: {str(e)}"
-            )
-
-    # --- CHAT ENTEGRASYONU ---
-    # Skip chat message creation for webhook calls to avoid UUID validation issues
+        # Fetch workflow from database
+        workflow_query = select(Workflow).filter(Workflow.id == uuid.UUID(req.workflow_id))
+        workflow_result = await db.execute(workflow_query)
+        workflow = workflow_result.scalar_one_or_none()
+        
+        if not workflow:
+            raise HTTPException(status_code=404, detail=f"Workflow {req.workflow_id} not found")
+        
+        # Check access
+        if workflow.user_id != user_id and not workflow.is_public:
+            raise HTTPException(status_code=403, detail="Access denied")
+        
+        # Use workflow's flow_data if not provided
+        if not req.flow_data:
+            req.flow_data = workflow.flow_data
+    else:
+        # Create temporary workflow object for adhoc execution
+        # This allows us to use WorkflowExecutor even without a saved workflow
+        if not req.flow_data:
+            raise HTTPException(status_code=400, detail="Either flow_data or workflow_id must be provided")
+        
+        workflow = Workflow(
+            id=uuid.uuid4(),
+            name="Adhoc Execution",
+            description="Temporary workflow for adhoc execution",
+            flow_data=req.flow_data,
+            user_id=user_id,
+            is_public=False
+        )
+    
+    # Prepare execution context using WorkflowExecutor
+    ctx = await executor.prepare_execution_context(
+        db=db,
+        workflow=workflow,
+        execution_inputs={"input": req.input_text},
+        user=user,
+        session_id=session_id,
+        is_webhook=is_internal_call,
+        owner_id=workflow.user_id if req.workflow_id else user_id,
+    )
+    
+    # Create chat message (skip for webhook calls)
     if not is_internal_call:
         try:
             await chat_service.create_chat_message(ChatMessageCreate(
                 role="user",
                 content=req.input_text,
                 chatflow_id=chatflow_id,
-                user_id=user_id,  # user_id ekle
-                workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+                user_id=user_id,
+                workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None
             ))
         except Exception as e:
             logger.warning(f"Failed to create chat message: {e}")
-    else:
-        logger.debug("Skipping chat message creation for internal webhook call")
-
-    # Cache execution ID before potential session issues
-    execution_id = execution.id if execution else None
     
-    # Execution başlatıldığını işaretle
-    if execution:
-        try:
-            await execution_service.update_execution(
-                db,
-                execution_id,
-                WorkflowExecutionUpdate(status="running", started_at=datetime.utcnow())
-            )
-        except Exception as e:
-            logger.error(f"Failed to update execution status to running: {e}", exc_info=True)
-            # Use existing db session instead of creating new one to avoid connection leaks
-            try:
-                await db.rollback()  # Ensure clean state
-                await execution_service.update_execution(
-                    db,
-                    execution_id,
-                    WorkflowExecutionUpdate(
-                        status="failed",
-                        error_message=f"Failed to start execution: {str(e)}",
-                        completed_at=datetime.utcnow()
-                    )
-                )
-            except Exception as update_error:
-                logger.error(f"Failed to update execution status after start failure: {update_error}", exc_info=True)
-            return  # Early return to avoid further execution
-
+    # Execute workflow - this will handle execution tracking automatically
     try:
-        # Use enhanced build with dynamic capabilities
-        workflow_enhancer.enhanced_build(flow_data=req.flow_data, user_context=user_context)
-        
-        # Use enhanced execute with dynamic capabilities
-        result_stream = await workflow_enhancer.enhanced_execute(
-            inputs={"input": req.input_text},
-            stream=True,
-            user_context=user_context,
+        result_stream = await executor.execute_workflow(
+            ctx=ctx,
+            db=db,
+            stream=True,  # Always stream for this endpoint
         )
     except Exception as e:
-        logger.error(f"Error during graph build or execution: {e}", exc_info=True)
-        
-        # Execution hatası kaydet - Use cached execution_id to avoid detached instance issues
-        if execution_id:
-            try:
-                # Create new session for error handling to avoid session state issues
-                async with get_db_session_context() as error_db:
-                    await execution_service.update_execution(
-                        error_db,
-                        execution_id,
-                        WorkflowExecutionUpdate(
-                            status="failed",
-                            error_message=str(e),
-                            completed_at=datetime.utcnow()
-                        )
-                    )
-            except Exception as update_e:
-                logger.error(f"Failed to update execution status to failed: {update_e}", exc_info=True)
-        
+        logger.error(f"Workflow execution failed: {e}", exc_info=True)
         raise HTTPException(status_code=400, detail=f"Failed to run workflow: {e}")
-
-    # LLM cevabını almak için ilk chunk'ı yakala ve chat'e kaydet
+    
+    # Stream the results
     async def event_generator():
         llm_output = ""
         final_outputs = {}
-        execution_completed = False
         
         try:
             if not isinstance(result_stream, AsyncGenerator):
                 raise TypeError("Expected an async generator from the engine for streaming.")
-
+            
             async for chunk in result_stream:
                 if isinstance(chunk, dict):
                     if chunk.get("type") == "token":
@@ -1184,7 +1038,6 @@ async def execute_adhoc_workflow(
                             if "output" in result:
                                 llm_output += result["output"]
                             final_outputs.update(result)
-                        execution_completed = True
                 
                 # Make chunk serializable before JSON conversion
                 try:
@@ -1198,24 +1051,8 @@ async def execute_adhoc_workflow(
             logger.error(f"Streaming execution error: {e}", exc_info=True)
             error_data = {"event": "error", "data": str(e)}
             yield f"data: {json.dumps(error_data, ensure_ascii=False)}\n\n"
-            
-            # Execution hatası kaydet - Reuse existing session to avoid connection leaks
-            if execution_id:
-                try:
-                    # Use existing db session instead of creating new one
-                    await execution_service.update_execution(
-                        db,
-                        execution_id,
-                        WorkflowExecutionUpdate(
-                            status="failed",
-                            error_message=str(e),
-                            completed_at=datetime.utcnow()
-                        )
-                    )
-                except Exception as update_e:
-                    logger.error(f"Failed to update execution status to failed during streaming: {update_e}", exc_info=True)
         finally:
-            # LLM cevabını chat'e kaydet - skip for webhook calls
+            # Save LLM output to chat - skip for webhook calls
             if llm_output and not is_internal_call:
                 try:
                     await chat_service.create_chat_message(
@@ -1223,30 +1060,13 @@ async def execute_adhoc_workflow(
                             role="assistant",
                             content=llm_output,
                             chatflow_id=chatflow_id,
-                            user_id=user_id,  # user_id ekle
-                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None  # workflow_id ekle
+                            user_id=user_id,
+                            workflow_id=uuid.UUID(req.workflow_id) if req.workflow_id else None
                         )
                     )
                 except Exception as chat_error:
                     logger.warning(f"Failed to create assistant chat message: {chat_error}")
-            
-            # Execution başarıyla tamamlandığını kaydet - Reuse existing session to avoid connection leaks
-            if execution_id and execution_completed:
-                try:
-                    # Use existing db session instead of creating new one
-                    await execution_service.update_execution(
-                        db,
-                        execution_id,
-                        WorkflowExecutionUpdate(
-                            status="completed",
-                            outputs=final_outputs,
-                            completed_at=datetime.utcnow()
-                        )
-                    )
-                    logger.info(f"Execution {execution_id} completed successfully")
-                except Exception as update_e:
-                    logger.error(f"Failed to update execution status to completed: {update_e}", exc_info=True)
-
+                
     return StreamingResponse(
         event_generator(), 
         media_type="text/event-stream; charset=utf-8",

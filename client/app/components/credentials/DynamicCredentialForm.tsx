@@ -72,11 +72,20 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   };
   
   const formValues = useMemo(() => {
-    return {
+    const values: Record<string, any> = {
       api_key: initialValues.id,
       ...initialValues,
     };
-  }, [initialValues]);
+
+    // Apply service fields's default values to Formik state
+    service.fields.forEach((field) => {
+      if (values[field.name] === undefined && field.default !== undefined) {
+        values[field.name] = field.default;
+      }
+    });
+
+    return values;
+  }, [initialValues, service]);
 
   const renderField = (field: ServiceField) => {
     const commonProps = {
@@ -134,7 +143,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={`/icons/${service.id}.svg`}
+                  src={`/icons/${service.icon}`}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}

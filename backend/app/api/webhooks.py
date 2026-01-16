@@ -77,7 +77,7 @@ INTEGRATION PATTERNS:
 Basic Usage:
 ```bash
 # Create webhook endpoint
-curl -X POST /api/v1/webhooks \
+curl -X POST /api/v1/webhook \
   -H "Authorization: Bearer {token}" \
   -d '{"workflow_id": "uuid", "node_id": "node_123", "config": {...}}'
 
