@@ -109,11 +109,20 @@ env_file = backend_dir / '.env'
 if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
+# Also load from root directory (KAI-Fusion/.env) if it exists, to support user's config
+root_dir = backend_dir.parent
+root_env_file = root_dir / '.env'
+if root_env_file.exists():
+    load_dotenv(dotenv_path=root_env_file)
+else:
+    print("Root .env file not found")
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
 PORT = int(os.getenv("BACKEND_PORT"))
 ROOT_PATH = os.getenv("ROOT_PATH")
+SSL_KEYFILE = os.getenv("SSL_KEYFILE")
+SSL_CERTFILE = os.getenv("SSL_CERTFILE")
 
 # Database Settings
 DATABASE_URL = os.getenv("DATABASE_URL")

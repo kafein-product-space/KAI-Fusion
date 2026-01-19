@@ -7,11 +7,19 @@ interface Config {
 }
 
 const getConfig = (): Config => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
   const apiVersion = import.meta.env.VITE_API_VERSION;
   const appName = import.meta.env.VITE_APP_NAME;
   const env = import.meta.env.VITE_NODE_ENV;
   const enableLogging = import.meta.env.VITE_ENABLE_LOGGING === 'true';
+
+  // If frontend is accessed via HTTP and API is pointed to localhost HTTPS, 
+  // automatically downgrade to HTTP to match the backend's non-SSL state.
+  if (typeof window !== 'undefined' &&
+    window.location.protocol === 'http:' &&
+    apiBaseUrl?.startsWith('https://localhost')) {
+    apiBaseUrl = apiBaseUrl.replace('https://', 'http://');
+  }
 
   return {
     API_BASE_URL: apiBaseUrl,

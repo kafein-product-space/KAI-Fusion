@@ -80,7 +80,7 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-from app.core.constants import PORT, ROOT_PATH
+from app.core.constants import PORT, ROOT_PATH, SSL_KEYFILE, SSL_CERTFILE
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
@@ -410,10 +410,31 @@ async def root():
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(PORT),
-        reload=True,
-        log_level="info"
-    ) 
+    import os
+    
+    # Check if SSL files exist
+    ssl_ready = False
+    if SSL_KEYFILE and SSL_CERTFILE:
+        if os.path.exists(SSL_KEYFILE) and os.path.exists(SSL_CERTFILE):
+            ssl_ready = True
+        else:
+            logger.warning(f"SSL files not found: {SSL_KEYFILE} or {SSL_CERTFILE}. Falling back to HTTP.")
+
+    if ssl_ready:
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=int(PORT),
+            reload=True,
+            log_level="info",
+            ssl_keyfile=SSL_KEYFILE,
+            ssl_certfile=SSL_CERTFILE
+        )
+    else:
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=int(PORT),
+            reload=True,
+            log_level="info"
+        )
