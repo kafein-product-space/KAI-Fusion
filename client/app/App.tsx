@@ -25,7 +25,7 @@ const oidcConfig = {
     ? `${window.VITE_KEYCLOAK_URL}/realms/${window.VITE_KEYCLOAK_REALM}`
     : "",
   client_id: window.VITE_KEYCLOAK_CLIENT_ID || "",
-  redirect_uri: typeof window !== "undefined" ? window.location.origin : "",
+  redirect_uri: typeof window !== "undefined" ? `${window.location.origin}${window.VITE_BASE_PATH || ""}` : "",
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);
   },

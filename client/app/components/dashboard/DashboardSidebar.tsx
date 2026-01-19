@@ -216,7 +216,16 @@ const Sidebar = () => {
           await signOut(); // Clear local state first
           // Keycloak çıkışından sonra signin sayfasına yönlendirilebilmesi için post_logout_redirect_uri parametresi eklenebilir
           // Ancak oidc-client-ts bunu config'den alır.
-          await oidcAuth.signoutRedirect({ post_logout_redirect_uri: window.location.origin + "/signin" });
+          
+          const postLogoutRedirectUri = typeof window !== 'undefined'
+            ? `${window.location.origin}${
+                window.VITE_BASE_PATH && window.VITE_BASE_PATH !== "/"
+                  ? window.VITE_BASE_PATH
+                  : ""
+              }/signin`
+            : "";
+
+          await oidcAuth.signoutRedirect({ post_logout_redirect_uri: postLogoutRedirectUri });
       } else {
           // Normal logout
           await signOut();
