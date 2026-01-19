@@ -1,0 +1,9 @@
+window.VITE_BASE_PATH = "/kai";
+window.VITE_API_BASE_URL = "https://localhost:8000";
+window.VITE_KEYCLOAK_URL = "https://keycloak.dev.netfein.com";
+window.VITE_KEYCLOAK_CLIENT_ID = "agenticgroapp";
+window.VITE_KEYCLOAK_REALM = "agenticgro-dev";
+window.VITE_API_VERSION = "/api/v1";
+window.VITE_APP_NAME = "KAI Fusion";
+window.VITE_NODE_ENV = "development";
+window.VITE_ENABLE_LOGGING = "true";

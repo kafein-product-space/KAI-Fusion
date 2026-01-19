@@ -19,55 +19,56 @@ interface DraggableNodeProps {
 // Icon size is controlled by the container, not individual img elements
 // Fixed icon size - all icons will fit within this container
 const ICON_CONTAINER_SIZE = "w-8 h-8";
+const BASE_PATH = window.VITE_BASE_PATH;
 const nodeTypeIconMap: Record<string, ReactElement> = {
   // Flow Control
-  StartNode: <img src="icons/rocket.svg" alt="start" />,
-  start: <img src="icons/rocket.svg" alt="start" />,
-  TimerStart: <img src="icons/clock.svg" alt="timer" />,
-  EndNode: <img src="icons/flag.svg" alt="end" />,
-  ConditionalChain: <img src="icons/git-compare.svg" alt="conditional" />,
-  RouterChain: <img src="icons/git-branch.svg" alt="router" />,
+  StartNode: <img src={`${BASE_PATH}/icons/rocket.svg`} alt="start" />,
+  start: <img src={`${BASE_PATH}/icons/rocket.svg`} alt="start" />,
+  TimerStart: <img src={`${BASE_PATH}/icons/clock.svg`} alt="timer" />,
+  EndNode: <img src={`${BASE_PATH}/icons/flag.svg`} alt="end" />,
+  ConditionalChain: <img src={`${BASE_PATH}/icons/git-compare.svg`} alt="conditional" />,
+  RouterChain: <img src={`${BASE_PATH}/icons/git-branch.svg`} alt="router" />,
 
   // AI & Embedding
-  Agent: <img src="icons/bot.svg" alt="agent" />,
-  CohereEmbeddings: <img src="icons/cohere.svg" alt="cohere" />,
-  OpenAIEmbedder: <img src="icons/openai.svg" alt="openai" />,
+  Agent: <img src={`${BASE_PATH}/icons/bot.svg`} alt="agent" />,
+  CohereEmbeddings: <img src={`${BASE_PATH}/icons/cohere.svg`} alt="cohere" />,
+  OpenAIEmbedder: <img src={`${BASE_PATH}/icons/openai.svg`} alt="openai" />,
 
   // Memory
-  BufferMemory: <img src="icons/database.svg" alt="buffer-memory" />,
-  ConversationMemory: <img src="icons/message-circle.svg" alt="conversation-memory" />,
+  BufferMemory: <img src={`${BASE_PATH}/icons/database.svg`} alt="buffer-memory" />,
+  ConversationMemory: <img src={`${BASE_PATH}/icons/message-circle.svg`} alt="conversation-memory" />,
 
   // Documents & Data
-  TextDataLoader: <img src="icons/file-text.svg" alt="text-loader" />,
-  DocumentLoader: <img src="icons/file-input.svg" alt="document-loader" />,
-  ChunkSplitter: <img src="icons/scissors.svg" alt="chunk-splitter" />,
-  StringInputNode: <img src="icons/type.svg" alt="string-input" />,
-  PGVectorStore: <img src="icons/postgresql_vectorstore.svg" alt="pg-vectorstore" />,
-  VectorStoreOrchestrator: <img src="icons/postgresql_vectorstore.svg" alt="vectorstore-orchestrator" />,
-  IntelligentVectorStore: <img src="icons/postgresql_vectorstore.svg" alt="intelligent-vectorstore" />,
+  TextDataLoader: <img src={`${BASE_PATH}/icons/file-text.svg`} alt="text-loader" />,
+  DocumentLoader: <img src={`${BASE_PATH}/icons/file-input.svg`} alt="document-loader" />,
+  ChunkSplitter: <img src={`${BASE_PATH}/icons/scissors.svg`} alt="chunk-splitter" />,
+  StringInputNode: <img src={`${BASE_PATH}/icons/type.svg`} alt="string-input" />,
+  PGVectorStore: <img src={`${BASE_PATH}/icons/postgresql_vectorstore.svg`} alt="pg-vectorstore" />,
+  VectorStoreOrchestrator: <img src={`${BASE_PATH}/icons/postgresql_vectorstore.svg`} alt="vectorstore-orchestrator" />,
+  IntelligentVectorStore: <img src={`${BASE_PATH}/icons/postgresql_vectorstore.svg`} alt="intelligent-vectorstore" />,
 
   // Web & API
-  TavilySearch: <img src="icons/tavily-nonbrand.svg" alt="tavily-search" />,
-  WebScraper: <img src="icons/pickaxe.svg" alt="web-scraper" />,
-  HttpRequest: <img src="icons/globe.svg" alt="http-request" />,
-  WebhookTrigger: <img src="icons/webhook.svg" alt="webhook" />,
+  TavilySearch: <img src={`${BASE_PATH}/icons/tavily-nonbrand.svg`} alt="tavily-search" />,
+  WebScraper: <img src={`${BASE_PATH}/icons/pickaxe.svg`} alt="web-scraper" />,
+  HttpRequest: <img src={`${BASE_PATH}/icons/globe.svg`} alt="http-request" />,
+  WebhookTrigger: <img src={`${BASE_PATH}/icons/webhook.svg`} alt="webhook" />,
 
   // RAG & QA
-  RetrievalQA: <img src="icons/book-open.svg" alt="retrieval-qa" />,
-  Reranker: <img src="icons/cohere.svg" alt="reranker" />,
-  CohereRerankerProvider: <img src="icons/cohere.svg" alt="cohere-reranker" />,
-  RetrieverProvider: <img src="icons/file-stack.svg" alt="retriever-provider" />,
-  RetrieverNode: <img src="icons/search.svg" alt="retriever-node" />,
-  OpenAIEmbeddingsProvider: <img src="icons/openai.svg" alt="openai-embeddings-provider" />,
+  RetrievalQA: <img src={`${BASE_PATH}/icons/book-open.svg`} alt="retrieval-qa" />,
+  Reranker: <img src={`${BASE_PATH}/icons/cohere.svg`} alt="reranker" />,
+  CohereRerankerProvider: <img src={`${BASE_PATH}/icons/cohere.svg`} alt="cohere-reranker" />,
+  RetrieverProvider: <img src={`${BASE_PATH}/icons/file-stack.svg`} alt="retriever-provider" />,
+  RetrieverNode: <img src={`${BASE_PATH}/icons/search.svg`} alt="retriever-node" />,
+  OpenAIEmbeddingsProvider: <img src={`${BASE_PATH}/icons/openai.svg`} alt="openai-embeddings-provider" />,
 
   // LLM Providers
-  OpenAICompatibleNode: <img src="icons/openai.svg" alt="openai-compatible" />,
-  OpenAIChat: <img src="icons/openai.svg" alt="openai-chat" />,
-  OpenAIEmbeddings: <img src="icons/openai.svg" alt="openai-embeddings" />,
+  OpenAICompatibleNode: <img src={`${BASE_PATH}/icons/openai.svg`} alt="openai-compatible" />,
+  OpenAIChat: <img src={`${BASE_PATH}/icons/openai.svg`} alt="openai-chat" />,
+  OpenAIEmbeddings: <img src={`${BASE_PATH}/icons/openai.svg`} alt="openai-embeddings" />,
 
   // Processing Nodes
-  CodeNode: <img src="icons/code.svg" alt="code-node" />,
-  ConditionNode: <img src="icons/condition.svg" alt="condition-node" />,
+  CodeNode: <img src={`${BASE_PATH}/icons/code.svg`} alt="code-node" />,
+  ConditionNode: <img src={`${BASE_PATH}/icons/condition.svg`} alt="condition-node" />,
 
 
   RedisCache: (

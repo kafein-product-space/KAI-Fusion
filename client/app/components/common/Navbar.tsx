@@ -80,9 +80,9 @@ const Navbar: React.FC<NavbarProps> = ({
   }, [isDropdownOpen]);
 
   // Determine the base path from Vite env
-  const baseUrl = (import.meta.env.BASE_URL?.endsWith('/')
-    ? import.meta.env.BASE_URL.slice(0, -1)
-    : import.meta.env.BASE_URL) || "";
+  const baseUrl = (window.VITE_BASE_PATH?.endsWith('/')
+    ? window.VITE_BASE_PATH.slice(0, -1)
+    : window.VITE_BASE_PATH) || "";
 
   // Helper to prepend base url
   const getPath = (path: string) => `${baseUrl}${path}`;

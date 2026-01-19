@@ -21,10 +21,10 @@ import Variables from "./routes/variables";
 import Marketplace from "./routes/marketplace";
 
 const oidcConfig = {
-  authority: import.meta.env.VITE_KEYCLOAK_URL
-    ? `${import.meta.env.VITE_KEYCLOAK_URL}/realms/${import.meta.env.VITE_KEYCLOAK_REALM}`
+  authority: window.VITE_KEYCLOAK_URL
+    ? `${window.VITE_KEYCLOAK_URL}/realms/${window.VITE_KEYCLOAK_REALM}`
     : "",
-  client_id: import.meta.env.VITE_KEYCLOAK_CLIENT_ID || "",
+  client_id: window.VITE_KEYCLOAK_CLIENT_ID || "",
   redirect_uri: typeof window !== "undefined" ? window.location.origin : "",
   onSigninCallback: () => {
     window.history.replaceState({}, document.title, window.location.pathname);

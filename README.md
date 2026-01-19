@@ -222,7 +222,7 @@ $env:OPENSSL_CONF="C:\Program Files\Git\usr\ssl\openssl.cnf"; openssl req -x509 
 ### Run the Backend
 
 * **Via VS Code Debugger** (see next section), or
-* **Directly**: `python backend/app.py`
+* **Directly**: `python backend/main.py`
 
 ### Run the Frontend
 

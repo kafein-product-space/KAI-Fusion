@@ -1,5 +1,5 @@
 import axios, { type AxiosInstance, type AxiosResponse, type AxiosError } from 'axios';
-import { config, API_ENDPOINTS } from './config';
+import { API_ENDPOINTS } from './config';
 
 // API Response types
 export interface ApiResponse<T = any> {
@@ -63,7 +63,7 @@ class ApiClient {
   constructor() {
     // Create axios instance
     this.instance = axios.create({
-      baseURL: `${config.API_BASE_URL}${config.API_VERSION}`,
+      baseURL: `${window.VITE_API_BASE_URL}${window.VITE_API_VERSION}`,
       timeout: 120000, // 2 minutes timeout for long AI operations
       headers: {
         'Content-Type': 'application/json',
@@ -167,7 +167,7 @@ class ApiClient {
   }
 
   private handleError(error: AxiosError): ApiError {
-    if (config.ENABLE_LOGGING) {
+    if (window.VITE_ENABLE_LOGGING === 'true') {
       console.error('API Error:', error);
     }
   
@@ -247,7 +247,7 @@ class ApiClient {
   }
 
   getBaseURL(): string {
-    return `${config.API_BASE_URL}${config.API_VERSION}`;
+    return `${window.VITE_API_BASE_URL}${window.VITE_API_VERSION}`;
   }
 
   getAccessToken(): string | null {

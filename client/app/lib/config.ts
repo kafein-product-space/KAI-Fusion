@@ -7,11 +7,19 @@ interface Config {
 }
 
 const getConfig = (): Config => {
-  let apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const apiVersion = import.meta.env.VITE_API_VERSION;
-  const appName = import.meta.env.VITE_APP_NAME;
-  const env = import.meta.env.VITE_NODE_ENV;
-  const enableLogging = import.meta.env.VITE_ENABLE_LOGGING === 'true';
+  // Try to get values from window object (public/config.js) first, then fall back to env variables
+  const getGlobalValue = (key: string): any => {
+    if (typeof window !== 'undefined' && (window as any)[key]) {
+      return (window as any)[key];
+    }
+    return (import.meta as any).env[key];
+  };
+
+  let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
+  const apiVersion = getGlobalValue('VITE_API_VERSION');
+  const appName = getGlobalValue('VITE_APP_NAME');
+  const env = getGlobalValue('VITE_NODE_ENV');
+  const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
 
   // If frontend is accessed via HTTP and API is pointed to localhost HTTPS, 
   // automatically downgrade to HTTP to match the backend's non-SSL state.
