@@ -1,29 +1,3 @@
-interface Config {
-  API_BASE_URL: string;
-  API_VERSION: string;
-  APP_NAME: string;
-  ENVIRONMENT: 'development' | 'production' | 'testing';
-  ENABLE_LOGGING: boolean;
-}
-
-const getConfig = (): Config => {
-  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
-  const apiVersion = import.meta.env.VITE_API_VERSION;
-  const appName = import.meta.env.VITE_APP_NAME;
-  const env = import.meta.env.VITE_NODE_ENV;
-  const enableLogging = import.meta.env.VITE_ENABLE_LOGGING === 'true';
-
-  return {
-    API_BASE_URL: apiBaseUrl,
-    API_VERSION: apiVersion,
-    APP_NAME: appName,
-    ENVIRONMENT: env,
-    ENABLE_LOGGING: enableLogging,
-  };
-};
-
-export const config = getConfig();
-
 export const API_ENDPOINTS = {
   AUTH: {
     SIGNUP: '/auth/signup',
