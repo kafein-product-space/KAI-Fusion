@@ -6,4 +6,4 @@ window.VITE_KEYCLOAK_REALM = "agenticgro-dev";
 window.VITE_API_VERSION = "/api/v1";
 window.VITE_APP_NAME = "KAI Fusion";
 window.VITE_NODE_ENV = "development";
-window.VITE_ENABLE_LOGGING = "true";
+window.VITE_ENABLE_LOGGING = "true"; 
