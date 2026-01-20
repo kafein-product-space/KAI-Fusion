@@ -121,7 +121,8 @@ class CohereRerankerNode(ProviderNode):
                     displayName="Select Credential",
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
-                    required=False
+                    required=False,
+                    serviceType="cohere",
                 ),
                 NodeProperty(
                     name="model",

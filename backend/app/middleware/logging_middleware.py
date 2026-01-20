@@ -318,7 +318,8 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
             # Skip detection for legitimate endpoints (whitelist)
             whitelisted_paths = [
                 "/api/http-client/",
-                "/api/v1/webhooks/",
+                "/api/v1/webhook/",
+                "/api/v1/webhook-test/",
                 "/api/v1/nodes/",
                 "/api/v1/workflows/"
             ]

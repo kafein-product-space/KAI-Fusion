@@ -42,6 +42,17 @@ class ValidationEngine:
     def __init__(self, node_registry: NodeRegistry):
         self.node_registry = node_registry
         self._validation_stats = {}
+        
+        # Ensure node_registry has get_node method if it's a dict
+        if isinstance(self.node_registry, dict) and not hasattr(self.node_registry, 'get_node'):
+            # It's a dict, we need to wrap it or handle it
+            self._node_registry_dict = self.node_registry
+            # Monkey patch or use a helper method
+            self.get_node = lambda type_name: self._node_registry_dict.get(type_name)
+        else:
+            self.get_node = self.node_registry.get_node
+
+    # ... inside methods, use self.get_node(node_type) instead of self.node_registry.get_node(node_type)
     
     def validate_workflow(self, flow_data: Dict[str, Any]) -> ValidationResult:
         """
@@ -150,7 +161,9 @@ class ValidationEngine:
                     continue
                 
                 # Check if node type is registered
-                if not self.node_registry.get_node(node_type):
+                # node_registry.get_node() instead of node_registry.get_node
+                node_class = self.get_node(node_type)
+                if not node_class:
                     result.add_error(f"Unknown node type: {node_type}")
                     continue
                 
@@ -176,7 +189,7 @@ class ValidationEngine:
             node_data = node.get("data", {})
             
             # Get node class for validation
-            node_class = self.node_registry.get_node(node_type)
+            node_class = self.get_node(node_type)
             if not node_class:
                 return  # Already handled in _validate_nodes
             
@@ -535,20 +548,23 @@ class ValidationEngine:
         """
         try:
             # Check for required StartNode and EndNode
+            # WebhookTrigger nodes can also serve as entry points
             start_nodes = [n for n in nodes if n.get("type") == START_NODE_TYPE]
+            webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
+            entry_nodes = start_nodes + webhook_trigger_nodes
             end_nodes = [n for n in nodes if n.get("type") == END_NODE_TYPE]
             
-            if not start_nodes:
-                result.add_error("Workflow must contain at least one StartNode")
+            if not entry_nodes:
+                result.add_error("Workflow must contain at least one StartNode or WebhookTrigger node")
             
             if not end_nodes:
                 result.add_warning("No EndNode found - virtual EndNode will be created")
             
             # Check for multiple start nodes (allowed but should be noted)
-            if len(start_nodes) > 1:
-                result.add_warning(f"Workflow has {len(start_nodes)} StartNodes - ensure this is intentional")
+            if len(entry_nodes) > 1:
+                result.add_warning(f"Workflow has {len(start_nodes)} StartNode(s) and {len(webhook_trigger_nodes)} WebhookTrigger node(s) - ensure this is intentional")
             
-            logger.debug(f"Required node validation: {len(start_nodes)} start, {len(end_nodes)} end nodes")
+            logger.debug(f"Required node validation: {len(start_nodes)} start, {len(webhook_trigger_nodes)} webhook trigger, {len(end_nodes)} end nodes")
             
         except Exception as e:
             result.add_error(f"Required node validation failed: {str(e)}")

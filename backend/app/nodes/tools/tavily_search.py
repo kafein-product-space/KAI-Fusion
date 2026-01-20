@@ -460,7 +460,8 @@ class TavilySearchNode(ProviderNode):
                     displayName= "Credential (Optional)",
                     type= NodePropertyType.CREDENTIAL_SELECT,
                     placeholder= "Select Credential",
-                    required= False
+                    required= False,
+                    serviceType="tavily_search",
                 ),
                 NodeProperty(
                     name="max_results",
