@@ -16,12 +16,14 @@ const httpsConfig = hasSSL ? {
   key: fs.readFileSync(sslKeyPath),
   cert: fs.readFileSync(sslCertPath),
 } : undefined;
-
+console.log('hasSSL:', hasSSL);
 const apiBaseUrl = process.env.VITE_API_BASE_URL || 'http://localhost:8000';
 // Auto-downgrade to http if no SSL certs are found for local dev
 const proxyTarget = (!hasSSL && apiBaseUrl.includes('localhost'))
   ? apiBaseUrl.replace('https://', 'http://')
   : apiBaseUrl;
+console.log('apiBaseUrl:', apiBaseUrl);
+console.log('Proxy Target:', proxyTarget);
 
 export default defineConfig({
   base: basePath,

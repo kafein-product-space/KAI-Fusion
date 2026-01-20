@@ -21,12 +21,26 @@ const getConfig = (): Config => {
   const env = getGlobalValue('VITE_NODE_ENV');
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
 
+  // Handle protocol-relative URLs (e.g., //localhost:8000)
+  // This allows the frontend to automatically use the same protocol as the page
+  if (typeof window !== 'undefined' && apiBaseUrl?.startsWith('//')) {
+    apiBaseUrl = window.location.protocol + apiBaseUrl;
+  }
+
   // If frontend is accessed via HTTP and API is pointed to localhost HTTPS, 
   // automatically downgrade to HTTP to match the backend's non-SSL state.
   if (typeof window !== 'undefined' &&
     window.location.protocol === 'http:' &&
     apiBaseUrl?.startsWith('https://localhost')) {
     apiBaseUrl = apiBaseUrl.replace('https://', 'http://');
+  }
+
+  // If frontend is accessed via HTTPS and API is pointed to localhost HTTP, 
+  // automatically upgrade to HTTPS to match the backend's SSL state.
+  if (typeof window !== 'undefined' &&
+    window.location.protocol === 'https:' &&
+    apiBaseUrl?.startsWith('http://localhost')) {
+    apiBaseUrl = apiBaseUrl.replace('http://', 'https://');
   }
 
   return {
