@@ -107,8 +107,9 @@ from app.api.scheduled_jobs import router as scheduled_jobs_router
 from app.api.vectors import router as vectors_router
 from app.api.test_endpoint import router as test_router
 
-from app.routes.export import router as export_router
+
 from app.api.external_workflows import router as external_workflows_router
+from app.api.export import router as export_router
 
 logger = logging.getLogger(__name__)
 
@@ -204,6 +205,7 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["Content-Disposition"],  # Allow frontend to read this header
 )
 
 # Add comprehensive logging middleware
@@ -254,8 +256,9 @@ app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic we
 # Include HTTP Client router
 app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
-app.include_router(export_router, prefix="/api/v1", tags=["Export"])
+
 app.include_router(external_workflows_router, prefix="/api/v1", tags=["External Workflows"])
+app.include_router(export_router, prefix="/api/v1", tags=["Export"])
 
 
 
