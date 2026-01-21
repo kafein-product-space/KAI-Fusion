@@ -1,12 +1,9 @@
 {
   "include": [
-    "**/*",
-    "**/.server/**/*",
-    "**/.client/**/*",
-    ".react-router/types/**/*"
+    "**/*"
   ],
   "exclude": [
-    "src/test/**/*"
+    "app/test/**/*"
   ],
   "compilerOptions": {
     "lib": ["DOM", "DOM.Iterable", "ES2022"],
@@ -15,7 +12,7 @@
     "module": "ES2022",
     "moduleResolution": "bundler",
     "jsx": "react-jsx",
-    "rootDirs": [".", "./.react-router/types"],
+    "rootDirs": ["."],
     "baseUrl": ".",
     "paths": {
       "~/*": ["./app/*"]

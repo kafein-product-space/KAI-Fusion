@@ -14,6 +14,7 @@ from typing import Dict, Any, List, Optional
 from app.core.dynamic_node_analyzer import DynamicNodeAnalyzer
 from app.core.node_registry import node_registry
 from .schemas import WorkflowDependencies, EnvironmentVariable
+from app.core.constants import API_START,API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -61,14 +62,14 @@ def analyze_workflow_dependencies(flow_data: Dict[str, Any]) -> WorkflowDependen
         
         # Define standard API endpoints
         api_endpoints = [
-            "POST /api/workflow/execute",
-            "GET /api/workflow/status/{execution_id}",
-            "GET /api/workflow/result/{execution_id}",
-            "GET /api/health",
-            "GET /api/workflow/info",
-            "GET /api/workflow/external/info",
-            "POST /api/workflow/external/ping",
-            "GET /api/workflow/external/metrics"
+            f"POST /{API_START}/workflow/execute",
+            f"GET /{API_START}/workflow/status/{execution_id}",
+            f"GET /{API_START}/workflow/result/{execution_id}",
+            f"GET /{API_START}/health",
+            f"GET /{API_START}/workflow/info",
+            f"GET /{API_START}/workflow/external/info",
+            f"POST /{API_START}/workflow/external/ping",
+            f"GET /{API_START}/workflow/external/metrics"
         ]
         
         logger.info(f"🎯 Dynamic analysis summary:")
@@ -135,10 +136,10 @@ def _fallback_static_analysis(flow_data: Dict[str, Any]) -> WorkflowDependencies
     
     # API endpoints
     api_endpoints = [
-        "POST /api/workflow/execute",
-        "GET /api/workflow/status/{execution_id}",
-        "GET /api/health",
-        "GET /api/workflow/info"
+        f"POST /{API_START}/workflow/execute",
+        f"GET /{API_START}/workflow/status/{execution_id}",
+        f"GET /{API_START}/health",
+        f"GET /{API_START}/workflow/info"
     ]
     
     return WorkflowDependencies(

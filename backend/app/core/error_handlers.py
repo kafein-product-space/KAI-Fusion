@@ -93,7 +93,7 @@ Basic Error Handling Usage:
 # Simple error handling with comprehensive logging
 from app.core.error_handlers import ErrorContext, ErrorLogger
 
-@app.post("/api/v1/process")
+@app.post(f"/{API_START}/{API_VERSION}/process")
 async def process_data(request: Request, data: ProcessingData):
     with ErrorContext("data_processing", request) as error_context:
         # Process data with automatic error handling

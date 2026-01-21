@@ -21,6 +21,7 @@ from starlette.types import ASGIApp
 
 from app.core.logging_config import log_api_request, log_security_event, log_performance
 from app.core.database import get_database_stats
+from app.core.constants import API_START,API_VERSION
 
 
 logger = logging.getLogger(__name__)
@@ -317,11 +318,11 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         if self.enable_suspicious_detection:
             # Skip detection for legitimate endpoints (whitelist)
             whitelisted_paths = [
-                "/api/http-client/",
-                "/api/v1/webhook/",
-                "/api/v1/webhook-test/",
-                "/api/v1/nodes/",
-                "/api/v1/workflows/"
+                f"/{API_START}/http-client/",
+                f"/{API_START}/{API_VERSION}/webhook/",
+                f"/{API_START}/{API_VERSION}/webhook-test/",
+                f"/{API_START}/{API_VERSION}/nodes/",
+                f"/{API_START}/{API_VERSION}/workflows/"
             ]
             
             should_detect = True

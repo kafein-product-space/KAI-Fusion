@@ -18,6 +18,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   isSubmitting = false,
 }) => {
   const [iconFailed, setIconFailed] = useState(false);
+  const BASE_PATH = window.VITE_BASE_PATH;
   const validateField = (
     field: ServiceField,
     value: any
@@ -70,7 +71,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
     return errors;
   };
-  
+
   const formValues = useMemo(() => {
     const values: Record<string, any> = {
       api_key: initialValues.id,
@@ -143,7 +144,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={`/icons/${service.icon}`}
+                  src={`${BASE_PATH}/icons/${service.id}.svg`}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}

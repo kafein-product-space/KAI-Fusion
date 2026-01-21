@@ -9,8 +9,8 @@ This document describes the complete implementation of the KAI-Fusion Workflow D
 ### Backend Components
 
 #### 1. Export API (`backend/app/routes/export.py`)
-- **POST `/api/export/workflow/{workflow_id}`**: Initialize export and analyze dependencies
-- **POST `/api/export/workflow/{workflow_id}/complete`**: Complete export with user configuration
+- **POST `/{API_START}/export/workflow/{workflow_id}`**: Initialize export and analyze dependencies
+- **POST `/{API_START}/export/workflow/{workflow_id}/complete`**: Complete export with user configuration
 
 **Key Features:**
 - Workflow dependency analysis
@@ -21,11 +21,11 @@ This document describes the complete implementation of the KAI-Fusion Workflow D
 - Docker package generation
 
 #### 2. External Workflow API (`backend/app/api/external_workflows.py`)
-- **POST `/api/v1/workflows/external/register`**: Register external Docker workflows
-- **GET `/api/v1/workflows/external`**: List registered external workflows
-- **GET `/api/v1/workflows/external/{id}/status`**: Check workflow status
-- **POST `/api/v1/workflows/external/{id}/execute`**: Execute external workflow
-- **DELETE `/api/v1/workflows/external/{id}`**: Unregister external workflow
+- **POST `/{API_START}/{API_VERSION_ONLY}/workflows/external/register`**: Register external Docker workflows
+- **GET `/{API_START}/{API_VERSION_ONLY}/workflows/external`**: List registered external workflows
+- **GET `/{API_START}/{API_VERSION_ONLY}/workflows/external/{id}/status`**: Check workflow status
+- **POST `/{API_START}/{API_VERSION_ONLY}/workflows/external/{id}/execute`**: Execute external workflow
+- **DELETE `/{API_START}/{API_VERSION_ONLY}/workflows/external/{id}`**: Unregister external workflow
 
 ### Frontend Components
 
@@ -131,7 +131,7 @@ Optional performance monitoring and tracing.
 
 ### Registration Process
 1. User enters Docker workflow host/port
-2. System tests connection to `/health` and `/api/workflow/external/info`
+2. System tests connection to `/health` and `/{API_START}/workflow/external/info`
 3. Workflow registered as read-only external workflow
 4. Can be executed remotely from KAI-Fusion
 
@@ -156,7 +156,7 @@ docker-compose up -d
 
 # 5. Test:
 curl http://localhost:8000/health
-curl -X POST http://localhost:8000/api/workflow/execute \
+curl -X POST http://localhost:8000/{API_START}/workflow/execute \
   -H "Content-Type: application/json" \
   -d '{"input": "Hello world"}'
 ```
@@ -168,7 +168,7 @@ curl -X POST http://localhost:8000/api/workflow/execute \
 # REQUIRE_API_KEY=true
 # API_KEYS=wf_123,wf_456,my_custom_key
 
-curl -X POST http://localhost:8000/api/workflow/execute \
+curl -X POST http://localhost:8000/{API_START}/workflow/execute \
   -H "Content-Type: application/json" \
   -H "X-API-Key: wf_123" \
   -d '{"input": "Hello world"}'
@@ -190,24 +190,24 @@ await externalWorkflowService.registerExternalWorkflow(config);
 ## API Endpoints Reference
 
 ### Export Endpoints
-- `POST /api/export/workflow/{id}` - Initialize export
-- `POST /api/export/workflow/{id}/complete` - Complete export
+- `POST /{API_START}/export/workflow/{id}` - Initialize export
+- `POST /{API_START}/export/workflow/{id}/complete` - Complete export
 
 ### External Workflow Endpoints
-- `POST /api/v1/workflows/external/register` - Register external workflow
-- `GET /api/v1/workflows/external` - List external workflows
-- `GET /api/v1/workflows/external/{id}/status` - Check status
-- `POST /api/v1/workflows/external/{id}/execute` - Execute workflow
-- `DELETE /api/v1/workflows/external/{id}` - Unregister
+- `POST /{API_START}/{API_VERSION_ONLY}/workflows/external/register` - Register external workflow
+- `GET /{API_START}/{API_VERSION_ONLY}/workflows/external` - List external workflows
+- `GET /{API_START}/{API_VERSION_ONLY}/workflows/external/{id}/status` - Check status
+- `POST /{API_START}/{API_VERSION_ONLY}/workflows/external/{id}/execute` - Execute workflow
+- `DELETE /{API_START}/{API_VERSION_ONLY}/workflows/external/{id}` - Unregister
 
 ### Runtime Workflow API (Generated)
 - `GET /health` - Health check
-- `GET /api/workflow/info` - Workflow information
-- `POST /api/workflow/execute` - Execute workflow
-- `GET /api/workflow/status/{execution_id}` - Execution status
-- `GET /api/workflow/result/{execution_id}` - Execution result
-- `GET /api/workflow/external/info` - External workflow info
-- `POST /api/workflow/external/ping` - Health ping
+- `GET /{API_START}/workflow/info` - Workflow information
+- `POST /{API_START}/workflow/execute` - Execute workflow
+- `GET /{API_START}/workflow/status/{execution_id}` - Execution status
+- `GET /{API_START}/workflow/result/{execution_id}` - Execution result
+- `GET /{API_START}/workflow/external/info` - External workflow info
+- `POST /{API_START}/workflow/external/ping` - Health ping
 
 ## Node Support Matrix
 
@@ -251,7 +251,7 @@ docker-compose logs workflow-api
 
 # Test API endpoints
 curl http://localhost:8000/health
-curl http://localhost:8000/api/workflow/info
+curl http://localhost:8000/{API_START}/workflow/info
 
 # Check environment
 docker-compose exec workflow-api printenv

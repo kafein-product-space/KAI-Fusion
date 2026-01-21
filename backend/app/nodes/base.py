@@ -528,8 +528,8 @@ class NodeMetadata(BaseModel):
         description="Usage examples with input/output samples"
     )
 
-    properties: Optional[Union[Dict[str, Any], List[NodeProperty]]] = Field(
-        default=None,
+    properties: List[NodeProperty] = Field(
+        default_factory=list,
         description="Additional properties for node configuration"
     )
 

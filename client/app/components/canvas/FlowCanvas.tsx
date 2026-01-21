@@ -52,6 +52,7 @@ import { executeWorkflowStream } from "~/services/executionService";
 import GenericNode from "../node";
 
 // Import config components
+import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
 
 interface FlowCanvasProps {
@@ -1604,7 +1605,7 @@ function useChatExecutionListener(
     };
 
     const handleChatExecutionEvent = (event: CustomEvent) => {
-      const { event: eventType, node_id, ...data} = event.detail;
+      const { event: eventType, node_id, ...data } = event.detail;
 
       if (eventType === "node_start" && node_id) {
         // PRIORITY 1: Exact ID match (most reliable)
@@ -1735,7 +1736,7 @@ function useChatExecutionListener(
           // Add provider edges (only for processor nodes)
           edgesToAnimate.push(...providerInputEdges);
 
-            setActiveEdges(edgesToAnimate.map((e) => e.id));
+          setActiveEdges(edgesToAnimate.map((e) => e.id));
           if (edgesToAnimate.length > 0) {
             setEdgeStatus((prev) => ({
               ...prev,
