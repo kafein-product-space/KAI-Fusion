@@ -121,8 +121,8 @@ SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production"
 ENVIRONMENT = "development"
 PORT = int(os.getenv("BACKEND_PORT"))
 ROOT_PATH = os.getenv("ROOT_PATH")
-API_START = "abi"
-API_VERSION = "v2"
+API_START = "api"
+API_VERSION = "v1"
 
 SSL_KEYFILE = os.getenv("SSL_KEYFILE")
 SSL_CERTFILE = os.getenv("SSL_CERTFILE")
