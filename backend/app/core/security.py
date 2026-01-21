@@ -93,7 +93,7 @@ Basic Authentication Usage:
 # Simple JWT authentication for API endpoints
 from app.core.security import get_current_user, create_access_token
 
-@app.post("/api/v1/login")
+@app.post(f"/{API_START}/{API_VERSION}/login")
 async def login(credentials: LoginCredentials):
     # Validate user credentials
     user = authenticate_user(credentials.username, credentials.password)
@@ -107,7 +107,7 @@ async def login(credentials: LoginCredentials):
     
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.get("/api/v1/protected")
+@app.get(f"/{API_START}/{API_VERSION}/protected")
 async def protected_endpoint(current_user: str = Depends(get_current_user)):
     return {"message": f"Hello {current_user}", "secure": True}
 ```

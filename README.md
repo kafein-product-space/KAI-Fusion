@@ -145,6 +145,7 @@ DATABASE_URL=postgresql://kai:kai@localhost:5432/kai
 CREATE_DATABASE=false
 POSTGRES_DB=kai
 POSTGRES_PASSWORD=kai
+ROOT_PATH="/api/kai"
 
 # LangSmith / LangChain tracing (optional but recommended for debugging)
 LANGCHAIN_TRACING_V2=true
@@ -154,6 +155,9 @@ LANGCHAIN_ENDPOINT=https://api.smith.langchain.com
 ENABLE_WORKFLOW_TRACING=true
 TRACE_MEMORY_OPERATIONS=true
 TRACE_AGENT_REASONING=true
+
+SSL_KEYFILE=cert\key.pem
+SSL_CERTFILE=cert\cert.pem
 ```
 
 ### 3) Frontend `.env`
@@ -163,9 +167,12 @@ Create: `client/.env`
 ```dotenv
 # Frontend env
 VITE_API_BASE_URL=http://localhost:8000
-VITE_API_VERSION=/api/v1
+VITE_API_VERSION=/api/v1 (Derived from VITE_API_START and VITE_API_VERSION_ONLY)
+VITE_API_START=api
+VITE_API_VERSION_ONLY=v1
 VITE_NODE_ENV=development
 VITE_ENABLE_LOGGING=true
+VITE_BASE_PATH=/kai
 ```
 
 ---
@@ -203,10 +210,21 @@ Ensure your Postgres container is running, then:
 python backend/migrations/database_setup.py
 ```
 
+### You can optionally run the project in a certified manner.
+
+Before executing the commands below, enter your venv or conda environment. Then, while in the main directory of the project, execute the following two commands in order. After running these commands, you can proceed to the other steps.
+
+```bash
+cd backend/cert
+
+$env:OPENSSL_CONF="C:\Program Files\Git\usr\ssl\openssl.cnf"; openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes -subj "/C=TR/ST=Istanbul/L=Istanbul/O=KAI/OU=Dev/CN=localhost"
+```
+
+
 ### Run the Backend
 
 * **Via VS Code Debugger** (see next section), or
-* **Directly**: `python backend/app.py`
+* **Directly**: `python backend/main.py`
 
 ### Run the Frontend
 

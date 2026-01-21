@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
+import { config } from "../../../lib/config";
 import type { NodeProperty } from "../types";
 
 interface NodeReadonlyTextProps {
@@ -16,7 +17,9 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
       if (pathValue) {
         const baseUrl = import.meta.env.VITE_API_BASE_URL;
         const environment = values?.webhook_environment || "test";
-        const prefix = environment === "production" ? "/api/v1/webhook" : "/api/v1/webhook-test";
+        const prefix = environment === "production"
+          ? `/${config.API_START}/${config.API_VERSION_ONLY}/webhook`
+          : `/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test`;
         return `${baseUrl}${prefix}/${pathValue}`;
       }
     }
@@ -53,9 +56,8 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
 
   return (
     <div
-      className={`${
-        property?.colSpan ? `col-span-${property?.colSpan}` : "col-span-2"
-      }`}
+      className={`${property?.colSpan ? `col-span-${property?.colSpan}` : "col-span-2"
+        }`}
       key={property.name}
     >
       <label className="text-white text-sm font-medium mb-2 block">

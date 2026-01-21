@@ -708,7 +708,7 @@ def setup_timer_monitoring():
     """Setup production monitoring for timers."""
     
     # Health check endpoint
-    @app.get("/api/timers/health")
+    @app.get("/{API_START}/timers/health")
     async def timer_health_check():
         active_timers = get_active_timers()
         return {
@@ -718,7 +718,7 @@ def setup_timer_monitoring():
         }
     
     # Timer statistics endpoint
-    @app.get("/api/timers/stats")
+    @app.get("/{API_START}/timers/stats")
     async def timer_statistics():
         return {
             "timers": get_active_timers(),

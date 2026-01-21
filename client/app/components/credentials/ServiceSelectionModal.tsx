@@ -39,7 +39,8 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
   const [iconErrorMap, setIconErrorMap] = useState<Record<string, boolean>>({});
 
   const renderServiceIcon = (service: ServiceDefinition) => {
-    const iconSrc = `/icons/${service.icon}`;
+    const BASE_PATH = window.VITE_BASE_PATH;
+    const iconSrc = `${BASE_PATH}/icons/${service.id}.svg`;
     const failed = iconErrorMap[service.id];
     return (
       <div className="w-10 h-10 flex items-center justify-center">

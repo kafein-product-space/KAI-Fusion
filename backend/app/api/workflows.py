@@ -103,7 +103,7 @@ workflow_data = {
 }
 
 response = requests.post(
-    "/api/v1/workflows/",
+    f"/{API_START}/{API_VERSION}/workflows/",
     json=workflow_data,
     headers={"Authorization": f"Bearer {access_token}"}
 )
@@ -116,7 +116,7 @@ execution_request = {
 }
 
 execution_response = requests.post(
-    "/api/v1/workflows/execute",
+    f"/{API_START/{API_VERSION}/workflows/execute",
     json=execution_request,
     headers={"Authorization": f"Bearer {access_token}"},
     stream=True
