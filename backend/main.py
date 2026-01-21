@@ -101,7 +101,6 @@ from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
 from app.nodes.triggers.webhook_trigger import webhook_test_router, webhook_production_router
-from app.nodes.triggers.webhook_trigger import webhook_test_router, webhook_production_router
 from app.nodes.triggers import webhook_router as webhook_node_router
 from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
