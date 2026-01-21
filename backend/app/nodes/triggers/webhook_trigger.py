@@ -149,6 +149,44 @@ async def get_webhook_auth_config(
         logger.warning(f"Error getting webhook auth config for {webhook_id}: {e}", exc_info=True)
         return None
 
+
+async def get_webhook_http_method_config(
+    db: AsyncSession,
+    webhook_id: str,
+) -> Optional[List[str]]:
+    """
+    Get allowed HTTP methods for a webhook from workflow node data.
+    
+    Args:
+        db: Database session
+        webhook_id: Webhook ID to lookup workflow
+        
+    Returns:
+        List of allowed HTTP methods (e.g., ["POST"]) or None if all methods allowed
+    """
+    try:
+        workflow = await find_workflow(db, webhook_id)
+        if not workflow or not workflow.flow_data:
+            return None
+        
+        nodes = workflow.flow_data.get("nodes", [])
+        for node in nodes:
+            if node.get("type") == "WebhookTrigger":
+                node_data = node.get("data", {})
+                http_method = node_data.get("http_method")
+                
+                # If http_method is configured and not empty, enforce it
+                if http_method:
+                    method = http_method.upper()
+                    # Return as list to support future multi-method selection
+                    return [method]
+        
+        return None  # No restriction - all methods allowed
+    except Exception as e:
+        logger.warning(f"Error getting webhook http_method config for {webhook_id}: {e}", exc_info=True)
+        return None
+
+
 def validate_basic_auth(request: Request, credential_data: Dict[str, Any]) -> bool:
     """
     Validate Basic Auth from Authorization header.
@@ -245,6 +283,27 @@ async def handle_webhook_request(
     
     try:
         async with get_db_session_context() as session:
+            # ============================================================
+            # HTTP METHOD VALIDATION
+            # Reject requests with non-matching HTTP methods (405 error)
+            # ============================================================
+            allowed_methods = await get_webhook_http_method_config(session, webhook_id)
+            if allowed_methods and request.method.upper() not in allowed_methods:
+                # Log details internally but don't expose to client (security)
+                logger.warning(
+                    f"HTTP method {request.method} not allowed for webhook {webhook_id}. "
+                    f"Allowed: {allowed_methods}"
+                )
+                raise HTTPException(
+                    status_code=status.HTTP_405_METHOD_NOT_ALLOWED,
+                    detail="HTTP method not allowed for this webhook endpoint"
+                    # Note: Intentionally NOT including "Allow" header or method list
+                    # to prevent attackers from discovering the correct method
+                )
+            
+            # ============================================================
+            # AUTHENTICATION VALIDATION
+            # ============================================================
             auth_config = await get_webhook_auth_config(session, webhook_id)
             
             if auth_config:
@@ -439,25 +498,13 @@ async def handle_webhook_request(
                 # Create session ID
                 session_id = f"webhook_{webhook_id}_{int(time.time())}"
 
-                # Extract meaningful input from webhook payload
+                # Extract webhook input - use entire payload for dynamic field access
+                # This allows any JSON structure to be used in templates via {{webhook_trigger.anyfield}}
                 webhook_input = ""
                 if payload_data:
-                    # Try to extract meaningful input from payload
                     if isinstance(payload_data, dict):
-                        # Check common fields for input data (in priority order)
-                        if payload_data.get("message"):
-                            webhook_input = payload_data.get("message")
-                        elif payload_data.get("text"):
-                            webhook_input = payload_data.get("text")
-                        elif payload_data.get("input"):
-                            webhook_input = payload_data.get("input")
-                        elif isinstance(payload_data.get("data"), dict) and payload_data.get("data", {}).get("message"):
-                            webhook_input = payload_data.get("data", {}).get("message")
-                        elif payload_data.get("data"):
-                            webhook_input = str(payload_data.get("data"))
-                        else:
-                            # Fallback: use JSON representation of payload
-                            webhook_input = json.dumps(payload_data)
+                        # Use entire payload as JSON (supports any field names)
+                        webhook_input = json.dumps(payload_data, ensure_ascii=False)
                     else:
                         webhook_input = str(payload_data)
                 

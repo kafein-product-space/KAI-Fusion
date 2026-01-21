@@ -734,6 +734,9 @@ class GraphBuilder:
 
         # Prepare initial FlowState
         initial_input = inputs.get("input", "")
+
+        webhook_data = inputs.get("webhook_data")
+        
         init_state = FlowState(
             current_input=initial_input,
             last_output=initial_input,
@@ -742,6 +745,7 @@ class GraphBuilder:
             owner_id=owner_id,
             workflow_id=workflow_id,
             variables=inputs,
+            webhook_data=webhook_data,  # Add webhook data for templating
         )
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
