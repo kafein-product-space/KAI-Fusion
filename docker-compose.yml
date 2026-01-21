@@ -24,6 +24,7 @@ services:
 
       # Security
       MASTER_API_KEY: ${MASTER_API_KEY}
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
 
       # Basic Settings
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}

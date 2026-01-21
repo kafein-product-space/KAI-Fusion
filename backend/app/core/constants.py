@@ -140,7 +140,11 @@ DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 
-CREDENTIAL_MASTER_KEY = "1234567890"
+# Credential encryption key - MUST be set via environment variable in production
+_default_credential_key = "dev-only-insecure-key-change-me"
+CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
+if CREDENTIAL_MASTER_KEY == _default_credential_key:
+    print("⚠️  WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
 # Logging
 LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")
