@@ -100,6 +100,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.nodes.triggers.webhook_trigger import webhook_test_router, webhook_production_router
 from app.nodes.triggers import webhook_router as webhook_node_router
 from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
@@ -250,6 +251,8 @@ app.include_router(test_router)
 # Include webhook routers
 app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
 app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
+app.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
 app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
 
 # Include HTTP Client router

@@ -4,6 +4,7 @@ export interface ServiceField {
     type: 'text' | 'password' | 'textarea' | 'select';
     required: boolean;
     placeholder?: string;
+    default?: string;
     options?: { value: string; label: string }[];
     description?: string;
     validation?: {
@@ -19,7 +20,7 @@ export interface ServiceField {
     name: string;
     description: string;
     icon: string;
-    category: 'ai' | 'database' | 'api' | 'storage' | 'cache' | 'triggers' | 'other';
+    category: 'ai' | 'database' | 'api' | 'storage' | 'cache' | 'webhook_auth' | 'other';
     fields: ServiceField[];
     color: string;
   }
@@ -29,7 +30,7 @@ export interface ServiceField {
       id: 'openai',
       name: 'OpenAI',
       description: 'OpenAI API credentials for GPT models, embeddings, and more',
-      icon: '🤖',
+      icon: 'openai.svg',
       category: 'ai',
       color: 'from-green-500 to-emerald-600',
       fields: [
@@ -56,7 +57,7 @@ export interface ServiceField {
       id: 'cohere',
       name: 'Cohere',
       description: 'Cohere AI API credentials for embeddings and reranking',
-      icon: '🔍',
+      icon: 'cohere.svg',
       category: 'ai',
       color: 'from-blue-500 to-cyan-600',
       fields: [
@@ -77,7 +78,7 @@ export interface ServiceField {
       id: 'postgresql_vectorstore',
       name: 'Postgres',
       description: 'PostgreSQL database with vector extension for storing embeddings and retrieving',
-      icon: '🐘',
+      icon: 'postgresql_vectorstore.svg',
       category: 'database',
       color: 'from-indigo-500 to-purple-600',
       fields: [
@@ -127,7 +128,7 @@ export interface ServiceField {
       id: 'tavily_search',
       name: 'Tavily Search',
       description: 'Tavily AI search API for web search capabilities',
-      icon: '🌐',
+      icon: 'tavily-nonbrand.svg',
       category: 'api',
       color: 'from-yellow-500 to-orange-600',
       fields: [
@@ -144,6 +145,59 @@ export interface ServiceField {
         }
       ]
     },
+    {
+      id: 'basic_auth',
+      name: 'Basic Auth',
+      description: 'Basic authentication credentials for webhook endpoints (username and password)',
+      icon: 'globe.svg',
+      category: 'webhook_auth',
+      color: 'from-blue-500 to-indigo-600',
+      fields: [
+        {
+          name: 'username',
+          label: 'Username',
+          type: 'text',
+          required: true,
+          placeholder: 'your_username',
+          description: 'Username for Basic Authentication'
+        },
+        {
+          name: 'password',
+          label: 'Password',
+          type: 'password',
+          required: true,
+          placeholder: '••••••••',
+          description: 'Password for Basic Authentication'
+        }
+      ]
+    },
+    {
+      id: 'header_auth',
+      name: 'Header Auth',
+      description: 'Header-based authentication credentials for webhook endpoints',
+      icon: 'globe.svg',
+      category: 'webhook_auth',
+      color: 'from-purple-500 to-pink-600',
+      fields: [
+        {
+          name: 'header_name',
+          label: 'Header Name',
+          type: 'text',
+          required: true,
+          placeholder: 'Authorization',
+          default: 'Authorization',
+          description: 'Name of the HTTP header to validate on incoming webhook requests'
+        },
+        {
+          name: 'header_value',
+          label: 'Header Value',
+          type: 'password',
+          required: true,
+          placeholder: 'your-secret-header-value',
+          description: 'The secret value that must match the custom header in webhook requests'
+        }
+      ]
+    }
   ];
   
   export const getServiceDefinition = (serviceId: string): ServiceDefinition | undefined => {
@@ -169,7 +223,7 @@ export interface ServiceField {
       api: 'APIs',
       storage: 'Storage',
       cache: 'Cache',
-      triggers: 'Triggers',
+      webhook_auth: 'Webhook Auths',
       other: 'Other'
     };
     return labels[category] || category;

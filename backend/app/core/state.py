@@ -354,6 +354,12 @@ class FlowState(BaseModel):
     # Variable storage for dynamic data
     variables: Dict[str, Any] = Field(default_factory=dict, description="Variables that can be set and accessed by nodes")
     
+    # Webhook response storage - set by RespondToWebhookNode
+    webhook_response: Optional[Dict[str, Any]] = Field(
+        default=None,
+        description="Webhook response data set by RespondToWebhookNode (status_code, body, headers)"
+    )
+    
     # Node outputs storage - keeps track of each node's output
     # Use Annotated with reducer to handle concurrent updates from parallel nodes
     node_outputs: Annotated[Dict[str, Any], merge_node_outputs] = Field(default_factory=dict, description="Storage for individual node outputs")
