@@ -426,6 +426,15 @@ class NodeExecutor:
             if hasattr(state, 'current_input') and state.current_input is not None:
                 context['input'] = state.current_input
 
+            # SPECIAL CASE: Add webhook data for webhook-triggered workflows
+            # This allows {{webhook_trigger.anyfield}} and {{webhook_data}} templates
+            if hasattr(state, 'webhook_data') and state.webhook_data:
+                context['webhook_data'] = state.webhook_data
+                # webhook_trigger = the actual payload data for easy access
+                webhook_payload = state.webhook_data.get('data', state.webhook_data)
+                context['webhook_trigger'] = webhook_payload
+                logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
+
             for other_node_id in state.node_outputs.keys():
                 graph_node = self._nodes_registry.get(other_node_id)
                 if not graph_node:

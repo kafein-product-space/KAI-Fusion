@@ -271,7 +271,15 @@ class RespondToWebhookNode(TerminatorNode):
                     response_body = json.loads(stripped_body)
                     logger.info("Successfully parsed response_body string as JSON object/array")
             except json.JSONDecodeError:
-                logger.warning("Failed to parse response_body as JSON despite application/json content type. Sending as raw string.")
+                # Fallback: Try parsing Python dict repr format (single quotes from print(dict))
+                try:
+                    import ast
+                    parsed = ast.literal_eval(stripped_body)
+                    # Convert to proper JSON format
+                    response_body = json.loads(json.dumps(parsed, ensure_ascii=False))
+                    logger.info("Successfully parsed response_body from Python dict repr format")
+                except (ValueError, SyntaxError):
+                    logger.warning("Failed to parse response_body as JSON despite application/json content type. Sending as raw string.")
         
         # Parse response_headers if it's a JSON string
         if isinstance(response_headers, str):
