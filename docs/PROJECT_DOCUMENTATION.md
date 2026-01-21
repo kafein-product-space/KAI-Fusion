@@ -91,11 +91,11 @@ app = FastAPI(
 )
 
 # Router Registration
-app.include_router(workflows_router, prefix="/api/v1")
-app.include_router(nodes_router, prefix="/api/v1")
-app.include_router(auth_router, prefix="/api/v1")
-app.include_router(credentials_router, prefix="/api/v1")
-app.include_router(users_router, prefix="/api/v1")
+app.include_router(workflows_router, prefix="/{API_START}/{API_VERSION_ONLY}")
+app.include_router(nodes_router, prefix="/{API_START}/{API_VERSION_ONLY}")
+app.include_router(auth_router, prefix="/{API_START}/{API_VERSION_ONLY}")
+app.include_router(credentials_router, prefix="/{API_START}/{API_VERSION_ONLY}")
+app.include_router(users_router, prefix="/{API_START}/{API_VERSION_ONLY}")
 ```
 
 #### 2. Workflow Engine (`app/core/engine_v2.py`)
@@ -165,23 +165,23 @@ backend/
 ### API Layer Architecture
 
 #### Workflow Management
-- **POST** `/api/v1/workflows/` - Create workflow
-- **GET** `/api/v1/workflows/` - List user workflows
-- **PUT** `/api/v1/workflows/{id}` - Update workflow
-- **DELETE** `/api/v1/workflows/{id}` - Delete workflow
-- **POST** `/api/v1/workflows/execute` - Execute workflow
-- **POST** `/api/v1/workflows/{id}/execute/stream` - Stream execution
+- **POST** `/{API_START}/{API_VERSION_ONLY}/workflows/` - Create workflow
+- **GET** `/{API_START}/{API_VERSION_ONLY}/workflows/` - List user workflows
+- **PUT** `/{API_START}/{API_VERSION_ONLY}/workflows/{id}` - Update workflow
+- **DELETE** `/{API_START}/{API_VERSION_ONLY}/workflows/{id}` - Delete workflow
+- **POST** `/{API_START}/{API_VERSION_ONLY}/workflows/execute` - Execute workflow
+- **POST** `/{API_START}/{API_VERSION_ONLY}/workflows/{id}/execute/stream` - Stream execution
 
 #### Node System
-- **GET** `/api/v1/nodes` - List all available nodes
-- **GET** `/api/v1/nodes/categories` - List node categories
-- **GET** `/api/v1/nodes/{type}` - Get specific node metadata
+- **GET** `/{API_START}/{API_VERSION_ONLY}/nodes` - List all available nodes
+- **GET** `/{API_START}/{API_VERSION_ONLY}/nodes/categories` - List node categories
+- **GET** `/{API_START}/{API_VERSION_ONLY}/nodes/{type}` - Get specific node metadata
 
 #### Authentication
-- **POST** `/api/v1/auth/signup` - User registration
-- **POST** `/api/v1/auth/signin` - User login
-- **POST** `/api/v1/auth/refresh` - Refresh access token
-- **GET** `/api/v1/auth/profile` - Get user profile
+- **POST** `/{API_START}/{API_VERSION_ONLY}/auth/signup` - User registration
+- **POST** `/{API_START}/{API_VERSION_ONLY}/auth/signin` - User login
+- **POST** `/{API_START}/{API_VERSION_ONLY}/auth/refresh` - Refresh access token
+- **GET** `/{API_START}/{API_VERSION_ONLY}/auth/profile` - Get user profile
 
 ---
 
@@ -1212,7 +1212,7 @@ ALLOWED_ORIGINS=["http://localhost:5173", "https://yourdomain.com"]
 #### Frontend Environment Variables
 ```env
 VITE_API_BASE_URL=http://localhost:8001
-VITE_API_VERSION=/api/v1
+VITE_API_VERSION=/{API_START}/{API_VERSION_ONLY}
 VITE_APP_NAME=KAI-Fusion
 VITE_ENABLE_ANALYTICS=false
 ```

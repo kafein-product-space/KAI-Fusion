@@ -1,5 +1,7 @@
 interface Config {
   API_BASE_URL: string;
+  API_START: string;
+  API_VERSION_ONLY: string;
   API_VERSION: string;
   APP_NAME: string;
   ENVIRONMENT: 'development' | 'production' | 'testing';
@@ -16,7 +18,9 @@ const getConfig = (): Config => {
   };
 
   let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
-  const apiVersion = getGlobalValue('VITE_API_VERSION');
+  const apiStart = getGlobalValue('VITE_API_START') || 'api';
+  const apiVersionOnly = getGlobalValue('VITE_API_VERSION_ONLY') || 'v1';
+  const apiVersion = `/${apiStart}/${apiVersionOnly}`;
   const appName = getGlobalValue('VITE_APP_NAME');
   const env = getGlobalValue('VITE_NODE_ENV');
   const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
@@ -45,6 +49,8 @@ const getConfig = (): Config => {
 
   return {
     API_BASE_URL: apiBaseUrl,
+    API_START: apiStart,
+    API_VERSION_ONLY: apiVersionOnly,
     API_VERSION: apiVersion,
     APP_NAME: appName,
     ENVIRONMENT: env,

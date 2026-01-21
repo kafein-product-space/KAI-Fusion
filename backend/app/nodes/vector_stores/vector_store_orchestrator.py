@@ -239,6 +239,7 @@ class VectorStoreOrchestrator(ProcessorNode):
                     placeholder="Select Credential",
                     tabName="data",
                     required=False,
+                    serviceType="postgresql_vectorstore",
                 ),
                 NodeProperty(
                     name="collection_name",

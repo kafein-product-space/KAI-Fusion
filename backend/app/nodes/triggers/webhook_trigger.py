@@ -11,32 +11,196 @@ Webhook Trigger Node - Inbound REST API Integration
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import os
+import time
+import traceback
 import uuid
 from datetime import datetime, timezone, timedelta
-from typing import Any, Dict, List, Optional, AsyncGenerator, Union
+from typing import Any, Dict, List, Optional, AsyncGenerator
 from urllib.parse import urljoin
 
-from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Request, HTTPException, Depends, BackgroundTasks, Response, status
+from fastapi.responses import StreamingResponse, JSONResponse, HTMLResponse, PlainTextResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from pydantic import BaseModel, Field, ValidationError
+from pydantic import BaseModel, Field
 
 from langchain_core.runnables import Runnable, RunnableLambda, RunnableConfig
-from langchain_core.runnables.utils import Input, Output
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, text, bindparam
 
-from ..base import ProviderNode, TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePosition, NodePropertyType
-from app.models.node import NodeCategory
+from ..base import TerminatorNode, NodeInput, NodeOutput, NodeType, NodeProperty, NodePropertyType
+from app.core.database import get_db_session_context
+from app.core.json_utils import make_json_serializable
+from app.core.credential_provider import credential_provider
+from app.models.workflow import Workflow
+from app.services.workflow_executor import (
+    get_workflow_executor
+)
+from app.core.constants import API_START,API_VERSION
+
 
 logger = logging.getLogger(__name__)
 
 # Security
 security = HTTPBearer(auto_error=False)
 
+
+async def find_workflow(
+    db: AsyncSession,
+    webhook_id: str,
+) -> Optional[Workflow]:
+    """
+    Find workflow by webhook_id.
+    
+    Args:
+        db: Database session
+        webhook_id: Webhook ID to lookup workflow via flow_data
+        
+    Returns:
+        Workflow object or None if not found
+    """
+    
+    try:
+        logger.info(f"Searching workflows for webhook_id {webhook_id} in flow_data")
+        
+        # Use optimized PostgreSQL JSONB query to find workflow by webhook path
+        # Searches in node data->path directly or in metadata->properties->default
+        # Based on the provided SQL query pattern
+        search_stmt = select(Workflow).where(
+            text("""
+                EXISTS (
+                    SELECT 1
+                    FROM jsonb_array_elements(workflows.flow_data->'nodes') AS node
+                    LEFT JOIN LATERAL jsonb_array_elements(node->'data'->'metadata'->'properties') AS prop ON TRUE
+                    WHERE
+                        (node->>'id') LIKE 'WebhookTrigger__%'
+                        AND (
+                            node->'data'->>'path' = :webhook_id
+                            OR (
+                                prop->>'name' = 'path'
+                                AND prop->>'default' = :webhook_id
+                            )
+                        )
+                )
+            """).bindparams(bindparam("webhook_id", webhook_id))
+        ).limit(1)
+        
+        result = await db.execute(search_stmt)
+        workflow = result.scalars().first()
+        
+        if workflow:
+            logger.info(f"Found workflow by webhook_id in flow_data: {webhook_id} -> {workflow.id} ({workflow.name})")
+            return workflow
+        else:
+            # Debug: Log that we didn't find it but query succeeded
+            logger.debug(f"Workflow query completed but no match found for webhook_id: {webhook_id}")
+    except Exception as e:
+        logger.warning(f"Error searching workflows by webhook_id {webhook_id}: {e}", exc_info=True)
+
+    logger.warning(f"Workflow not found: webhook_id={webhook_id}")
+    return None
+
+async def get_webhook_auth_config(
+    db: AsyncSession,
+    webhook_id: str,
+) -> Optional[Dict[str, Any]]:
+    """
+    Get authentication configuration for a webhook from workflow node data.
+    
+    Args:
+        db: Database session
+        webhook_id: Webhook ID to lookup workflow
+        
+    Returns:
+        Dict with authentication_type, credential_id, and other auth config, or None
+    """
+    try:
+        workflow = await find_workflow(db, webhook_id)
+        if not workflow or not workflow.flow_data:
+            return None
+        
+        nodes = workflow.flow_data.get("nodes", [])
+        for node in nodes:
+            if node.get("type") == "WebhookTrigger":
+                node_data = node.get("data", {})
+                authentication_type = node_data.get("authentication_type")
+                basic_auth_credential_id = node_data.get("basic_auth_credential_id")
+                header_auth_credential_id = node_data.get("header_auth_credential_id")
+
+                # Build auth_config from node_data
+                auth_config = {}
+                if authentication_type:
+                    auth_config["authentication_type"] = authentication_type
+                    if authentication_type == "basic_auth":
+                        auth_config["basic_auth_credential_id"] = basic_auth_credential_id or ""
+                    elif authentication_type == "header_auth":
+                        auth_config["header_auth_credential_id"] = header_auth_credential_id or ""
+                return auth_config if auth_config.get("authentication_type") != "none" else None
+        
+        return None
+    except Exception as e:
+        logger.warning(f"Error getting webhook auth config for {webhook_id}: {e}", exc_info=True)
+        return None
+
+def validate_basic_auth(request: Request, credential_data: Dict[str, Any]) -> bool:
+    """
+    Validate Basic Auth from Authorization header.
+    
+    Args:
+        request: FastAPI Request object
+        credential_data: Decrypted credential data with username and password
+        
+    Returns:
+        True if authentication is valid, False otherwise
+    """
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Basic "):
+        return False
+    
+    try:
+        encoded = auth_header.replace("Basic ", "").strip()
+        decoded = base64.b64decode(encoded).decode("utf-8")
+        username, password = decoded.split(":", 1)
+        
+        secret = credential_data.get("secret", {})
+        expected_username = secret.get("username")
+        expected_password = secret.get("password")
+        
+        if not expected_username or not expected_password:
+            logger.warning("Basic Auth credential missing username or password")
+            return False
+        
+        return username == expected_username and password == expected_password
+    except Exception as e:
+        logger.warning(f"Basic Auth validation failed: {e}")
+        return False
+
+def validate_header_auth(request: Request, credential_data: Dict[str, Any]) -> bool:
+    """
+    Validate Header Auth from custom header.
+    
+    Args:
+        request: FastAPI Request object
+        credential_data: Decrypted credential data with header_value
+        
+    Returns:
+        True if authentication is valid, False otherwise
+    """
+    secret = credential_data.get("secret", {})
+    header_name = secret.get("header_name")
+    expected_value = secret.get("header_value")
+    header_value = request.headers.get(header_name)
+
+    if not header_value or not expected_value:
+        return False
+    
+    return header_value == expected_value
+
 # Global webhook router (will be included in main FastAPI app)
-webhook_router = APIRouter(prefix="/api/v1/webhooks", tags=["webhooks"])
+webhook_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["webhooks"])
 
 # Health check endpoint for webhook router
 @webhook_router.get("/")
@@ -49,32 +213,124 @@ async def webhook_router_health():
         "message": "Webhook router is operational"
     }
 
+# Test webhook router (with frontend streaming enabled)
+webhook_test_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhook-test", tags=["webhooks-test"])
+
+# Production webhook router (without frontend streaming)
+webhook_production_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/webhook", tags=["webhooks-production"])
+
 # Catch-all webhook handler for all HTTP methods
 async def handle_webhook_request(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
-    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
-) -> WebhookResponse:
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False)),
+    enable_frontend_stream: bool = True
+) -> WebhookResponse | JSONResponse | HTMLResponse | PlainTextResponse | Response:
     """Handle incoming webhook requests for any HTTP method."""
     
     # Check if webhook exists, create if not (for dynamic webhook support)
     if webhook_id not in webhook_events:
         # Auto-create webhook entry for valid webhook IDs
-        if webhook_id.startswith("wh_") and len(webhook_id) > 5:
-            webhook_events[webhook_id] = []
-            webhook_subscribers[webhook_id] = []
-            logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
-        else:
-            raise HTTPException(
-                status_code=404,
-                detail=f"Invalid webhook ID format: {webhook_id}"
-            )
+        webhook_events[webhook_id] = []
+        webhook_subscribers[webhook_id] = []
+        logger.info(f"🔧 Auto-created webhook storage for {webhook_id}")
     
     correlation_id = str(uuid.uuid4())
     received_at = datetime.now(timezone.utc)
     
     try:
+        async with get_db_session_context() as session:
+            auth_config = await get_webhook_auth_config(session, webhook_id)
+            
+            if auth_config:
+                auth_type = auth_config.get("authentication_type", "none")
+                
+                # Get workflow once for all auth types
+                workflow = await find_workflow(session, webhook_id)
+                if not workflow or not workflow.user_id:
+                    logger.warning(f"Workflow not found or missing user_id for webhook {webhook_id}")
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="Webhook authentication configuration not found",
+                    )
+                
+                user_id = workflow.user_id
+                if isinstance(user_id, str):
+                    user_id = uuid.UUID(user_id)
+                
+                if auth_type == "basic_auth":
+                    credential_id = auth_config.get("basic_auth_credential_id")
+                    if not credential_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Basic Auth credential not configured",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                        
+                    try:
+                        credential = await credential_provider.get_credential(
+                            uuid.UUID(credential_id),
+                            user_id,
+                            "basic_auth"
+                        )
+                        if not credential or not validate_basic_auth(request, credential):
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Basic authentication failed",
+                                headers={"WWW-Authenticate": "Basic"},
+                            )
+                    except ValueError:
+                        logger.warning(f"Invalid credential_id format: {credential_id}")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid credential configuration",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error validating Basic Auth: {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Authentication failed",
+                            headers={"WWW-Authenticate": "Basic"},
+                        )
+                
+                elif auth_type == "header_auth":
+                    credential_id = auth_config.get("header_auth_credential_id")
+                    if not credential_id:
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Header Auth credential not configured",
+                        )
+                   
+                    try:
+                        credential = await credential_provider.get_credential(
+                            uuid.UUID(credential_id),
+                            user_id,
+                            "header_auth"
+                        )
+                        if not credential or not validate_header_auth(request, credential):
+                            raise HTTPException(
+                                status_code=status.HTTP_401_UNAUTHORIZED,
+                                detail="Header authentication failed",
+                            )
+                    except ValueError:
+                        logger.warning(f"Invalid credential_id format: {credential_id}")
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Invalid credential configuration",
+                        )
+                    except HTTPException:
+                        raise
+                    except Exception as e:
+                        logger.error(f"Error validating Header Auth: {e}", exc_info=True)
+                        raise HTTPException(
+                            status_code=status.HTTP_401_UNAUTHORIZED,
+                            detail="Authentication failed",
+                        )
+  
         # Parse request body based on HTTP method and content
         payload_data = {}
         event_type = "webhook.received"
@@ -152,120 +408,358 @@ async def handle_webhook_request(
         
         background_tasks.add_task(notify_subscribers, webhook_event)
         
-        # Always try to execute the workflow that contains this webhook
+        # Execute workflow synchronously to get response from RespondToWebhookNode
+        webhook_response_data = None
+        result = None
         try:
-            # Execute workflow in background
-            async def execute_webhook_workflow():
-                try:
-                    logger.info(f"🚀 Starting workflow execution for webhook: {webhook_id}")
-                    
-                    import httpx
-                    import time
-                    from sqlalchemy import select
-                    from sqlalchemy.ext.asyncio import AsyncSession
-                    from app.core.database import get_db_session
-                    from app.models.webhook import WebhookEndpoint
-                    from app.models.workflow import Workflow
-                    
-                    # Use direct fallback workflow (skip database lookup)
-                    logger.info(f"🔄 Using direct fallback workflow execution for webhook {webhook_id}")
-                    
-                    # Create a simple workflow structure for testing
-                    execution_payload = {
-                        "flow_data": {
-                            "nodes": [
-                                {
-                                    "id": "start_1",
-                                    "type": "StartNode",
-                                    "data": {"initial_input": f"Webhook {webhook_id} triggered"}
-                                },
-                                {
-                                    "id": "http_1", 
-                                    "type": "HttpRequest",
-                                    "data": {
-                                        "url": "https://www.bahakizil.com",
-                                        "method": "GET",
-                                        "headers": '{"User-Agent": "Mozilla/5.0 (compatible; KAI-Fusion-Webhook/1.0)"}',
-                                        "timeout": 30
-                                    }
-                                },
-                                {
-                                    "id": "end_1",
-                                    "type": "EndNode", 
-                                    "data": {
-                                        "output_format": "json"
-                                    }
-                                }
-                            ],
-                            "edges": [
-                                {"source": "start_1", "target": "http_1", "sourceHandle": "output", "targetHandle": "input"},
-                                {"source": "http_1", "target": "end_1", "sourceHandle": "output", "targetHandle": "target"}
-                            ]
-                        },
-                        "input_text": f"Webhook triggered: {webhook_id} (direct mode)",
-                        "session_id": f"webhook_{webhook_id}_{int(time.time())}_direct",
-                        "user_id": "webhook_system",  # Webhook system identifier
-                        "webhook_data": webhook_event
-                    }
-                    
-                    logger.info(f"🚀 Using direct workflow with HTTP scraping for webhook {webhook_id}")
-                    
-                except Exception as e:
-                    logger.error(f"❌ Error preparing fallback workflow: {e}")
-                    return
-                    
-                # Step 4: Execute the workflow via API
-                try:
-                    api_url = "http://localhost:8000/api/v1/workflows/execute"
-                    headers = {
-                        "Content-Type": "application/json",
-                        "X-Internal-Call": "true"  # Internal webhook call
-                    }
-                    
-                    async with httpx.AsyncClient() as client:
-                        response = await client.post(
-                            api_url,
-                            json=execution_payload,
-                            headers=headers,
-                            timeout=30
-                        )
-                        
-                        if response.status_code == 200:
-                            # Workflow API returns streaming response, not JSON
-                            logger.info(f"✅ Workflow executed successfully via webhook: {webhook_id}")
-                            logger.debug(f"Response: {response.text[:200]}...")  # Log first 200 chars
+            logger.info(f"🚀 Starting synchronous workflow execution for webhook: {webhook_id}")
+
+            async with get_db_session_context() as session:
+                executor = get_workflow_executor()
+                workflow = await find_workflow(
+                    db=session,
+                    webhook_id=webhook_id
+                )
+
+                if not workflow:
+                    logger.error(f"Workflow not found for webhook: {webhook_id}")
+                    # Return default response if workflow not found
+                    return WebhookResponse(
+                        success=False,
+                        message=f"Workflow not found for webhook: {webhook_id}",
+                        webhook_id=webhook_id,
+                        received_at=received_at.isoformat(),
+                        correlation_id=correlation_id
+                    )
+
+                # Create session ID
+                session_id = f"webhook_{webhook_id}_{int(time.time())}"
+
+                # Extract meaningful input from webhook payload
+                webhook_input = ""
+                if payload_data:
+                    # Try to extract meaningful input from payload
+                    if isinstance(payload_data, dict):
+                        # Check common fields for input data (in priority order)
+                        if payload_data.get("message"):
+                            webhook_input = payload_data.get("message")
+                        elif payload_data.get("text"):
+                            webhook_input = payload_data.get("text")
+                        elif payload_data.get("input"):
+                            webhook_input = payload_data.get("input")
+                        elif isinstance(payload_data.get("data"), dict) and payload_data.get("data", {}).get("message"):
+                            webhook_input = payload_data.get("data", {}).get("message")
+                        elif payload_data.get("data"):
+                            webhook_input = str(payload_data.get("data"))
                         else:
-                            logger.error(f"❌ Workflow execution failed: {response.status_code} - {response.text}")
+                            # Fallback: use JSON representation of payload
+                            webhook_input = json.dumps(payload_data)
+                    else:
+                        webhook_input = str(payload_data)
                 
-                except Exception as e:
-                    logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
-            
-            # Start workflow execution in background
-            background_tasks.add_task(execute_webhook_workflow)
-            
-            logger.info(f"📨 Webhook received and workflow queued: {webhook_id} - {request.method}")
-            
-            return WebhookResponse(
-                success=True,
-                message=f"Webhook received and workflow started via {request.method}",
-                webhook_id=webhook_id,
-                received_at=received_at.isoformat(),
-                correlation_id=correlation_id
-            )
-            
+                # Fallback to default if no input extracted
+                if not webhook_input:
+                    webhook_input = f"Webhook triggered: {webhook_id}"
+
+                # Prepare execution inputs (add webhook data)
+                # CRITICAL: Include 'input' field for Start node compatibility
+                execution_inputs = {
+                    "input": webhook_input,  # Main input for Start node
+                    "input_text": webhook_input,  # Also include for backward compatibility
+                    "webhook_data": webhook_event,
+                    "webhook_id": webhook_id,
+                    "http_method": request.method,
+                }
+
+                # Prepare execution context
+                ctx = await executor.prepare_execution_context(
+                    db=session,
+                    workflow=workflow,
+                    execution_inputs=execution_inputs,
+                    session_id=session_id,
+                    is_webhook=True,
+                    owner_id=workflow.user_id,  # Use workflow owner as owner
+                )
+
+                # Execute workflow with streaming to capture events for UI visualization
+                logger.info(f"▶️ Executing workflow {workflow.id} for webhook {webhook_id} (streaming mode for UI)")
+                result_stream = await executor.execute_workflow(
+                    ctx=ctx,
+                    db=session,
+                    stream=True,  # Stream execution to capture events for UI
+                )
+
+                # Collect events and final result from stream
+                result = None
+                collected_events = []
+                
+                if isinstance(result_stream, AsyncGenerator):
+                    async for event_chunk in result_stream:
+                        if isinstance(event_chunk, dict):
+                            # Collect events for UI visualization
+                            collected_events.append(event_chunk)
+                            
+                            # Check if this is the final result
+                            # IMPORTANT:
+                            # Keep the full event chunk (including node_outputs) instead of only the string result
+                            # so we can extract webhook_response from RespondToWebhook node.
+                            if event_chunk.get("type") == "complete":
+                                result = event_chunk  # contains result, node_outputs, executed_nodes, session_id
+                            elif event_chunk.get("event") == "workflow_complete":
+                                result = event_chunk
+                            
+                            # Broadcast event to UI via webhook subscribers
+                            # This allows UI to visualize execution in real-time
+                            if enable_frontend_stream and webhook_id in webhook_subscribers:
+                                # Make event_chunk serializable before creating UI event
+                                serializable_event_chunk = make_json_serializable(event_chunk)
+
+                                # Include original HTTP request payload (body) for UI inspection
+                                safe_webhook_payload = make_json_serializable(
+                                    webhook_event.get("data")
+                                )
+
+                                ui_event = {
+                                    "type": "webhook_execution_event",
+                                    "webhook_id": webhook_id,
+                                    "workflow_id": str(workflow.id),
+                                    "execution_id": str(ctx.execution_id)
+                                    if ctx.execution_id
+                                    else None,
+                                    "event": serializable_event_chunk,
+                                    "webhook_payload": safe_webhook_payload,
+                                    "timestamp": datetime.now(timezone.utc).isoformat(),
+                                }
+                                # Make entire UI event serializable as well
+                                serializable_ui_event = make_json_serializable(ui_event)
+
+                                # Send event to all subscribers with improved error handling
+                                subscribers = webhook_subscribers[webhook_id].copy()  # Copy to avoid modification during iteration
+                                for queue in subscribers:
+                                    try:
+                                        # Check queue size to prevent memory issues
+                                        if queue.qsize() >= MAX_QUEUE_LENGTH:
+                                            logger.warning(
+                                                f"Queue full for webhook {webhook_id}, removing subscriber"
+                                            )
+                                            # Remove full queue and notify client
+                                            try:
+                                                await queue.put({
+                                                    "type": "error",
+                                                    "error": "Queue full, disconnecting",
+                                                    "timestamp": datetime.now(timezone.utc).isoformat()
+                                                })
+                                            except:
+                                                pass
+                                            webhook_subscribers[webhook_id].remove(queue)
+                                            continue
+                                        
+                                        # Use put_nowait with timeout fallback for better performance
+                                        try:
+                                            queue.put_nowait(serializable_ui_event)
+                                        except asyncio.QueueFull:
+                                            # Queue is full, use blocking put with timeout
+                                            try:
+                                                await asyncio.wait_for(
+                                                    queue.put(serializable_ui_event),
+                                                    timeout=1.0
+                                                )
+                                            except asyncio.TimeoutError:
+                                                logger.warning(
+                                                    f"Timeout sending event to subscriber for webhook {webhook_id}"
+                                                )
+                                                webhook_subscribers[webhook_id].remove(queue)
+                                    except asyncio.CancelledError:
+                                        # Subscriber disconnected, remove from list
+                                        if queue in webhook_subscribers[webhook_id]:
+                                            webhook_subscribers[webhook_id].remove(queue)
+                                    except Exception as e:
+                                        logger.warning(
+                                            f"Failed to send UI event to subscriber for webhook {webhook_id}: {e}",
+                                            exc_info=True
+                                        )
+                                        # Remove problematic subscriber
+                                        if queue in webhook_subscribers[webhook_id]:
+                                            webhook_subscribers[webhook_id].remove(queue)
+                else:
+                    # Fallback: if not a generator, use as result
+                    result = result_stream
+
+                logger.info(f"✅ Workflow executed successfully: workflow={workflow.id}, webhook={webhook_id}, events={len(collected_events)}")
+                
+                # Extract webhook_response from result
+                # Check multiple possible locations for webhook_response
+                if isinstance(result, dict):
+                    # Check directly in result
+                    webhook_response_data = result.get("webhook_response")
+                    
+                    # Check in node_outputs if webhook_response not found
+                    if not webhook_response_data and "node_outputs" in result:
+                        for node_id, node_output in result.get("node_outputs", {}).items():
+                            if isinstance(node_output, dict) and "webhook_response" in node_output:
+                                webhook_response_data = node_output.get("webhook_response")
+                                break
+                    
+                    # Check in memory_data
+                    if not webhook_response_data:
+                        # Try to get from state if available
+                        # The state might be in the result if workflow enhancer returns it
+                        if "state" in result:
+                            state = result.get("state")
+                            if hasattr(state, "webhook_response") and state.webhook_response:
+                                webhook_response_data = state.webhook_response
+                            elif hasattr(state, "memory_data") and state.memory_data:
+                                webhook_response_data = state.memory_data.get("webhook_response")
+                        
+                        # Also check in execution outputs
+                        if not webhook_response_data and "outputs" in result:
+                            outputs = result.get("outputs")
+                            if isinstance(outputs, dict):
+                                webhook_response_data = outputs.get("webhook_response")
+                
+                logger.debug(f"Webhook response data: {webhook_response_data}")
+
         except Exception as e:
-            logger.error(f"❌ Workflow execution setup failed: {e}")
-            # Fall back to regular webhook response
+            logger.error(f"❌ Workflow execution error for webhook {webhook_id}: {e}")
+            logger.error(traceback.format_exc())
+            # Fall back to error response
+            webhook_response_data = {
+                "status_code": 500,
+                "body": {
+                    "success": False,
+                    "error": "Workflow execution failed",
+                    "message": str(e)
+                },
+                "headers": {"Content-Type": "application/json"},
+                "content_type": "application/json"
+            }
         
-        logger.info(f"📨 Webhook received: {webhook_id} - {request.method} - {event_type}")
+        # Check if custom webhook response was set by RespondToWebhookNode
+        if webhook_response_data and isinstance(webhook_response_data, dict):
+            try:
+                status_code = webhook_response_data.get("status_code", 200)
+                body = webhook_response_data.get("body", {})
+                headers = webhook_response_data.get("headers", {})
+                
+                # Validate status code
+                if not isinstance(status_code, int) or status_code < 100 or status_code > 599:
+                    logger.warning(f"Invalid status code {status_code}, using 200")
+                    status_code = 200
+                
+                # Ensure Content-Type is set
+                content_type = None
+                for k, v in headers.items():
+                    if k.lower() == "content-type":
+                        content_type = v
+                        break
+                
+                if not content_type:
+                    content_type = webhook_response_data.get("content_type", "application/json")
+                    headers["Content-Type"] = content_type
+                
+                logger.info(f"📤 Sending custom webhook response: status={status_code}, content_type={content_type}")
+                
+                # Determine response class based on content type
+                if "application/json" in content_type:
+                    # Ensure body is JSON-serializable
+                    serializable_body = make_json_serializable(body)
+                    return JSONResponse(
+                        status_code=status_code,
+                        content=serializable_body,
+                        headers=headers
+                    )
+                elif "text/html" in content_type:
+                    return HTMLResponse(
+                        status_code=status_code,
+                        content=str(body) if not isinstance(body, str) else body,
+                        headers=headers
+                    )
+                elif "text/plain" in content_type:
+                    return PlainTextResponse(
+                        status_code=status_code,
+                        content=str(body) if not isinstance(body, str) else body,
+                        headers=headers
+                    )
+                else:
+                    # Fallback to general Response for other types (XML, etc.)
+                    return Response(
+                        status_code=status_code,
+                        content=str(body) if not isinstance(body, (str, bytes)) else body,
+                        headers=headers,
+                        media_type=content_type
+                    )
+            except Exception as e:
+                logger.error(f"❌ Error creating custom webhook response: {e}")
+                # Fall through to default response
         
-        return WebhookResponse(
-            success=True,
-            message=f"Webhook received and processed successfully via {request.method}",
-            webhook_id=webhook_id,
-            received_at=received_at.isoformat(),
-            correlation_id=correlation_id
-        )
+        # Default: return only node outputs as HTTP response (without node IDs)
+        logger.info(f"📤 Returning node outputs as webhook response (flattened)")
+        
+        if result and isinstance(result, dict):
+            # Extract node_outputs from result
+            node_outputs = {}
+            
+            # Try to get from state first
+            if "state" in result:
+                state = result.get("state", {})
+                node_outputs = state.get("node_outputs", {})
+                logger.debug(f"📊 Found {len(node_outputs)} node outputs in state")
+            
+            # If not in state, try directly in result
+            if not node_outputs and "node_outputs" in result:
+                node_outputs = result.get("node_outputs", {})
+                logger.debug(f"📊 Found {len(node_outputs)} node outputs in result")
+            
+            # Flatten node_outputs: remove node IDs and merge all outputs
+            flattened_output = {}
+            for node_id, node_output in node_outputs.items():
+                if isinstance(node_output, dict):
+                    # Merge all keys from node_output into flattened_output
+                    flattened_output.update(node_output)
+                else:
+                    # If node_output is not a dict, use "output" as key
+                    # If "output" already exists, append or merge
+                    if "output" in flattened_output:
+                        # If both are strings, combine them
+                        if isinstance(flattened_output["output"], str) and isinstance(node_output, str):
+                            flattened_output["output"] = f"{flattened_output['output']}\n\n{node_output}"
+                        else:
+                            # Otherwise, convert to list
+                            if not isinstance(flattened_output["output"], list):
+                                flattened_output["output"] = [flattened_output["output"]]
+                            flattened_output["output"].append(node_output)
+                    else:
+                        flattened_output["output"] = node_output
+            
+            # Make flattened output JSON-serializable
+            serializable_output = make_json_serializable(flattened_output)
+            
+            # Return flattened node outputs (without node IDs)
+            return JSONResponse(
+                status_code=200,
+                content=serializable_output,
+            )
+        else:
+            # Fallback if result is not a dict (e.g., plain string from LLM)
+            logger.info(f"📤 Returning raw result as webhook response (non-dict result type={type(result).__name__})")
+            
+            # If result is a simple value, wrap it in an 'output' field
+            if result is None:
+                content = {}
+            elif isinstance(result, (str, int, float, bool)):
+                content = {"output": result}
+            else:
+                # Try to make it JSON-serializable
+                try:
+                    content = make_json_serializable(result)
+                except Exception as e:
+                    logger.warning(f"Failed to serialize non-dict result for webhook response: {e}")
+                    content = {"output": str(result)}
+            
+            return JSONResponse(
+                status_code=200,
+                content=content,
+            )
         
     except HTTPException:
         raise
@@ -276,84 +770,205 @@ async def handle_webhook_request(
             detail=f"Webhook processing failed: {str(e)}"
         )
 
-# Register catch-all routes for all HTTP methods
-@webhook_router.get("/{webhook_id}")
-async def get_webhook(
+# Register catch-all routes for all HTTP methods - TEST ROUTER
+@webhook_test_router.get("/{webhook_id}")
+async def get_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.post("/{webhook_id}")
-async def post_webhook(
+@webhook_test_router.post("/{webhook_id}")
+async def post_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.put("/{webhook_id}")
-async def put_webhook(
+@webhook_test_router.put("/{webhook_id}")
+async def put_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.patch("/{webhook_id}")
-async def patch_webhook(
+@webhook_test_router.patch("/{webhook_id}")
+async def patch_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.delete("/{webhook_id}")
-async def delete_webhook(
+@webhook_test_router.delete("/{webhook_id}")
+async def delete_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-@webhook_router.head("/{webhook_id}")
-async def head_webhook(
+@webhook_test_router.head("/{webhook_id}")
+async def head_webhook_test(
     webhook_id: str,
     request: Request,
     background_tasks: BackgroundTasks,
     credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
 ):
-    return await handle_webhook_request(webhook_id, request, background_tasks, credentials)
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=True)
 
-# Webhook streaming endpoint
-@webhook_router.get("/{webhook_id}/stream")
-async def webhook_stream(webhook_id: str):
+# Webhook streaming endpoint - TEST ROUTER
+@webhook_test_router.get("/{webhook_id}/stream")
+async def webhook_stream_test(webhook_id: str):
     """Stream webhook events for a specific webhook"""
+    # Auto-create webhook entry if it doesn't exist (for UI connections)
     if webhook_id not in webhook_events:
-        raise HTTPException(status_code=404, detail="Webhook not found")
+        webhook_events[webhook_id] = []
+        webhook_subscribers[webhook_id] = []
+        logger.info(f"🔧 Auto-created webhook storage for stream: {webhook_id}")
     
     async def event_stream():
-        queue = asyncio.Queue()
+        queue = asyncio.Queue(maxsize=MAX_QUEUE_LENGTH)
+        if webhook_id not in webhook_subscribers:
+            webhook_subscribers[webhook_id] = []
+        
+        # Enforce maximum subscriber limit
+        if len(webhook_subscribers[webhook_id]) >= MAX_QUEUE_SIZE:
+            logger.warning(
+                f"Maximum subscriber limit reached for webhook {webhook_id}, "
+                f"removing oldest subscriber"
+            )
+            # Remove oldest subscriber
+            if webhook_subscribers[webhook_id]:
+                oldest_queue = webhook_subscribers[webhook_id].pop(0)
+                try:
+                    await oldest_queue.put({
+                        "type": "error",
+                        "error": "Maximum subscribers reached, disconnecting",
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                except:
+                    pass
+        
         webhook_subscribers[webhook_id].append(queue)
         
         try:
+            # Send initial connection message
+            yield f"data: {json.dumps({'type': 'connected', 'webhook_id': webhook_id, 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+            
             while True:
                 try:
                     event = await asyncio.wait_for(queue.get(), timeout=30.0)
-                    yield f"data: {json.dumps(event)}\n\n"
+                    # Make event JSON serializable before sending
+                    serializable_event = make_json_serializable(event)
+                    yield f"data: {json.dumps(serializable_event)}\n\n"
                 except asyncio.TimeoutError:
-                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now().isoformat()})}\n\n"
+                    # Send ping to keep connection alive
+                    yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+                except Exception as e:
+                    logger.error(f"Error serializing webhook event: {e}", exc_info=True)
+                    # Send error event instead of crashing
+                    error_event = make_json_serializable({
+                        "type": "error",
+                        "error": str(e),
+                        "timestamp": datetime.now(timezone.utc).isoformat()
+                    })
+                    yield f"data: {json.dumps(error_event)}\n\n"
         except asyncio.CancelledError:
             pass
         finally:
-            if queue in webhook_subscribers[webhook_id]:
+            if webhook_id in webhook_subscribers and queue in webhook_subscribers[webhook_id]:
                 webhook_subscribers[webhook_id].remove(queue)
+    
+    return StreamingResponse(
+        event_stream(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "*",
+        }
+    )
+
+# Register catch-all routes for all HTTP methods - PRODUCTION ROUTER
+@webhook_production_router.get("/{webhook_id}")
+async def get_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.post("/{webhook_id}")
+async def post_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.put("/{webhook_id}")
+async def put_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.patch("/{webhook_id}")
+async def patch_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.delete("/{webhook_id}")
+async def delete_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+@webhook_production_router.head("/{webhook_id}")
+async def head_webhook_production(
+    webhook_id: str,
+    request: Request,
+    background_tasks: BackgroundTasks,
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(HTTPBearer(auto_error=False))
+):
+    return await handle_webhook_request(webhook_id, request, background_tasks, credentials, enable_frontend_stream=False)
+
+# Webhook streaming endpoint - PRODUCTION ROUTER (empty stream, no frontend events)
+@webhook_production_router.get("/{webhook_id}/stream")
+async def webhook_stream_production(webhook_id: str):
+    """Stream webhook events for production (empty stream, frontend streaming disabled)"""
+    async def event_stream():
+        # Send initial connection message
+        yield f"data: {json.dumps({'type': 'connected', 'webhook_id': webhook_id, 'message': 'Production webhook - streaming disabled', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+        
+        # Keep connection alive with pings only, no actual events
+        while True:
+            try:
+                await asyncio.sleep(30.0)
+                yield f"data: {json.dumps({'type': 'ping', 'timestamp': datetime.now(timezone.utc).isoformat()})}\n\n"
+            except asyncio.CancelledError:
+                break
     
     return StreamingResponse(
         event_stream(),
@@ -418,6 +1033,10 @@ async def get_webhook_stats(webhook_id: str):
 webhook_events: Dict[str, List[Dict[str, Any]]] = {}
 webhook_subscribers: Dict[str, List[asyncio.Queue]] = {}
 
+# Constants for webhook streaming
+MAX_QUEUE_SIZE = 100  # Maximum number of subscribers per webhook
+MAX_QUEUE_LENGTH = 1000  # Maximum queue length per subscriber
+
 class WebhookPayload(BaseModel):
     """Standard webhook payload model."""
     event_type: str = Field(default="webhook.received", description="Type of webhook event")
@@ -459,7 +1078,7 @@ class WebhookTriggerNode(TerminatorNode):
             "display_name": "Webhook Trigger",
             "description": (
                 "Unified webhook node that supports all HTTP methods (GET, POST, PUT, PATCH, DELETE, HEAD). "
-                f"Send requests to /api/v1/webhooks{self.endpoint_path} with optional JSON payload."
+                f"Send requests to /{API_START}/{API_VERSION}/webhook{self.endpoint_path} with optional JSON payload."
             ),
             "category": "Triggers",
             "node_type": NodeType.TERMINATOR,
@@ -474,10 +1093,10 @@ class WebhookTriggerNode(TerminatorNode):
                     required=False,
                 ),
                 NodeInput(
-                    name="authentication_required",
-                    type="boolean",
-                    description="Require bearer token authentication",
-                    default=True,
+                    name="authentication_type",
+                    type="select",
+                    description="Authentication type for webhook requests",
+                    default="none",
                     required=False,
                 ),
                 NodeInput(
@@ -532,11 +1151,6 @@ class WebhookTriggerNode(TerminatorNode):
                     description="Full webhook endpoint URL",
                 ),
                 NodeOutput(
-                    name="webhook_token",
-                    type="string",
-                    description="Authentication token for webhook calls",
-                ),
-                NodeOutput(
                     name="webhook_runnable",
                     type="runnable",
                     description="LangChain Runnable for webhook event processing",
@@ -550,10 +1164,43 @@ class WebhookTriggerNode(TerminatorNode):
             "properties": [
                 # Basic Tab
                 NodeProperty(
+                    name="path",
+                    displayName="Path",
+                    type=NodePropertyType.TEXT,
+                    default=str(uuid.uuid4()),
+                    placeholder="Leave empty to auto-generate UUID v4",
+                    hint="Customizable path value for webhook endpoint",
+                    required=False,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="webhook_environment",
+                    displayName="Environment",
+                    type=NodePropertyType.SELECT,
+                    default="test",
+                    options=[
+                        {"label": "Test", "value": "test"},
+                        {"label": "Production", "value": "production"},
+                    ],
+                    hint="Test environment supports frontend streaming, Production does not",
+                    required=True,
+                    tabName="basic"
+                ),
+                NodeProperty(
+                    name="webhook_exact_url",
+                    displayName="Exact Webhook URL",
+                    type=NodePropertyType.READONLY_TEXT,
+                    placeholder="Full webhook URL will be displayed here and can be copied",
+                    hint="This field is read-only and automatically updates based on the Path and Environment fields",
+                    required=False,
+                    tabName="basic",
+                    colSpan=2,
+                ),
+                NodeProperty(
                     name="http_method",
                     displayName="HTTP Method",
                     type=NodePropertyType.SELECT,
-                    default="POST",
+                    default="GET",
                     options=[
                         {"label": "POST - JSON Body (Default)", "value": "POST"},
                         {"label": "GET - Query Parameters", "value": "GET"},
@@ -567,37 +1214,42 @@ class WebhookTriggerNode(TerminatorNode):
                     tabName="basic"
                 ),
                 NodeProperty(
-                    name="authentication_required",
-                    displayName="Authentication Required",
+                    name="authentication_type",
+                    displayName="Authentication Type",
                     type=NodePropertyType.SELECT,
-                    default="true",
+                    default="none",
                     options=[
-                        {"label": "Yes", "value": "true"},
-                        {"label": "No", "value": "false"},
+                        {"label": "None", "value": "none"},
+                        {"label": "Basic Auth", "value": "basic_auth"},
+                        {"label": "Header Auth", "value": "header_auth"},
                     ],
-                    description="Require bearer token authentication",
+                    description="Select authentication method for webhook requests",
                     required=True,
                     tabName="basic"
                 ),
                 NodeProperty(
-                    name="webhook_token",
-                    displayName="Authentication Token",
-                    type=NodePropertyType.PASSWORD,
-                    placeholder="Enter Bearer token for authentication",
-                    hint="This token will be used as Bearer token in Authorization header",
+                    name="basic_auth_credential_id",
+                    displayName="Basic Auth Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    serviceType="basic_auth",
+                    description="Credential containing username and password for Basic Auth",
+                    required=False,
+                    tabName="basic",
                     displayOptions={
-                        "show": {
-                            "authentication_required": "true"
-                        }
-                    },
-                    tabName="basic"
+                        "show": {"authentication_type": "basic_auth"}
+                    }
                 ),
                 NodeProperty(
-                    name="allowed_event_types",
-                    displayName="Allowed Event Types",
-                    type=NodePropertyType.TEXT_AREA,
-                    placeholder="user.created, order.completed, data.updated (comma-separated, empty = all)",
-                    tabName="basic"
+                    name="header_auth_credential_id",
+                    displayName="Header Auth Credential",
+                    type=NodePropertyType.CREDENTIAL_SELECT,
+                    serviceType="header_auth",
+                    description="Credential containing header value for Header Auth",
+                    required=False,
+                    tabName="basic",
+                    displayOptions={
+                        "show": {"authentication_type": "header_auth"}
+                    }
                 ),
 
                 # Security Tab
@@ -648,14 +1300,6 @@ class WebhookTriggerNode(TerminatorNode):
                     required=True,
                 ),
                 NodeProperty(
-                    name="webhook_token",
-                    displayName="Secret Token",
-                    type=NodePropertyType.PASSWORD,
-                    placeholder="Enter secret token",
-                    tabName="security",
-                    required=True,
-                ),
-                NodeProperty(
                     name="allowed_ips",
                     displayName="Allowed IPs (Optional)",
                     type=NodePropertyType.TEXT_AREA,
@@ -663,102 +1307,6 @@ class WebhookTriggerNode(TerminatorNode):
                     placeholder="192.168.1.1, 10.0.0.0/8",
                     tabName="security",
                     required=False,
-                ),
-
-                # Advanced Tab
-                NodeProperty(
-                    name="max_concurrent_connections",
-                    displayName="Max Concurrent Connections",
-                    type=NodePropertyType.NUMBER,
-                    default=100,
-                    min=1,
-                    max=1000,
-                    hint="Maximum number of concurrent webhook connections",
-                    tabName="advanced",
-                    required=True,
-                ),
-                NodeProperty(
-                    name="connection_timeout",
-                    displayName="Connection Timeout (seconds)",
-                    type=NodePropertyType.NUMBER,
-                    default=30,
-                    min=5,
-                    max=300,
-                    description="Connection timeout in seconds",
-                    tabName="advanced",
-                    required=True,
-                ),
-                NodeProperty(
-                    name="enable_response_cache",
-                    displayName="Enable Response Caching",
-                    type=NodePropertyType.CHECKBOX,
-                    default=False,
-                    hint="Cache webhook responses for better performance",
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="cache_duration",
-                    displayName="Cache Duration (seconds)",
-                    type=NodePropertyType.NUMBER,
-                    default=300,
-                    min=60,
-                    max=3600,
-                    displayOptions={
-                        "show": {
-                            "enable_response_cache": True
-                        }
-                    },
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="enable_websocket_broadcast",
-                    displayName="Enable WebSocket Broadcasting",
-                    type=NodePropertyType.CHECKBOX,
-                    default=False,
-                    hint="Broadcast webhook events via WebSocket",
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="realtime_channels",
-                    displayName="Realtime Channels",
-                    type=NodePropertyType.TEXT_AREA,
-                    hint="Comma-separated list of WebSocket channels",
-                    placeholder="admin, analytics, monitoring",
-                    displayOptions={
-                        "show": {
-                            "enable_websocket_broadcast": True
-                        }
-                    },
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="tenant_isolation",
-                    displayName="Enable Tenant Isolation",
-                    type=NodePropertyType.CHECKBOX,
-                    default=False,
-                    hint="Separate webhook processing per tenant",
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="tenant_header",
-                    displayName="Tenant Header",
-                    type=NodePropertyType.TEXT,
-                    default="X-Tenant-ID",
-                    placeholder="X-Tenant-ID",
-                    displayOptions={
-                        "show": {
-                            "tenant_isolation": True
-                        }
-                    },
-                    tabName="advanced"
-                ),
-                NodeProperty(
-                    name="circuit_breaker",
-                    displayName="Enable Circuit Breaker",
-                    type=NodePropertyType.CHECKBOX,
-                    default=False,
-                    hint="Automatically handle failures and timeouts",
-                    tabName="advanced"
                 ),
             ],
         }
@@ -789,8 +1337,6 @@ class WebhookTriggerNode(TerminatorNode):
         Returns:
             Dict containing webhook data and configuration
         """
-        from app.core.state import FlowState
-        
         logger.info(f"🔧 Executing Webhook Trigger: {self.webhook_id}")
         
         # Get webhook payload from user data or latest event
@@ -804,7 +1350,7 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/{API_START}/{API_VERSION}/webhook{self.endpoint_path}")
         
         webhook_data = {
             "payload": webhook_payload,
@@ -832,11 +1378,10 @@ class WebhookTriggerNode(TerminatorNode):
         return {
             "webhook_data": webhook_data,
             "webhook_endpoint": full_endpoint,
-            "webhook_token": self.secret_token if self.user_data.get("authentication_required", True) else None,
             "webhook_config": {
                 "webhook_id": self.webhook_id,
                 "endpoint_url": full_endpoint,
-                "authentication_required": self.user_data.get("authentication_required", True),
+                "authentication_type": self.user_data.get("authentication_type", "none"),
                 "created_at": datetime.now(timezone.utc).isoformat(),
             },
             "output": initial_input,
@@ -859,18 +1404,20 @@ class WebhookTriggerNode(TerminatorNode):
         
         # Generate webhook configuration
         base_url = os.getenv("WEBHOOK_BASE_URL", "http://localhost:8000")
-        full_endpoint = urljoin(base_url, f"/api/v1/webhooks{self.endpoint_path}")
+        full_endpoint = urljoin(base_url, f"/{API_START}/{API_VERSION}/webhook{self.endpoint_path}")
         
+        authentication_type = kwargs.get("authentication_type", "none")
         webhook_config = {
             "webhook_id": self.webhook_id,
             "endpoint_url": full_endpoint,
-            "endpoint_path": f"/api/webhooks{self.endpoint_path}",
+            "endpoint_path": f"/{API_START}/webhooks{self.endpoint_path}",
             "http_method": kwargs.get("http_method", "POST").upper(),
-            "authentication_required": kwargs.get("authentication_required", True),
-            "secret_token": self.secret_token if kwargs.get("authentication_required", True) else None,
+            "authentication_type": authentication_type,
+            "secret_token": self.secret_token if authentication_type != "none" else None,
             "allowed_event_types": kwargs.get("allowed_event_types", ""),
             "max_payload_size_kb": kwargs.get("max_payload_size", 1024),
             "rate_limit_per_minute": kwargs.get("rate_limit_per_minute", 60),
+            "path": self.endpoint_path,
             "enable_cors": kwargs.get("enable_cors", True),
             "timeout_seconds": kwargs.get("webhook_timeout", 30),
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -883,7 +1430,6 @@ class WebhookTriggerNode(TerminatorNode):
         
         return {
             "webhook_endpoint": full_endpoint,
-            "webhook_token": self.secret_token if kwargs.get("authentication_required", True) else None,
             "webhook_runnable": webhook_runnable,
             "webhook_config": webhook_config,
         }
@@ -1097,7 +1643,6 @@ CONFIGURATION PARAMETERS:
 📤 OUTPUT PARAMETERS (4 total):
 
 • webhook_endpoint (string): Full webhook URL for external systems
-• webhook_token (string): Authentication token (if auth required)
 • webhook_runnable (runnable): LangChain Runnable for event processing
 • webhook_config (dict): Complete webhook configuration and metadata
 
@@ -1515,6 +2060,9 @@ __all__ = [
     "WebhookPayload", 
     "WebhookResponse",
     "webhook_router",
+    "webhook_test_router",
+    "webhook_production_router",
     "get_active_webhooks",
-    "cleanup_webhook_events"
+    "cleanup_webhook_events",
+    "find_workflow"
 ]

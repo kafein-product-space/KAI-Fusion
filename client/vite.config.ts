@@ -5,6 +5,21 @@ import tsconfigPaths from "vite-tsconfig-paths";
 import fs from 'fs';
 import path from 'path';
 
+// Helper to read constants from public/config.js
+const readConfig = () => {
+  const configPath = path.resolve(__dirname, 'public/config.js');
+  if (!fs.existsSync(configPath)) return { API_START: 'api', API_VERSION: 'v1' };
+  const content = fs.readFileSync(configPath, 'utf8');
+  const apiStartMatch = content.match(/window\.VITE_API_START\s*=\s*"(.*?)"/);
+  const apiVersionMatch = content.match(/window\.VITE_API_VERSION_ONLY\s*=\s*"(.*?)"/);
+  return {
+    API_START: apiStartMatch ? apiStartMatch[1] : 'api',
+    API_VERSION: apiVersionMatch ? apiVersionMatch[1] : 'v1'
+  };
+};
+
+const { API_START, API_VERSION } = readConfig();
+
 const isDev = process.env.NODE_ENV !== 'production';
 const basePath = process.env.VITE_BASE_PATH || '/kai';
 
@@ -40,10 +55,10 @@ export default defineConfig({
     https: httpsConfig,
     ...(isDev && {
       proxy: {
-        '/api/kai': {
+        [`/${API_START}/kai`]: {
           target: proxyTarget,
           changeOrigin: true,
-          rewrite: (path) => path.replace(/^\/api\/kai/, ''),
+          rewrite: (path) => path.replace(new RegExp(`^/${API_START}/kai`), ''),
           secure: false,
           configure: (proxy, options) => {
             proxy.on('error', (err, req, res) => {

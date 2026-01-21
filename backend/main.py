@@ -80,7 +80,7 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-from app.core.constants import PORT, ROOT_PATH, SSL_KEYFILE, SSL_CERTFILE
+from app.core.constants import PORT, ROOT_PATH, SSL_KEYFILE, SSL_CERTFILE,API_START,API_VERSION
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
@@ -100,6 +100,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.nodes.triggers.webhook_trigger import webhook_test_router, webhook_production_router
 from app.nodes.triggers import webhook_router as webhook_node_router
 from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
@@ -230,33 +231,35 @@ register_exception_handlers(app)
 # Include API routers
 
 # Core routers (always available)
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
-app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
-app.include_router(api_key_router, prefix="/api/v1/api-keys", tags=["API Keys"])
-app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
-app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
-app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
-app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
-app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
-app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
-app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
-app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
-app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
+app.include_router(auth_router, prefix=f"/{API_START}/{API_VERSION}/auth", tags=["Authentication"])
+app.include_router(nodes_router, prefix=f"/{API_START}/{API_VERSION}/nodes", tags=["Nodes"])
+app.include_router(workflows_router, prefix=f"/{API_START}/{API_VERSION}/workflows", tags=["Workflows"])
+app.include_router(api_key_router, prefix=f"/{API_START}/{API_VERSION}/api-keys", tags=["API Keys"])
+app.include_router(executions_router, prefix=f"/{API_START}/{API_VERSION}/executions", tags=["Executions"])
+app.include_router(credentials_router, prefix=f"/{API_START}/{API_VERSION}/credentials", tags=["Credentials"])
+app.include_router(chat_router, prefix=f"/{API_START}/{API_VERSION}/chat", tags=["Chat"])
+app.include_router(variables_router, prefix=f"/{API_START}/{API_VERSION}/variables", tags=["Variables"])
+app.include_router(node_configurations_router, prefix=f"/{API_START}/{API_VERSION}/node-configurations", tags=["Node Configurations"])
+app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nodes/registry", tags=["Node Registry"])
+app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documents", tags=["Documents"])
+app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
+app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
 
 # Include test router
 app.include_router(test_router)
 
 # Include webhook routers
-app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
-app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_router, prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["Webhooks"])
+app.include_router(webhook_trigger_router, prefix=f"/{API_START}/{API_VERSION}/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
+app.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
 app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
 
 # Include HTTP Client router
 app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
-app.include_router(export_router, prefix="/api/v1", tags=["Export"])
-app.include_router(external_workflows_router, prefix="/api/v1", tags=["External Workflows"])
+app.include_router(export_router, prefix=f"/{API_START}/{API_VERSION}", tags=["Export"])
+app.include_router(external_workflows_router, prefix=f"/{API_START}/{API_VERSION}", tags=["External Workflows"])
 
 
 
@@ -330,7 +333,7 @@ async def health_check():
         )
 
 # Legacy alias for health endpoint expected by some clients/tests
-@app.get("/api/health", tags=["Health"])
+@app.get(f"/{API_START}/health", tags=["Health"])
 async def health_check_api():
     return await health_check()
 
@@ -375,7 +378,7 @@ async def get_info():
         )
 
 # Legacy alias for info endpoint with additional fields to maintain backward compatibility
-@app.get("/api/v1/info", tags=["Info"])
+@app.get(f"/{API_START}/{API_VERSION}/info", tags=["Info"])
 async def get_info_v1():
     original = await get_info()
 
@@ -386,8 +389,8 @@ async def get_info_v1():
     # Otherwise it's a normal dict – add legacy fields expected by tests
     original.setdefault("endpoints", [
         "/",
-        "/api/health",
-        "/api/v1/nodes",
+        f"/{API_START}/health",
+        f"/{API_START}/{API_VERSION}/nodes",
         "/docs",
     ])
     original.setdefault("stats", original.get("statistics", {}))
@@ -403,8 +406,8 @@ async def root():
         "message": "Agent-Flow V2 API",
         "version": "2.0.0",
         "docs": "/docs",
-        "health": "/api/health",
-        "info": "/api/v1/info",
+        "health": f"/{API_START}/health",
+        "info": f"/{API_START}/{API_VERSION}/info",
         "database_enabled": True
     }
 

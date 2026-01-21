@@ -45,6 +45,7 @@ from app.core.state import FlowState
 from app.core.output_cache import default_connection_extractor
 from app.core.node_handlers import node_handler_registry
 from app.core.connection_pool import ConnectionPool, PooledConnection
+from app.core.json_utils import make_json_serializable_with_langchain
 from langchain_core.runnables import Runnable
 
 logger = logging.getLogger(__name__)
@@ -158,7 +159,8 @@ class NodeExecutor:
                 result = self._execute_async_method(execute_method, user_inputs, connected_nodes, node_id)
             else:
                 # Handle sync execute method
-                result = execute_method(user_inputs, connected_nodes)
+                # Use keyword arguments for better compatibility with different node signatures
+                result = execute_method(inputs=user_inputs, connected_nodes=connected_nodes)
             
             # Process the result
             processed_result = self.process_processor_result(result, state, node_id)
@@ -175,13 +177,13 @@ class NodeExecutor:
                 last_output = str(processed_result)
             # Update the state directly
             state.last_output = last_output
-            state.executed_nodes = updated_executed_nodes           # Filter out complex objects before storing in state
+            state.executed_nodes = updated_executed_nodes                       # Filter out complex objects before storing in state
             if gnode.type in PROCESSOR_NODE_TYPES:
-                serializable_result = self._filter_complex_objects(processed_result)
+                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=True)
                 serializable_output = last_output
                 logger.debug(f"Agent serializable output: {type(serializable_output)} - '{str(serializable_output)[:100]}...'")
             else:
-                serializable_result = self._make_serializable(processed_result)
+                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
                 serializable_output = serializable_result            # Store only serializable data in state for connected nodes to access
             if not hasattr(state, 'node_outputs'):
                 state.node_outputs = {}
@@ -715,13 +717,16 @@ class NodeExecutor:
                 if loop.is_running():
                     # We're already in an async context, create new event loop in thread
                     with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(asyncio.run, execute_method(user_inputs, connected_nodes))
+                        # Use keyword arguments for better compatibility
+                        future = executor.submit(asyncio.run, execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
                         result = future.result()
                 else:
-                    result = asyncio.run(execute_method(user_inputs, connected_nodes))
+                    # Use keyword arguments for better compatibility
+                    result = asyncio.run(execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
             except RuntimeError:
                 # No event loop, create one
-                result = asyncio.run(execute_method(user_inputs, connected_nodes))
+                # Use keyword arguments for better compatibility
+                result = asyncio.run(execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
             
             return result
             
@@ -1060,66 +1065,6 @@ class NodeExecutor:
             logger.error(f"[EXTRACT] Stack trace: {traceback.format_exc()}")
             return None
 
-    def _make_serializable(self, obj):
-        """Convert any object to a JSON-serializable format."""
-        from datetime import datetime, date
-        import uuid
-        from langchain_core.tools import BaseTool
-        from langchain_core.runnables import Runnable
-        
-        if obj is None or isinstance(obj, (bool, int, float, str)):
-            return obj
-        elif isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        elif isinstance(obj, uuid.UUID):
-            return str(obj)
-        elif isinstance(obj, (list, tuple)):
-            return [self._make_serializable(item) for item in obj]
-        elif isinstance(obj, dict):
-            if self._contains_complex_objects(obj):
-                return self._filter_complex_objects(obj)
-            return {k: self._make_serializable(v) for k, v in obj.items()}
-        elif isinstance(obj, (BaseTool, Runnable)) or callable(obj):
-            return f"<{obj.__class__.__name__}>"
-        elif hasattr(obj, 'model_dump'):
-            try:
-                return obj.model_dump()
-            except Exception:
-                return str(obj)
-        else:
-            return str(obj)
-    
-    def _contains_complex_objects(self, obj):
-        """Check if object contains complex LangChain objects that can't be serialized."""
-        if isinstance(obj, dict):
-            complex_keys = ['tools', 'tool_names', 'intermediate_steps', 'memory']
-            return any(key in obj for key in complex_keys)
-        return False
-    
-    def _filter_complex_objects(self, obj):
-        """Filter out complex objects from Agent results, keeping only serializable data."""
-        if not isinstance(obj, dict):
-            return self._make_serializable(obj)
-        
-        filtered = {}
-        for key, value in obj.items():
-            if key in ['tools', 'intermediate_steps']:
-                continue
-            elif key == 'tool_names':
-                if isinstance(value, list):
-                    filtered[key] = [str(name) for name in value]
-                else:
-                    filtered[key] = str(value)
-            elif key == 'memory':
-                if hasattr(value, 'chat_memory') and hasattr(value.chat_memory, 'messages'):
-                    filtered[key] = [msg.content if hasattr(msg, 'content') else str(msg)
-                                   for msg in value.chat_memory.messages]
-                else:
-                    filtered[key] = str(value)
-            else:
-                filtered[key] = self._make_serializable(value)
-        
-        return filtered
     
     def get_execution_stats(self) -> Dict[str, Any]:
         """Get execution statistics."""

@@ -18,39 +18,39 @@
 
 ### Base Configuration
 - **Base URL**: `http://localhost:8001`
-- **API Version**: `/api/v1`
+- **API Version**: `/{API_START}/{API_VERSION_ONLY}`
 - **Content Type**: `application/json`
 - **Authentication**: Bearer JWT tokens
 
 ### Available Endpoints
 ```
 Authentication:
-- POST   /api/v1/auth/signup
-- POST   /api/v1/auth/signin  
-- POST   /api/v1/auth/refresh
-- GET    /api/v1/auth/profile
+- POST   /{API_START}/{API_VERSION_ONLY}/auth/signup
+- POST   /{API_START}/{API_VERSION_ONLY}/auth/signin  
+- POST   /{API_START}/{API_VERSION_ONLY}/auth/refresh
+- GET    /{API_START}/{API_VERSION_ONLY}/auth/profile
 
 Workflows:
-- GET    /api/v1/workflows
-- POST   /api/v1/workflows
-- GET    /api/v1/workflows/{id}
-- PUT    /api/v1/workflows/{id}
-- DELETE /api/v1/workflows/{id}
-- POST   /api/v1/workflows/execute
-- POST   /api/v1/workflows/{id}/execute/stream
-- POST   /api/v1/workflows/validate
+- GET    /{API_START}/{API_VERSION_ONLY}/workflows
+- POST   /{API_START}/{API_VERSION_ONLY}/workflows
+- GET    /{API_START}/{API_VERSION_ONLY}/workflows/{id}
+- PUT    /{API_START}/{API_VERSION_ONLY}/workflows/{id}
+- DELETE /{API_START}/{API_VERSION_ONLY}/workflows/{id}
+- POST   /{API_START}/{API_VERSION_ONLY}/workflows/execute
+- POST   /{API_START}/{API_VERSION_ONLY}/workflows/{id}/execute/stream
+- POST   /{API_START}/{API_VERSION_ONLY}/workflows/validate
 
 Nodes:
-- GET    /api/v1/nodes
-- GET    /api/v1/nodes/categories
-- GET    /api/v1/nodes/{type}
+- GET    /{API_START}/{API_VERSION_ONLY}/nodes
+- GET    /{API_START}/{API_VERSION_ONLY}/nodes/categories
+- GET    /{API_START}/{API_VERSION_ONLY}/nodes/{type}
 
 Users:
-- GET    /api/v1/users/me
-- PUT    /api/v1/users/me
+- GET    /{API_START}/{API_VERSION_ONLY}/users/me
+- PUT    /{API_START}/{API_VERSION_ONLY}/users/me
 
 Credentials:
-- POST   /api/v1/credentials/validate
+- POST   /{API_START}/{API_VERSION_ONLY}/credentials/validate
 
 System:
 - GET    /health
@@ -64,7 +64,7 @@ System:
 ### JWT-Based Authentication Flow
 
 #### 1. User Registration
-**Endpoint**: `POST /api/v1/auth/signup`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/auth/signup`
 
 **Request Body**:
 ```json
@@ -91,7 +91,7 @@ System:
 
 **cURL Example**:
 ```bash
-curl -X POST "http://localhost:8001/api/v1/auth/signup" \
+curl -X POST "http://localhost:8001/{API_START}/{API_VERSION_ONLY}/auth/signup" \
   -H "Content-Type: application/json" \
   -d '{
     "email": "user@example.com",
@@ -100,7 +100,7 @@ curl -X POST "http://localhost:8001/api/v1/auth/signup" \
 ```
 
 #### 2. User Login
-**Endpoint**: `POST /api/v1/auth/signin`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/auth/signin`
 
 **Request Body**:
 ```json
@@ -126,7 +126,7 @@ curl -X POST "http://localhost:8001/api/v1/auth/signup" \
 ```
 
 #### 3. Token Refresh
-**Endpoint**: `POST /api/v1/auth/refresh`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/auth/refresh`
 
 **Request Body**:
 ```json
@@ -145,7 +145,7 @@ curl -X POST "http://localhost:8001/api/v1/auth/signup" \
 ```
 
 #### 4. Get User Profile
-**Endpoint**: `GET /api/v1/auth/profile`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/auth/profile`
 
 **Headers**:
 ```
@@ -167,7 +167,7 @@ Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
 ## Workflow Management
 
 ### 1. List User Workflows
-**Endpoint**: `GET /api/v1/workflows`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/workflows`
 
 **Headers**:
 ```
@@ -206,7 +206,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### 2. Create New Workflow
-**Endpoint**: `POST /api/v1/workflows`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/workflows`
 
 **Headers**:
 ```
@@ -270,7 +270,7 @@ Content-Type: application/json
 ```
 
 ### 3. Execute Workflow (Synchronous)
-**Endpoint**: `POST /api/v1/workflows/execute`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/workflows/execute`
 
 **Headers**:
 ```
@@ -349,7 +349,7 @@ Content-Type: application/json
 ```
 
 ### 4. Execute Workflow with Streaming
-**Endpoint**: `POST /api/v1/workflows/{workflow_id}/execute/stream`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/workflows/{workflow_id}/execute/stream`
 
 **Headers**:
 ```
@@ -387,7 +387,7 @@ data: {"type": "complete", "result": {"final_output": "Complete marketing strate
 ```
 
 ### 5. Validate Workflow Structure
-**Endpoint**: `POST /api/v1/workflows/validate`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/workflows/validate`
 
 **Headers**:
 ```
@@ -459,7 +459,7 @@ Content-Type: application/json
 ## Node System
 
 ### 1. List All Available Nodes
-**Endpoint**: `GET /api/v1/nodes`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/nodes`
 
 **Response** (200 OK):
 ```json
@@ -568,7 +568,7 @@ Content-Type: application/json
 ```
 
 ### 2. Get Node Categories
-**Endpoint**: `GET /api/v1/nodes/categories`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/nodes/categories`
 
 **Response** (200 OK):
 ```json
@@ -600,9 +600,9 @@ Content-Type: application/json
 ```
 
 ### 3. Get Specific Node Details
-**Endpoint**: `GET /api/v1/nodes/{node_type}`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/nodes/{node_type}`
 
-**Example**: `GET /api/v1/nodes/OpenAIChat`
+**Example**: `GET /{API_START}/{API_VERSION_ONLY}/nodes/OpenAIChat`
 
 **Response** (200 OK):
 ```json
@@ -702,7 +702,7 @@ Content-Type: application/json
 ## User Management
 
 ### 1. Get Current User
-**Endpoint**: `GET /api/v1/users/me`
+**Endpoint**: `GET /{API_START}/{API_VERSION_ONLY}/users/me`
 
 **Headers**:
 ```
@@ -733,7 +733,7 @@ Authorization: Bearer {access_token}
 ```
 
 ### 2. Update User Profile
-**Endpoint**: `PUT /api/v1/users/me`
+**Endpoint**: `PUT /{API_START}/{API_VERSION_ONLY}/users/me`
 
 **Headers**:
 ```
@@ -777,7 +777,7 @@ Content-Type: application/json
 ## Credential Management
 
 ### 1. Validate API Credentials
-**Endpoint**: `POST /api/v1/credentials/validate`
+**Endpoint**: `POST /{API_START}/{API_VERSION_ONLY}/credentials/validate`
 
 **Headers**:
 ```
@@ -883,11 +883,11 @@ Content-Type: application/json
     "total_workflows": 1200
   },
   "endpoints": {
-    "auth": "/api/v1/auth",
-    "workflows": "/api/v1/workflows", 
-    "nodes": "/api/v1/nodes",
-    "users": "/api/v1/users",
-    "credentials": "/api/v1/credentials"
+    "auth": "/{API_START}/{API_VERSION_ONLY}/auth",
+    "workflows": "/{API_START}/{API_VERSION_ONLY}/workflows", 
+    "nodes": "/{API_START}/{API_VERSION_ONLY}/nodes",
+    "users": "/{API_START}/{API_VERSION_ONLY}/users",
+    "credentials": "/{API_START}/{API_VERSION_ONLY}/credentials"
   }
 }
 ```
@@ -1035,7 +1035,7 @@ Content-Type: application/json
 
 #### Create Workflow
 ```bash
-curl -X POST "http://localhost:8001/api/v1/workflows" \
+curl -X POST "http://localhost:8001/{API_START}/{API_VERSION_ONLY}/workflows" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1074,7 +1074,7 @@ curl -X POST "http://localhost:8001/api/v1/workflows" \
 
 #### Execute Workflow
 ```bash
-curl -X POST "http://localhost:8001/api/v1/workflows/execute" \
+curl -X POST "http://localhost:8001/{API_START}/{API_VERSION_ONLY}/workflows/execute" \
   -H "Authorization: Bearer ${ACCESS_TOKEN}" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1196,7 +1196,7 @@ curl -X POST "http://localhost:8001/api/v1/workflows/execute" \
 ```javascript
 // Frontend JavaScript for streaming execution
 const executeWorkflowStream = async (workflowId, inputText) => {
-  const response = await fetch(`/api/v1/workflows/${workflowId}/execute/stream`, {
+  const response = await fetch(`/{API_START}/{API_VERSION_ONLY}/workflows/${workflowId}/execute/stream`, {
     method: 'POST',
     headers: {
       'Authorization': `Bearer ${accessToken}`,
