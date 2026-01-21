@@ -53,8 +53,6 @@ const nodeTypeIconMap: Record<string, ReactElement> = {
   HttpRequest: <img src={`${BASE_PATH}/icons/globe.svg`} alt="http-request" />,
   WebhookTrigger: <img src={`${BASE_PATH}/icons/webhook.svg`} alt="webhook" />,
   RespondToWebhook: <img src={`${BASE_PATH}/icons/webhook.svg`} alt="respond-to-webhook" />,
-
-
   // RAG & QA
   RetrievalQA: <img src={`${BASE_PATH}/icons/book-open.svg`} alt="retrieval-qa" />,
   Reranker: <img src={`${BASE_PATH}/icons/cohere.svg`} alt="reranker" />,

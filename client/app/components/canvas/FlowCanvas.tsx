@@ -1920,7 +1920,7 @@ function useWebhookExecutionListener(
       }
 
       try {
-        const streamUrl = `${baseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhook-test/${webhookId}/stream`;
+        const streamUrl = `${baseUrl}/api/v1/webhook-test/${webhookId}/stream`;
         const eventSource = new EventSource(streamUrl);
 
         eventSource.onerror = (error) => {
