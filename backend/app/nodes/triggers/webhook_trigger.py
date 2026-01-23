@@ -89,12 +89,20 @@ async def find_workflow(
                         )
                 )
             """).bindparams(bindparam("webhook_id", webhook_id))
-        ).limit(1)
+        )
         
         result = await db.execute(search_stmt)
-        workflow = result.scalars().first()
+        # Remove limit(1) from query above or fetch all here
+        workflows = result.scalars().all()
         
-        if workflow:
+        if workflows:
+            if len(workflows) > 1:
+                logger.warning(f" FOUND MULTIPLE WORKFLOWS for webhook_id '{webhook_id}':")
+                for w in workflows:
+                    logger.warning(f"   - ID: {w.id}, Name: {w.name}, User: {w.user_id}")
+                logger.warning(f"   Using first match: {workflows[0].id}")
+            
+            workflow = workflows[0]
             logger.info(f"Found workflow by webhook_id in flow_data: {webhook_id} -> {workflow.id} ({workflow.name})")
             return workflow
         else:
@@ -419,7 +427,14 @@ async def handle_webhook_request(
                     if body_bytes:
                         payload_data = {"body": body_bytes.decode("utf-8", errors="ignore")}
             except Exception as e:
-                logger.warning(f"Failed to parse request body: {e}")
+                # Try to read raw body for debugging
+                try:
+                    raw_body = await request.body()
+                    raw_text = raw_body.decode("utf-8", errors="replace")
+                    logger.warning(f"Failed to parse request body: {e}. Raw body: '{raw_text}'")
+                except:
+                    logger.warning(f"Failed to parse request body: {e}")
+                
                 payload_data = {"message": "webhook_triggered", "parse_error": str(e)}
         
         elif request.method == "GET":

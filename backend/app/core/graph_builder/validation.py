@@ -17,7 +17,7 @@ from collections import defaultdict
 
 from .types import (
     ValidationResult, NodeRegistry, START_NODE_TYPE, END_NODE_TYPE,
-    PooledConnection, ConnectionPoolStats, ConnectionPoolConfig,
+    TERMINAL_NODE_TYPES, PooledConnection, ConnectionPoolStats, ConnectionPoolConfig,
     DEFAULT_POOL_ENABLED, POOL_FEATURE_FLAG
 )
 from .exceptions import ValidationError
@@ -552,19 +552,28 @@ class ValidationEngine:
             start_nodes = [n for n in nodes if n.get("type") == START_NODE_TYPE]
             webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
             entry_nodes = start_nodes + webhook_trigger_nodes
+            
+            # Check for terminal nodes (EndNode OR RespondToWebhook)
+            # These are valid workflow exit points
+            terminal_nodes = [n for n in nodes if n.get("type") in TERMINAL_NODE_TYPES]
             end_nodes = [n for n in nodes if n.get("type") == END_NODE_TYPE]
+            respond_to_webhook_nodes = [n for n in nodes if n.get("type") == "RespondToWebhook"]
             
             if not entry_nodes:
                 result.add_error("Workflow must contain at least one StartNode or WebhookTrigger node")
             
-            if not end_nodes:
+            # Only warn if NO terminal nodes exist (neither EndNode nor RespondToWebhook)
+            if not terminal_nodes:
                 result.add_warning("No EndNode found - virtual EndNode will be created")
+            elif respond_to_webhook_nodes and not end_nodes:
+                # RespondToWebhook is present as terminal - this is valid, log it
+                logger.debug(f"Workflow uses RespondToWebhook as terminal node ({len(respond_to_webhook_nodes)} found)")
             
             # Check for multiple start nodes (allowed but should be noted)
             if len(entry_nodes) > 1:
                 result.add_warning(f"Workflow has {len(start_nodes)} StartNode(s) and {len(webhook_trigger_nodes)} WebhookTrigger node(s) - ensure this is intentional")
             
-            logger.debug(f"Required node validation: {len(start_nodes)} start, {len(webhook_trigger_nodes)} webhook trigger, {len(end_nodes)} end nodes")
+            logger.debug(f"Required node validation: {len(start_nodes)} start, {len(webhook_trigger_nodes)} webhook trigger, {len(terminal_nodes)} terminal nodes")
             
         except Exception as e:
             result.add_error(f"Required node validation failed: {str(e)}")
