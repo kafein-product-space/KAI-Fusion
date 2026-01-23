@@ -358,19 +358,20 @@ class WorkflowExecutor:
             # Continue execution even if status update fails
         
         try:
-            # Build workflow using enhancer
-            self.workflow_enhancer.enhanced_build(
+            # Build workflow using enhancer (returns build_result tuple)
+            build_result = self.workflow_enhancer.enhanced_build(
                 flow_data=ctx.workflow.flow_data,
                 user_context=ctx.user_context,
             )
             
-            # Execute workflow using enhancer
+            # Execute workflow using enhancer with the build result
             logger.info(f"Starting workflow execution: workflow={ctx.workflow.id}, session={ctx.session_id}")
             
             result = await self.workflow_enhancer.enhanced_execute(
                 inputs=ctx.execution_inputs,
                 stream=stream,
                 user_context=ctx.user_context,
+                build_result=build_result
             )
             
             logger.info(f"Workflow execution completed: workflow={ctx.workflow.id}")

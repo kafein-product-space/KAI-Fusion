@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
+import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 
 interface DynamicCredentialFormProps {
@@ -18,7 +19,6 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   isSubmitting = false,
 }) => {
   const [iconFailed, setIconFailed] = useState(false);
-  const BASE_PATH = window.VITE_BASE_PATH;
   const validateField = (
     field: ServiceField,
     value: any
@@ -144,7 +144,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={`${BASE_PATH}/icons/${service.id}.svg`}
+                  src={resolveIconPath(`icons/${service.id}.svg`)}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}

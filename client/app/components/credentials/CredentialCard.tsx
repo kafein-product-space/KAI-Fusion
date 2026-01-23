@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Pencil, Trash } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
+import { resolveIconPath } from "~/lib/iconUtils";
 import { getServiceDefinition } from "~/types/credentials";
 import type { UserCredential } from "~/types/api";
 
@@ -18,7 +19,6 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const serviceDefinition = getServiceDefinition(credential.service_type);
   const [iconFailed, setIconFailed] = useState(false);
-  const BASE_PATH = window.VITE_BASE_PATH;
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
       {/* Header */}
@@ -27,7 +27,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
           <div className="w-6 h-6 flex items-center justify-center">
             {!iconFailed && (
               <img
-                src={`${BASE_PATH}/icons/${credential.service_type}.svg`}
+                src={resolveIconPath(`icons/${credential.service_type}.svg`)}
                 alt={`${serviceDefinition?.name || credential.service_type
                   } logo`}
                 className="w-6 h-6 object-contain"
@@ -51,8 +51,8 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         <div className="flex items-center gap-2">
           <span
             className={`inline-flex px-2.5 py-0.5 text-[10px] font-semibold rounded-full ${serviceDefinition?.color
-                ? `bg-gradient-to-r ${serviceDefinition.color} text-white`
-                : "bg-gray-100 text-gray-800"
+              ? `bg-gradient-to-r ${serviceDefinition.color} text-white`
+              : "bg-gray-100 text-gray-800"
               }`}
           >
             {serviceDefinition?.category === "ai"
