@@ -57,7 +57,7 @@ from app.core.connection_manager import ConnectionManager
 # Extracted component imports
 from .types import (
     NodeConnection, GraphNodeInstance, ControlFlowType, NodeRegistry,
-    NodeInstanceRegistry, BuildMetrics, ValidationResult
+    NodeInstanceRegistry, BuildMetrics, ValidationResult, TERMINAL_NODE_TYPES
 )
 from .exceptions import (
     WorkflowError, NodeExecutionError, ConnectionError, 
@@ -269,9 +269,13 @@ class GraphBuilder:
         entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids)
         end_node_ids = workflow_data["end_node_ids"]
 
-        # Handle missing EndNode BEFORE any filtering
-        if not end_nodes:
-            logger.info("No EndNode found. Creating virtual EndNode for workflow completion.")
+        # Check for terminal nodes (EndNode OR RespondToWebhook)
+        terminal_nodes = [n for n in nodes if n.get("type") in TERMINAL_NODE_TYPES]
+
+        # Handle missing terminal node BEFORE any filtering
+        # Only create virtual EndNode if no terminal node exists
+        if not terminal_nodes:
+            logger.info("No terminal node found. Creating virtual EndNode for workflow completion.")
 
             # Create virtual EndNode
             virtual_end_node = {
@@ -347,9 +351,9 @@ class GraphBuilder:
 
         logger.debug(f"After filtering: {len(processed_nodes)} nodes, {len(processed_edges)} edges")
 
-        # Store EndNodes for connection tracking
-        end_nodes_for_processing = [n for n in processed_nodes if n.get("type") == "EndNode"]
-        self.end_nodes_for_connections = {n["id"]: n for n in end_nodes_for_processing}
+        # Store terminal nodes (EndNode and RespondToWebhook) for connection tracking
+        terminal_nodes_for_processing = [n for n in processed_nodes if n.get("type") in TERMINAL_NODE_TYPES]
+        self.end_nodes_for_connections = {n["id"]: n for n in terminal_nodes_for_processing}
 
         return {
             "processed_nodes": processed_nodes,
