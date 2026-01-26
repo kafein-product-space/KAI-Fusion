@@ -16,7 +16,7 @@ const Signin = () => {
   const { signIn, isLoading, error, clearError } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [status, setStatus] = useState<{ loginError?: string } | null>(null);
-  const isKeycloakEnabled = !!import.meta.env.VITE_KEYCLOAK_URL && !!import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
+  const isKeycloakEnabled = !!window.VITE_KEYCLOAK_URL && !!window.VITE_KEYCLOAK_CLIENT_ID;
 
   useEffect(() => {
     return () => {

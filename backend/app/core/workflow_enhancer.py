@@ -25,31 +25,28 @@ class WorkflowExecutionEnhancer:
     """
     
     def __init__(self):
-        self.dynamic_engine = DynamicWorkflowEngine()
-        self._current_context: Optional[DynamicWorkflowContext] = None
-        self._compiled_graph = None
+        # We don't initialize a global engine anymore to prevent state sharing
+        pass
     
     def create_context_from_request(self, req: Any, current_user: Any = None,
                                    is_webhook: bool = False, owner_id: str = None) -> DynamicWorkflowContext:
         """Create dynamic context from request parameters"""
         
-        # DEBUG LOGGING: Validate assumptions about the error
-        logger.debug(f"🔍 DEBUG: Request type: {type(req)}")
-        logger.debug(f"🔍 DEBUG: Request __hash__ attribute: {req.__hash__}")
-        logger.debug(f"🔍 DEBUG: Request session_id: {getattr(req, 'session_id', 'MISSING')}")
-        logger.debug(f"🔍 DEBUG: Request chatflow_id: {getattr(req, 'chatflow_id', 'MISSING')}")
-        logger.debug(f"🔍 DEBUG: Request has __hash__ method: {hasattr(req, '__hash__')}")
-        logger.debug(f"🔍 DEBUG: Request __hash__ is callable: {callable(getattr(req, '__hash__', None))}")
+        # We need a temporary engine just to create context helper
+        # Or we can just import the context class directly?
+        # DynamicWorkflowContext is imported at top level, so we can use it directly
+        # But we need create_dynamic_context method logic
         
-        # Generate session_id with safe fallback logic - FIXED: No more hash() attempts on BaseModel
+        # Instantiate a temporary engine for this helper method
+        temp_engine = DynamicWorkflowEngine()
+        
+        # Generate session_id with safe fallback logic
         session_id = getattr(req, 'session_id', None) or getattr(req, 'chatflow_id', None)
         
         if not session_id:
-            # Safe fallback using object id instead of broken __hash__() - CRITICAL FIX
+            # Safe fallback using object id
             logger.warning(f"⚠️  No session_id or chatflow_id provided, using object id fallback")
             session_id = f"session_{id(req)}"
-        
-        logger.debug(f"🔧 FIXED: Generated session_id safely: {session_id}")
             
         if isinstance(session_id, int):
             session_id = str(session_id)
@@ -61,7 +58,7 @@ class WorkflowExecutionEnhancer:
         elif is_webhook:
             user_id = "webhook_system"
         
-        context = self.dynamic_engine.create_dynamic_context(
+        context = temp_engine.create_dynamic_context(
             session_id=session_id,
             user_id=user_id,
             owner_id=owner_id or user_id,  # Use provided owner_id or fallback to user_id
@@ -74,54 +71,64 @@ class WorkflowExecutionEnhancer:
             }
         )
         
-        self._current_context = context
         return context
     
     def enhanced_build(self, flow_data: Dict[str, Any], user_context: Dict[str, Any] = None):
-        """Enhanced build with dynamic capabilities - drop-in replacement for engine.build()"""
+        """
+        Enhanced build with dynamic capabilities.
+        Returns: (DynamicWorkflowContext, CompiledGraph, DynamicWorkflowEngine)
+        """
         
-        # If user_context has owner_id and we have a current context, update it
-        if self._current_context and user_context and 'owner_id' in user_context:
-             self._current_context.owner_id = user_context['owner_id']
-
-        if not self._current_context:
-            # Create context from user_context if available
-            session_id = user_context.get('session_id') if user_context else f"build_{id(flow_data)}"
-            self._current_context = self.dynamic_engine.create_dynamic_context(
-                session_id=session_id,
-                user_id=user_context.get('user_id') if user_context else None,
-                owner_id=user_context.get('owner_id') if user_context else None,
-                workflow_id=user_context.get('workflow_id') if user_context else None
-            )
+        # Create a FRESH engine for this request
+        engine = DynamicWorkflowEngine()
+        
+        # Create context locally
+        session_id = user_context.get('session_id') if user_context else f"build_{id(flow_data)}"
+        context = engine.create_dynamic_context(
+            session_id=session_id,
+            user_id=user_context.get('user_id') if user_context else None,
+            owner_id=user_context.get('owner_id') if user_context else None,
+            workflow_id=user_context.get('workflow_id') if user_context else None
+        )
         
         try:
-            logger.info(f"🔄 Enhanced build starting (session: {self._current_context.session_id})")
+            logger.info(f"🔄 Enhanced build starting (session: {context.session_id})")
             
             # Use dynamic engine to build workflow
-            self._compiled_graph = self.dynamic_engine.build_dynamic_workflow(
-                flow_data, self._current_context
+            compiled_graph = engine.build_dynamic_workflow(
+                flow_data, context
             )
             
             logger.info(f"✅ Enhanced build completed successfully")
+            return context, compiled_graph, engine
             
         except Exception as e:
             logger.error(f"❌ Enhanced build failed: {e}")
-            # Fallback: Let the original engine handle it
             raise
     
     async def enhanced_execute(self, inputs: Dict[str, Any] = None, *, stream: bool = False, 
-                             user_context: Dict[str, Any] = None) -> Union[Dict[str, Any], AsyncGenerator]:
-        """Enhanced execute with dynamic capabilities - drop-in replacement for engine.execute()"""
+                             user_context: Dict[str, Any] = None, 
+                             build_result=None) -> Union[Dict[str, Any], AsyncGenerator]:
+        """
+        Enhanced execute with dynamic capabilities.
+        Args:
+            build_result: Tuple returned by enhanced_build
+        """
         
-        if not self._current_context or not self._compiled_graph:
-            raise RuntimeError("Must call enhanced_build() before enhanced_execute()")
+        # Check if build_result is provided (stateless mode)
+        if build_result:
+            context, compiled_graph, engine = build_result
+        else:
+            raise RuntimeError("Must provide build_result (context, compiled_graph, engine) to enhanced_execute()")
         
         try:
-            logger.info(f"🚀 Enhanced execute starting (session: {self._current_context.session_id})")
+            logger.info(f"🚀 Enhanced execute starting (session: {context.session_id})")
             
-            # Use dynamic engine to execute
-            result = await self.dynamic_engine.execute_dynamic_workflow(
-                inputs or {}, self._current_context, stream
+            # Ensure the graph is set on the builder instance associated with this engine
+            engine.base_builder.graph = compiled_graph
+            
+            result = await engine.execute_dynamic_workflow(
+                inputs or {}, context, stream
             )
             
             logger.info(f"✅ Enhanced execute completed successfully")
@@ -133,17 +140,11 @@ class WorkflowExecutionEnhancer:
     
     def get_metrics(self) -> Dict[str, Any]:
         """Get execution metrics"""
-        if not self._current_context:
-            return {"error": "No active context"}
-        
-        return self.dynamic_engine.get_runtime_metrics(self._current_context.session_id)
+        return {"error": "Metrics not available in stateless mode"}
     
     def cleanup(self):
         """Cleanup resources"""
-        if self._current_context:
-            self.dynamic_engine.cleanup_session(self._current_context.session_id)
-            self._current_context = None
-        self._compiled_graph = None
+        pass
 
 
 # Global instance for easy use

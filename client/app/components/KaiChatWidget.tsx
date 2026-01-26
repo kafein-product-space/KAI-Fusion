@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { v4 as uuidv4 } from "uuid";
+import { config } from "../lib/config";
 
 interface Message {
   id: string;
@@ -122,7 +123,7 @@ export default function KaiChatWidget({
         headers["X-API-Key"] = token;
       }
 
-      const response = await fetch(`${targetUrl}/api/v1/workflows/execute`, {
+      const response = await fetch(`${targetUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflows/execute`, {
         method: "POST",
         headers,
         body: JSON.stringify({
@@ -217,9 +218,8 @@ export default function KaiChatWidget({
 
   return (
     <div
-      className={`fixed bottom-5 z-50 flex flex-col items-end gap-4 font-sans ${
-        position === "left" ? "left-5" : "right-5"
-      }`}
+      className={`fixed bottom-5 z-50 flex flex-col items-end gap-4 font-sans ${position === "left" ? "left-5" : "right-5"
+        }`}
       style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
     >
       {/* Overlay - Tam Ekran Modu İçin */}
@@ -248,11 +248,10 @@ export default function KaiChatWidget({
               height: isMaximized ? "85vh" : "600px",
             }}
             exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            className={`rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 transition-all duration-300 ${
-              isMaximized
-                ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0"
-                : "relative"
-            }`}
+            className={`rounded-2xl shadow-2xl flex flex-col overflow-hidden z-50 transition-all duration-300 ${isMaximized
+              ? "fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 m-0"
+              : "relative"
+              }`}
           >
             {/* Header */}
             <div
@@ -289,20 +288,17 @@ export default function KaiChatWidget({
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={`flex ${
-                    msg.isBot ? "justify-start" : "justify-end"
-                  } ${
-                    msg.isBot && !msg.content && !msg.isError ? "hidden" : ""
-                  }`}
+                  className={`flex ${msg.isBot ? "justify-start" : "justify-end"
+                    } ${msg.isBot && !msg.content && !msg.isError ? "hidden" : ""
+                    }`}
                 >
                   <div
-                    className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${
-                      msg.isBot
-                        ? msg.isError
-                          ? "bg-red-50 text-red-600 border border-red-100"
-                          : "bg-white text-gray-800 border border-gray-100"
-                        : "text-white"
-                    }`}
+                    className={`max-w-[85%] rounded-2xl px-4 py-3 shadow-sm ${msg.isBot
+                      ? msg.isError
+                        ? "bg-red-50 text-red-600 border border-red-100"
+                        : "bg-white text-gray-800 border border-gray-100"
+                      : "text-white"
+                      }`}
                     style={!msg.isBot ? { backgroundColor: color } : {}}
                   >
                     <div className="max-w-none break-words">
@@ -449,9 +445,8 @@ export default function KaiChatWidget({
 
                             return isOrderedList ? (
                               <li
-                                className={`flex items-start gap-2 pl-1 leading-relaxed ${
-                                  !msg.isBot ? "text-white" : "text-gray-700"
-                                }`}
+                                className={`flex items-start gap-2 pl-1 leading-relaxed ${!msg.isBot ? "text-white" : "text-gray-700"
+                                  }`}
                               >
                                 <span className="flex-shrink-0 w-5 h-5 bg-gradient-to-r from-blue-500 to-purple-600 text-white rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 shadow-sm counter-increment">
                                   •
@@ -462,9 +457,8 @@ export default function KaiChatWidget({
                               </li>
                             ) : (
                               <li
-                                className={`flex items-start gap-2 pl-1 leading-relaxed ${
-                                  !msg.isBot ? "text-white" : "text-gray-700"
-                                }`}
+                                className={`flex items-start gap-2 pl-1 leading-relaxed ${!msg.isBot ? "text-white" : "text-gray-700"
+                                  }`}
                               >
                                 <span className="flex-shrink-0 w-1.5 h-1.5 bg-gradient-to-r from-blue-500 to-purple-600 rounded-full mt-2 shadow-sm"></span>
                                 <div className="flex-1 text-left">
@@ -554,9 +548,8 @@ export default function KaiChatWidget({
                           // Paragraflar - daha iyi spacing
                           p: ({ children }: any) => (
                             <p
-                              className={`m-0! last:mb-0 leading-relaxed break-words overflow-wrap-anywhere text-sm ${
-                                !msg.isBot ? "text-white" : "text-gray-700"
-                              }`}
+                              className={`m-0! last:mb-0 leading-relaxed break-words overflow-wrap-anywhere text-sm ${!msg.isBot ? "text-white" : "text-gray-700"
+                                }`}
                             >
                               {children}
                             </p>
@@ -565,18 +558,16 @@ export default function KaiChatWidget({
                           // Vurgu metinleri
                           strong: ({ children }: any) => (
                             <strong
-                              className={`font-bold inline ${
-                                !msg.isBot ? "text-white" : "text-gray-900"
-                              }`}
+                              className={`font-bold inline ${!msg.isBot ? "text-white" : "text-gray-900"
+                                }`}
                             >
                               {children}
                             </strong>
                           ),
                           em: ({ children }: any) => (
                             <em
-                              className={`italic ${
-                                !msg.isBot ? "text-white/90" : "text-gray-600"
-                              }`}
+                              className={`italic ${!msg.isBot ? "text-white/90" : "text-gray-600"
+                                }`}
                             >
                               {children}
                             </em>
@@ -668,11 +659,10 @@ export default function KaiChatWidget({
                 <button
                   onClick={sendMessage}
                   disabled={isLoading || !input.trim()}
-                  className={`p-2 rounded-full transition-all ${
-                    input.trim() && !isLoading
-                      ? "text-blue-600 hover:bg-blue-50"
-                      : "text-gray-400"
-                  }`}
+                  className={`p-2 rounded-full transition-all ${input.trim() && !isLoading
+                    ? "text-blue-600 hover:bg-blue-50"
+                    : "text-gray-400"
+                    }`}
                 >
                   {isLoading ? (
                     <Loader2 className="w-5 h-5 animate-spin" />

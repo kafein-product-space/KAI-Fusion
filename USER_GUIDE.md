@@ -205,7 +205,9 @@ Create: `client/.env`
 
 ```dotenv
 VITE_API_BASE_URL=http://localhost:8000
-VITE_API_VERSION=/api/v1
+VITE_API_VERSION=/api/v1 (Derived from VITE_API_START and VITE_API_VERSION_ONLY)
+VITE_API_START=api
+VITE_API_VERSION_ONLY=v1
 VITE_NODE_ENV=development
 VITE_ENABLE_LOGGING=true
 ```
@@ -427,7 +429,7 @@ The main builder interface.
 
 **`Proxy error` or `ETIMEDOUT` in frontend console**
 *   The frontend cannot reach the backend at `http://localhost:8000`.
-*   Ensure the backend is running and healthy (`http://localhost:8000/health`).
+*   Ensure the backend is running and healthy (`http://localhost:8000/health` or `http://localhost:8000/api/health`).
 *   Check the terminal where `npm run dev` is running—the proxy logs will show if requests are being attempted.
 
 **CORS Errors (`Access-Control-Allow-Origin`)**

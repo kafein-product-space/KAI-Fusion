@@ -5,6 +5,7 @@ import { Box, Download, Square, Trash, Copy, Play, Zap } from "lucide-react";
 import type { GenericData } from "./types";
 import type { NodeMetadata } from "../../types/api";
 import * as LucideIcons from "lucide-react";
+import { resolveIconPath } from "~/lib/iconUtils";
 
 interface GenericVisualProps {
   data: GenericData;
@@ -69,9 +70,10 @@ function GenericVisual({
 
   const getIconComponent = (icon: NodeMetadata["icon"]) => {
     if (icon?.path) {
+      const iconPath = resolveIconPath(icon.path);
       return (props: any) => (
         <img
-          src={icon.path}
+          src={iconPath}
           alt={icon.alt}
           {...props}
           className={`${props.className || ""} object-contain`}
@@ -168,10 +170,9 @@ function GenericVisual({
       className={`relative group w-24 h-24 rounded-2xl flex flex-col items-center justify-center 
           cursor-pointer transition-all duration-300 transform
         ${isHovered ? "scale-105" : "scale-100"}
-        ${
-          isHovered
-            ? `shadow-2xl ${getGlowColor()}`
-            : "shadow-lg shadow-black/50"
+        ${isHovered
+          ? `shadow-2xl ${getGlowColor()}`
+          : "shadow-lg shadow-black/50"
         }
         bg-gradient-to-br ${getNodeColor()}
 
@@ -222,11 +223,10 @@ function GenericVisual({
       {data.name === "WebScraper" && (isHovered || isScraping) && (
         <button
           className={`absolute -bottom-3 -right-3 w-8 h-8 
-                ${
-                  isScraping
-                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
-                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
-                }
+                ${isScraping
+              ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
+              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
+            }
                 text-white rounded-full border border-white/30 shadow-xl 
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm`}
@@ -269,11 +269,10 @@ function GenericVisual({
       {data.name === "WebhookTrigger" && isHovered && (
         <button
           className={`absolute -bottom-3 -right-3 w-8 h-8 
-                ${
-                  isListening
-                    ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
-                    : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
-                }
+                ${isListening
+              ? "bg-gradient-to-r from-red-500 to-red-600 hover:from-red-400 hover:to-red-500"
+              : "bg-gradient-to-r from-green-500 to-green-600 hover:from-green-400 hover:to-green-500"
+            }
                 text-white rounded-full border border-white/30 shadow-xl 
                 transition-all duration-200 hover:scale-110 flex items-center justify-center z-20
                 backdrop-blur-sm`}

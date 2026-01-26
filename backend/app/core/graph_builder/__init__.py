@@ -1,6 +1,5 @@
 """
 KAI-Fusion Graph Builder - Enterprise Workflow Orchestration & Execution Engine
-===============================================================================
 
 This module implements sophisticated workflow graph construction for the KAI-Fusion platform,
 providing enterprise-grade LangGraph orchestration with advanced control flow management,
@@ -8,14 +7,12 @@ intelligent node connectivity, and production-ready execution capabilities. Buil
 complex AI workflows requiring reliable state management and seamless node integration.
 
 ARCHITECTURAL OVERVIEW:
-======================
 
 The Graph Builder system serves as the workflow orchestration engine of KAI-Fusion,
 transforming visual flow definitions into executable LangGraph pipelines with advanced
 control flow, state management, and comprehensive error handling for production environments.
 
 PHASE 3 ARCHITECTURE: Clean, Modular Components
-===============================================
 This version implements Phase 3 of the refactoring, extracting specialized components
 into separate modules while maintaining a clean main GraphBuilder orchestrator class.
 
@@ -60,7 +57,7 @@ from app.core.connection_manager import ConnectionManager
 # Extracted component imports
 from .types import (
     NodeConnection, GraphNodeInstance, ControlFlowType, NodeRegistry,
-    NodeInstanceRegistry, BuildMetrics, ValidationResult
+    NodeInstanceRegistry, BuildMetrics, ValidationResult, TERMINAL_NODE_TYPES
 )
 from .exceptions import (
     WorkflowError, NodeExecutionError, ConnectionError, 
@@ -109,6 +106,14 @@ class GraphBuilder:
         self.node_registry = node_registry
         self.checkpointer = checkpointer or self._get_checkpointer()
         
+        # Ensure node_registry has get_node method if it's a dict
+        if isinstance(self.node_registry, dict) and not hasattr(self.node_registry, 'get_node'):
+             # It's a dict, we need to wrap it or handle it
+            self._node_registry_dict = self.node_registry
+            self.get_node = lambda type_name: self._node_registry_dict.get(type_name)
+        else:
+            self.get_node = self.node_registry.get_node
+
         # Initialize specialized components
         self.connection_mapper = ConnectionMapper(ConnectionManager())
         self.node_executor = NodeExecutor(default_connection_extractor, node_handler_registry)
@@ -228,34 +233,49 @@ class GraphBuilder:
 
         # Analyze existing nodes
         start_nodes = [n for n in nodes if n.get("type") == "StartNode"]
+        webhook_trigger_nodes = [n for n in nodes if n.get("type") == "WebhookTrigger"]
+        entry_nodes = start_nodes + webhook_trigger_nodes
         end_nodes = [n for n in nodes if n.get("type") == "EndNode"]
         start_node_ids = {n["id"] for n in start_nodes}
+        webhook_trigger_node_ids = {n["id"] for n in webhook_trigger_nodes}
+        entry_node_ids = start_node_ids | webhook_trigger_node_ids
         end_node_ids = {n["id"] for n in end_nodes}
 
-        if not start_nodes:
-            raise ValueError("Workflow must contain at least one StartNode.")
+        if not entry_nodes:
+            raise ValueError("Workflow must contain at least one StartNode or WebhookTrigger node.")
 
         return {
             "nodes": nodes,
             "edges": edges,
             "start_nodes": start_nodes,
+            "webhook_trigger_nodes": webhook_trigger_nodes,
+            "entry_nodes": entry_nodes,
             "end_nodes": end_nodes,
             "start_node_ids": start_node_ids,
+            "webhook_trigger_node_ids": webhook_trigger_node_ids,
+            "entry_node_ids": entry_node_ids,
             "end_node_ids": end_node_ids
         }
 
     def _handle_start_end_nodes(self, workflow_data: Dict) -> Dict[str, Any]:
-        """Handle StartNode and EndNode special cases - unchanged from original."""
+        """Handle StartNode, WebhookTrigger, and EndNode special cases."""
         nodes = workflow_data["nodes"]
         edges = workflow_data["edges"]
         start_nodes = workflow_data["start_nodes"]
+        webhook_trigger_nodes = workflow_data.get("webhook_trigger_nodes", [])
         end_nodes = workflow_data["end_nodes"]
         start_node_ids = workflow_data["start_node_ids"]
+        webhook_trigger_node_ids = workflow_data.get("webhook_trigger_node_ids", set())
+        entry_node_ids = workflow_data.get("entry_node_ids", start_node_ids | webhook_trigger_node_ids)
         end_node_ids = workflow_data["end_node_ids"]
 
-        # Handle missing EndNode BEFORE any filtering
-        if not end_nodes:
-            logger.info("No EndNode found. Creating virtual EndNode for workflow completion.")
+        # Check for terminal nodes (EndNode OR RespondToWebhook)
+        terminal_nodes = [n for n in nodes if n.get("type") in TERMINAL_NODE_TYPES]
+
+        # Handle missing terminal node BEFORE any filtering
+        # Only create virtual EndNode if no terminal node exists
+        if not terminal_nodes:
+            logger.info("No terminal node found. Creating virtual EndNode for workflow completion.")
 
             # Create virtual EndNode
             virtual_end_node = {
@@ -275,7 +295,7 @@ class GraphBuilder:
             # Find the last nodes in the workflow (BEFORE filtering)
             all_targets = {e["target"] for e in edges}
             all_sources = {e["source"] for e in edges}
-            last_nodes = all_sources - all_targets - start_node_ids
+            last_nodes = all_sources - all_targets - entry_node_ids
 
             # SAFE: Add virtual edges to working copy
             for node_id in last_nodes:
@@ -293,13 +313,32 @@ class GraphBuilder:
             end_nodes.append(virtual_end_node)
             end_node_ids.add("virtual-end-node")
 
-        # Identify explicit start connections
-        self.explicit_start_nodes = {e["target"] for e in edges if e.get("source") in start_node_ids}
+        # Identify explicit start connections from StartNodes
+        start_node_targets = {e["target"] for e in edges if e.get("source") in start_node_ids}
+        
+        # Identify explicit start connections from WebhookTrigger nodes
+        webhook_trigger_targets = {e["target"] for e in edges if e.get("source") in webhook_trigger_node_ids}
+        
+        # If WebhookTrigger nodes have outgoing edges, use those targets as start nodes
+        # Otherwise, use the WebhookTrigger nodes themselves as start nodes
+        webhook_start_nodes = set()
+        if webhook_trigger_targets:
+            # WebhookTrigger nodes have outgoing edges, use the targets
+            webhook_start_nodes = webhook_trigger_targets
+        elif webhook_trigger_node_ids:
+            # WebhookTrigger nodes have no outgoing edges, use the nodes themselves
+            webhook_start_nodes = webhook_trigger_node_ids
+        
+        # Combine all start targets
+        self.explicit_start_nodes = start_node_targets | webhook_start_nodes
 
         # Debug logging
         logger.debug(f"Edge filtering analysis: {len(edges)} edges")
         edges_from_start_nodes = [e for e in edges if e.get("source") in start_node_ids]
+        edges_from_webhook_triggers = [e for e in edges if e.get("source") in webhook_trigger_node_ids]
         logger.debug(f"Found {len(edges_from_start_nodes)} edges FROM StartNodes")
+        logger.debug(f"Found {len(edges_from_webhook_triggers)} edges FROM WebhookTrigger nodes")
+        logger.debug(f"Explicit start nodes: {self.explicit_start_nodes}")
 
         # SAFE filtering AFTER all additions
         # Filter out StartNodes for processing, but keep EndNodes
@@ -312,9 +351,9 @@ class GraphBuilder:
 
         logger.debug(f"After filtering: {len(processed_nodes)} nodes, {len(processed_edges)} edges")
 
-        # Store EndNodes for connection tracking
-        end_nodes_for_processing = [n for n in processed_nodes if n.get("type") == "EndNode"]
-        self.end_nodes_for_connections = {n["id"]: n for n in end_nodes_for_processing}
+        # Store terminal nodes (EndNode and RespondToWebhook) for connection tracking
+        terminal_nodes_for_processing = [n for n in processed_nodes if n.get("type") in TERMINAL_NODE_TYPES]
+        self.end_nodes_for_connections = {n["id"]: n for n in terminal_nodes_for_processing}
 
         return {
             "processed_nodes": processed_nodes,
@@ -359,7 +398,8 @@ class GraphBuilder:
 
             try:
                 # Get node class and create instance
-                node_cls = self.node_registry.get_node(node_type)
+                # Use self.get_node helper which handles both dict and NodeRegistry object
+                node_cls = self.get_node(node_type)
                 if not node_cls:
                     available_nodes = self.node_registry.get_all_nodes()
                     available_types = [node.name for node in available_nodes]
@@ -462,11 +502,12 @@ class GraphBuilder:
                 self.node_executor.setup_node_session(gnode, state, node_id)
                 
                 # Execute node using NodeExecutor based on node type
-                if gnode.node_instance.metadata.node_type.value == "processor":
-                    # Use NodeExecutor for processor nodes
+                # Both 'processor' and 'terminator' nodes benefit from NodeExecutor's templating and connection handling
+                if gnode.node_instance.metadata.node_type.value in ["processor", "terminator"]:
+                    # Use NodeExecutor for processor and terminator nodes
                     result = self.node_executor.execute_processor_node(gnode, state, node_id)
                 else:
-                    # Use NodeExecutor for standard nodes
+                    # Use NodeExecutor for standard nodes (provider, etc.)
                     result = self.node_executor.execute_standard_node(gnode, state, node_id)
                 
                 logger.info(f"Node {node_id} ({gnode.type}) completed successfully with NodeExecutor")
@@ -696,13 +737,19 @@ class GraphBuilder:
             raise ValueError("Graph has not been built. Call build_from_flow().")
 
         # Prepare initial FlowState
+        initial_input = inputs.get("input", "")
+
+        webhook_data = inputs.get("webhook_data")
+        
         init_state = FlowState(
-            current_input=inputs.get("input", ""),
+            current_input=initial_input,
+            last_output=initial_input,
             session_id=session_id or str(uuid.uuid4()),
             user_id=user_id,
             owner_id=owner_id,
             workflow_id=workflow_id,
             variables=inputs,
+            webhook_data=webhook_data,  # Add webhook data for templating
         )
         config: RunnableConfig = {"configurable": {"thread_id": init_state.session_id}}
 
@@ -721,26 +768,78 @@ class GraphBuilder:
             
             # Convert FlowState to serializable format
             try:
-                if hasattr(result_state, 'model_dump'):
+                # Check if result_state is a dict (LangGraph sometimes returns dict)
+                if isinstance(result_state, dict):
+                    state_dict = result_state
+                    logger.debug(f"Result state is dict, keys: {list(state_dict.keys())}")
+                elif hasattr(result_state, 'model_dump'):
                     state_dict = result_state.model_dump()
+                    logger.debug(f"Result state is FlowState, dumped to dict")
+                elif hasattr(result_state, 'values') and isinstance(result_state.values, dict):
+                    # LangGraph StateSnapshot format
+                    state_dict = result_state.values
+                    logger.debug(f"Result state is StateSnapshot, using values dict")
                 else:
+                    # Try to get attributes directly
                     state_dict = {
                         "last_output": getattr(result_state, "last_output", ""),
                         "executed_nodes": getattr(result_state, "executed_nodes", []),
                         "node_outputs": getattr(result_state, "node_outputs", {}),
                         "session_id": getattr(result_state, "session_id", init_state.session_id)
                     }
-            except Exception:
+                    logger.debug(f"Result state extracted via getattr")
+                
+                # Ensure last_output is set correctly
+                if not state_dict.get("last_output"):
+                    # Try to get from node_outputs if last_output is empty
+                    node_outputs = state_dict.get("node_outputs", {})
+                    if node_outputs:
+                        # Get the last node's output
+                        last_node_output = None
+                        for node_id, output in node_outputs.items():
+                            if output:
+                                if isinstance(output, dict):
+                                    last_node_output = output.get("output") or output.get("result") or str(output)
+                                else:
+                                    last_node_output = str(output)
+                                break
+                        
+                        if last_node_output:
+                            state_dict["last_output"] = last_node_output
+                            logger.info(f"✅ Extracted last_output from node_outputs: {last_node_output[:100]}")
+                
+            except Exception as e:
+                logger.error(f"❌ Error converting result_state to dict: {e}", exc_info=True)
                 state_dict = {
-                    "last_output": str(result_state),
+                    "last_output": str(result_state) if result_state else "",
                     "executed_nodes": [],
                     "node_outputs": {},
                     "session_id": init_state.session_id
                 }
             
+            # Extract result from state_dict, with fallback to node_outputs
+            result_output = state_dict.get("last_output", "")
+            
+            # If last_output is empty, try to extract from node_outputs
+            if not result_output:
+                node_outputs = state_dict.get("node_outputs", {})
+                if node_outputs:
+                    # Get the first non-empty output
+                    for node_id, output in node_outputs.items():
+                        if output:
+                            if isinstance(output, dict):
+                                result_output = output.get("output") or output.get("result") or str(output)
+                            else:
+                                result_output = str(output)
+                            if result_output:
+                                logger.info(f"✅ Extracted result from node_outputs[{node_id}]: {result_output[:100]}")
+                                break
+            
+            logger.info(f"📤 Final result output: {result_output[:100] if result_output else '(empty)'}")
+            
             return {
                 "success": True,
-                "result": state_dict.get("last_output", ""),
+                "result": result_output,
                 "state": state_dict,
                 "executed_nodes": state_dict.get("executed_nodes", []),
                 "session_id": state_dict.get("session_id", init_state.session_id),

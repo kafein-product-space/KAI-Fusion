@@ -109,10 +109,23 @@ env_file = backend_dir / '.env'
 if env_file.exists():
     load_dotenv(dotenv_path=env_file)
 
+# Also load from root directory (KAI-Fusion/.env) if it exists, to support user's config
+root_dir = backend_dir.parent
+root_env_file = root_dir / '.env'
+if root_env_file.exists():
+    load_dotenv(dotenv_path=root_env_file)
+else:
+    print("Root .env file not found")
 # Core Application Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your-secret-key-here-change-in-production")
 ENVIRONMENT = "development"
 PORT = int(os.getenv("BACKEND_PORT"))
+ROOT_PATH = os.getenv("ROOT_PATH")
+API_START = "api"
+API_VERSION = "v1"
+
+SSL_KEYFILE = os.getenv("SSL_KEYFILE")
+SSL_CERTFILE = os.getenv("SSL_CERTFILE")
 
 # Database Settings
 DATABASE_URL = os.getenv("DATABASE_URL")
@@ -127,7 +140,11 @@ DB_POOL_TIMEOUT = int(os.getenv("DB_POOL_TIMEOUT", "30"))
 DB_POOL_RECYCLE = int(os.getenv("DB_POOL_RECYCLE", "3600"))
 DB_POOL_PRE_PING = os.getenv("DB_POOL_PRE_PING", "true").lower() == "true"
 
-CREDENTIAL_MASTER_KEY = "1234567890"
+# Credential encryption key - MUST be set via environment variable in production
+_default_credential_key = "dev-only-insecure-key-change-me"
+CREDENTIAL_MASTER_KEY = os.getenv("CREDENTIAL_MASTER_KEY", _default_credential_key)
+if CREDENTIAL_MASTER_KEY == _default_credential_key:
+    print("⚠️  WARNING: Using default CREDENTIAL_MASTER_KEY. Set CREDENTIAL_MASTER_KEY environment variable in production!")
 # Logging
 LOG_LEVEL = "DEBUG"
 DEBUG = os.getenv("BACKEND_DEBUG", "false").lower() in ("true", "1", "t")

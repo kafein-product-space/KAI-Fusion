@@ -790,6 +790,23 @@ class CodeNode(ProcessorNode):
 
             if result.get("success"):
                 stdout_output = (result.get("stdout") or "").strip()
+                
+                # SMART OUTPUT DETECTION: If stdout looks like a Python dict/list repr,
+                # automatically convert to proper JSON format
+                if stdout_output and (
+                    (stdout_output.startswith('{') and stdout_output.endswith('}')) or
+                    (stdout_output.startswith('[') and stdout_output.endswith(']'))
+                ):
+                    try:
+                        import ast
+                        parsed = ast.literal_eval(stdout_output)
+                        # Convert to proper JSON with double quotes
+                        stdout_output = json.dumps(parsed, ensure_ascii=False)
+                        logger.debug("Smart output: Converted Python dict/list repr to JSON")
+                    except (ValueError, SyntaxError):
+                        # Keep original if not a valid Python literal
+                        pass
+                
                 return {"output": stdout_output}
 
             err = result.get("error") or "Unknown error"

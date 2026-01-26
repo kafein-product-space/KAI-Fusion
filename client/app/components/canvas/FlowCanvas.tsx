@@ -29,6 +29,7 @@ import type {
   WorkflowNode,
   WorkflowEdge,
   NodeMetadata,
+  WebhookStreamEvent,
 } from "~/types/api";
 
 type NodeStatus = "success" | "failed" | "pending";
@@ -51,6 +52,7 @@ import { executeWorkflowStream } from "~/services/executionService";
 import GenericNode from "../node";
 
 // Import config components
+import { config } from "../../lib/config";
 import { GenericNodeForm } from "../node";
 
 interface FlowCanvasProps {
@@ -162,11 +164,24 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     ? getCurrentExecutionForWorkflow(currentWorkflow.id)
     : null;
 
+  // Listen for webhook execution events to update node status
+  // Must be called after currentWorkflow and setCurrentExecutionForWorkflow are defined
+  useWebhookExecutionListener(
+    nodes,
+    setNodeStatus,
+    edges,
+    setEdgeStatus,
+    setActiveEdges,
+    setActiveNodes,
+    workflowId,
+    currentWorkflow?.id,
+    setCurrentExecutionForWorkflow
+  );
+
   const [workflowName, setWorkflowName] = useState(
     currentWorkflow?.name || "isimsiz dosya"
   );
 
-  console.log("currentWorkflow", currentWorkflow);
   const {
     chats,
     activeChatflowId,
@@ -226,7 +241,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }, []);
 
   useEffect(() => {
-    console.log("wokflowId", workflowId);
     if (workflowId) {
       // Tekil workflow'u doğrudan fetch et
       fetchWorkflow(workflowId).catch(() => {
@@ -277,14 +291,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         const validEdges = edges.filter(
           (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
-
-        // Log if any edges were cleaned up
-        if (validEdges.length !== edges.length) {
-          console.log(
-            `Cleaned up ${edges.length - validEdges.length} invalid edges`
-          );
-        }
-
         setEdges(validEdges);
       } else {
         setEdges(edges || []);
@@ -1170,7 +1176,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Handle fullscreen modal save
   const handleFullscreenModalSave = useCallback(
     (values: any) => {
-      console.log("values", values);
       if (fullscreenModal.nodeData) {
         setNodes((nodes) =>
           nodes.map((node) =>
@@ -1588,7 +1593,6 @@ function useChatExecutionListener(
 ) {
   useEffect(() => {
     const handleChatExecutionStart = () => {
-      console.log("Resetting node/edge/active status for chat execution");
       setNodeStatus({});
       setEdgeStatus({});
       setActiveEdges([]);
@@ -1596,36 +1600,12 @@ function useChatExecutionListener(
     };
 
     const handleChatExecutionComplete = () => {
-      console.log("Chat execution complete - clearing active edges/nodes");
       setActiveEdges([]);
       setActiveNodes([]);
     };
 
     const handleChatExecutionEvent = (event: CustomEvent) => {
       const { event: eventType, node_id, ...data } = event.detail;
-
-      console.log(
-        "Chat execution event:",
-        eventType,
-        "node_id:",
-        node_id,
-        "data:",
-        data
-      );
-
-      // Log provider events specifically
-      if (
-        data.metadata?.node_type === "provider" ||
-        data.metadata?.provider_type
-      ) {
-        console.log("Provider event details:", {
-          eventType,
-          node_id,
-          provider_type: data.metadata?.provider_type,
-          inputs: data.metadata?.inputs,
-          output: data.output,
-        });
-      }
 
       if (eventType === "node_start" && node_id) {
         // PRIORITY 1: Exact ID match (most reliable)
@@ -1708,13 +1688,6 @@ function useChatExecutionListener(
             actualNode.type?.includes(pt) || actualNode.type === pt
           );
 
-          console.log(`Node Analysis for ${actualNode.id}:`, {
-            type: actualNode.type,
-            isProcessor: isProcessorNode,
-            previousNodeId,
-            allIncomingCount: allIncomingEdges.length
-          });
-
           // Provider input edges - ONLY for processor nodes
           let providerInputEdges: Edge[] = [];
           if (isProcessorNode) {
@@ -1747,12 +1720,6 @@ function useChatExecutionListener(
                 sourceNode.type === pt
               );
 
-              if (!isProvider) {
-                console.log(`Edge ${e.id} rejected. Source ${sourceNode.id} type '${sourceNode.type}' not in provider list.`);
-              } else {
-                console.log(`Edge ${e.id} accepted. Source ${sourceNode.id} type '${sourceNode.type}' is provider.`);
-              }
-
               return isProvider;
             });
           }
@@ -1769,13 +1736,8 @@ function useChatExecutionListener(
           // Add provider edges (only for processor nodes)
           edgesToAnimate.push(...providerInputEdges);
 
+          setActiveEdges(edgesToAnimate.map((e) => e.id));
           if (edgesToAnimate.length > 0) {
-            console.log(
-              "Chat: Setting edges as pending:",
-              edgesToAnimate.map(e => e.id),
-              `(${edgesToAnimate.length} edges to ${actualNode.id})`
-            );
-            setActiveEdges(edgesToAnimate.map((e) => e.id));
             setEdgeStatus((prev) => ({
               ...prev,
               ...Object.fromEntries(
@@ -1827,7 +1789,6 @@ function useChatExecutionListener(
         }
 
         if (actualNode) {
-          console.log("Setting node as success:", actualNode.id);
           setNodeStatus((prev) => ({
             ...prev,
             [actualNode.id]: "success",
@@ -1841,7 +1802,6 @@ function useChatExecutionListener(
               const edge = edges.find((e) => e.id === edgeId);
               if (edge && edge.target === actualNode.id && updated[edgeId] === "pending") {
                 updated[edgeId] = "success";
-                console.log("Setting edge as success:", edgeId);
               }
             });
             return updated;
@@ -1885,6 +1845,402 @@ function useChatExecutionListener(
     setActiveEdges,
     setActiveNodes,
   ]);
+}
+
+// Webhook execution event listener for real-time UI updates
+function useWebhookExecutionListener(
+  nodes: Node[],
+  setNodeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  edges: Edge[],
+  setEdgeStatus: React.Dispatch<
+    React.SetStateAction<Record<string, NodeStatus>>
+  >,
+  setActiveEdges: React.Dispatch<React.SetStateAction<string[]>>,
+  setActiveNodes: React.Dispatch<React.SetStateAction<string[]>>,
+  workflowId?: string,
+  currentWorkflowId?: string,
+  setCurrentExecutionForWorkflow?: (workflowId: string, execution: any) => void
+) {
+  useEffect(() => {
+    // Find all webhook trigger nodes in the workflow
+    const webhookNodes = nodes.filter(
+      (node) => node.type === "WebhookTrigger" || node.type?.includes("WebhookTrigger")
+    );
+
+    if (webhookNodes.length === 0) {
+      return; // No webhook nodes, nothing to listen to
+    }
+
+    const eventSources: EventSource[] = [];
+    const processedEventIds = new Set<string>(); // Event deduplication
+    const retryCounts = new Map<string, number>(); // Retry tracking per webhook
+    const MAX_RETRIES = 5;
+    const INITIAL_RETRY_DELAY = 1000; // 1 second
+
+    // Throttling for UI updates
+    let lastUpdateTime = 0;
+    const THROTTLE_DELAY = 50; // ms
+    const pendingUpdates: Array<() => void> = [];
+
+    // Track webhook execution data for FullscreenNodeModal
+    const webhookExecutionData = new Map<string, {
+      executionId: string;
+      nodeOutputs: Record<string, any>;
+      executedNodes: string[];
+      sessionId?: string;
+      result?: any;
+      status: "running" | "completed" | "failed";
+      startedAt: string;
+      completedAt?: string;
+    }>();
+
+    // Get base URL with fallback
+    const baseUrl = import.meta.env.VITE_API_BASE_URL;
+
+    // Connect to webhook stream for each webhook node
+    webhookNodes.forEach((node) => {
+      // Extract webhook_id from node data
+      // Check multiple possible locations for webhook_id/path
+      let webhookId: string = node.id; // Default fallback
+
+      // 1. Direct webhook_id in node data
+      if (node.data?.webhook_id && typeof node.data.webhook_id === 'string') {
+        webhookId = node.data.webhook_id;
+      }
+      // 2. Path property in node data
+      else if (node.data?.path && typeof node.data.path === 'string') {
+        webhookId = node.data.path;
+      }
+
+      if (!webhookId) {
+        console.warn(`No webhook_id found for node ${node.id}`);
+        return;
+      }
+
+      try {
+        const streamUrl = `${baseUrl}/api/v1/webhook-test/${webhookId}/stream`;
+        const eventSource = new EventSource(streamUrl);
+
+        eventSource.onerror = (error) => {
+          const retryCount = retryCounts.get(webhookId) || 0;
+
+          if (retryCount < MAX_RETRIES) {
+            const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
+            console.warn(
+              `⚠️ Webhook stream error for ${webhookId}, retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
+            );
+
+            retryCounts.set(webhookId, retryCount + 1);
+
+            // Close and reconnect after delay
+            setTimeout(() => {
+              eventSource.close();
+              // Reconnect will be handled by EventSource automatically
+              // But we can also manually reconnect if needed
+            }, delay);
+          } else {
+            console.error(
+              `❌ Webhook stream error for ${webhookId}: Max retries reached. Connection failed.`,
+              error
+            );
+            retryCounts.delete(webhookId);
+          }
+        };
+
+        eventSource.onmessage = async (event) => {
+          try {
+            const data = JSON.parse(event.data) as WebhookStreamEvent;
+
+            // Handle connection and ping events
+            if (data.type === "connected") {
+              retryCounts.delete(webhookId); // Reset retry count on successful connection
+              return;
+            }
+
+            if (data.type === "ping") {
+              // Keep-alive ping, no action needed
+              return;
+            }
+
+            if (data.type === "error") {
+              console.error(`❌ Webhook stream error:`, data.error);
+              return;
+            }
+
+            // Check if this is a webhook execution event
+            // Backend already executes the workflow, we just need to process the events for UI updates
+            if (data.type === "webhook_execution_event" && data.event) {
+              // Event deduplication
+              const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
+              if (processedEventIds.has(eventId)) {
+                console.warn("⚠️ Duplicate webhook event ignored:", eventId);
+                return;
+              }
+
+              // Limit processed events to prevent memory issues
+              if (processedEventIds.size > 1000) {
+                // Clear oldest 500 events
+                const eventArray = Array.from(processedEventIds);
+                eventArray.slice(0, 500).forEach(id => processedEventIds.delete(id));
+              }
+
+              processedEventIds.add(eventId);
+
+              const executionEvent = data.event;
+              const eventType = executionEvent.type || executionEvent.event;
+              const node_id = executionEvent.node_id;
+
+              // Throttled logging to avoid console spam
+              const now = Date.now();
+              if (now - lastUpdateTime > 1000) { // Log every second max
+                lastUpdateTime = now;
+              }
+
+              // Throttled UI update function
+              const throttledUpdate = (updateFn: () => void) => {
+                const updateNow = Date.now();
+                if (updateNow - lastUpdateTime > THROTTLE_DELAY) {
+                  updateFn();
+                  lastUpdateTime = updateNow;
+                  // Process any pending updates
+                  while (pendingUpdates.length > 0) {
+                    const pending = pendingUpdates.shift();
+                    if (pending) pending();
+                  }
+                } else {
+                  pendingUpdates.push(updateFn);
+                  // Schedule batch update
+                  if (pendingUpdates.length === 1) {
+                    setTimeout(() => {
+                      const batch = pendingUpdates.splice(0);
+                      batch.forEach(fn => fn());
+                      lastUpdateTime = Date.now();
+                    }, THROTTLE_DELAY);
+                  }
+                }
+              };
+
+              // Track execution data from events
+              const executionId = data.execution_id || 'unknown';
+              if (!webhookExecutionData.has(executionId)) {
+                webhookExecutionData.set(executionId, {
+                  executionId,
+                  nodeOutputs: {},
+                  executedNodes: [],
+                  status: "running",
+                  startedAt: data.timestamp || new Date().toISOString(),
+                });
+              }
+
+              const execData = webhookExecutionData.get(executionId)!;
+
+              // Collect node execution data from events
+              if (eventType === "node_start" && node_id) {
+                // Track node start
+                if (!execData.executedNodes.includes(node_id)) {
+                  execData.executedNodes.push(node_id);
+                }
+
+                // Initialize node output entry
+                if (!execData.nodeOutputs[node_id]) {
+                  execData.nodeOutputs[node_id] = {
+                    inputs: executionEvent.inputs || {},
+                    inputs_meta: executionEvent.inputs_meta || {},
+                  };
+                }
+              }
+
+              if (eventType === "node_end" && node_id) {
+                // Update node output
+                if (execData.nodeOutputs[node_id]) {
+                  execData.nodeOutputs[node_id] = {
+                    ...execData.nodeOutputs[node_id],
+                    output: executionEvent.output || executionEvent.result,
+                    outputs: executionEvent.output || executionEvent.result,
+                    status: executionEvent.error ? "failed" : "completed",
+                  };
+                } else {
+                  execData.nodeOutputs[node_id] = {
+                    inputs: {},
+                    output: executionEvent.output || executionEvent.result,
+                    outputs: executionEvent.output || executionEvent.result,
+                    status: executionEvent.error ? "failed" : "completed",
+                  };
+                }
+              }
+
+              // Handle complete event - save execution to store
+              if (eventType === "complete" || eventType === "workflow_complete") {
+                execData.status = "completed";
+                execData.completedAt = data.timestamp || new Date().toISOString();
+
+                // Extract final result from event
+                if (executionEvent.result) {
+                  execData.result = executionEvent.result;
+                }
+                if (executionEvent.node_outputs) {
+                  // Merge with collected node outputs
+                  execData.nodeOutputs = {
+                    ...execData.nodeOutputs,
+                    ...executionEvent.node_outputs,
+                  };
+                }
+                if (executionEvent.executed_nodes) {
+                  execData.executedNodes = executionEvent.executed_nodes;
+                }
+                if (executionEvent.session_id) {
+                  execData.sessionId = executionEvent.session_id;
+                }
+
+                // Save to execution store for FullscreenNodeModal
+                if (currentWorkflowId && setCurrentExecutionForWorkflow) {
+                  const executionResult = {
+                    id: executionId,
+                    workflow_id: currentWorkflowId,
+                    input_text: data.webhook_payload ? JSON.stringify(data.webhook_payload) : "",
+                    result: {
+                      result: execData.result,
+                      executed_nodes: execData.executedNodes,
+                      node_outputs: execData.nodeOutputs,
+                      session_id: execData.sessionId,
+                      status: "completed" as const,
+                    },
+                    started_at: execData.startedAt,
+                    completed_at: execData.completedAt,
+                    status: "completed" as const,
+                  };
+
+                  setCurrentExecutionForWorkflow(currentWorkflowId, executionResult);
+                }
+              }
+
+              // Handle node_start events
+              if (eventType === "node_start" && node_id) {
+                const actualNode = nodes.find((n) => {
+                  if (
+                    n.id === node_id ||
+                    n.data?.name === node_id ||
+                    n.type === node_id
+                  ) {
+                    return true;
+                  }
+                  const cleanNodeId = node_id.includes("__")
+                    ? node_id.split("__")[0]
+                    : node_id.replace(/\-\d+$/, "");
+                  if (
+                    n.type &&
+                    (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+
+                if (actualNode) {
+                  throttledUpdate(() => {
+                    setActiveNodes([actualNode.id]);
+                    setNodeStatus((prev) => ({
+                      ...prev,
+                      [actualNode.id]: "pending",
+                    }));
+
+                    const incomingEdges = edges.filter((e) => e.target === actualNode.id);
+                    if (incomingEdges.length > 0) {
+                      setActiveEdges(incomingEdges.map((e) => e.id));
+                      setEdgeStatus((prev) => ({
+                        ...prev,
+                        ...Object.fromEntries(
+                          incomingEdges.map((e) => [e.id, "pending" as const])
+                        ),
+                      }));
+                    }
+                  });
+                }
+              }
+
+              // Handle node_end events
+              if (eventType === "node_end" && node_id) {
+                const actualNode = nodes.find((n) => {
+                  if (
+                    n.id === node_id ||
+                    n.data?.name === node_id ||
+                    n.type === node_id
+                  ) {
+                    return true;
+                  }
+                  const cleanNodeId = node_id.includes("__")
+                    ? node_id.split("__")[0]
+                    : node_id.replace(/\-\d+$/, "");
+                  if (
+                    n.type &&
+                    (n.type.includes(cleanNodeId) || cleanNodeId.includes(n.type))
+                  ) {
+                    return true;
+                  }
+                  return false;
+                });
+
+                if (actualNode) {
+                  const isError = executionEvent.error || executionEvent.status === "error";
+                  throttledUpdate(() => {
+                    setNodeStatus((prev) => ({
+                      ...prev,
+                      [actualNode.id]: isError ? "failed" : "success",
+                    }));
+
+                    const incomingEdges = edges.filter((e) => e.target === actualNode.id);
+                    if (incomingEdges.length > 0) {
+                      const edgeStatus: NodeStatus = isError ? "failed" : "success";
+                      setEdgeStatus((prev) => ({
+                        ...prev,
+                        ...Object.fromEntries(
+                          incomingEdges.map((e) => [e.id, edgeStatus])
+                        ),
+                      }));
+                    }
+                  });
+                }
+              }
+
+              // Handle workflow complete events
+              if (eventType === "complete" || eventType === "workflow_complete") {
+                throttledUpdate(() => {
+                  setActiveEdges([]);
+                  setActiveNodes([]);
+                });
+              }
+            }
+          } catch (error) {
+            console.error("❌ Error parsing webhook stream event:", error, {
+              eventData: event.data?.substring(0, 200), // Log first 200 chars
+            });
+          }
+        };
+
+        eventSources.push(eventSource);
+      } catch (error) {
+        console.error(`Failed to create EventSource for webhook ${webhookId}:`, error);
+      }
+    });
+
+    // Cleanup: close all event sources when component unmounts or nodes change
+    return () => {
+      eventSources.forEach((es) => {
+        try {
+          es.close();
+        } catch (error) {
+          console.warn("Error closing EventSource:", error);
+        }
+      });
+      // Clear memory
+      processedEventIds.clear();
+      retryCounts.clear();
+      pendingUpdates.length = 0;
+      webhookExecutionData.clear();
+    };
+  }, [nodes, workflowId, currentWorkflowId, setCurrentExecutionForWorkflow]);
 }
 
 interface FlowCanvasWrapperProps {
