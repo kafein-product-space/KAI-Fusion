@@ -1091,7 +1091,7 @@
                 "displayName": "Response Config"
               },
               {
-                "hint": "Response body content. Can be JSON string or plain text. Supports templating with {{variables}}",
+                "hint": "Response body content. Can be JSON string or plain text. Supports templating with ${{variable}}",
                 "name": "response_body",
                 "rows": 6,
                 "type": "textarea",
