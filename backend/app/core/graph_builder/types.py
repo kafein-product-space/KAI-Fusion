@@ -334,6 +334,10 @@ DEFAULT_OUTPUT_HANDLE = "output"
 START_NODE_TYPE = "StartNode"
 END_NODE_TYPE = "EndNode"
 
+# Terminal node types that can serve as valid workflow exit points
+# These nodes can replace EndNode in workflows (e.g., webhook workflows)
+TERMINAL_NODE_TYPES = {END_NODE_TYPE, "RespondToWebhook"}
+
 # Pool-related constants
 DEFAULT_POOL_ENABLED = False
 POOL_FEATURE_FLAG = "connection_pool_enabled"
