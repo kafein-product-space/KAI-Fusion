@@ -4,6 +4,7 @@
 @plugin "@tailwindcss/typography";
 @import "@xyflow/react/dist/style.css";
 @import "katex/dist/katex.min.css";
+
 html {
   color-scheme: light;
   font-family: "Inter", sans-serif;
@@ -13,11 +14,13 @@ html {
   .animate-slide-up {
     animation: slide-up 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
+
   @keyframes slide-up {
     from {
       transform: translateY(100%);
       opacity: 0;
     }
+
     to {
       transform: translateY(0);
       opacity: 1;
@@ -45,7 +48,14 @@ html {
     -webkit-line-clamp: 3;
   }
 }
+
 .modal-open {
   overflow: hidden !important;
-  padding-right: 15px; /* Scrollbar compensation */
+  padding-right: 15px;
+  /* Scrollbar compensation */
+}
+
+/* Custom positioning for notistack notifications */
+.notistack-SnackbarContainer {
+  margin-top: 4% !important;
 }

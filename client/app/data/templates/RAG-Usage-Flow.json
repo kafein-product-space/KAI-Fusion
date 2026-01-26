@@ -1,79 +1,83 @@
 {
-  "id": "rag_usage",
+  "id": "rag-usage-flow",
   "name": "RAG Usage Flow",
   "description": "Complete RAG architecture with OpenAI LLM, embeddings, vector retrieval, and intelligent agent for document-based Q&A.",
   "colorFrom": "from-indigo-500",
   "colorTo": "to-purple-600",
-  "icon": { "name": "search", "path": null, "alt": null },
+  "icon": {
+    "name": "search",
+    "path": "icons/search.svg",
+    "alt": "Search Icon"
+  },
   "flow_data": {
     "edges": [
       {
-        "id": "xy-edge__StartNode-1output-Agent-3input",
+        "id": "xy-edge__BufferMemory__7ef01e42-7d95-449c-8dd8-e2aa8c18e273memory-Agent__6742909d-34ab-4894-a73a-876a6edb77ffmemory",
         "type": "custom",
-        "source": "StartNode-1",
-        "target": "Agent-3",
-        "sourceHandle": "output",
-        "targetHandle": "input"
+        "source": "BufferMemory__7ef01e42-7d95-449c-8dd8-e2aa8c18e273",
+        "target": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
+        "sourceHandle": "memory",
+        "targetHandle": "memory"
       },
       {
-        "id": "xy-edge__Agent-3output-EndNode-2target",
+        "id": "xy-edge__OpenAIChat__fd701de5-2705-48b0-864f-a6faf615f781llm-Agent__6742909d-34ab-4894-a73a-876a6edb77ffllm",
         "type": "custom",
-        "source": "Agent-3",
-        "target": "EndNode-2",
-        "sourceHandle": "output",
-        "targetHandle": "target"
-      },
-      {
-        "id": "xy-edge__OpenAIChat-5llm-Agent-3llm",
-        "type": "custom",
-        "source": "OpenAIChat-5",
-        "target": "Agent-3",
+        "source": "OpenAIChat__fd701de5-2705-48b0-864f-a6faf615f781",
+        "target": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
         "sourceHandle": "llm",
         "targetHandle": "llm"
       },
       {
-        "id": "xy-edge__BufferMemory-6memory-Agent-3tools",
+        "id": "xy-edge__StartNode__f0051d02-8f62-4a7e-9dea-fb9628f076c1output-Agent__6742909d-34ab-4894-a73a-876a6edb77ffinput",
         "type": "custom",
-        "source": "BufferMemory-6",
-        "target": "Agent-3",
-        "sourceHandle": "memory",
+        "source": "StartNode__f0051d02-8f62-4a7e-9dea-fb9628f076c1",
+        "target": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
+        "sourceHandle": "output",
+        "targetHandle": "input"
+      },
+      {
+        "id": "xy-edge__Agent__6742909d-34ab-4894-a73a-876a6edb77ffoutput-EndNode__7c28fe1b-17a8-406e-b406-58ab3a70976ftarget",
+        "type": "custom",
+        "source": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
+        "target": "EndNode__7c28fe1b-17a8-406e-b406-58ab3a70976f",
+        "sourceHandle": "output",
+        "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0eretriever_tool-Agent__6742909d-34ab-4894-a73a-876a6edb77fftools",
+        "type": "custom",
+        "source": "RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0e",
+        "target": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
+        "sourceHandle": "retriever_tool",
         "targetHandle": "tools"
       },
       {
-        "id": "xy-edge__RetrieverProvider-7retriever_tool-Agent-3memory",
+        "id": "xy-edge__OpenAIEmbeddingsProvider__19bda225-f933-4247-88da-57ac520bb963embedder-RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0eembedder",
         "type": "custom",
-        "source": "RetrieverProvider-7",
-        "target": "Agent-3",
-        "sourceHandle": "retriever_tool",
-        "targetHandle": "memory"
-      },
-      {
-        "id": "xy-edge__OpenAIEmbeddingsProvider-8embedder-RetrieverProvider-7embedder",
-        "type": "custom",
-        "source": "OpenAIEmbeddingsProvider-8",
-        "target": "RetrieverProvider-7",
+        "source": "OpenAIEmbeddingsProvider__19bda225-f933-4247-88da-57ac520bb963",
+        "target": "RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0e",
         "sourceHandle": "embedder",
         "targetHandle": "embedder"
       },
       {
-        "id": "xy-edge__CohereRerankerProvider-9reranker-RetrieverProvider-7reranker",
+        "id": "xy-edge__CohereRerankerProvider__3e0b20d3-9bc7-41fc-80e7-26ba51d2c13dreranker-RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0ereranker",
         "type": "custom",
-        "source": "CohereRerankerProvider-9",
-        "target": "RetrieverProvider-7",
+        "source": "CohereRerankerProvider__3e0b20d3-9bc7-41fc-80e7-26ba51d2c13d",
+        "target": "RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0e",
         "sourceHandle": "reranker",
         "targetHandle": "reranker"
       }
     ],
     "nodes": [
       {
-        "id": "StartNode-1",
+        "id": "StartNode__f0051d02-8f62-4a7e-9dea-fb9628f076c1",
         "data": {
           "icon": {
             "alt": null,
             "name": "rocket",
             "path": null
           },
-          "name": "StartNode",
+          "name": "start",
           "inputs": [
             {
               "name": "initial_input",
@@ -111,7 +115,10 @@
             },
             "name": "StartNode",
             "tags": [],
-            "colors": ["green-500", "emerald-600"],
+            "colors": [
+              "green-500",
+              "emerald-600"
+            ],
             "inputs": [
               {
                 "name": "initial_input",
@@ -143,7 +150,8 @@
             "version": "1.0.0",
             "category": "Special",
             "examples": [],
-            "node_type": "processor",
+            "node_type": "terminator",
+            "properties": [],
             "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
             "display_name": "Start"
           },
@@ -157,83 +165,20 @@
           "height": 96
         },
         "position": {
-          "x": 720,
-          "y": 270
+          "x": 860,
+          "y": 380
         },
         "selected": false
       },
       {
-        "id": "EndNode-2",
-        "data": {
-          "icon": {
-            "alt": null,
-            "name": "flag",
-            "path": null
-          },
-          "name": "EndNode",
-          "inputs": [
-            {
-              "name": "target",
-              "type": "any",
-              "required": true,
-              "description": "The final data from the preceding node",
-              "displayName": "Target",
-              "is_connection": true
-            }
-          ],
-          "outputs": [],
-          "metadata": {
-            "id": "EndNode",
-            "icon": {
-              "alt": null,
-              "name": "flag",
-              "path": null
-            },
-            "name": "EndNode",
-            "tags": [],
-            "colors": ["gray-500", "slate-600"],
-            "inputs": [
-              {
-                "name": "target",
-                "type": "any",
-                "required": true,
-                "description": "The final data from the preceding node",
-                "displayName": "Target",
-                "is_connection": true
-              }
-            ],
-            "outputs": [],
-            "version": "1.0.0",
-            "category": "Special",
-            "examples": [],
-            "node_type": "terminator",
-            "description": "Marks the end of a workflow path",
-            "display_name": "End"
-          },
-          "description": "Marks the end of a workflow path",
-          "displayName": "End"
-        },
-        "type": "EndNode",
-        "dragging": false,
-        "measured": {
-          "width": 96,
-          "height": 96
-        },
-        "position": {
-          "x": 1460,
-          "y": 270
-        },
-        "selected": true
-      },
-      {
-        "id": "Agent-3",
+        "id": "Agent__6742909d-34ab-4894-a73a-876a6edb77ff",
         "data": {
           "icon": {
             "alt": null,
             "name": "bot",
             "path": null
           },
-          "name": "Agent",
+          "name": "agent",
           "inputs": [
             {
               "name": "input",
@@ -281,17 +226,9 @@
             {
               "name": "system_prompt",
               "type": "str",
-              "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
+              "default": "You are a helpful assistant.",
               "required": true,
               "description": "The system prompt for the agent.",
-              "is_connection": false
-            },
-            {
-              "name": "prompt_instructions",
-              "type": "str",
-              "default": "",
-              "required": false,
-              "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
               "is_connection": false
             }
           ],
@@ -313,7 +250,10 @@
             },
             "name": "Agent",
             "tags": [],
-            "colors": ["purple-500", "indigo-600"],
+            "colors": [
+              "purple-500",
+              "indigo-600"
+            ],
             "inputs": [
               {
                 "name": "input",
@@ -361,17 +301,9 @@
               {
                 "name": "system_prompt",
                 "type": "str",
-                "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
+                "default": "You are a helpful assistant.",
                 "required": true,
                 "description": "The system prompt for the agent.",
-                "is_connection": false
-              },
-              {
-                "name": "prompt_instructions",
-                "type": "str",
-                "default": "",
-                "required": false,
-                "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                 "is_connection": false
               }
             ],
@@ -412,13 +344,22 @@
                 "displayName": "Agent Type"
               },
               {
-                "hint": "Use {input} for user input. Define agent behavior and capabilities.",
+                "hint": "Define agent behavior and capabilities. This is the core system instruction.",
                 "name": "system_prompt",
                 "rows": 4,
                 "type": "textarea",
-                "default": "You are a helpful assistant. Use tools to answer: {input}",
+                "default": "You are a helpful assistant. Use tools to answer questions.",
                 "required": true,
                 "displayName": "System Prompt"
+              },
+              {
+                "hint": "Template for user input using ${{variable}} syntax",
+                "name": "user_prompt_template",
+                "rows": 4,
+                "type": "textarea",
+                "default": "${{input}}",
+                "required": false,
+                "displayName": "User Prompt Template"
               },
               {
                 "max": 20,
@@ -478,20 +419,87 @@
           "height": 96
         },
         "position": {
-          "x": 1110,
-          "y": 270
+          "x": 1170,
+          "y": 380
         },
         "selected": false
       },
       {
-        "id": "OpenAIChat-5",
+        "id": "EndNode__7c28fe1b-17a8-406e-b406-58ab3a70976f",
+        "data": {
+          "icon": {
+            "alt": null,
+            "name": "flag",
+            "path": null
+          },
+          "name": "end",
+          "inputs": [
+            {
+              "name": "target",
+              "type": "any",
+              "required": true,
+              "description": "The final data from the preceding node",
+              "displayName": "Target",
+              "is_connection": true
+            }
+          ],
+          "outputs": [],
+          "metadata": {
+            "id": "EndNode",
+            "icon": {
+              "alt": null,
+              "name": "flag",
+              "path": null
+            },
+            "name": "EndNode",
+            "tags": [],
+            "colors": [
+              "gray-500",
+              "slate-600"
+            ],
+            "inputs": [
+              {
+                "name": "target",
+                "type": "any",
+                "required": true,
+                "description": "The final data from the preceding node",
+                "displayName": "Target",
+                "is_connection": true
+              }
+            ],
+            "outputs": [],
+            "version": "1.0.0",
+            "category": "Special",
+            "examples": [],
+            "node_type": "terminator",
+            "properties": [],
+            "description": "Marks the end of a workflow path",
+            "display_name": "End"
+          },
+          "description": "Marks the end of a workflow path",
+          "displayName": "End"
+        },
+        "type": "EndNode",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 1480,
+          "y": 380
+        },
+        "selected": false
+      },
+      {
+        "id": "OpenAIChat__fd701de5-2705-48b0-864f-a6faf615f781",
         "data": {
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
             "path": "icons/openai.svg"
           },
-          "name": "OpenAIChat",
+          "name": "openai_gpt",
           "inputs": [
             {
               "name": "model_name",
@@ -539,13 +547,6 @@
               "default": 0,
               "required": false,
               "description": "Presence penalty (-2.0 to 2.0)",
-              "is_connection": false
-            },
-            {
-              "name": "api_key",
-              "type": "str",
-              "required": true,
-              "description": "OpenAI API Key",
               "is_connection": false
             },
             {
@@ -604,7 +605,10 @@
             },
             "name": "OpenAIChat",
             "tags": [],
-            "colors": ["purple-500", "indigo-600"],
+            "colors": [
+              "purple-500",
+              "indigo-600"
+            ],
             "inputs": [
               {
                 "name": "model_name",
@@ -652,13 +656,6 @@
                 "default": 0,
                 "required": false,
                 "description": "Presence penalty (-2.0 to 2.0)",
-                "is_connection": false
-              },
-              {
-                "name": "api_key",
-                "type": "str",
-                "required": true,
-                "description": "OpenAI API Key",
                 "is_connection": false
               },
               {
@@ -719,14 +716,8 @@
                 "type": "credential-select",
                 "required": false,
                 "displayName": "Credential",
-                "placeholder": "Select Credential"
-              },
-              {
-                "name": "api_key",
-                "rows": 4,
-                "type": "password",
-                "required": false,
-                "displayName": "API Key"
+                "placeholder": "Select Credential",
+                "serviceType": "openai"
               },
               {
                 "name": "model_name",
@@ -735,7 +726,7 @@
                 "default": "gpt-4o",
                 "options": [
                   {
-                    "label": "GPT-4o ⭐",
+                    "label": "GPT-4o",
                     "value": "gpt-4o"
                   },
                   {
@@ -795,20 +786,20 @@
           "height": 96
         },
         "position": {
-          "x": 980,
-          "y": 440
+          "x": 1020,
+          "y": 530
         },
         "selected": false
       },
       {
-        "id": "BufferMemory-6",
+        "id": "BufferMemory__7ef01e42-7d95-449c-8dd8-e2aa8c18e273",
         "data": {
           "icon": {
             "alt": null,
             "name": "database",
             "path": null
           },
-          "name": "BufferMemory",
+          "name": "buffer_memory_persistent",
           "inputs": [
             {
               "name": "return_messages",
@@ -853,7 +844,10 @@
             },
             "name": "BufferMemory",
             "tags": [],
-            "colors": ["blue-500", "indigo-600"],
+            "colors": [
+              "blue-500",
+              "indigo-600"
+            ],
             "inputs": [
               {
                 "name": "return_messages",
@@ -940,28 +934,21 @@
           "height": 96
         },
         "position": {
-          "x": 1110,
-          "y": 440
+          "x": 1320,
+          "y": 530
         },
         "selected": false
       },
       {
-        "id": "RetrieverProvider-7",
+        "id": "RetrieverProvider__aac9c0e1-0e3f-4e0f-ad6e-93204dd58f0e",
         "data": {
           "icon": {
             "alt": null,
             "name": "file-stack",
             "path": null
           },
-          "name": "RetrieverProvider",
+          "name": "retriever_provider",
           "inputs": [
-            {
-              "name": "database_connection",
-              "type": "str",
-              "required": true,
-              "description": "Database connection string (postgresql://user:pass@host:port/db)",
-              "is_connection": false
-            },
             {
               "name": "collection_name",
               "type": "str",
@@ -1055,15 +1042,11 @@
             },
             "name": "RetrieverProvider",
             "tags": [],
-            "colors": ["indigo-500", "purple-600"],
+            "colors": [
+              "indigo-500",
+              "purple-600"
+            ],
             "inputs": [
-              {
-                "name": "database_connection",
-                "type": "str",
-                "required": true,
-                "description": "Database connection string (postgresql://user:pass@host:port/db)",
-                "is_connection": false
-              },
               {
                 "name": "collection_name",
                 "type": "str",
@@ -1154,20 +1137,12 @@
             "node_type": "provider",
             "properties": [
               {
-                "name": "credential",
+                "name": "credential_id",
                 "rows": 4,
                 "type": "credential-select",
                 "required": false,
                 "displayName": "Select Credential",
                 "placeholder": "Select Credential"
-              },
-              {
-                "name": "database_connection",
-                "rows": 4,
-                "type": "password",
-                "required": true,
-                "description": "PostgreSQL connection string",
-                "displayName": "Database Connection"
               },
               {
                 "name": "collection_name",
@@ -1285,20 +1260,20 @@
           "height": 96
         },
         "position": {
-          "x": 1240,
-          "y": 440
+          "x": 1170,
+          "y": 530
         },
         "selected": false
       },
       {
-        "id": "OpenAIEmbeddingsProvider-8",
+        "id": "OpenAIEmbeddingsProvider__19bda225-f933-4247-88da-57ac520bb963",
         "data": {
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
             "path": "icons/openai.svg"
           },
-          "name": "OpenAIEmbeddingsProvider",
+          "name": "openai_embeddings_provider",
           "inputs": [
             {
               "name": "openai_api_key",
@@ -1351,7 +1326,10 @@
             },
             "name": "OpenAIEmbeddingsProvider",
             "tags": [],
-            "colors": ["cyan-500", "blue-600"],
+            "colors": [
+              "cyan-500",
+              "blue-600"
+            ],
             "inputs": [
               {
                 "name": "openai_api_key",
@@ -1424,20 +1402,13 @@
                 "displayName": "Embedding Model"
               },
               {
-                "name": "credential",
+                "name": "credential_id",
                 "rows": 4,
                 "type": "credential-select",
                 "required": false,
                 "displayName": "Select Credential",
-                "placeholder": "Select Credential"
-              },
-              {
-                "hint": "OpenAI API Key.",
-                "name": "openai_api_key",
-                "rows": 4,
-                "type": "password",
-                "required": true,
-                "displayName": "API Key"
+                "placeholder": "Select Credential",
+                "serviceType": "openai"
               },
               {
                 "hint": "OpenAI Organization ID.",
@@ -1504,28 +1475,21 @@
           "height": 96
         },
         "position": {
-          "x": 1160,
-          "y": 590
+          "x": 1100,
+          "y": 700
         },
         "selected": false
       },
       {
-        "id": "CohereRerankerProvider-9",
+        "id": "CohereRerankerProvider__3e0b20d3-9bc7-41fc-80e7-26ba51d2c13d",
         "data": {
           "icon": {
             "alt": "coherererankericons",
             "name": "cohere",
             "path": "icons/cohere.svg"
           },
-          "name": "CohereRerankerProvider",
+          "name": "cohere_reranker_provider",
           "inputs": [
-            {
-              "name": "cohere_api_key",
-              "type": "str",
-              "required": false,
-              "description": "Cohere API Key (leave empty to use COHERE_API_KEY environment variable)",
-              "is_connection": false
-            },
             {
               "name": "model",
               "type": "str",
@@ -1561,15 +1525,11 @@
             },
             "name": "CohereRerankerProvider",
             "tags": [],
-            "colors": ["orange-500", "red-600"],
+            "colors": [
+              "orange-500",
+              "red-600"
+            ],
             "inputs": [
-              {
-                "name": "cohere_api_key",
-                "type": "str",
-                "required": false,
-                "description": "Cohere API Key (leave empty to use COHERE_API_KEY environment variable)",
-                "is_connection": false
-              },
               {
                 "name": "model",
                 "type": "str",
@@ -1602,19 +1562,13 @@
             "node_type": "provider",
             "properties": [
               {
-                "name": "credential",
+                "name": "credential_id",
                 "rows": 4,
                 "type": "credential-select",
                 "required": false,
                 "displayName": "Select Credential",
-                "placeholder": "Select Credential"
-              },
-              {
-                "name": "cohere_api_key",
-                "rows": 4,
-                "type": "password",
-                "required": true,
-                "displayName": "API Key"
+                "placeholder": "Select Credential",
+                "serviceType": "cohere"
               },
               {
                 "name": "model",
@@ -1681,10 +1635,10 @@
           "height": 96
         },
         "position": {
-          "x": 1320,
-          "y": 590
+          "x": 1260,
+          "y": 700
         },
-        "selected": false
+        "selected": true
       }
     ]
   }
