@@ -1,59 +1,47 @@
 {
-  "id": "basic-agent",
+  "id": "basic_agent",
   "name": "Basic Agent",
   "description": "AI Agent with OpenAI LLM for intelligent conversations and task execution. Includes StartNode → OpenAI Chat → Agent → EndNode workflow.",
   "colorFrom": "from-blue-500",
   "colorTo": "to-cyan-600",
-  "icon": {
-    "name": "message-square",
-    "path": "icons/message-square.svg",
-    "alt": "Message Square Icon"
-  },
+  "icon": { "name": "message-square", "path": null, "alt": null },
   "flow_data": {
     "edges": [
       {
-        "id": "xy-edge__BufferMemory__c2a1c687-0007-4425-bf5e-61df4df4c3damemory-Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3memory",
+        "id": "xy-edge__StartNode-1output-Agent-3input",
         "type": "custom",
-        "source": "BufferMemory__c2a1c687-0007-4425-bf5e-61df4df4c3da",
-        "target": "Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3",
-        "sourceHandle": "memory",
-        "targetHandle": "memory"
-      },
-      {
-        "id": "xy-edge__OpenAIChat__07780d83-7d86-43f2-bd76-94c1757526a2llm-Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3llm",
-        "type": "custom",
-        "source": "OpenAIChat__07780d83-7d86-43f2-bd76-94c1757526a2",
-        "target": "Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3",
-        "sourceHandle": "llm",
-        "targetHandle": "llm"
-      },
-      {
-        "id": "xy-edge__StartNode__6a2f5ee6-9df1-4e1c-a834-264193cdadd1output-Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3input",
-        "type": "custom",
-        "source": "StartNode__6a2f5ee6-9df1-4e1c-a834-264193cdadd1",
-        "target": "Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3",
+        "source": "StartNode-1",
+        "target": "Agent-3",
         "sourceHandle": "output",
         "targetHandle": "input"
       },
       {
-        "id": "xy-edge__Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3output-EndNode__005fa86a-b48f-48f8-8914-b5c874a88405target",
+        "id": "xy-edge__Agent-3output-EndNode-2target",
         "type": "custom",
-        "source": "Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3",
-        "target": "EndNode__005fa86a-b48f-48f8-8914-b5c874a88405",
+        "source": "Agent-3",
+        "target": "EndNode-2",
         "sourceHandle": "output",
         "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__OpenAIChat-4llm-Agent-3llm",
+        "type": "custom",
+        "source": "OpenAIChat-4",
+        "target": "Agent-3",
+        "sourceHandle": "llm",
+        "targetHandle": "llm"
       }
     ],
     "nodes": [
       {
-        "id": "StartNode__6a2f5ee6-9df1-4e1c-a834-264193cdadd1",
+        "id": "StartNode-1",
         "data": {
           "icon": {
             "alt": null,
             "name": "rocket",
             "path": null
           },
-          "name": "start",
+          "name": "StartNode",
           "inputs": [
             {
               "name": "initial_input",
@@ -91,10 +79,7 @@
             },
             "name": "StartNode",
             "tags": [],
-            "colors": [
-              "green-500",
-              "emerald-600"
-            ],
+            "colors": ["green-500", "emerald-600"],
             "inputs": [
               {
                 "name": "initial_input",
@@ -126,8 +111,7 @@
             "version": "1.0.0",
             "category": "Special",
             "examples": [],
-            "node_type": "terminator",
-            "properties": [],
+            "node_type": "processor",
             "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
             "display_name": "Start"
           },
@@ -141,20 +125,20 @@
           "height": 96
         },
         "position": {
-          "x": 1010,
-          "y": 410
+          "x": 620,
+          "y": 460
         },
         "selected": false
       },
       {
-        "id": "EndNode__005fa86a-b48f-48f8-8914-b5c874a88405",
+        "id": "EndNode-2",
         "data": {
           "icon": {
             "alt": null,
             "name": "flag",
             "path": null
           },
-          "name": "end",
+          "name": "EndNode",
           "inputs": [
             {
               "name": "target",
@@ -175,10 +159,7 @@
             },
             "name": "EndNode",
             "tags": [],
-            "colors": [
-              "gray-500",
-              "slate-600"
-            ],
+            "colors": ["gray-500", "slate-600"],
             "inputs": [
               {
                 "name": "target",
@@ -194,7 +175,6 @@
             "category": "Special",
             "examples": [],
             "node_type": "terminator",
-            "properties": [],
             "description": "Marks the end of a workflow path",
             "display_name": "End"
           },
@@ -208,20 +188,20 @@
           "height": 96
         },
         "position": {
-          "x": 1410,
-          "y": 410
+          "x": 1210,
+          "y": 460
         },
         "selected": false
       },
       {
-        "id": "Agent__bc896b6e-5f9c-485f-a237-4182fb377fd3",
+        "id": "Agent-3",
         "data": {
           "icon": {
             "alt": null,
             "name": "bot",
             "path": null
           },
-          "name": "agent",
+          "name": "Agent",
           "inputs": [
             {
               "name": "input",
@@ -269,9 +249,17 @@
             {
               "name": "system_prompt",
               "type": "str",
-              "default": "You are a helpful assistant.",
+              "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
               "required": true,
               "description": "The system prompt for the agent.",
+              "is_connection": false
+            },
+            {
+              "name": "prompt_instructions",
+              "type": "str",
+              "default": "",
+              "required": false,
+              "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
               "is_connection": false
             }
           ],
@@ -293,10 +281,7 @@
             },
             "name": "Agent",
             "tags": [],
-            "colors": [
-              "purple-500",
-              "indigo-600"
-            ],
+            "colors": ["purple-500", "indigo-600"],
             "inputs": [
               {
                 "name": "input",
@@ -344,9 +329,17 @@
               {
                 "name": "system_prompt",
                 "type": "str",
-                "default": "You are a helpful assistant.",
+                "default": "You are an expert AI assistant specialized in providing detailed, step-by-step guidance and comprehensive answers. You excel at breaking down complex topics into clear, actionable instructions.",
                 "required": true,
                 "description": "The system prompt for the agent.",
+                "is_connection": false
+              },
+              {
+                "name": "prompt_instructions",
+                "type": "str",
+                "default": "",
+                "required": false,
+                "description": "Custom prompt instructions for the agent. If not provided, uses smart orchestration defaults.",
                 "is_connection": false
               }
             ],
@@ -387,22 +380,13 @@
                 "displayName": "Agent Type"
               },
               {
-                "hint": "Define agent behavior and capabilities. This is the core system instruction.",
+                "hint": "Use {input} for user input. Define agent behavior and capabilities.",
                 "name": "system_prompt",
                 "rows": 4,
                 "type": "textarea",
-                "default": "You are a helpful assistant. Use tools to answer questions.",
+                "default": "You are a helpful assistant. Use tools to answer: {input}",
                 "required": true,
                 "displayName": "System Prompt"
-              },
-              {
-                "hint": "Template for user input using ${{variable}} syntax",
-                "name": "user_prompt_template",
-                "rows": 4,
-                "type": "textarea",
-                "default": "${{input}}",
-                "required": false,
-                "displayName": "User Prompt Template"
               },
               {
                 "max": 20,
@@ -462,168 +446,20 @@
           "height": 96
         },
         "position": {
-          "x": 1210,
-          "y": 410
+          "x": 910,
+          "y": 460
         },
         "selected": false
       },
       {
-        "id": "BufferMemory__c2a1c687-0007-4425-bf5e-61df4df4c3da",
-        "data": {
-          "icon": {
-            "alt": null,
-            "name": "database",
-            "path": null
-          },
-          "name": "buffer_memory_persistent",
-          "inputs": [
-            {
-              "name": "return_messages",
-              "type": "bool",
-              "default": true,
-              "required": true,
-              "description": "Return as messages.",
-              "is_connection": false
-            },
-            {
-              "name": "input_key",
-              "type": "str",
-              "default": "input",
-              "required": true,
-              "description": "Key for user input.",
-              "is_connection": false
-            },
-            {
-              "name": "user_id",
-              "type": "str",
-              "required": false,
-              "description": "User ID for multi-tenancy.",
-              "is_connection": false
-            }
-          ],
-          "outputs": [
-            {
-              "name": "memory",
-              "type": "BaseChatMemory",
-              "direction": "top",
-              "description": "Configured buffer memory instance.",
-              "displayName": "Memory",
-              "is_connection": true
-            }
-          ],
-          "metadata": {
-            "id": "BufferMemory",
-            "icon": {
-              "alt": null,
-              "name": "database",
-              "path": null
-            },
-            "name": "BufferMemory",
-            "tags": [],
-            "colors": [
-              "blue-500",
-              "indigo-600"
-            ],
-            "inputs": [
-              {
-                "name": "return_messages",
-                "type": "bool",
-                "default": true,
-                "required": true,
-                "description": "Return as messages.",
-                "is_connection": false
-              },
-              {
-                "name": "input_key",
-                "type": "str",
-                "default": "input",
-                "required": true,
-                "description": "Key for user input.",
-                "is_connection": false
-              },
-              {
-                "name": "user_id",
-                "type": "str",
-                "required": false,
-                "description": "User ID for multi-tenancy.",
-                "is_connection": false
-              }
-            ],
-            "outputs": [
-              {
-                "name": "memory",
-                "type": "BaseChatMemory",
-                "direction": "top",
-                "description": "Configured buffer memory instance.",
-                "displayName": "Memory",
-                "is_connection": true
-              }
-            ],
-            "version": "1.0.0",
-            "category": "Other",
-            "examples": [],
-            "node_type": "memory",
-            "properties": [
-              {
-                "name": "memory_key",
-                "rows": 4,
-                "type": "text",
-                "default": "memory",
-                "required": true,
-                "displayName": "MEMORY KEY"
-              },
-              {
-                "name": "input_key",
-                "rows": 4,
-                "type": "text",
-                "default": "input",
-                "required": true,
-                "displayName": "INPUT KEY"
-              },
-              {
-                "name": "output_key",
-                "rows": 4,
-                "type": "text",
-                "default": "output",
-                "required": true,
-                "displayName": "OUTPUT KEY"
-              },
-              {
-                "name": "return_messages",
-                "rows": 4,
-                "type": "checkbox",
-                "default": true,
-                "required": false,
-                "displayName": "Return Messages"
-              }
-            ],
-            "description": "Stores entire conversation history with database persistence.",
-            "display_name": "Buffer Memory (Persistent)"
-          },
-          "description": "Stores entire conversation history with database persistence.",
-          "displayName": "Buffer Memory (Persistent)"
-        },
-        "type": "BufferMemory",
-        "dragging": false,
-        "measured": {
-          "width": 96,
-          "height": 96
-        },
-        "position": {
-          "x": 1290,
-          "y": 580
-        },
-        "selected": true
-      },
-      {
-        "id": "OpenAIChat__07780d83-7d86-43f2-bd76-94c1757526a2",
+        "id": "OpenAIChat-4",
         "data": {
           "icon": {
             "alt": "openaiicons",
             "name": "openai",
             "path": "icons/openai.svg"
           },
-          "name": "openai_gpt",
+          "name": "OpenAIChat",
           "inputs": [
             {
               "name": "model_name",
@@ -671,6 +507,13 @@
               "default": 0,
               "required": false,
               "description": "Presence penalty (-2.0 to 2.0)",
+              "is_connection": false
+            },
+            {
+              "name": "api_key",
+              "type": "str",
+              "required": true,
+              "description": "OpenAI API Key",
               "is_connection": false
             },
             {
@@ -729,10 +572,7 @@
             },
             "name": "OpenAIChat",
             "tags": [],
-            "colors": [
-              "purple-500",
-              "indigo-600"
-            ],
+            "colors": ["purple-500", "indigo-600"],
             "inputs": [
               {
                 "name": "model_name",
@@ -780,6 +620,13 @@
                 "default": 0,
                 "required": false,
                 "description": "Presence penalty (-2.0 to 2.0)",
+                "is_connection": false
+              },
+              {
+                "name": "api_key",
+                "type": "str",
+                "required": true,
+                "description": "OpenAI API Key",
                 "is_connection": false
               },
               {
@@ -840,8 +687,14 @@
                 "type": "credential-select",
                 "required": false,
                 "displayName": "Credential",
-                "placeholder": "Select Credential",
-                "serviceType": "openai"
+                "placeholder": "Select Credential"
+              },
+              {
+                "name": "api_key",
+                "rows": 4,
+                "type": "password",
+                "required": false,
+                "displayName": "API Key"
               },
               {
                 "name": "model_name",
@@ -850,7 +703,7 @@
                 "default": "gpt-4o",
                 "options": [
                   {
-                    "label": "GPT-4o",
+                    "label": "GPT-4o ⭐",
                     "value": "gpt-4o"
                   },
                   {
@@ -910,8 +763,8 @@
           "height": 96
         },
         "position": {
-          "x": 1140,
-          "y": 580
+          "x": 780,
+          "y": 650
         },
         "selected": false
       }

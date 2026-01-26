@@ -20,7 +20,6 @@ import time
 from pathlib import Path
 from typing import Dict, List, Optional, Any
 from datetime import datetime
-from app.core.constants import API_START,API_VERSION
 
 # Test configuration
 BASE_URL = "http://localhost:8000"
@@ -123,7 +122,7 @@ class DockerExportTester:
         try:
             # First, create workflow for testing
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/workflows",
+                f"{BASE_URL}/api/v1/workflows",
                 json=test_workflow,
                 headers={"Content-Type": "application/json"}
             ) as response:
@@ -133,7 +132,7 @@ class DockerExportTester:
             
             # Test dependency analysis
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/workflow/test-openai-workflow",
+                f"{BASE_URL}/api/v1/export/workflow/test-openai-workflow",
                 json={
                     "include_credentials": True,
                     "export_format": "docker"
@@ -235,7 +234,7 @@ class DockerExportTester:
         try:
             # Create complex workflow
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/workflows",
+                f"{BASE_URL}/api/v1/workflows",
                 json=complex_workflow,
                 headers={"Content-Type": "application/json"}
             ) as response:
@@ -245,7 +244,7 @@ class DockerExportTester:
             
             # Analyze complex workflow
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/workflow/test-complex-workflow",
+                f"{BASE_URL}/api/v1/export/workflow/test-complex-workflow",
                 json={
                     "include_credentials": True,
                     "export_format": "docker"
@@ -314,7 +313,7 @@ class DockerExportTester:
         
         try:
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/workflow/test-openai-workflow/complete",
+                f"{BASE_URL}/api/v1/export/workflow/test-openai-workflow/complete",
                 json=export_config,
                 headers={"Content-Type": "application/json"}
             ) as response:
@@ -354,7 +353,7 @@ class DockerExportTester:
         try:
             # Download the package
             async with self.session.get(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/download/workflow-export-test-openai-workflow.zip"
+                f"{BASE_URL}/api/v1/export/download/workflow-export-test-openai-workflow.zip"
             ) as response:
                 
                 if response.status != 200:
@@ -436,7 +435,7 @@ class DockerExportTester:
         # Test with non-existent workflow to trigger fallback
         try:
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/workflow/non-existent-workflow",
+                f"{BASE_URL}/api/v1/export/workflow/non-existent-workflow",
                 json={
                     "include_credentials": True,
                     "export_format": "docker"
@@ -473,7 +472,7 @@ class DockerExportTester:
             
             # Test analysis performance
             async with self.session.post(
-                f"{BASE_URL}/{API_START}/{API_VERSION}/export/workflow/test-openai-workflow",
+                f"{BASE_URL}/api/v1/export/workflow/test-openai-workflow",
                 json={
                     "include_credentials": True,
                     "export_format": "docker"

@@ -1,67 +1,63 @@
 {
-  "id": "rag-pipeline",
+  "id": "rag_pipeline",
   "name": "RAG Pipeline",
   "description": "Complete RAG architecture with web scraping, document chunking, embeddings, and vector storage. Ready for intelligent document retrieval and Q&A.",
   "colorFrom": "from-emerald-500",
   "colorTo": "to-teal-600",
-  "icon": {
-    "name": "chart-column",
-    "path": "icons/chart-column.svg",
-    "alt": "Chart Column Icon"
-  },
+  "icon": { "name": "chart-column", "path": null, "alt": null },
   "flow_data": {
     "edges": [
       {
-        "id": "xy-edge__OpenAIEmbeddingsProvider__a2bf102a-cf71-4960-9c46-c33cbafb5fdcembedder-VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6embedder",
+        "id": "xy-edge__StartNode-1output-WebScraper-3input_urls",
         "type": "custom",
-        "source": "OpenAIEmbeddingsProvider__a2bf102a-cf71-4960-9c46-c33cbafb5fdc",
-        "target": "VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6",
-        "sourceHandle": "embedder",
-        "targetHandle": "embedder"
-      },
-      {
-        "id": "xy-edge__StartNode__7d1a6819-0122-47c0-97c5-104bef3ceaf1output-WebScraper__b0996395-14f7-4e95-8f70-bb1287eaffc9input_urls",
-        "type": "custom",
-        "source": "StartNode__7d1a6819-0122-47c0-97c5-104bef3ceaf1",
-        "target": "WebScraper__b0996395-14f7-4e95-8f70-bb1287eaffc9",
+        "source": "StartNode-1",
+        "target": "WebScraper-3",
         "sourceHandle": "output",
         "targetHandle": "input_urls"
       },
       {
-        "id": "xy-edge__WebScraper__b0996395-14f7-4e95-8f70-bb1287eaffc9documents-ChunkSplitter__80aa9d01-4be5-4e7b-abeb-74f19e2c75c0documents",
+        "id": "xy-edge__WebScraper-3documents-ChunkSplitter-4documents",
         "type": "custom",
-        "source": "WebScraper__b0996395-14f7-4e95-8f70-bb1287eaffc9",
-        "target": "ChunkSplitter__80aa9d01-4be5-4e7b-abeb-74f19e2c75c0",
+        "source": "WebScraper-3",
+        "target": "ChunkSplitter-4",
         "sourceHandle": "documents",
         "targetHandle": "documents"
       },
       {
-        "id": "xy-edge__ChunkSplitter__80aa9d01-4be5-4e7b-abeb-74f19e2c75c0chunks-VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6documents",
+        "id": "xy-edge__ChunkSplitter-4chunks-VectorStoreOrchestrator-6documents",
         "type": "custom",
-        "source": "ChunkSplitter__80aa9d01-4be5-4e7b-abeb-74f19e2c75c0",
-        "target": "VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6",
+        "source": "ChunkSplitter-4",
+        "target": "VectorStoreOrchestrator-6",
         "sourceHandle": "chunks",
         "targetHandle": "documents"
       },
       {
-        "id": "xy-edge__VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6result-EndNode__07647147-30d0-45d4-a716-a4dbbaf1c464target",
+        "id": "xy-edge__VectorStoreOrchestrator-6result-EndNode-2target",
         "type": "custom",
-        "source": "VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6",
-        "target": "EndNode__07647147-30d0-45d4-a716-a4dbbaf1c464",
+        "source": "VectorStoreOrchestrator-6",
+        "target": "EndNode-2",
         "sourceHandle": "result",
         "targetHandle": "target"
+      },
+      {
+        "id": "xy-edge__OpenAIEmbeddingsProvider-5embedder-VectorStoreOrchestrator-6embedder",
+        "type": "custom",
+        "source": "OpenAIEmbeddingsProvider-5",
+        "target": "VectorStoreOrchestrator-6",
+        "sourceHandle": "embedder",
+        "targetHandle": "embedder"
       }
     ],
     "nodes": [
       {
-        "id": "StartNode__7d1a6819-0122-47c0-97c5-104bef3ceaf1",
+        "id": "StartNode-1",
         "data": {
           "icon": {
             "alt": null,
             "name": "rocket",
             "path": null
           },
-          "name": "start",
+          "name": "StartNode",
           "inputs": [
             {
               "name": "initial_input",
@@ -99,10 +95,7 @@
             },
             "name": "StartNode",
             "tags": [],
-            "colors": [
-              "green-500",
-              "emerald-600"
-            ],
+            "colors": ["green-500", "emerald-600"],
             "inputs": [
               {
                 "name": "initial_input",
@@ -134,8 +127,7 @@
             "version": "1.0.0",
             "category": "Special",
             "examples": [],
-            "node_type": "terminator",
-            "properties": [],
+            "node_type": "processor",
             "description": "Entry point for workflow execution. Receives initial input and starts the workflow.",
             "display_name": "Start"
           },
@@ -149,20 +141,20 @@
           "height": 96
         },
         "position": {
-          "x": 450,
-          "y": 280
+          "x": 550,
+          "y": 470
         },
         "selected": false
       },
       {
-        "id": "EndNode__07647147-30d0-45d4-a716-a4dbbaf1c464",
+        "id": "EndNode-2",
         "data": {
           "icon": {
             "alt": null,
             "name": "flag",
             "path": null
           },
-          "name": "end",
+          "name": "EndNode",
           "inputs": [
             {
               "name": "target",
@@ -183,10 +175,7 @@
             },
             "name": "EndNode",
             "tags": [],
-            "colors": [
-              "gray-500",
-              "slate-600"
-            ],
+            "colors": ["gray-500", "slate-600"],
             "inputs": [
               {
                 "name": "target",
@@ -202,7 +191,6 @@
             "category": "Special",
             "examples": [],
             "node_type": "terminator",
-            "properties": [],
             "description": "Marks the end of a workflow path",
             "display_name": "End"
           },
@@ -216,20 +204,20 @@
           "height": 96
         },
         "position": {
-          "x": 1160,
-          "y": 260
+          "x": 1450,
+          "y": 460
         },
         "selected": false
       },
       {
-        "id": "WebScraper__b0996395-14f7-4e95-8f70-bb1287eaffc9",
+        "id": "WebScraper-3",
         "data": {
           "icon": {
             "alt": null,
             "name": "pickaxe",
             "path": null
           },
-          "name": "web_scraper",
+          "name": "WebScraper",
           "inputs": [
             {
               "name": "urls",
@@ -289,10 +277,7 @@
             },
             "name": "WebScraper",
             "tags": [],
-            "colors": [
-              "blue-500",
-              "indigo-600"
-            ],
+            "colors": ["blue-500", "indigo-600"],
             "inputs": [
               {
                 "name": "urls",
@@ -453,20 +438,20 @@
           "height": 96
         },
         "position": {
-          "x": 620,
-          "y": 280
+          "x": 780,
+          "y": 470
         },
-        "selected": true
+        "selected": false
       },
       {
-        "id": "ChunkSplitter__80aa9d01-4be5-4e7b-abeb-74f19e2c75c0",
+        "id": "ChunkSplitter-4",
         "data": {
           "icon": {
             "alt": null,
             "name": "scissors",
             "path": null
           },
-          "name": "document_chunk_splitter",
+          "name": "ChunkSplitter",
           "inputs": [
             {
               "name": "documents",
@@ -574,10 +559,7 @@
             },
             "name": "ChunkSplitter",
             "tags": [],
-            "colors": [
-              "yellow-500",
-              "orange-600"
-            ],
+            "colors": ["yellow-500", "orange-600"],
             "inputs": [
               {
                 "name": "documents",
@@ -787,20 +769,239 @@
           "height": 96
         },
         "position": {
-          "x": 770,
-          "y": 190
+          "x": 1020,
+          "y": 410
         },
         "selected": false
       },
       {
-        "id": "VectorStoreOrchestrator__b2c903fc-b16b-4c73-b434-ef82a41d84d6",
+        "id": "OpenAIEmbeddingsProvider-5",
+        "data": {
+          "icon": {
+            "alt": "openaiicons",
+            "name": "openai",
+            "path": "icons/openai.svg"
+          },
+          "name": "OpenAIEmbeddingsProvider",
+          "inputs": [
+            {
+              "name": "openai_api_key",
+              "type": "str",
+              "required": false,
+              "description": "OpenAI API Key (leave empty to use OPENAI_API_KEY environment variable)",
+              "is_connection": false
+            },
+            {
+              "name": "model",
+              "type": "str",
+              "default": "text-embedding-3-small",
+              "required": false,
+              "description": "OpenAI embedding model to use",
+              "is_connection": false
+            },
+            {
+              "name": "request_timeout",
+              "type": "int",
+              "default": 60,
+              "required": false,
+              "description": "Request timeout in seconds",
+              "is_connection": false
+            },
+            {
+              "name": "max_retries",
+              "type": "int",
+              "default": 3,
+              "required": false,
+              "description": "Maximum number of retries for failed requests",
+              "is_connection": false
+            }
+          ],
+          "outputs": [
+            {
+              "name": "embedder",
+              "type": "OpenAIEmbeddings",
+              "direction": "top",
+              "description": "Configured OpenAIEmbeddings instance ready for use",
+              "displayName": "Embedder",
+              "is_connection": true
+            }
+          ],
+          "metadata": {
+            "id": "OpenAIEmbeddingsProvider",
+            "icon": {
+              "alt": "openaiicons",
+              "name": "openai",
+              "path": "icons/openai.svg"
+            },
+            "name": "OpenAIEmbeddingsProvider",
+            "tags": [],
+            "colors": ["cyan-500", "blue-600"],
+            "inputs": [
+              {
+                "name": "openai_api_key",
+                "type": "str",
+                "required": false,
+                "description": "OpenAI API Key (leave empty to use OPENAI_API_KEY environment variable)",
+                "is_connection": false
+              },
+              {
+                "name": "model",
+                "type": "str",
+                "default": "text-embedding-3-small",
+                "required": false,
+                "description": "OpenAI embedding model to use",
+                "is_connection": false
+              },
+              {
+                "name": "request_timeout",
+                "type": "int",
+                "default": 60,
+                "required": false,
+                "description": "Request timeout in seconds",
+                "is_connection": false
+              },
+              {
+                "name": "max_retries",
+                "type": "int",
+                "default": 3,
+                "required": false,
+                "description": "Maximum number of retries for failed requests",
+                "is_connection": false
+              }
+            ],
+            "outputs": [
+              {
+                "name": "embedder",
+                "type": "OpenAIEmbeddings",
+                "direction": "top",
+                "description": "Configured OpenAIEmbeddings instance ready for use",
+                "displayName": "Embedder",
+                "is_connection": true
+              }
+            ],
+            "version": "1.0.0",
+            "category": "Embedding",
+            "examples": [],
+            "node_type": "provider",
+            "properties": [
+              {
+                "hint": "The model to use for generating embeddings.",
+                "name": "model",
+                "rows": 4,
+                "type": "select",
+                "default": "text-embedding-3-small",
+                "options": [
+                  {
+                    "label": "text-embedding-3-small (1536D)",
+                    "value": "text-embedding-3-small"
+                  },
+                  {
+                    "label": "text-embedding-3-large (3072D)",
+                    "value": "text-embedding-3-large"
+                  },
+                  {
+                    "label": "text-embedding-ada-002 (1536D)",
+                    "value": "text-embedding-ada-002"
+                  }
+                ],
+                "required": true,
+                "displayName": "Embedding Model"
+              },
+              {
+                "name": "credential",
+                "rows": 4,
+                "type": "credential-select",
+                "required": false,
+                "displayName": "Select Credential",
+                "placeholder": "Select Credential"
+              },
+              {
+                "hint": "OpenAI API Key.",
+                "name": "openai_api_key",
+                "rows": 4,
+                "type": "password",
+                "required": true,
+                "displayName": "API Key"
+              },
+              {
+                "hint": "OpenAI Organization ID.",
+                "name": "organization",
+                "rows": 4,
+                "type": "text",
+                "required": false,
+                "displayName": "Organization (Optional)",
+                "placeholder": "org-..."
+              },
+              {
+                "max": 100,
+                "min": 1,
+                "hint": "Number of texts to embed in a single batch.",
+                "name": "batch_size",
+                "rows": 4,
+                "type": "number",
+                "default": 100,
+                "required": true,
+                "displayName": "Batch Size"
+              },
+              {
+                "max": 10,
+                "min": 0,
+                "hint": "Maximum number of retries for failed requests.",
+                "name": "max_retries",
+                "rows": 4,
+                "type": "number",
+                "default": 3,
+                "required": true,
+                "displayName": "Max Retries"
+              },
+              {
+                "max": 300,
+                "min": 10,
+                "hint": "Timeout for API requests in seconds.",
+                "name": "request_timeout",
+                "rows": 4,
+                "type": "number",
+                "default": 30,
+                "required": true,
+                "displayName": "Request Timeout (seconds)"
+              },
+              {
+                "hint": "Auto-calculated based on model selection.",
+                "name": "dimensions",
+                "rows": 4,
+                "type": "number",
+                "default": 1536,
+                "required": true,
+                "displayName": "Dimensions"
+              }
+            ],
+            "description": "Provider node that creates configured OpenAIEmbeddings instances. Use this node to create a shared embeddings instance for your workflow.",
+            "display_name": "OpenAI Embeddings Provider"
+          },
+          "description": "Provider node that creates configured OpenAIEmbeddings instances. Use this node to create a shared embeddings instance for your workflow.",
+          "displayName": "OpenAI Embeddings Provider"
+        },
+        "type": "OpenAIEmbeddingsProvider",
+        "dragging": false,
+        "measured": {
+          "width": 96,
+          "height": 96
+        },
+        "position": {
+          "x": 1110,
+          "y": 570
+        },
+        "selected": true
+      },
+      {
+        "id": "VectorStoreOrchestrator-6",
         "data": {
           "icon": {
             "alt": "vectorsotreicons",
             "name": "postgresql_vectorstore",
             "path": "icons/postgresql_vectorstore.svg"
           },
-          "name": "vector_store_orchestrator",
+          "name": "VectorStoreOrchestrator",
           "inputs": [
             {
               "name": "documents",
@@ -940,10 +1141,7 @@
             },
             "name": "VectorStoreOrchestrator",
             "tags": [],
-            "colors": [
-              "purple-500",
-              "pink-600"
-            ],
+            "colors": ["purple-500", "pink-600"],
             "inputs": [
               {
                 "name": "documents",
@@ -1086,8 +1284,16 @@
                 "tabName": "data",
                 "required": false,
                 "displayName": "Select Credential",
-                "placeholder": "Select Credential",
-                "serviceType": "postgresql_vectorstore"
+                "placeholder": "Select Credential"
+              },
+              {
+                "name": "connection_string",
+                "rows": 4,
+                "type": "password",
+                "tabName": "data",
+                "required": true,
+                "description": "PostgreSQL connection string",
+                "displayName": "Connection String"
               },
               {
                 "hint": "Vector collection name - separates different datasets (REQUIRED for data isolation)",
@@ -1252,223 +1458,8 @@
           "height": 96
         },
         "position": {
-          "x": 940,
-          "y": 190
-        },
-        "selected": false
-      },
-      {
-        "id": "OpenAIEmbeddingsProvider__a2bf102a-cf71-4960-9c46-c33cbafb5fdc",
-        "data": {
-          "icon": {
-            "alt": "openaiicons",
-            "name": "openai",
-            "path": "icons/openai.svg"
-          },
-          "name": "openai_embeddings_provider",
-          "inputs": [
-            {
-              "name": "openai_api_key",
-              "type": "str",
-              "required": false,
-              "description": "OpenAI API Key (leave empty to use OPENAI_API_KEY environment variable)",
-              "is_connection": false
-            },
-            {
-              "name": "model",
-              "type": "str",
-              "default": "text-embedding-3-small",
-              "required": false,
-              "description": "OpenAI embedding model to use",
-              "is_connection": false
-            },
-            {
-              "name": "request_timeout",
-              "type": "int",
-              "default": 60,
-              "required": false,
-              "description": "Request timeout in seconds",
-              "is_connection": false
-            },
-            {
-              "name": "max_retries",
-              "type": "int",
-              "default": 3,
-              "required": false,
-              "description": "Maximum number of retries for failed requests",
-              "is_connection": false
-            }
-          ],
-          "outputs": [
-            {
-              "name": "embedder",
-              "type": "OpenAIEmbeddings",
-              "direction": "top",
-              "description": "Configured OpenAIEmbeddings instance ready for use",
-              "displayName": "Embedder",
-              "is_connection": true
-            }
-          ],
-          "metadata": {
-            "id": "OpenAIEmbeddingsProvider",
-            "icon": {
-              "alt": "openaiicons",
-              "name": "openai",
-              "path": "icons/openai.svg"
-            },
-            "name": "OpenAIEmbeddingsProvider",
-            "tags": [],
-            "colors": [
-              "cyan-500",
-              "blue-600"
-            ],
-            "inputs": [
-              {
-                "name": "openai_api_key",
-                "type": "str",
-                "required": false,
-                "description": "OpenAI API Key (leave empty to use OPENAI_API_KEY environment variable)",
-                "is_connection": false
-              },
-              {
-                "name": "model",
-                "type": "str",
-                "default": "text-embedding-3-small",
-                "required": false,
-                "description": "OpenAI embedding model to use",
-                "is_connection": false
-              },
-              {
-                "name": "request_timeout",
-                "type": "int",
-                "default": 60,
-                "required": false,
-                "description": "Request timeout in seconds",
-                "is_connection": false
-              },
-              {
-                "name": "max_retries",
-                "type": "int",
-                "default": 3,
-                "required": false,
-                "description": "Maximum number of retries for failed requests",
-                "is_connection": false
-              }
-            ],
-            "outputs": [
-              {
-                "name": "embedder",
-                "type": "OpenAIEmbeddings",
-                "direction": "top",
-                "description": "Configured OpenAIEmbeddings instance ready for use",
-                "displayName": "Embedder",
-                "is_connection": true
-              }
-            ],
-            "version": "1.0.0",
-            "category": "Embedding",
-            "examples": [],
-            "node_type": "provider",
-            "properties": [
-              {
-                "hint": "The model to use for generating embeddings.",
-                "name": "model",
-                "rows": 4,
-                "type": "select",
-                "default": "text-embedding-3-small",
-                "options": [
-                  {
-                    "label": "text-embedding-3-small (1536D)",
-                    "value": "text-embedding-3-small"
-                  },
-                  {
-                    "label": "text-embedding-3-large (3072D)",
-                    "value": "text-embedding-3-large"
-                  },
-                  {
-                    "label": "text-embedding-ada-002 (1536D)",
-                    "value": "text-embedding-ada-002"
-                  }
-                ],
-                "required": true,
-                "displayName": "Embedding Model"
-              },
-              {
-                "name": "credential_id",
-                "rows": 4,
-                "type": "credential-select",
-                "required": false,
-                "displayName": "Select Credential",
-                "placeholder": "Select Credential",
-                "serviceType": "openai"
-              },
-              {
-                "hint": "OpenAI Organization ID.",
-                "name": "organization",
-                "rows": 4,
-                "type": "text",
-                "required": false,
-                "displayName": "Organization (Optional)",
-                "placeholder": "org-..."
-              },
-              {
-                "max": 100,
-                "min": 1,
-                "hint": "Number of texts to embed in a single batch.",
-                "name": "batch_size",
-                "rows": 4,
-                "type": "number",
-                "default": 100,
-                "required": true,
-                "displayName": "Batch Size"
-              },
-              {
-                "max": 10,
-                "min": 0,
-                "hint": "Maximum number of retries for failed requests.",
-                "name": "max_retries",
-                "rows": 4,
-                "type": "number",
-                "default": 3,
-                "required": true,
-                "displayName": "Max Retries"
-              },
-              {
-                "max": 300,
-                "min": 10,
-                "hint": "Timeout for API requests in seconds.",
-                "name": "request_timeout",
-                "rows": 4,
-                "type": "number",
-                "default": 30,
-                "required": true,
-                "displayName": "Request Timeout (seconds)"
-              },
-              {
-                "hint": "Auto-calculated based on model selection.",
-                "name": "dimensions",
-                "rows": 4,
-                "type": "number",
-                "default": 1536,
-                "required": true,
-                "displayName": "Dimensions"
-              }
-            ],
-            "description": "Provider node that creates configured OpenAIEmbeddings instances. Use this node to create a shared embeddings instance for your workflow.",
-            "display_name": "OpenAI Embeddings Provider"
-          },
-          "description": "Provider node that creates configured OpenAIEmbeddings instances. Use this node to create a shared embeddings instance for your workflow.",
-          "displayName": "OpenAI Embeddings Provider"
-        },
-        "type": "OpenAIEmbeddingsProvider",
-        "dragging": false,
-        "measured": {
-          "width": 96,
-          "height": 96
-        },
-        "position": {
-          "x": 890,
-          "y": 390
+          "x": 1200,
+          "y": 410
         },
         "selected": false
       }

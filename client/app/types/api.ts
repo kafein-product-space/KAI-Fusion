@@ -375,42 +375,4 @@ export interface ChatMessage {
 
 export interface ChatMessageInput {
   content: string;
-}
-
-// Webhook execution event types
-export interface ExecutionEvent {
-  type: "node_start" | "node_end" | "complete" | "workflow_complete" | "error" | "token";
-  node_id?: string;
-  output?: any;
-  result?: any;
-  error?: string;
-  status?: "success" | "failed" | "error";
-  metadata?: Record<string, any>;
-  event?: string; // Backward compatibility
-  inputs?: Record<string, any>;
-  inputs_meta?: Record<string, any>;
-  node_outputs?: Record<string, any>;
-  executed_nodes?: string[];
-  session_id?: string;
-}
-
-export interface WebhookExecutionEvent {
-  type: "webhook_execution_event";
-  webhook_id: string;
-  workflow_id: string;
-  execution_id: string | null;
-  event: ExecutionEvent;
-  webhook_payload?: Record<string, any>;
-  timestamp: string;
-}
-
-export interface WebhookStreamEvent {
-  type: "connected" | "ping" | "error" | "webhook_execution_event";
-  webhook_id?: string;
-  timestamp?: string;
-  error?: string;
-  event?: ExecutionEvent;
-  workflow_id?: string;
-  execution_id?: string | null;
-  webhook_payload?: Record<string, any>;
 } 

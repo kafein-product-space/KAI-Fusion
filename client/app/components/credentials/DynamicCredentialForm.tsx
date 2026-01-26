@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Formik, Form, Field, ErrorMessage } from "formik";
-import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 
 interface DynamicCredentialFormProps {
@@ -71,22 +70,13 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
 
     return errors;
   };
-
+  
   const formValues = useMemo(() => {
-    const values: Record<string, any> = {
+    return {
       api_key: initialValues.id,
       ...initialValues,
     };
-
-    // Apply service fields's default values to Formik state
-    service.fields.forEach((field) => {
-      if (values[field.name] === undefined && field.default !== undefined) {
-        values[field.name] = field.default;
-      }
-    });
-
-    return values;
-  }, [initialValues, service]);
+  }, [initialValues]);
 
   const renderField = (field: ServiceField) => {
     const commonProps = {
@@ -144,7 +134,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <div className="mb-3 flex items-center justify-center">
               {!failed && (
                 <img
-                  src={resolveIconPath(`icons/${service.id}.svg`)}
+                  src={`/icons/${service.id}.svg`}
                   alt={`${service.name} logo`}
                   className="w-12 h-12 object-contain"
                   onError={() => setFailed(true)}

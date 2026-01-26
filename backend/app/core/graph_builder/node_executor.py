@@ -45,7 +45,6 @@ from app.core.state import FlowState
 from app.core.output_cache import default_connection_extractor
 from app.core.node_handlers import node_handler_registry
 from app.core.connection_pool import ConnectionPool, PooledConnection
-from app.core.json_utils import make_json_serializable_with_langchain
 from langchain_core.runnables import Runnable
 
 logger = logging.getLogger(__name__)
@@ -140,11 +139,12 @@ class NodeExecutor:
             
             # Extract user inputs for processor
             user_inputs = self.extract_user_inputs_for_processor(gnode, state)
-            logger.debug(f"User inputs extracted: {list(user_inputs.keys()) if user_inputs else 'None'}")
+            logger.debug(f"User inputs extracted: {list(user_inputs.keys())}")
             
             # Apply node-output templating so processor inputs can reference upstream node outputs
             user_inputs = self._apply_node_output_templating(gnode, user_inputs, state)
-            logger.debug(f"Templated user inputs: {list(user_inputs.keys()) if user_inputs else 'None'}")
+            logger.debug(f"Templated user inputs: {list(user_inputs.keys())}")
+            print(f"ana data {user_inputs}")
             
             # Extract connected node instances
             connected_nodes = self.extract_connected_node_instances(gnode, state)
@@ -153,38 +153,12 @@ class NodeExecutor:
             # Call execute with proper async handling
             execute_method = gnode.node_instance.execute
             
-            # Check if this is a TERMINATOR node (EndNode, etc.) which uses different signature
-            is_terminator = False
-            try:
-                node_type_value = gnode.node_instance.metadata.node_type.value
-                is_terminator = node_type_value == "terminator"
-            except Exception:
-                pass  # If we can't determine node type, use default processor pattern
-            
-            if is_terminator:
-                # TERMINATOR nodes expect (previous_node, inputs) signature
-                # Extract the primary connected input as previous_node
-                previous_node = None
-                if connected_nodes:
-                    # Get the first connection value (typically 'target' for EndNode)
-                    first_connection = next(iter(connected_nodes.values()), None)
-                    previous_node = first_connection
-                
-                logger.debug(f"[TERMINATOR] Calling {node_id} with previous_node type: {type(previous_node)}")
-                
-                if inspect.iscoroutinefunction(execute_method):
-                    result = self._execute_async_method_terminator(execute_method, previous_node, user_inputs, node_id)
-                else:
-                    result = execute_method(previous_node=previous_node, inputs=user_inputs)
+            if inspect.iscoroutinefunction(execute_method):
+                # Handle async execute method
+                result = self._execute_async_method(execute_method, user_inputs, connected_nodes, node_id)
             else:
-                # PROCESSOR nodes expect (inputs, connected_nodes) signature
-                if inspect.iscoroutinefunction(execute_method):
-                    # Handle async execute method
-                    result = self._execute_async_method(execute_method, user_inputs, connected_nodes, node_id)
-                else:
-                    # Handle sync execute method
-                    # Use keyword arguments for better compatibility with different node signatures
-                    result = execute_method(inputs=user_inputs, connected_nodes=connected_nodes)
+                # Handle sync execute method
+                result = execute_method(user_inputs, connected_nodes)
             
             # Process the result
             processed_result = self.process_processor_result(result, state, node_id)
@@ -201,13 +175,13 @@ class NodeExecutor:
                 last_output = str(processed_result)
             # Update the state directly
             state.last_output = last_output
-            state.executed_nodes = updated_executed_nodes                       # Filter out complex objects before storing in state
+            state.executed_nodes = updated_executed_nodes           # Filter out complex objects before storing in state
             if gnode.type in PROCESSOR_NODE_TYPES:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=True)
+                serializable_result = self._filter_complex_objects(processed_result)
                 serializable_output = last_output
                 logger.debug(f"Agent serializable output: {type(serializable_output)} - '{str(serializable_output)[:100]}...'")
             else:
-                serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
+                serializable_result = self._make_serializable(processed_result)
                 serializable_output = serializable_result            # Store only serializable data in state for connected nodes to access
             if not hasattr(state, 'node_outputs'):
                 state.node_outputs = {}
@@ -301,10 +275,6 @@ class NodeExecutor:
         """
         user_inputs = {}
         input_specs = gnode.node_instance.metadata.inputs
-        
-        # Defensive check: ensure input_specs is iterable
-        if input_specs is None:
-            return user_inputs
 
         # Frontend typically stores node configs under gnode.user_data["inputs"].
         # We first try to read from there, then fallback to plain gnode.user_data and state.variables.
@@ -341,13 +311,11 @@ class NodeExecutor:
                     logger.debug(f"No value found for required input {input_spec.name}, using default if any")
                     
         # Also include properties from user_data (for nodes with properties like ReactAgent)
-        if hasattr(gnode.node_instance, 'metadata') and hasattr(gnode.node_instance.metadata, 'properties'):
-            properties = gnode.node_instance.metadata.properties
-            if properties is not None:  # Fix: properties can be None
-                for prop in properties:
-                    if prop.name in gnode.user_data:
-                        user_inputs[prop.name] = gnode.user_data[prop.name]
-                        logger.debug(f"Found property {prop.name} in user_data")
+        if hasattr(gnode.node_instance, 'metadata') and hasattr(gnode.node_instance.metadata, 'properties'):    
+            for prop in gnode.node_instance.metadata.properties:
+                if prop.name in gnode.user_data:
+                    user_inputs[prop.name] = gnode.user_data[prop.name]
+                    logger.debug(f"Found property {prop.name} in user_data")
 
         logger.debug(f"Processor {gnode.id} resolved user_inputs: {user_inputs}")
         return user_inputs
@@ -456,15 +424,6 @@ class NodeExecutor:
             if hasattr(state, 'current_input') and state.current_input is not None:
                 context['input'] = state.current_input
 
-            # SPECIAL CASE: Add webhook data for webhook-triggered workflows
-            # This allows {{webhook_trigger.anyfield}} and {{webhook_data}} templates
-            if hasattr(state, 'webhook_data') and state.webhook_data:
-                context['webhook_data'] = state.webhook_data
-                # webhook_trigger = the actual payload data for easy access
-                webhook_payload = state.webhook_data.get('data', state.webhook_data)
-                context['webhook_trigger'] = webhook_payload
-                logger.info(f"[TEMPLATE] Added webhook_trigger to context: {list(webhook_payload.keys()) if isinstance(webhook_payload, dict) else type(webhook_payload)}")
-
             for other_node_id in state.node_outputs.keys():
                 graph_node = self._nodes_registry.get(other_node_id)
                 if not graph_node:
@@ -555,6 +514,7 @@ class NodeExecutor:
                         continue
 
                     context[normalized] = primary_value
+                    print(f"context-data= {primary_value}")
                     logger.debug(
                         f"[TEMPLATE] Added alias '{normalized}' from {source_type} "
                         f"for node '{other_node_id}' (raw='{raw_name}') into context for {gnode.id}"
@@ -755,54 +715,18 @@ class NodeExecutor:
                 if loop.is_running():
                     # We're already in an async context, create new event loop in thread
                     with concurrent.futures.ThreadPoolExecutor() as executor:
-                        # Use keyword arguments for better compatibility
-                        future = executor.submit(asyncio.run, execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
+                        future = executor.submit(asyncio.run, execute_method(user_inputs, connected_nodes))
                         result = future.result()
                 else:
-                    # Use keyword arguments for better compatibility
-                    result = asyncio.run(execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
+                    result = asyncio.run(execute_method(user_inputs, connected_nodes))
             except RuntimeError:
                 # No event loop, create one
-                # Use keyword arguments for better compatibility
-                result = asyncio.run(execute_method(inputs=user_inputs, connected_nodes=connected_nodes))
+                result = asyncio.run(execute_method(user_inputs, connected_nodes))
             
             return result
             
         except Exception as e:
             logger.error(f"Failed to execute async method for {node_id}: {e}")
-            raise
-    
-    def _execute_async_method_terminator(self, execute_method, previous_node: Any, user_inputs: Dict[str, Any], node_id: str) -> Any:
-        """
-        Execute async terminator method with proper event loop handling.
-        
-        Args:
-            execute_method: Async method to execute
-            previous_node: Previous node output (primary input for terminator)
-            user_inputs: User inputs for the method
-            node_id: ID of the node
-            
-        Returns:
-            Execution result
-        """
-        try:
-            try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # We're already in an async context, create new event loop in thread
-                    with concurrent.futures.ThreadPoolExecutor() as executor:
-                        future = executor.submit(asyncio.run, execute_method(previous_node=previous_node, inputs=user_inputs))
-                        result = future.result()
-                else:
-                    result = asyncio.run(execute_method(previous_node=previous_node, inputs=user_inputs))
-            except RuntimeError:
-                # No event loop, create one
-                result = asyncio.run(execute_method(previous_node=previous_node, inputs=user_inputs))
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Failed to execute async terminator method for {node_id}: {e}")
             raise
     
     def _has_pool_connections(self, gnode: GraphNodeInstance) -> bool:
@@ -1136,6 +1060,66 @@ class NodeExecutor:
             logger.error(f"[EXTRACT] Stack trace: {traceback.format_exc()}")
             return None
 
+    def _make_serializable(self, obj):
+        """Convert any object to a JSON-serializable format."""
+        from datetime import datetime, date
+        import uuid
+        from langchain_core.tools import BaseTool
+        from langchain_core.runnables import Runnable
+        
+        if obj is None or isinstance(obj, (bool, int, float, str)):
+            return obj
+        elif isinstance(obj, (datetime, date)):
+            return obj.isoformat()
+        elif isinstance(obj, uuid.UUID):
+            return str(obj)
+        elif isinstance(obj, (list, tuple)):
+            return [self._make_serializable(item) for item in obj]
+        elif isinstance(obj, dict):
+            if self._contains_complex_objects(obj):
+                return self._filter_complex_objects(obj)
+            return {k: self._make_serializable(v) for k, v in obj.items()}
+        elif isinstance(obj, (BaseTool, Runnable)) or callable(obj):
+            return f"<{obj.__class__.__name__}>"
+        elif hasattr(obj, 'model_dump'):
+            try:
+                return obj.model_dump()
+            except Exception:
+                return str(obj)
+        else:
+            return str(obj)
+    
+    def _contains_complex_objects(self, obj):
+        """Check if object contains complex LangChain objects that can't be serialized."""
+        if isinstance(obj, dict):
+            complex_keys = ['tools', 'tool_names', 'intermediate_steps', 'memory']
+            return any(key in obj for key in complex_keys)
+        return False
+    
+    def _filter_complex_objects(self, obj):
+        """Filter out complex objects from Agent results, keeping only serializable data."""
+        if not isinstance(obj, dict):
+            return self._make_serializable(obj)
+        
+        filtered = {}
+        for key, value in obj.items():
+            if key in ['tools', 'intermediate_steps']:
+                continue
+            elif key == 'tool_names':
+                if isinstance(value, list):
+                    filtered[key] = [str(name) for name in value]
+                else:
+                    filtered[key] = str(value)
+            elif key == 'memory':
+                if hasattr(value, 'chat_memory') and hasattr(value.chat_memory, 'messages'):
+                    filtered[key] = [msg.content if hasattr(msg, 'content') else str(msg)
+                                   for msg in value.chat_memory.messages]
+                else:
+                    filtered[key] = str(value)
+            else:
+                filtered[key] = self._make_serializable(value)
+        
+        return filtered
     
     def get_execution_stats(self) -> Dict[str, Any]:
         """Get execution statistics."""

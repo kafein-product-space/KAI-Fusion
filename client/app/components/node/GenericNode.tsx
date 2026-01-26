@@ -1,5 +1,4 @@
 import React, { useState, useCallback, useEffect } from "react";
-import { config } from "../../lib/config";
 import { useReactFlow } from "@xyflow/react";
 import { useSnackbar } from "notistack";
 import GenericVisual from "./GenericVisual";
@@ -195,7 +194,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
   const fetchTimerStatus = async () => {
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/status`);
+      const response = await fetch(`/api/timers/${data.timer_id}/status`);
       if (response.ok) {
         const status = await response.json();
         setTimerStatus(status);
@@ -208,7 +207,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
   const startTimer = async () => {
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/start`, {
+      const response = await fetch(`/api/timers/${data.timer_id}/start`, {
         method: "POST",
       });
 
@@ -223,7 +222,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
   const stopTimer = async () => {
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/stop`, {
+      const response = await fetch(`/api/timers/${data.timer_id}/stop`, {
         method: "POST",
       });
 
@@ -238,7 +237,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
 
   const triggerNow = async () => {
     try {
-      const response = await fetch(`/${config.API_START}/timers/${data.timer_id}/trigger`, {
+      const response = await fetch(`/api/timers/${data.timer_id}/trigger`, {
         method: "POST",
       });
 
@@ -265,7 +264,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
           ? "http://localhost:8000"
           : window.location.origin;
       const response = await fetch(
-        `${backendUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/start-listening`,
+        `${backendUrl}/api/v1/webhooks/${webhookId}/start-listening`,
         {
           method: "POST",
         }
@@ -296,7 +295,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
           ? "http://localhost:8000"
           : window.location.origin;
       // Backend'e listening durdurma isteği gönder
-      await fetch(`${backendUrl}/${config.API_START}/${config.API_VERSION_ONLY}/webhooks/${webhookId}/stop-listening`, {
+      await fetch(`${backendUrl}/api/v1/webhooks/${webhookId}/stop-listening`, {
         method: "POST",
       });
     } catch (err) {
@@ -343,7 +342,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     setProgress(null);
 
     try {
-      const response = await fetch(`/${config.API_START}/web-scraper/${id}/scrape`, {
+      const response = await fetch(`/api/web-scraper/${id}/scrape`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

@@ -16,6 +16,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Uygulama kodunu kopyala
 COPY backend .
 
+# Widget static asset (served by backend at /widget/widget.js)
+COPY widget/widget.js ./widget/widget.js
 
 # Çalışma portunu belirt
 EXPOSE 8000

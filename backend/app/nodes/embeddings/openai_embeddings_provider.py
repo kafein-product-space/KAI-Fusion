@@ -108,7 +108,6 @@ class OpenAIEmbeddingsProvider(ProviderNode):
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False,
-                    serviceType="openai",
                 ),
                 NodeProperty(
                     name="organization",

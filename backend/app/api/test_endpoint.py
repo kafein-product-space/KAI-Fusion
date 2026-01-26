@@ -1,13 +1,11 @@
-from app.core.constants import API_VERSION
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
 import logging
-from app.core.constants import API_START,API_VERSION
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/test", tags=["Test"])
+router = APIRouter(prefix="/api/v1/test", tags=["Test"])
 
 class TestRequest(BaseModel):
     message: Optional[str] = "Hello World"
@@ -27,7 +25,7 @@ async def test_get():
     response_data = {
         "status": "success",
         "message": "GET request received successfully!",
-        "received_data": {"method": "GET", "endpoint": f"/{API_START}/{API_VERSION}/test/"},
+        "received_data": {"method": "GET", "endpoint": "/api/v1/test/"},
         "timestamp": datetime.datetime.now().isoformat()
     }
     
@@ -48,7 +46,7 @@ async def test_get_with_param(name: str):
     response_data = {
         "status": "success",
         "message": f"Hello {name}!",
-        "received_data": {"method": "GET", "name": name, "endpoint": f"/{API_START}/{API_VERSION}/test/hello/{name}"},
+        "received_data": {"method": "GET", "name": name, "endpoint": f"/api/v1/test/hello/{name}"},
         "timestamp": datetime.datetime.now().isoformat()
     }
     
@@ -73,7 +71,7 @@ async def test_status_code(status_code: int):
     response_data = {
         "status": "success",
         "message": f"Status code {status_code} returned",
-        "received_data": {"method": "GET", "status_code": status_code, "endpoint": f"/{API_START}/{API_VERSION}/test/status/{status_code}"},
+        "received_data": {"method": "GET", "status_code": status_code, "endpoint": f"/api/v1/test/status/{status_code}"},
         "timestamp": datetime.datetime.now().isoformat()
     }
     
@@ -101,7 +99,7 @@ async def test_delay(seconds: int):
     response_data = {
         "status": "success",
         "message": f"Delay completed after {seconds} seconds",
-        "received_data": {"method": "GET", "delay_seconds": seconds, "endpoint": f"/{API_START}/{API_VERSION}/test/delay/{seconds}"},
+        "received_data": {"method": "GET", "delay_seconds": seconds, "endpoint": f"/api/v1/test/delay/{seconds}"},
         "timestamp": datetime.datetime.now().isoformat()
     }
     
@@ -125,7 +123,7 @@ async def test_webhook(request: TestRequest):
         "message": "Webhook received successfully!",
         "received_data": {
             "method": "POST",
-            "endpoint": f"/{API_START}/{API_VERSION}/test/webhook",
+            "endpoint": "/api/v1/test/webhook",
             "message": request.message,
             "name": request.name
         },
@@ -154,7 +152,7 @@ async def test_webhook_with_auth(request: TestRequest):
         "message": "Authenticated webhook received successfully!",
         "received_data": {
             "method": "POST",
-            "endpoint": f"/{API_START}/{API_VERSION}/test/webhook-auth",
+            "endpoint": "/api/v1/test/webhook-auth",
             "message": request.message,
             "name": request.name,
             "authenticated": True

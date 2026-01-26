@@ -27,7 +27,6 @@ import Loading from "~/components/Loading";
 import PinButton from "~/components/common/PinButton";
 import * as LucideIcons from "lucide-react";
 import { Box } from "lucide-react";
-import { resolveIconPath } from "~/lib/iconUtils";
 
 function MarketplaceLayout() {
   const { enqueueSnackbar } = useSnackbar();
@@ -156,10 +155,9 @@ function MarketplaceLayout() {
 
   const getIconComponent = (icon: { name: string; path: string | null; alt: string | null }) => {
     if (icon?.path) {
-      const iconPath = resolveIconPath(icon.path);
       return (props: any) => (
         <img
-          src={iconPath}
+          src={icon.path}
           alt={icon.alt}
           {...props}
           className={`${props.className || ""} object-contain`}
@@ -224,19 +222,21 @@ function MarketplaceLayout() {
                     <div className="flex items-center bg-gray-100 rounded-lg p-1">
                       <button
                         onClick={() => setViewMode("grid")}
-                        className={`p-2 rounded-md transition-all duration-200 ${viewMode === "grid"
-                          ? "bg-white shadow-sm text-purple-600"
-                          : "text-gray-600 hover:text-gray-800"
-                          }`}
+                        className={`p-2 rounded-md transition-all duration-200 ${
+                          viewMode === "grid"
+                            ? "bg-white shadow-sm text-purple-600"
+                            : "text-gray-600 hover:text-gray-800"
+                        }`}
                       >
                         <Grid className="w-4 h-4" />
                       </button>
                       <button
                         onClick={() => setViewMode("list")}
-                        className={`p-2 rounded-md transition-all duration-200 ${viewMode === "list"
-                          ? "bg-white shadow-sm text-purple-600"
-                          : "text-gray-600 hover:text-gray-800"
-                          }`}
+                        className={`p-2 rounded-md transition-all duration-200 ${
+                          viewMode === "list"
+                            ? "bg-white shadow-sm text-purple-600"
+                            : "text-gray-600 hover:text-gray-800"
+                        }`}
                       >
                         <List className="w-4 h-4" />
                       </button>
@@ -293,17 +293,17 @@ function MarketplaceLayout() {
                     {(searchQuery ||
                       category !== "all" ||
                       sortBy !== "newest") && (
-                        <button
-                          onClick={() => {
-                            setSearchQuery("");
-                            setCategory("all");
-                            setSortBy("newest");
-                          }}
-                          className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
-                        >
-                          Clear All
-                        </button>
-                      )}
+                      <button
+                        onClick={() => {
+                          setSearchQuery("");
+                          setCategory("all");
+                          setSortBy("newest");
+                        }}
+                        className="px-3 py-2 text-sm text-gray-600 hover:text-gray-800 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors w-full sm:w-auto"
+                      >
+                        Clear All
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -585,8 +585,9 @@ function MarketplaceLayout() {
                               disabled={duplicating === wf.id}
                             >
                               <Copy
-                                className={`w-4 h-4 ${duplicating === wf.id ? "animate-spin" : ""
-                                  }`}
+                                className={`w-4 h-4 ${
+                                  duplicating === wf.id ? "animate-spin" : ""
+                                }`}
                               />
                               {duplicating === wf.id
                                 ? "Copying..."
@@ -659,8 +660,9 @@ function MarketplaceLayout() {
                               disabled={duplicating === wf.id}
                             >
                               <Copy
-                                className={`w-4 h-4 ${duplicating === wf.id ? "animate-spin" : ""
-                                  }`}
+                                className={`w-4 h-4 ${
+                                  duplicating === wf.id ? "animate-spin" : ""
+                                }`}
                               />
                               {duplicating === wf.id
                                 ? "Copying..."
@@ -695,10 +697,11 @@ function MarketplaceLayout() {
                         <button
                           key={p}
                           onClick={() => setPage(p)}
-                          className={`px-4 py-2 rounded-lg text-sm border ${p === page
-                            ? "bg-purple-600 text-white"
-                            : "bg-white text-gray-700 border-gray-300"
-                            }`}
+                          className={`px-4 py-2 rounded-lg text-sm border ${
+                            p === page
+                              ? "bg-purple-600 text-white"
+                              : "bg-white text-gray-700 border-gray-300"
+                          }`}
                         >
                           {p}
                         </button>

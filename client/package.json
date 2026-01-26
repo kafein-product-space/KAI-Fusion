@@ -3,11 +3,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "vite build",
-    "dev": "vite",
-    "start": "vite preview",
-    "preview": "vite preview",
-    "typecheck": "tsc",
+    "build": "react-router build",
+    "dev": "react-router dev",
+    "start": "react-router-serve ./build/server/index.js",
+    "typecheck": "react-router typegen && tsc",
+    "type-check": "react-router typegen && tsc",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "test": "vitest",
@@ -15,6 +15,7 @@
     "test:ui": "vitest --ui",
     "test:watch": "vitest --watch",
     "test:a11y": "jest --testPathPattern=accessibility",
+    "preview": "vite preview",
     "clean": "rm -rf dist build node_modules/.cache",
     "vercel-build": "npm run build"
   },
@@ -24,6 +25,8 @@
     "@codemirror/state": "^6.5.2",
     "@codemirror/view": "^6.38.0",
     "@kaifusion/widget": "^1.0.4",
+    "@react-router/node": "^7.5.3",
+    "@react-router/serve": "^7.5.3",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/react-query": "^5.20.1",
     "@types/react-syntax-highlighter": "^15.5.13",
@@ -59,8 +62,8 @@
     "zustand": "^5.0.6"
   },
   "devDependencies": {
+    "@react-router/dev": "^7.5.3",
     "@tailwindcss/vite": "^4.1.4",
-    "@vitejs/plugin-react": "^4.3.1",
     "@testing-library/jest-dom": "^6.1.5",
     "@testing-library/react": "^16.0.0",
     "@testing-library/user-event": "^14.5.1",

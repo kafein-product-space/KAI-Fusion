@@ -66,14 +66,14 @@ Webhook Trigger Node, dış sistemlerin KAI-Fusion workflow'larını HTTP istekl
 
 ### 1. **GET Request** - Query Parameters
 ```bash
-# URL: https://your-domain.com/{API_START}/webhooks/wh_abc123
-curl -X GET "https://your-domain.com/{API_START}/webhooks/wh_abc123?event_type=user.login&user_id=123&session_id=xyz789" \
+# URL: https://your-domain.com/api/webhooks/wh_abc123
+curl -X GET "https://your-domain.com/api/webhooks/wh_abc123?event_type=user.login&user_id=123&session_id=xyz789" \
   -H "Authorization: Bearer your_webhook_token"
 ```
 
 ### 2. **POST Request** - JSON Body
 ```bash
-curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
+curl -X POST "https://your-domain.com/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer your_webhook_token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -88,7 +88,7 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 
 ### 3. **PUT Request** - Full Resource Update
 ```bash
-curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
+curl -X PUT "https://your-domain.com/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer your_webhook_token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -104,7 +104,7 @@ curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 
 ### 4. **PATCH Request** - Partial Update
 ```bash
-curl -X PATCH "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
+curl -X PATCH "https://your-domain.com/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer your_webhook_token" \
   -H "Content-Type: application/json" \
   -d '{
@@ -118,13 +118,13 @@ curl -X PATCH "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 
 ### 5. **DELETE Request** - Query Parameters
 ```bash
-curl -X DELETE "https://your-domain.com/{API_START}/webhooks/wh_abc123?event_type=user.deleted&user_id=12345&reason=account_closure" \
+curl -X DELETE "https://your-domain.com/api/webhooks/wh_abc123?event_type=user.deleted&user_id=12345&reason=account_closure" \
   -H "Authorization: Bearer your_webhook_token"
 ```
 
 ### 6. **HEAD Request** - Headers Only
 ```bash
-curl -X HEAD "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
+curl -X HEAD "https://your-domain.com/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer your_webhook_token"
 ```
 
@@ -143,7 +143,7 @@ curl -X HEAD "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
 
 **Webhook Call:**
 ```bash
-curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_order_processor" \
+curl -X POST "https://your-domain.com/api/webhooks/wh_order_processor" \
   -H "Content-Type: application/json" \
   -d '{
     "event_type": "order.completed",
@@ -171,7 +171,7 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_order_processor" \
 
 **Webhook Call:**
 ```bash
-curl -X GET "https://your-domain.com/{API_START}/webhooks/wh_user_events?event_type=user.login&user_id=123&ip=192.168.1.1&timestamp=1641234567"
+curl -X GET "https://your-domain.com/api/webhooks/wh_user_events?event_type=user.login&user_id=123&ip=192.168.1.1&timestamp=1641234567"
 ```
 
 ### 3. **System Monitoring & Alerts**
@@ -187,7 +187,7 @@ curl -X GET "https://your-domain.com/{API_START}/webhooks/wh_user_events?event_t
 
 **Webhook Call:**
 ```bash
-curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_system_monitor" \
+curl -X POST "https://your-domain.com/api/webhooks/wh_system_monitor" \
   -H "Content-Type: application/json" \
   -d '{
     "event_type": "system.alert",
@@ -214,7 +214,7 @@ curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_system_monitor" \
 
 **Webhook Call:**
 ```bash
-curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_content_manager" \
+curl -X PUT "https://your-domain.com/api/webhooks/wh_content_manager" \
   -H "Authorization: Bearer cms_token_123" \
   -H "Content-Type: application/json" \
   -d '{
@@ -307,7 +307,7 @@ curl -X PUT "https://your-domain.com/{API_START}/webhooks/wh_content_manager" \
 ### Real-time Event Tracking
 ```javascript
 // Event stream endpoint
-GET /{API_START}/webhooks/wh_abc123/events/stream
+GET /api/webhooks/wh_abc123/events/stream
 
 // Response
 {
@@ -329,7 +329,7 @@ GET /{API_START}/webhooks/wh_abc123/events/stream
 ### Statistics API
 ```javascript
 // Get webhook statistics
-GET /{API_START}/webhooks/wh_abc123/stats
+GET /api/webhooks/wh_abc123/stats
 
 // Response
 {
@@ -403,7 +403,7 @@ curl -u "username:password" \
 ngrok http 8000
 
 # Test webhook
-curl -X POST "https://abc123.ngrok.io/{API_START}/webhooks/wh_test" \
+curl -X POST "https://abc123.ngrok.io/api/webhooks/wh_test" \
   -H "Content-Type: application/json" \
   -d '{"event_type": "test.event", "data": {"message": "Hello World"}}'
 ```
@@ -411,7 +411,7 @@ curl -X POST "https://abc123.ngrok.io/{API_START}/webhooks/wh_test" \
 ### Debug Webhook with cURL
 ```bash
 # Full debug output
-curl -X POST "https://your-domain.com/{API_START}/webhooks/wh_abc123" \
+curl -X POST "https://your-domain.com/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer your_token" \
   -H "Content-Type: application/json" \
   -d '{"event_type": "debug.test", "data": {"debug": true}}' \

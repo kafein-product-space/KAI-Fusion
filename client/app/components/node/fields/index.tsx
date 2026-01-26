@@ -2,7 +2,6 @@ export { NodeTextArea } from "./NodeTextArea";
 export { NodeSelect } from "./NodeSelect";
 export { NodeCredentialSelect } from "./NodeCredentialSelect";
 export { NodeText } from "./NodeText";
-export { NodeReadonlyText } from "./NodeReadonlyText";
 export { NodeNumber } from "./NodeNumber";
 export { NodePassword } from "./NodePassword";
 export { NodeCheckbox } from "./NodeCheckbox";

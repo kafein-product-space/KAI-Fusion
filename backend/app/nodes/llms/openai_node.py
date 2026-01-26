@@ -514,7 +514,7 @@ class OpenAINode(BaseNode):
             "node_type": NodeType.PROVIDER,
             "icon": {"name": "openai", "path": "icons/openai.svg", "alt": "openaiicons"},
             "colors": ["purple-500", "indigo-600"],
-            "inputs": [
+                        "inputs": [
                 NodeInput(
                     name="model_name",
                     type="str",
@@ -607,7 +607,6 @@ class OpenAINode(BaseNode):
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select Credential",
                     required=False,
-                    serviceType="openai",
                 ),
                 NodeProperty(
                     name="model_name",

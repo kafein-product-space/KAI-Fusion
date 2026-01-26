@@ -1,6 +1,6 @@
 import { apiClient } from '~/lib/api-client';
-import { API_ENDPOINTS, config } from '~/lib/config';
-import type {
+import { API_ENDPOINTS } from '~/lib/config';
+import type { 
   WorkflowExportInitResponse,
   WorkflowExportCompleteRequest,
   WorkflowExportCompleteResponse,
@@ -28,7 +28,7 @@ export const exportService = {
    * Complete workflow export with user-provided environment variables
    */
   async completeExport(
-    workflowId: string,
+    workflowId: string, 
     config: WorkflowExportCompleteRequest
   ): Promise<WorkflowExportCompleteResponse> {
     return await apiClient.post<WorkflowExportCompleteResponse>(
@@ -43,27 +43,27 @@ export const exportService = {
   async downloadPackage(downloadUrl: string): Promise<void> {
     try {
       // Extract the endpoint path from download URL
-      const apiPrefix = `/${config.API_START}/${config.API_VERSION_ONLY}`;
-      const endpoint = downloadUrl.startsWith(apiPrefix)
-        ? downloadUrl.replace(apiPrefix, '')
+      // downloadUrl format: "/api/v1/export/download/filename.zip"
+      const endpoint = downloadUrl.startsWith('/api/v1')
+        ? downloadUrl.replace('/api/v1', '')
         : downloadUrl;
-
+        
       console.log('Downloading from endpoint:', endpoint);
-
+      
       // Use apiClient for consistent base URL and authentication
       const response = await fetch(`${apiClient.getBaseURL()}${endpoint}`, {
         headers: {
           'Authorization': `Bearer ${apiClient.getAccessToken()}`
         }
       });
-
+      
       if (!response.ok) {
         throw new Error(`Download failed: ${response.status} ${response.statusText}`);
       }
-
+      
       const blob = await response.blob();
       const filename = downloadUrl.split('/').pop() || 'workflow-export.zip';
-
+      
       // Create download link and trigger download
       const link = document.createElement('a');
       link.href = URL.createObjectURL(blob);
@@ -71,10 +71,10 @@ export const exportService = {
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-
+      
       // Clean up blob URL
       URL.revokeObjectURL(link.href);
-
+      
     } catch (error) {
       console.error('Download failed:', error);
       throw new Error('Failed to download export package');

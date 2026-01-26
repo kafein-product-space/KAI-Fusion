@@ -63,7 +63,7 @@ Node konfigüre edildiğinde aşağıdaki bilgileri alırsınız:
 
 ```json
 {
-  "webhook_endpoint": "http://localhost:8000/{API_START}/webhooks/wh_abc123",
+  "webhook_endpoint": "http://localhost:8000/api/webhooks/wh_abc123",
   "webhook_token": "wht_secrettoken123",  // authentication_required=true ise
   "webhook_config": {
     "webhook_id": "wh_abc123",
@@ -121,7 +121,7 @@ Node konfigüre edildiğinde aşağıdaki bilgileri alırsınız:
 
 #### Without Authentication
 ```bash
-curl -X POST "http://localhost:8000/{API_START}/webhooks/wh_abc123" \
+curl -X POST "http://localhost:8000/api/webhooks/wh_abc123" \
   -H "Content-Type: application/json" \
   -d '{
     "event_type": "user.action",
@@ -135,7 +135,7 @@ curl -X POST "http://localhost:8000/{API_START}/webhooks/wh_abc123" \
 
 #### With Authentication
 ```bash
-curl -X POST "http://localhost:8000/{API_START}/webhooks/wh_abc123" \
+curl -X POST "http://localhost:8000/api/webhooks/wh_abc123" \
   -H "Authorization: Bearer wht_secrettoken123" \
   -H "Content-Type: application/json" \
   -d '{
@@ -154,7 +154,7 @@ curl -X POST "http://localhost:8000/{API_START}/webhooks/wh_abc123" \
 ```python
 import requests
 
-url = "http://localhost:8000/{API_START}/webhooks/wh_abc123"
+url = "http://localhost:8000/api/webhooks/wh_abc123"
 headers = {
     "Content-Type": "application/json",
     "Authorization": "Bearer wht_secrettoken123"  # if auth required
@@ -179,7 +179,7 @@ print(f"Response: {response.json()}")
 ```javascript
 const axios = require('axios');
 
-const url = 'http://localhost:8000/{API_START}/webhooks/wh_abc123';
+const url = 'http://localhost:8000/api/webhooks/wh_abc123';
 const headers = {
     'Content-Type': 'application/json',
     'Authorization': 'Bearer wht_secrettoken123'
@@ -207,7 +207,7 @@ axios.post(url, payload, { headers })
 #### PHP
 ```php
 <?php
-$url = 'http://localhost:8000/{API_START}/webhooks/wh_abc123';
+$url = 'http://localhost:8000/api/webhooks/wh_abc123';
 $headers = [
     'Content-Type: application/json',
     'Authorization: Bearer wht_secrettoken123'
@@ -523,7 +523,7 @@ Error: {"error": true, "message": "Rate limit exceeded"}
 
 #### Test Webhook Health
 ```bash
-curl -X GET "http://localhost:8000/{API_START}/webhooks/"
+curl -X GET "http://localhost:8000/api/webhooks/"
 ```
 
 #### Test Specific Webhook
@@ -588,7 +588,7 @@ export LANGCHAIN_TRACING_V2="true"
 ```bash
 # Apache Bench example
 ab -n 100 -c 10 -p payload.json -T application/json \
-  http://your-domain.com/{API_START}/webhooks/wh_your_id
+  http://your-domain.com/api/webhooks/wh_your_id
 ```
 
 ---

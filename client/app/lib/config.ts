@@ -1,7 +1,5 @@
 interface Config {
   API_BASE_URL: string;
-  API_START: string;
-  API_VERSION_ONLY: string;
   API_VERSION: string;
   APP_NAME: string;
   ENVIRONMENT: 'development' | 'production' | 'testing';
@@ -9,48 +7,14 @@ interface Config {
 }
 
 const getConfig = (): Config => {
-  // Try to get values from window object (public/config.js) first, then fall back to env variables
-  const getGlobalValue = (key: string): any => {
-    if (typeof window !== 'undefined' && (window as any)[key]) {
-      return (window as any)[key];
-    }
-    return (import.meta as any).env[key];
-  };
-
-  let apiBaseUrl = getGlobalValue('VITE_API_BASE_URL');
-  const apiStart = getGlobalValue('VITE_API_START') || 'api';
-  const apiVersionOnly = getGlobalValue('VITE_API_VERSION_ONLY') || 'v1';
-  const apiVersion = `/${apiStart}/${apiVersionOnly}`;
-  const appName = getGlobalValue('VITE_APP_NAME');
-  const env = getGlobalValue('VITE_NODE_ENV');
-  const enableLogging = getGlobalValue('VITE_ENABLE_LOGGING') === 'true';
-
-  // Handle protocol-relative URLs (e.g., //localhost:8000)
-  // This allows the frontend to automatically use the same protocol as the page
-  if (typeof window !== 'undefined' && apiBaseUrl?.startsWith('//')) {
-    apiBaseUrl = window.location.protocol + apiBaseUrl;
-  }
-
-  // If frontend is accessed via HTTP and API is pointed to localhost HTTPS, 
-  // automatically downgrade to HTTP to match the backend's non-SSL state.
-  if (typeof window !== 'undefined' &&
-    window.location.protocol === 'http:' &&
-    apiBaseUrl?.startsWith('https://localhost')) {
-    apiBaseUrl = apiBaseUrl.replace('https://', 'http://');
-  }
-
-  // If frontend is accessed via HTTPS and API is pointed to localhost HTTP, 
-  // automatically upgrade to HTTPS to match the backend's SSL state.
-  if (typeof window !== 'undefined' &&
-    window.location.protocol === 'https:' &&
-    apiBaseUrl?.startsWith('http://localhost')) {
-    apiBaseUrl = apiBaseUrl.replace('http://', 'https://');
-  }
+  const apiBaseUrl = import.meta.env.VITE_API_BASE_URL;
+  const apiVersion = import.meta.env.VITE_API_VERSION;
+  const appName = import.meta.env.VITE_APP_NAME;
+  const env = import.meta.env.VITE_NODE_ENV;
+  const enableLogging = import.meta.env.VITE_ENABLE_LOGGING === 'true';
 
   return {
     API_BASE_URL: apiBaseUrl,
-    API_START: apiStart,
-    API_VERSION_ONLY: apiVersionOnly,
     API_VERSION: apiVersion,
     APP_NAME: appName,
     ENVIRONMENT: env,

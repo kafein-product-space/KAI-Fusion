@@ -3,7 +3,7 @@
  * Makes direct requests to target API without backend dependency
  */
 
-(function () {
+(function() {
     'use strict';
 
     // Configuration
@@ -33,7 +33,7 @@
         if (!window.marked) {
             const script = document.createElement('script');
             script.src = "https://cdn.jsdelivr.net/npm/marked/marked.min.js";
-
+            
             script.onload = () => console.log('[KAI Widget] Marked.js loaded');
             document.head.appendChild(script);
         }
@@ -55,8 +55,8 @@
             config.width = dataset.width || '500px';
             config.height = dataset.height || '600px';
             config.title = dataset.title || 'KAI-Fusion AI';
-            config.icon = dataset.emoji ? { data: dataset.emoji, format: "emoji" } : dataset.iconUrl ? { data: dataset.iconUrl, format: 'url' } : { data: '💬', format: 'emoji' };
-
+            config.icon = dataset.emoji ? {data: dataset.emoji, format: "emoji"} : dataset.iconUrl ? {data: dataset.iconUrl, format: 'url'} : {data: '💬', format: 'emoji'};
+            
             // Log the dynamic src configuration for debugging
             console.log('[KAI Widget] Configuration loaded:', {
                 targetUrl: config.targetUrl,
@@ -196,12 +196,12 @@
         if (!btn) return;
         const wrapper = btn.closest('.kai-code-block');
         if (!wrapper) return;
-
+        
         const codeTextarea = wrapper.querySelector('.kai-hidden-code');
         if (!codeTextarea) return;
 
         const code = codeTextarea.value;
-
+        
         navigator.clipboard.writeText(code).then(() => {
             const originalHTML = btn.innerHTML;
             btn.innerHTML = `<span class="kai-copy-icon">✓</span><span class="kai-copy-text">Copied!</span>`;
@@ -241,7 +241,7 @@
 
             const wrapper = document.createElement('div');
             wrapper.className = 'kai-code-block';
-
+            
             // Header
             const header = document.createElement('div');
             header.className = 'kai-code-header';
@@ -260,7 +260,7 @@
             // Content
             const content = document.createElement('div');
             content.className = 'kai-code-content';
-
+            
             const newPre = pre.cloneNode(true);
             newPre.style.margin = '0';
             newPre.style.borderRadius = '0';
@@ -271,7 +271,7 @@
 
             pre.parentNode.replaceChild(wrapper, pre);
         });
-
+        
         // Links target _blank
         const links = container.querySelectorAll('a');
         links.forEach(link => {
@@ -821,12 +821,12 @@
     function hideWidget() {
         elements.container.style.display = 'none';
         if (elements.overlay) elements.overlay.style.display = 'none';
-
+        
         // Reset fullscreen state when closing
         if (elements.container.classList.contains('kai-fullscreen')) {
-            toggleFullscreen();
+             toggleFullscreen();
         }
-
+        
         isOpen = false;
     }
 
@@ -842,7 +842,7 @@
         elements.container.classList.toggle('kai-fullscreen');
         const isFullscreen = elements.container.classList.contains('kai-fullscreen');
         const btn = elements.container.querySelector('.kai-chat-fullscreen');
-
+        
         if (isFullscreen) {
             btn.innerHTML = '↙';
             btn.title = 'Küçült';
@@ -864,7 +864,7 @@
         if (statusIndicator) {
             const dot = statusIndicator.querySelector('.kai-status-dot');
             const text = statusIndicator.querySelector('.kai-status-text');
-
+            
             if (dot && text) {
                 dot.className = `kai-status-dot ${type}`;
                 text.textContent = message;
@@ -877,8 +877,8 @@
         if (!messagesContainer) return;
 
         // Use marked to parse content if available, otherwise fallback to raw text
-        const parsedContent = (window.marked && typeof content === 'string')
-            ? window.marked.parse(content)
+        const parsedContent = (window.marked && typeof content === 'string') 
+            ? window.marked.parse(content) 
             : content;
 
         const messageDiv = createElement('div', {
@@ -892,7 +892,7 @@
 
         messagesContainer.appendChild(messageDiv);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
-
+        
         return messageDiv;
     }
 
@@ -929,7 +929,7 @@
     async function sendMessage() {
         const messageInput = document.getElementById('kai-message-input');
         const sendButton = document.getElementById('kai-send-button');
-
+        
         if (!messageInput || !messageInput.value.trim()) return;
 
         const message = messageInput.value.trim();
@@ -970,18 +970,18 @@
                 removeTypingIndicator();
                 addMessage(response);
             }
-
+            
             setStatus('Ready', 'ready');
         } catch (error) {
             console.error('[KAI Widget] API Error:', error);
             removeTypingIndicator();
-
+            
             if (error.name === 'AbortError') {
                 addMessage('Response timed out. Please try again.', false);
             } else {
                 addMessage('Sorry, I encountered an error. Please try again.', false);
             }
-
+            
             setStatus('Error', 'error');
         } finally {
             removeTypingIndicator();
@@ -1001,14 +1001,12 @@
         }
 
         // Use only the working endpoint
-        const apiStart = window.VITE_API_START || 'api';
-        const apiVersionOnly = window.VITE_API_VERSION_ONLY || 'v1';
-        const url = config.targetUrl + '/' + apiStart + '/' + apiVersionOnly + '/workflows/execute';
+        const url = config.targetUrl + '/api/v1/workflows/execute';
         const payload = {
-            input_text: message,
-            session_id: sessionId,
-            chatflow_id: sessionId,
-            workflow_id: config.workflowId
+                input_text: message,
+                session_id: sessionId,
+                chatflow_id: sessionId,
+                workflow_id: config.workflowId
         };
 
         const controller = new AbortController();
@@ -1031,23 +1029,23 @@
             const reader = response.body.getReader();
             const decoder = new TextDecoder('utf-8');
             let fullText = '';
-
+            
             while (true) {
                 const { value, done } = await reader.read();
                 if (done) break;
-
+                
                 const chunk = decoder.decode(value, { stream: true });
                 const lines = chunk.split('\n');
-
+                
                 for (const line of lines) {
                     if (line.startsWith('data: ')) {
                         const data = line.slice(6).trim();
                         if (data === '[DONE]' || !data) continue;
-
+                        
                         try {
                             const parsed = JSON.parse(data);
                             let newContent = '';
-
+                            
                             // Handle different event types from backend
                             if (parsed.type === 'token' && parsed.content) {
                                 newContent = parsed.content;
@@ -1055,7 +1053,7 @@
                                 newContent = parsed.output;
                             } else if (parsed.type === 'complete' && parsed.result) {
                                 if (typeof parsed.result === 'string' && !fullText) {
-                                    newContent = parsed.result;
+                                     newContent = parsed.result;
                                 }
                             }
 
@@ -1071,7 +1069,7 @@
                     }
                 }
             }
-
+            
             return fullText || 'Yanıt alınamadı.';
 
         } catch (error) {
@@ -1087,7 +1085,7 @@
         if (data.message) return data.message;
         if (data.text) return data.text;
         if (data.content) return data.content;
-
+        
         // Fallback
         return typeof data === 'string' ? data : 'I received your message but couldn\'t parse the response.';
     }

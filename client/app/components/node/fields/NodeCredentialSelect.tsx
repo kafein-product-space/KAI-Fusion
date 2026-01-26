@@ -1,3 +1,4 @@
+import { useFormikContext } from "formik";
 import CredentialSelector from "../../credentials/CredentialSelector";
 import { getUserCredentialById } from "~/services/userCredentialService";
 import type { NodeProperty } from "../types";
@@ -10,12 +11,8 @@ interface NodeCredentialSelectProps {
 
 export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCredentialSelectProps) => {
   const handleCredentialChange = async (credentialId: string) => {
-    const targetFieldName = property.name || "credential_id";
-    setFieldValue(targetFieldName, credentialId);
-
-    if (property.serviceType === "postgresql_vectorstore") {
-      setFieldValue("connection_string", credentialId);
-    }
+    setFieldValue("credential_id", credentialId);
+    setFieldValue("connection_string", credentialId);
     if (credentialId) {
       try {
         const result = await getUserCredentialById(credentialId);
@@ -53,7 +50,7 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
         {property.displayName}
       </label>
       <CredentialSelector
-        value={values[property.name] ?? values.credential_id}
+        value={values.credential_id}
         onChange={handleCredentialChange}
         onCredentialLoad={handleCredentialLoad}
         serviceType={property.serviceType}
