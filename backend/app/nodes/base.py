@@ -61,6 +61,7 @@ from enum import Enum
 
 # Import FlowState for LangGraph compatibility
 from app.core.state import FlowState
+from app.core.json_utils import make_json_serializable_with_langchain
 
 # ================================================================================
 # NODE TYPE CLASSIFICATION SYSTEM
@@ -159,6 +160,7 @@ class NodePropertyType(str, Enum):
     SELECT = "select"
     CREDENTIAL_SELECT = "credential-select"
     TEXT = "text"
+    READONLY_TEXT = "readonly-text"
     NUMBER = "number"
     PASSWORD = "password"
     CHECKBOX = "checkbox"
@@ -292,6 +294,12 @@ class NodeProperty(BaseModel):
     rows: Optional[int] = Field(
         default=4,
         description="Number of rows for textarea"
+    )
+    
+    serviceType: Optional[str] = Field(
+        default=None,
+        description="Service type for credential-select fields (e.g., 'basic_auth', 'openai', 'cohere')",
+        alias="serviceType"
     )
 
     @field_validator('displayName', mode='before')
@@ -520,8 +528,8 @@ class NodeMetadata(BaseModel):
         description="Usage examples with input/output samples"
     )
 
-    properties: Optional[Union[Dict[str, Any], List[NodeProperty]]] = Field(
-        default=None,
+    properties: List[NodeProperty] = Field(
+        default_factory=list,
         description="Additional properties for node configuration"
     )
 
@@ -751,10 +759,25 @@ class BaseNode(ABC):
                 if node_id not in updated_executed_nodes:
                     updated_executed_nodes.append(node_id)
 
+                # Store node output in state.node_outputs for TerminatorNode (like standard nodes)
+                # This ensures RespondToWebhook and other terminator nodes appear in node_outputs
+                if self.metadata.node_type == NodeType.TERMINATOR:
+                    try:
+                        if not hasattr(state, "node_outputs"):
+                            state.node_outputs = {}
+                        serializable_result = make_json_serializable_with_langchain(processed_result, filter_complex=False)
+                        state.node_outputs[node_id] = serializable_result
+                    except Exception as e:
+                        # Log but don't fail if storing node_outputs fails
+                        import logging
+                        logger = logging.getLogger(__name__)
+                        logger.warning(f"Failed to store TerminatorNode output in node_outputs for {node_id}: {e}")
+
                 return {
                     unique_output_key: processed_result,
                     "executed_nodes": updated_executed_nodes,
-                    "last_output": str(processed_result)
+                    "last_output": str(processed_result),
+                    "node_outputs": getattr(state, "node_outputs", {})
                 }
                 
             except Exception as e:

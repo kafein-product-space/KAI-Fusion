@@ -32,6 +32,7 @@ import type {
 } from "~/types/api";
 
 import { useAuth as useOidcAuth } from "react-oidc-context";
+import { resolveIconPath } from "~/lib/iconUtils";
 
 interface SearchResult {
   id: string;
@@ -167,9 +168,8 @@ const Sidebar = () => {
           id: variable.id,
           type: "variable",
           title: variable.name,
-          description: `${variable.type}: ${variable.value.slice(0, 30)}${
-            variable.value.length > 30 ? "..." : ""
-          }`,
+          description: `${variable.type}: ${variable.value.slice(0, 30)}${variable.value.length > 30 ? "..." : ""
+            }`,
           path: `/variables`,
           icon: <Database className="w-4 h-4" />,
           metadata: {
@@ -207,22 +207,30 @@ const Sidebar = () => {
     setShowSearchResults(false);
   };
 
-  const isKeycloakEnabled = !!import.meta.env.VITE_KEYCLOAK_URL && !!import.meta.env.VITE_KEYCLOAK_CLIENT_ID;
+  const isKeycloakEnabled = !!window.VITE_KEYCLOAK_URL && !!window.VITE_KEYCLOAK_CLIENT_ID;
 
   const handleLogOut = async () => {
     try {
       if (isKeycloakEnabled && oidcAuth?.signoutRedirect) {
-          // Keycloak logout
-          await signOut(); // Clear local state first
-          // Keycloak çıkışından sonra signin sayfasına yönlendirilebilmesi için post_logout_redirect_uri parametresi eklenebilir
-          // Ancak oidc-client-ts bunu config'den alır.
-          await oidcAuth.signoutRedirect({ post_logout_redirect_uri: window.location.origin + "/signin" });
+        // Keycloak logout
+        await signOut(); // Clear local state first
+        // Keycloak çıkışından sonra signin sayfasına yönlendirilebilmesi için post_logout_redirect_uri parametresi eklenebilir
+        // Ancak oidc-client-ts bunu config'den alır.
+
+        const postLogoutRedirectUri = typeof window !== 'undefined'
+          ? `${window.location.origin}${window.VITE_BASE_PATH && window.VITE_BASE_PATH !== "/"
+            ? window.VITE_BASE_PATH
+            : ""
+          }/signin`
+          : "";
+
+        await oidcAuth.signoutRedirect({ post_logout_redirect_uri: postLogoutRedirectUri });
       } else {
-          // Normal logout
-          await signOut();
-          router("/signin");
+        // Normal logout
+        await signOut();
+        router("/signin");
       }
-      
+
       enqueueSnackbar("Başarıyla çıkış yapıldı", {
         variant: "success",
       });
@@ -244,7 +252,7 @@ const Sidebar = () => {
         <div className="flex items-center justify-between">
           <Link to="/" className="flex items-center space-x-3 group">
             <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
-              <img src="/logo.png" alt="logo" className="w-6 h-6" />
+              <img src={resolveIconPath("logo.png")} alt="logo" className="w-6 h-6" />
             </div>
             <div>
               <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
@@ -298,15 +306,14 @@ const Sidebar = () => {
                           {result.title}
                         </span>
                         <span
-                          className={`px-2 py-0.5 text-xs rounded-full ${
-                            result.type === "workflow"
+                          className={`px-2 py-0.5 text-xs rounded-full ${result.type === "workflow"
                               ? "bg-blue-500/20 text-blue-300"
                               : result.type === "execution"
-                              ? "bg-green-500/20 text-green-300"
-                              : result.type === "credential"
-                              ? "bg-orange-500/20 text-orange-300"
-                              : "bg-purple-500/20 text-purple-300"
-                          }`}
+                                ? "bg-green-500/20 text-green-300"
+                                : result.type === "credential"
+                                  ? "bg-orange-500/20 text-orange-300"
+                                  : "bg-purple-500/20 text-purple-300"
+                            }`}
                         >
                           {result.type}
                         </span>
@@ -503,10 +510,9 @@ function SidebarLink({
         <span
           className={`
             px-2 py-0.5 text-xs font-bold rounded-full
-            ${
-              badge === "New"
-                ? "bg-green-500/20 text-green-300 border border-green-500/30"
-                : "bg-orange-500/20 text-orange-300 border border-orange-500/30"
+            ${badge === "New"
+              ? "bg-green-500/20 text-green-300 border border-green-500/30"
+              : "bg-orange-500/20 text-orange-300 border border-orange-500/30"
             }
           `}
         >

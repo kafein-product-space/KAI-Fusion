@@ -12,12 +12,13 @@ import json
 import logging
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from app.core.constants import API_START,API_VERSION
 
 from app.nodes.tools import HttpClientNode
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/http-client", tags=["HTTP Client"])
+router = APIRouter(prefix=f"/{API_START}/http-client", tags=["HTTP Client"])
 
 
 class HttpClientTestRequest(BaseModel):

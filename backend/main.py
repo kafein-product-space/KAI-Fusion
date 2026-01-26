@@ -80,7 +80,7 @@ from app.core.engine import get_engine
 from app.core.database import get_db_session, check_database_health, get_database_stats
 from app.core.tracing import setup_tracing
 from app.core.error_handlers import register_exception_handlers
-from app.core.constants import PORT
+from app.core.constants import PORT, ROOT_PATH, SSL_KEYFILE, SSL_CERTFILE,API_START,API_VERSION
 # Middleware imports
 from app.middleware import (
     DetailedLoggingMiddleware,
@@ -100,6 +100,7 @@ from app.api.variables import router as variables_router
 from app.api.node_configurations import router as node_configurations_router
 from app.api.node_registry import router as node_registry_router
 from app.api.webhooks import router as webhook_router, trigger_router as webhook_trigger_router
+from app.nodes.triggers.webhook_trigger import webhook_test_router, webhook_production_router
 from app.nodes.triggers import webhook_router as webhook_node_router
 from app.api.http_client import router as http_client_router
 from app.api.documents import router as documents_router
@@ -120,50 +121,50 @@ async def lifespan(app: FastAPI):
     # Initialize enhanced logging system first
     auto_configure_enhanced_logging()
     
-    logger.info("🚀 Starting Agent-Flow V2 Backend...")
+    logger.info("Starting Agent-Flow V2 Backend...")
     
     # Initialize node registry
     try:
         node_registry.discover_nodes()
         nodes_count = len(node_registry.nodes)
-        logger.info(f"✅ Registered {nodes_count} nodes")
+        logger.info(f"Registered {nodes_count} nodes")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize node registry: {e}")
+        logger.error(f"Failed to initialize node registry: {e}")
     
     # Initialize engine
     try:
         get_engine()
-        logger.info("✅ Engine initialized")
+        logger.info("Engine initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize engine: {e}")
+        logger.error(f"Failed to initialize engine: {e}")
     
     # Initialize tracing and monitoring
     try:
         setup_tracing()
-        logger.info("✅ Tracing and monitoring initialized")
+        logger.info("Tracing and monitoring initialized")
     except Exception as e:
-        logger.error(f"❌ Failed to initialize tracing: {e}")
+        logger.error(f"Failed to initialize tracing: {e}")
     
     # Initialize database
     try:
         # Test database connection
         db_health = await check_database_health()
         if db_health['healthy']:
-            logger.info(f"✅ Database connection test passed ({db_health['response_time_ms']}ms)")
+            logger.info(f"Database connection test passed ({db_health['response_time_ms']}ms)")
         else:
-            logger.error(f"❌ Database connection test failed: {db_health.get('error', 'Unknown error')}")
+            logger.error(f"Database connection test failed: {db_health.get('error', 'Unknown error')}")
             raise RuntimeError(f"Database connection test failed: {db_health.get('error', 'Unknown error')}")
     except Exception as e:
-        logger.error(f"❌ Database initialization failed: {e}")
+        logger.error(f"Database initialization failed: {e}")
         raise e
     
-    logger.info("✅ Backend initialization complete - KAI Fusion Ready!")
+    logger.info("Backend initialization complete - KAI Fusion Ready!")
     
     yield
     
     # Cleanup
-    logger.info("🔄 Shutting down KAI Fusion Backend...")
-    logger.info("✅ Backend shutdown complete")
+    logger.info("Shutting down KAI Fusion Backend...")
+    logger.info("Backend shutdown complete")
 
 
 # Create FastAPI application
@@ -173,7 +174,8 @@ app = FastAPI(
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
-    lifespan=lifespan
+    lifespan=lifespan,
+    root_path=ROOT_PATH
 )
 
 # Serve embeddable widget assets from the backend (e.g. /widget/widget.js)
@@ -190,10 +192,10 @@ _widget_dir = next((p for p in _widget_dir_candidates if p and os.path.isdir(p))
 
 if _widget_dir:
     app.mount("/widget", StaticFiles(directory=_widget_dir, html=False), name="widget")
-    logger.info(f"✅ Widget assets served from /widget -> {_widget_dir}")
+    logger.info(f"Widget assets served from /widget -> {_widget_dir}")
 else:
     logger.warning(
-        "⚠️ Widget directory not found; /widget will not be served. "
+        "Widget directory not found; /widget will not be served. "
         f"Tried: {_widget_dir_candidates}"
     )
 
@@ -229,33 +231,35 @@ register_exception_handlers(app)
 # Include API routers
 
 # Core routers (always available)
-app.include_router(auth_router, prefix="/api/v1/auth", tags=["Authentication"])
-app.include_router(nodes_router, prefix="/api/v1/nodes", tags=["Nodes"])
-app.include_router(workflows_router, prefix="/api/v1/workflows", tags=["Workflows"])
-app.include_router(api_key_router, prefix="/api/v1/api-keys", tags=["API Keys"])
-app.include_router(executions_router, prefix="/api/v1/executions", tags=["Executions"])
-app.include_router(credentials_router, prefix="/api/v1/credentials", tags=["Credentials"])
-app.include_router(chat_router, prefix="/api/v1/chat", tags=["Chat"])
-app.include_router(variables_router, prefix="/api/v1/variables", tags=["Variables"])
-app.include_router(node_configurations_router, prefix="/api/v1/node-configurations", tags=["Node Configurations"])
-app.include_router(node_registry_router, prefix="/api/v1/nodes/registry", tags=["Node Registry"])
-app.include_router(documents_router, prefix="/api/v1/documents", tags=["Documents"])
-app.include_router(scheduled_jobs_router, prefix="/api/v1/jobs/scheduled", tags=["Scheduled Jobs"])
-app.include_router(vectors_router, prefix="/api/v1/vectors", tags=["Vector Storage"])
+app.include_router(auth_router, prefix=f"/{API_START}/{API_VERSION}/auth", tags=["Authentication"])
+app.include_router(nodes_router, prefix=f"/{API_START}/{API_VERSION}/nodes", tags=["Nodes"])
+app.include_router(workflows_router, prefix=f"/{API_START}/{API_VERSION}/workflows", tags=["Workflows"])
+app.include_router(api_key_router, prefix=f"/{API_START}/{API_VERSION}/api-keys", tags=["API Keys"])
+app.include_router(executions_router, prefix=f"/{API_START}/{API_VERSION}/executions", tags=["Executions"])
+app.include_router(credentials_router, prefix=f"/{API_START}/{API_VERSION}/credentials", tags=["Credentials"])
+app.include_router(chat_router, prefix=f"/{API_START}/{API_VERSION}/chat", tags=["Chat"])
+app.include_router(variables_router, prefix=f"/{API_START}/{API_VERSION}/variables", tags=["Variables"])
+app.include_router(node_configurations_router, prefix=f"/{API_START}/{API_VERSION}/node-configurations", tags=["Node Configurations"])
+app.include_router(node_registry_router, prefix=f"/{API_START}/{API_VERSION}/nodes/registry", tags=["Node Registry"])
+app.include_router(documents_router, prefix=f"/{API_START}/{API_VERSION}/documents", tags=["Documents"])
+app.include_router(scheduled_jobs_router, prefix=f"/{API_START}/{API_VERSION}/jobs/scheduled", tags=["Scheduled Jobs"])
+app.include_router(vectors_router, prefix=f"/{API_START}/{API_VERSION}/vectors", tags=["Vector Storage"])
 
 # Include test router
 app.include_router(test_router)
 
 # Include webhook routers
-app.include_router(webhook_router, prefix="/api/v1/webhooks", tags=["Webhooks"])
-app.include_router(webhook_trigger_router, prefix="/api/v1/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_router, prefix=f"/{API_START}/{API_VERSION}/webhooks", tags=["Webhooks"])
+app.include_router(webhook_trigger_router, prefix=f"/{API_START}/{API_VERSION}/webhooks/trigger", tags=["Webhook Triggers"])
+app.include_router(webhook_test_router, tags=["Webhook Test"])  # Test webhook endpoints with frontend streaming
+app.include_router(webhook_production_router, tags=["Webhook Production"])  # Production webhook endpoints without frontend streaming
 app.include_router(webhook_node_router, tags=["Webhook Triggers"])  # Dynamic webhook endpoints with built-in prefix
 
 # Include HTTP Client router
 app.include_router(http_client_router, tags=["HTTP Client"])  # Built-in prefix
 
-app.include_router(export_router, prefix="/api/v1", tags=["Export"])
-app.include_router(external_workflows_router, prefix="/api/v1", tags=["External Workflows"])
+app.include_router(export_router, prefix=f"/{API_START}/{API_VERSION}", tags=["Export"])
+app.include_router(external_workflows_router, prefix=f"/{API_START}/{API_VERSION}", tags=["External Workflows"])
 
 
 
@@ -329,7 +333,7 @@ async def health_check():
         )
 
 # Legacy alias for health endpoint expected by some clients/tests
-@app.get("/api/health", tags=["Health"])
+@app.get(f"/{API_START}/health", tags=["Health"])
 async def health_check_api():
     return await health_check()
 
@@ -374,7 +378,7 @@ async def get_info():
         )
 
 # Legacy alias for info endpoint with additional fields to maintain backward compatibility
-@app.get("/api/v1/info", tags=["Info"])
+@app.get(f"/{API_START}/{API_VERSION}/info", tags=["Info"])
 async def get_info_v1():
     original = await get_info()
 
@@ -385,8 +389,8 @@ async def get_info_v1():
     # Otherwise it's a normal dict – add legacy fields expected by tests
     original.setdefault("endpoints", [
         "/",
-        "/api/health",
-        "/api/v1/nodes",
+        f"/{API_START}/health",
+        f"/{API_START}/{API_VERSION}/nodes",
         "/docs",
     ])
     original.setdefault("stats", original.get("statistics", {}))
@@ -402,17 +406,38 @@ async def root():
         "message": "Agent-Flow V2 API",
         "version": "2.0.0",
         "docs": "/docs",
-        "health": "/api/health",
-        "info": "/api/v1/info",
+        "health": f"/{API_START}/health",
+        "info": f"/{API_START}/{API_VERSION}/info",
         "database_enabled": True
     }
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=int(PORT),
-        reload=True,
-        log_level="info"
-    ) 
+    import os
+    
+    # Check if SSL files exist
+    ssl_ready = False
+    if SSL_KEYFILE and SSL_CERTFILE:
+        if os.path.exists(SSL_KEYFILE) and os.path.exists(SSL_CERTFILE):
+            ssl_ready = True
+        else:
+            logger.warning(f"SSL files not found: {SSL_KEYFILE} or {SSL_CERTFILE}. Falling back to HTTP.")
+
+    if ssl_ready:
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=int(PORT),
+            reload=True,
+            log_level="info",
+            ssl_keyfile=SSL_KEYFILE,
+            ssl_certfile=SSL_CERTFILE
+        )
+    else:
+        uvicorn.run(
+            "main:app",
+            host="0.0.0.0",
+            port=int(PORT),
+            reload=True,
+            log_level="info"
+        )

@@ -156,7 +156,8 @@ class OpenAICompatibleNode(BaseNode):
                     type=NodePropertyType.CREDENTIAL_SELECT,
                     placeholder="Select API Key",
                     required=False, # Some local servers don't need keys
-                    hint="Required for commercial providers, optional for some local servers"
+                    hint="Required for commercial providers, optional for some local servers",
+                    serviceType="openai",
                 ),
                 NodeProperty(
                     name="base_url",

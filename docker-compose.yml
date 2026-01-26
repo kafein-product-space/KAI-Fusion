@@ -12,6 +12,7 @@ services:
       ENVIRONMENT: ${ENVIRONMENT:-development}
       BACKEND_PORT: ${BACKEND_PORT:-23056}
       BACKEND_DEBUG: ${BACKEND_DEBUG:-true}
+      ROOT_PATH: ${ROOT_PATH}
 
       # Database Settings
       CREATE_DATABASE: ${CREATE_DATABASE}
@@ -23,6 +24,7 @@ services:
 
       # Security
       MASTER_API_KEY: ${MASTER_API_KEY}
+      CREDENTIAL_MASTER_KEY: ${CREDENTIAL_MASTER_KEY}
 
       # Basic Settings
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
@@ -56,6 +58,7 @@ services:
       args:
         VITE_API_BASE_URL: ${VITE_API_BASE_URL}
         VITE_API_VERSION: ${VITE_API_VERSION}
+        VITE_BASE_PATH: ${VITE_BASE_PATH}
         VITE_NODE_ENV: ${VITE_NODE_ENV}
         VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
         VITE_KEYCLOAK_URL: ${VITE_KEYCLOAK_URL}
@@ -66,6 +69,7 @@ services:
       - "23058:3000"
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL}
+      VITE_BASE_PATH: ${VITE_BASE_PATH}
       VITE_API_VERSION: ${VITE_API_VERSION}
       VITE_NODE_ENV: ${VITE_NODE_ENV}
       VITE_ENABLE_LOGGING: ${VITE_ENABLE_LOGGING}
@@ -77,6 +81,8 @@ services:
     restart: unless-stopped
     depends_on:
       - kaifusion-be
+
+
 
   kai-widget:
     build:

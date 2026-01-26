@@ -1,7 +1,8 @@
 // Organization Service Template
 import axios from 'axios';
+import { config } from '../lib/config';
 
-const API_BASE_URL = '/api/organization';
+const API_BASE_URL = `/${config.API_START}/organization`;
 
 export const getOrganizations = async () => {
   return axios.get(API_BASE_URL);

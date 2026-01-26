@@ -77,18 +77,19 @@ INTEGRATION PATTERNS:
 Basic Usage:
 ```bash
 # Create webhook endpoint
-curl -X POST /api/v1/webhooks \
+curl -X POST /{API_START}/{API_VERSION}/webhook \
   -H "Authorization: Bearer {token}" \
   -d '{"workflow_id": "uuid", "node_id": "node_123", "config": {...}}'
 
 # Trigger webhook
-curl -X POST /api/webhooks/{webhook_id} \
+curl -X POST /{API_START}/webhooks/{webhook_id} \
   -H "Authorization: Bearer {webhook_token}" \
   -d '{"data": "example"}'
 ```
 
 """
 
+from app.core.constants import API_START,API_VERSION
 import uuid
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Any, List
@@ -620,7 +621,7 @@ async def trigger_webhook(
                         # Internal API call to execute workflow
                         async with httpx.AsyncClient() as client:
                             api_response = await client.post(
-                                "http://localhost:8000/api/v1/workflows/execute",
+                                f"http://localhost:8000/{API_START}/{API_VERSION}/workflows/execute",
                                 json=execution_payload,
                                 headers={
                                     "Content-Type": "application/json",

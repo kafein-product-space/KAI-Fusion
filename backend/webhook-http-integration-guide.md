@@ -46,12 +46,12 @@ When creating a webhook trigger node in your workflow:
 
 Your webhook URL will be:
 ```
-POST http://localhost:8000/api/v1/webhooks/{webhook_id}
+POST http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/{webhook_id}
 ```
 
 **Example:**
 ```
-POST http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123
+POST http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123
 ```
 
 ---
@@ -62,7 +62,7 @@ POST http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123
 
 **Request Setup:**
 - **Method**: `POST`
-- **URL**: `http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123`
+- **URL**: `http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123`
 
 **Headers:**
 ```
@@ -97,7 +97,7 @@ X-Source-System: your-system-name
 ### 2.2 cURL Command Example
 
 ```bash
-curl -X POST "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123" \
+curl -X POST "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer webhook_token_secure_123" \
   -H "User-Agent: External-Service/1.0" \
@@ -135,7 +135,7 @@ class KAIFusionWebhookClient:
     
     def trigger_workflow(self, webhook_id, data, event_type="workflow.trigger"):
         """Trigger a KAI-Fusion workflow via webhook"""
-        url = f"{self.base_url}/api/v1/webhooks/{webhook_id}"
+        url = f"{self.base_url}/{API_START}/{API_VERSION_ONLY}/webhooks/{webhook_id}"
         
         payload = {
             "event_type": event_type,
@@ -328,7 +328,7 @@ app.post('/api/receive-processed-data', (req, res) => {
 app.post('/trigger-kai-fusion', async (req, res) => {
     try {
         const response = await axios.post(
-            'http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123',
+            'http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123',
             {
                 event_type: 'external.trigger',
                 data: req.body
@@ -361,7 +361,7 @@ from datetime import datetime
 
 app = Flask(__name__)
 
-KAI_FUSION_WEBHOOK_URL = "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123"
+KAI_FUSION_WEBHOOK_URL = "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123"
 WEBHOOK_TOKEN = "webhook_token_secure_123"
 
 @app.route('/api/receive-data', methods=['POST'])
@@ -429,7 +429,7 @@ echo "🚀 Testing KAI-Fusion Webhook → HTTP Integration"
 
 # Test 1: Simple webhook trigger
 echo "Test 1: Basic webhook trigger"
-curl -X POST "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123" \
+curl -X POST "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer webhook_token_secure_123" \
   -d '{
@@ -444,7 +444,7 @@ echo -e "\n"
 
 # Test 2: Scraping workflow
 echo "Test 2: Web scraping workflow"
-curl -X POST "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123" \
+curl -X POST "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123" \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer webhook_token_secure_123" \
   -d '{
@@ -461,7 +461,7 @@ echo -e "\n"
 # Test 3: Concurrent execution
 echo "Test 3: Concurrent webhook execution"
 for i in {1..3}; do
-  curl -X POST "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123" \
+  curl -X POST "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123" \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer webhook_token_secure_123" \
     -d "{
@@ -481,19 +481,19 @@ echo "✅ All tests completed!"
 
 **Check webhook status:**
 ```bash
-curl -X GET "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123/info" \
+curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123/info" \
   -H "Content-Type: application/json"
 ```
 
 **Get webhook statistics:**
 ```bash
-curl -X GET "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123/stats" \
+curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123/stats" \
   -H "Authorization: Bearer your-auth-token"
 ```
 
 **Health check:**
 ```bash
-curl -X GET "http://localhost:8000/api/v1/webhooks/wh_your_unique_id_123/health"
+curl -X GET "http://localhost:8000/{API_START}/{API_VERSION_ONLY}/webhooks/wh_your_unique_id_123/health"
 ```
 
 ---

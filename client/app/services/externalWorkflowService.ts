@@ -1,4 +1,5 @@
 import { apiClient } from '~/lib/api-client';
+import { config } from '~/lib/config';
 import type {
   ExternalWorkflowConfig,
   ExternalWorkflowInfo,
@@ -123,7 +124,7 @@ export const exportedWorkflowService = {
       requestBody.session_id = sessionId.trim();
     }
 
-    const response = await fetch(`${fixedBaseUrl}/api/workflow/execute`, {
+    const response = await fetch(`${fixedBaseUrl}/${config.API_START}/${config.API_VERSION_ONLY}/workflow/execute`, {
       method: 'POST',
       headers,
       body: JSON.stringify(requestBody)
@@ -147,7 +148,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/api/workflow/external/info`, {
+    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/external/info`, {
       method: 'GET',
       headers
     });
@@ -169,7 +170,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/api/workflow/sessions`, {
+    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/sessions`, {
       method: 'GET',
       headers
     });
@@ -192,7 +193,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${fixedBaseUrl}/api/workflow/memory/${sessionId}`, {
+    const response = await fetch(`${fixedBaseUrl}/${config.API_START}/workflow/memory/${sessionId}`, {
       method: 'GET',
       headers
     });
@@ -214,7 +215,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/api/workflow/memory/${sessionId}`, {
+    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/memory/${sessionId}`, {
       method: 'DELETE',
       headers
     });
@@ -236,7 +237,7 @@ export const exportedWorkflowService = {
       headers['X-API-Key'] = apiKey;
     }
 
-    const response = await fetch(`${baseUrl}/api/workflow/external/ping`, {
+    const response = await fetch(`${baseUrl}/${config.API_START}/workflow/external/ping`, {
       method: 'POST',
       headers
     });
