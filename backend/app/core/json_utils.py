@@ -58,11 +58,20 @@ _Runnable = None
 try:
     from langchain_core.tools import BaseTool
     from langchain_core.runnables import Runnable
+    from langchain_core.vectorstores import VectorStore
+    from langchain_core.retrievers import BaseRetriever
+    
     _LANGCHAIN_AVAILABLE = True
     _BaseTool = BaseTool
     _Runnable = Runnable
+    _VectorStore = VectorStore
+    _BaseRetriever = BaseRetriever
 except ImportError:
-    pass
+    _LANGCHAIN_AVAILABLE = False
+    _BaseTool = None
+    _Runnable = None
+    _VectorStore = None
+    _BaseRetriever = None
 
 
 def json_serializer_default(obj: Any) -> Any:
@@ -185,14 +194,20 @@ def make_json_serializable(obj: Any, filter_langchain_complex: bool = False) -> 
     elif isinstance(obj, (list, tuple)):
         return [make_json_serializable(item, filter_langchain_complex) 
                 for item in obj]
-    # LangChain objects (if available)
-    elif _LANGCHAIN_AVAILABLE:
+    # LangChain complex objects (BaseTool, Runnable, callable) - convert to string representation
+    # Note: We use 'if' here instead of 'elif' to allow fallthrough to Pydantic handling for other LangChain objects like Document
+    if _LANGCHAIN_AVAILABLE:
         if (_BaseTool and isinstance(obj, _BaseTool)) or \
            (_Runnable and isinstance(obj, _Runnable)) or \
-           callable(obj):
+           (_VectorStore and isinstance(obj, _VectorStore)) or \
+           (_BaseRetriever and isinstance(obj, _BaseRetriever)):
             return f"<{obj.__class__.__name__}>"
-    # Pydantic v2 models
-    elif hasattr(obj, 'model_dump'):
+        # Check callable ONLY for things that don't have model_dump (Pydantic models)
+        # This prevents treating Document and other Pydantic models as callables
+        if callable(obj) and not hasattr(obj, 'model_dump') and not hasattr(obj, 'dict'):
+            return f"<{obj.__class__.__name__}>"
+    # Pydantic v2 models (includes LangChain Document)
+    if hasattr(obj, 'model_dump'):
         try:
             return make_json_serializable(obj.model_dump(), filter_langchain_complex)
         except Exception:

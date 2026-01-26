@@ -151,7 +151,7 @@ class RespondToWebhookNode(TerminatorNode):
                     displayName="Response Body",
                     type=NodePropertyType.TEXT_AREA,
                     placeholder='{"status": "success", "message": "Processed"}',
-                    hint="Response body content. Can be JSON string or plain text. Supports templating with {{variables}}",
+                    hint="Response body content. Can be JSON string or plain text. Supports templating with ${{variable}}",
                     required=False,
                     tabName="basic",
                     rows=6,

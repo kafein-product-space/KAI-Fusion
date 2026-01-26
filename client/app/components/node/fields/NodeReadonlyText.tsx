@@ -15,7 +15,7 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
     if (property.name === "webhook_exact_url") {
       const pathValue = (values?.path || "").trim();
       if (pathValue) {
-        const baseUrl = import.meta.env.VITE_API_BASE_URL;
+        const baseUrl = config.API_BASE_URL || window.location.origin;
         const environment = values?.webhook_environment || "test";
         const prefix = environment === "production"
           ? `/${config.API_START}/${config.API_VERSION_ONLY}/webhook`
