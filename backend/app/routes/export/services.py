@@ -15,7 +15,6 @@ from app.models.workflow import Workflow
 from app.core.node_registry import node_registry
 from .schemas import WorkflowDependencies, SecurityConfig, MonitoringConfig, DockerConfig
 from .workflow_templates import create_workflow_engine, create_main_py, create_dockerfile
-from app.core.constants import API_START,API_VERSION
 
 logger = logging.getLogger(__name__)
 
@@ -889,7 +888,7 @@ Ready-to-run Docker export of your KAI-Fusion workflow.
 ## API Usage
 
 ```bash
-curl -X POST http://localhost:{port}/{API_START}/workflow/execute \\
+curl -X POST http://localhost:{port}/api/workflow/execute \\
   -H "Content-Type: application/json" \\
   -d '{{"input": "Your input here"}}'
 ```
@@ -953,7 +952,7 @@ def create_workflow_export_package(components: Dict[str, Any]) -> Dict[str, Any]
         logger.info(f"✅ Export package created: {permanent_zip_path}")
         
         return {
-            "download_url": f"/{API_START}/{API_VERSION}/export/download/{package_name}.zip",
+            "download_url": f"/api/v1/export/download/{package_name}.zip",
             "package_size": os.path.getsize(permanent_zip_path),
             "local_path": permanent_zip_path
         }
