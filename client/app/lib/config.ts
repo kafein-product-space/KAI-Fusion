@@ -130,6 +130,8 @@ export const API_ENDPOINTS = {
   },
   EXPORT: {
     WORKFLOWS: '/export/workflows',
+    WORKFLOW_INIT: (id: string) => `/export/workflow/${id}/init`,
+    WORKFLOW_COMPLETE: (id: string) => `/export/workflow/${id}/complete`,
   },
   HEALTH: '/health',
   INFO: '/info',

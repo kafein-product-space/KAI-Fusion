@@ -33,7 +33,8 @@ COPY client/package*.json ./
 RUN npm ci --omit=dev
 
 # Copy built files
-COPY --from=builder /app/build ./build
+COPY --from=builder /app/dist ./dist
+
 
 EXPOSE 3000
 
