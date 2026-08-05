@@ -85,6 +85,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
         PostgresNode: "icons/postgresql_vectorstore.svg",
         MarkItDownTool: "icons/markitdown.svg",
+        SQLite: "icons/sqlite.svg",
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",
