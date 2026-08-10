@@ -83,6 +83,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PGVectorStore: "icons/postgresql_vectorstore.svg",
         VectorStoreOrchestrator: "icons/postgresql_vectorstore.svg",
         IntelligentVectorStore: "icons/postgresql_vectorstore.svg",
+        GmailNode: "icons/gmail.svg",
         MarkItDownTool: "icons/markitdown.svg",
 
         // Web & APIs

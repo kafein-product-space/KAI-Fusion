@@ -584,6 +584,9 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_tavily(secret)
     elif service_type == "postgresql_vectorstore":
         return await _test_postgresql(secret)
+    elif service_type in ("gmail", "gmail_readonly", "google_drive",
+                          "google_sheets", "google_calendar"):
+        return await _test_google(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
     elif service_type == "minio":
@@ -641,7 +644,7 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
-    # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
+# 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (
         # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)
         ("connection_string" in data and isinstance(data.get("connection_string"), str) and data.get("connection_string", "").lower().startswith("postgresql"))
@@ -674,3 +677,267 @@ def _detect_service_type(data: dict) -> str:
         return "certificate"
     else:
         return "custom"
+
+# =====================================================================
+# Google OAuth
+#
+# Paste this block at the end of backend/app/api/credentials.py.
+#
+# Two endpoints and one test handler. Nothing above is touched.
+# =====================================================================
+
+@router.get("/google/config")
+async def google_oauth_config(
+        current_user: User = Depends(get_current_user),
+):
+    """
+    Report whether this installation can connect a Google account.
+
+    The form asks before it draws the connect button, so someone whose server
+    has no OAuth client set up is told what is missing rather than being sent
+    to a page that will refuse them.
+    """
+    from app.core import google_oauth
+
+    return {
+        "configured": google_oauth.is_configured(),
+        "redirect_uri": google_oauth.redirect_uri() if google_oauth.is_configured() else None,
+        "message": (
+            None
+            if google_oauth.is_configured()
+            else (
+                "This server has no Google OAuth client. Set GOOGLE_CLIENT_ID and "
+                "GOOGLE_CLIENT_SECRET and restart it."
+            )
+        ),
+    }
+
+@router.get("/{credential_id}/google/authorize")
+async def start_google_authorization(
+        credential_id: uuid.UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session),
+        credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    Begin connecting a Google account to a credential.
+
+    Returns the address the browser should be sent to. The credential has to
+    exist first, since the tokens that come back need somewhere to be written
+    and the state carries its id.
+    """
+    from app.core import google_oauth
+
+    user_id = current_user.id
+
+    credential = await credential_service.get_by_user_and_id(db, user_id, credential_id)
+    if not credential:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found"
+        )
+
+    try:
+        state = google_oauth.pack_state(str(credential_id), str(user_id))
+        url = google_oauth.authorization_url(credential.service_type, state)
+    except google_oauth.GoogleOAuthError as exc:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc))
+
+    logger.info(
+        f"Starting Google authorisation for credential {credential_id} "
+        f"({credential.service_type})"
+    )
+    return {"authorization_url": url}
+
+@router.get("/google/callback")
+async def finish_google_authorization(
+        code: Optional[str] = None,
+        state: Optional[str] = None,
+        error: Optional[str] = None,
+        db: AsyncSession = Depends(get_db_session),
+        credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    Receive the browser back from Google and store the tokens.
+
+    Google calls this, not the person, so there is no session to authenticate
+    against. The credential is found through the state, which was issued a
+    moment earlier and expires within ten minutes.
+
+    The response is a small page rather than JSON, because what opened this was
+    a popup window and it has to close itself.
+    """
+    from fastapi.responses import HTMLResponse
+    from app.core import google_oauth
+    from app.core.encryption import encrypt_data
+    import base64
+
+    def page(title: str, detail: str, ok: bool) -> HTMLResponse:
+        colour = "#16a34a" if ok else "#dc2626"
+        return HTMLResponse(
+            f"""<!doctype html>
+<html><head><meta charset="utf-8"><title>{title}</title></head>
+<body style="font-family:system-ui,sans-serif;background:#0f172a;color:#e2e8f0;
+             display:flex;align-items:center;justify-content:center;height:100vh;margin:0">
+  <div style="text-align:center;max-width:420px;padding:32px">
+    <div style="font-size:20px;font-weight:600;color:{colour};margin-bottom:12px">{title}</div>
+    <div style="font-size:14px;line-height:1.6;color:#94a3b8">{detail}</div>
+  </div>
+  <script>
+    // The opener is told how it went, then this window closes itself.
+    if (window.opener) {{
+      window.opener.postMessage(
+        {{ source: "google-oauth", success: {str(ok).lower()} }}, "*"
+      );
+      setTimeout(function () {{ window.close(); }}, {1200 if ok else 6000});
+    }}
+  </script>
+</body></html>"""
+        )
+
+    if error:
+        logger.warning(f"Google authorisation was refused: {error}")
+        return page(
+            "Not connected",
+            "The request was turned down at Google. You can close this window and try again.",
+            False,
+        )
+
+    if not code or not state:
+        return page(
+            "Not connected",
+            "Google's response was incomplete. Start the connection again.",
+            False,
+        )
+
+    try:
+        payload = google_oauth.unpack_state(state)
+        credential_id = uuid.UUID(payload["credential_id"])
+        user_id = uuid.UUID(payload["user_id"])
+
+        credential = await credential_service.get_by_user_and_id(db, user_id, credential_id)
+        if not credential:
+            return page(
+                "Not connected",
+                "The credential this belonged to is no longer there.",
+                False,
+            )
+
+        tokens = google_oauth.exchange_code(code)
+        email = google_oauth.account_email(tokens["access_token"])
+
+        try:
+            existing = await credential_service.get_decrypted_credential(
+                db, user_id, credential_id
+            )
+            # Only what can be written back as JSON is carried over. A record
+            # read from the store may come with timestamps attached, and those
+            # belong to the row rather than to the secret.
+            secret = {
+                key: value
+                for key, value in (existing or {}).items()
+                if isinstance(value, (str, int, float, bool, list, dict, type(None)))
+            }
+        except Exception:
+            secret = {}
+
+        secret.update(tokens)
+        if email:
+            secret["email"] = email
+
+        encrypted = encrypt_data(secret)
+        credential.encrypted_secret = base64.b64encode(encrypted).decode("utf-8")
+        await db.commit()
+
+        logger.info(
+            f"Google account connected to credential {credential_id}"
+            + (f" ({email})" if email else "")
+        )
+
+        return page(
+            "Connected",
+            f"{email or 'The account'} is now connected. This window will close on its own.",
+            True,
+        )
+
+    except google_oauth.GoogleOAuthError as exc:
+        logger.warning(f"Google authorisation failed: {exc}")
+        return page("Not connected", str(exc), False)
+    except Exception as exc:
+        logger.error(f"Google authorisation failed: {exc}")
+        return page(
+            "Not connected",
+            "Something went wrong while storing the connection. Try again.",
+            False,
+        )
+
+@router.delete("/{credential_id}/google/disconnect")
+async def disconnect_google_account(
+        credential_id: uuid.UUID,
+        current_user: User = Depends(get_current_user),
+        db: AsyncSession = Depends(get_db_session),
+        credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    Drop the connection to a Google account.
+
+    Google is told as well as the credential, so the grant disappears from the
+    account owner's list of connected apps rather than lingering unused.
+    """
+    from app.core import google_oauth
+    from app.core.encryption import encrypt_data
+    import base64
+
+    user_id = current_user.id
+
+    credential = await credential_service.get_by_user_and_id(db, user_id, credential_id)
+    if not credential:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found"
+        )
+
+    try:
+        secret = await credential_service.get_decrypted_credential(db, user_id, credential_id)
+    except Exception:
+        secret = {}
+
+    refresh_token = (secret or {}).get("refresh_token")
+    if refresh_token:
+        google_oauth.revoke(refresh_token)
+
+    remaining = {
+        key: value
+        for key, value in (secret or {}).items()
+        if key not in ("refresh_token", "access_token", "expires_at", "scope",
+                       "token_type", "email")
+    }
+
+    encrypted = encrypt_data(remaining)
+    credential.encrypted_secret = base64.b64encode(encrypted).decode("utf-8")
+    await db.commit()
+
+    logger.info(f"Google account disconnected from credential {credential_id}")
+    return {"success": True, "message": "The Google account is no longer connected."}
+
+async def _test_google(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Ask Google who the credential belongs to."""
+    from app.core import google_oauth
+
+    if not (secret or {}).get("refresh_token"):
+        return CredentialTestResponse(
+            success=False,
+            message="No Google account is connected yet. Use Connect to Google.",
+        )
+
+    try:
+        token = google_oauth.access_token_for(secret)
+        email = google_oauth.account_email(token)
+        return CredentialTestResponse(
+            success=True,
+            message=(
+                f"Connected as {email}." if email else "Connected to a Google account."
+            ),
+        )
+    except google_oauth.GoogleOAuthError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+    except Exception as exc:
+        return CredentialTestResponse(success=False, message=f"Could not connect: {exc}")

@@ -1,7 +1,8 @@
 import React, { useState } from "react";
-import { Check, Loader2, Pencil, Trash, Zap, Link2, X as XIcon } from "lucide-react";
+import { Check, Loader2, Pencil, Trash, Zap, Link2, LogIn, Unlink, X as XIcon } from "lucide-react";
 import { timeAgo } from "~/lib/dateFormatter";
 import { resolveIconPath } from "~/lib/iconUtils";
+import { apiClient } from "~/lib/api-client";
 import { getServiceDefinition } from "~/types/credentials";
 import { getCredentialWorkflows } from "~/services/userCredentialService";
 import type { CredentialWorkflowUsageResponse, UserCredential } from "~/types/api";
@@ -15,6 +16,16 @@ interface CredentialCardProps {
 }
 
 type TestState = "idle" | "loading" | "success" | "error";
+
+// Services whose credential holds tokens issued by Google rather than
+// anything a form could ask for.
+const GOOGLE_SERVICES = [
+  "gmail",
+  "gmail_readonly",
+  "google_drive",
+  "google_sheets",
+  "google_calendar",
+];
 
 const CredentialCard: React.FC<CredentialCardProps> = ({
   credential,
@@ -32,6 +43,10 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
   const [workflowUsageLoading, setWorkflowUsageLoading] = useState(false);
   const [workflowUsageError, setWorkflowUsageError] = useState<string | null>(null);
   const [hasLoadedUsage, setHasLoadedUsage] = useState(false);
+
+  const isGoogleService = GOOGLE_SERVICES.includes(credential.service_type);
+  const [connecting, setConnecting] = useState(false);
+  const [connectMessage, setConnectMessage] = useState<string>("");
 
   const loadUsageData = async () => {
     if (hasLoadedUsage) return;
@@ -78,6 +93,87 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
       setTestMessage("");
     }, 4000);
   };
+
+  /**
+   * Send the account owner to Google and wait for word back.
+   *
+   * The consent screen opens in a window of its own, so the page behind it
+   * keeps its state. That window tells this one how it went before closing
+   * itself, which is what the message listener is for.
+   */
+  const handleConnectGoogle = async () => {
+    setConnecting(true);
+    setConnectMessage("");
+
+    try {
+      const response: any = await apiClient.get(
+        `/credentials/${credential.id}/google/authorize`
+      );
+      const url = response?.authorization_url;
+
+      if (!url) {
+        setConnectMessage("The server did not say where to send you.");
+        setConnecting(false);
+        return;
+      }
+
+      const popup = window.open(
+        url,
+        "google-oauth",
+        "width=520,height=640,menubar=no,toolbar=no"
+      );
+
+      if (!popup) {
+        setConnectMessage(
+          "The browser blocked the window. Allow popups for this site and try again."
+        );
+        setConnecting(false);
+        return;
+      }
+
+      const onMessage = (event: MessageEvent) => {
+        if (event.data?.source !== "google-oauth") return;
+
+        window.removeEventListener("message", onMessage);
+        clearInterval(watcher);
+        setConnecting(false);
+        setConnectMessage(
+          event.data.success
+            ? "The account is connected. Use Test to see which one."
+            : "The account was not connected."
+        );
+      };
+      window.addEventListener("message", onMessage);
+
+      // A window closed by hand sends nothing, so it is watched as well.
+      const watcher = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(watcher);
+          window.removeEventListener("message", onMessage);
+          setConnecting(false);
+        }
+      }, 500);
+    } catch (error: any) {
+      setConnecting(false);
+      setConnectMessage(error?.message ?? "The connection could not be started.");
+    }
+  };
+
+  /** Drop the connection, at Google as well as here. */
+  const handleDisconnectGoogle = async () => {
+    setConnecting(true);
+    setConnectMessage("");
+
+    try {
+      await apiClient.delete(`/credentials/${credential.id}/google/disconnect`);
+      setConnectMessage("The account is no longer connected.");
+    } catch (error: any) {
+      setConnectMessage(error?.message ?? "The account could not be disconnected.");
+    } finally {
+      setConnecting(false);
+    }
+  };
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
       {/* Header */}
@@ -162,8 +258,43 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         </p>
       )}
 
+      {/* Google connection message */}
+      {connectMessage && (
+        <p className="text-xs mt-1 mb-1 text-gray-600">{connectMessage}</p>
+      )}
+
       {/* Actions */}
       <div className="flex items-center justify-end gap-1.5">
+        {isGoogleService && (
+          <>
+            <button
+              onClick={handleConnectGoogle}
+              disabled={connecting}
+              className="flex items-center gap-1 px-2 py-1 text-xs rounded-md text-gray-400
+                         hover:text-blue-600 hover:bg-blue-50 transition-all duration-200
+                         disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Connect a Google account"
+            >
+              {connecting ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <LogIn className="w-3.5 h-3.5" />
+              )}
+              Connect
+            </button>
+
+            <button
+              onClick={handleDisconnectGoogle}
+              disabled={connecting}
+              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-md
+                         transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Disconnect the Google account"
+            >
+              <Unlink className="w-3.5 h-3.5" />
+            </button>
+          </>
+        )}
+
         <button
           onClick={handleTest}
           disabled={testState === "loading"}
@@ -211,7 +342,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-lg font-bold mb-3 text-red-600">Delete Credential</h3>
-            
+
             {workflowUsageLoading ? (
               <div className="flex items-center gap-2 py-4 justify-center text-sm text-gray-500">
                 <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
@@ -227,7 +358,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
                     Deleting <strong>{credential.name}</strong> will break the configurations of <strong>{workflowUsage.workflow_count}</strong> active workflow{workflowUsage.workflow_count === 1 ? "" : "s"}. These workflows will fail during execution!
                   </p>
                 </div>
-                
+
                 <div>
                   <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
                     Affected Workflows:
@@ -240,7 +371,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
                     ))}
                   </ul>
                 </div>
-                
+
                 <p className="text-xs text-gray-500">
                   Are you absolutely sure you want to proceed? This action is highly disruptive and cannot be undone.
                 </p>
