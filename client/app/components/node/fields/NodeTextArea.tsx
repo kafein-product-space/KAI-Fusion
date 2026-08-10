@@ -13,8 +13,22 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
 
   if (Object.keys(show).length > 0) {
     for (const [dependencyName, validValue] of Object.entries(show)) {
-      const dependencyValue = values[dependencyName];
-      if (dependencyValue !== validValue) {
+      const compare = (name: string, expected: any) => {
+        const current = values[name];
+        // "*" means the field only has to be filled in.
+        if (expected === "*") {
+          return current !== undefined && current !== null && current !== "";
+        }
+        return Array.isArray(expected) ? expected.includes(current) : current === expected;
+      };
+
+      // "_any" holds alternatives; matching one of them is enough.
+      const matches =
+        dependencyName === "_any" && validValue && typeof validValue === "object"
+          ? Object.entries(validValue).some(([name, expected]) => compare(name, expected))
+          : compare(dependencyName, validValue);
+
+      if (!matches) {
         return null;
       }
     }

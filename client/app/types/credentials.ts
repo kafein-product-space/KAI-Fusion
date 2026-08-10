@@ -170,7 +170,18 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       }
     ]
   },
-  {
+
+    {
+    id: 'gmail',
+    name: 'Gmail',
+    description: 'Read, send and organise mail in a Gmail account. Save the credential, then connect the account from its card.',
+    icon: 'gmail.svg',
+    category: 'Communication',
+    color: 'from-red-500 to-orange-500',
+    fields: []
+  },
+
+    {
     id: 'tavily_search',
     name: 'Tavily Search',
     description: 'Tavily AI search API for web search capabilities',
