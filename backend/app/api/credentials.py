@@ -482,6 +482,81 @@ async def _test_postgresql(secret: Dict[str, Any]) -> CredentialTestResponse:
         return CredentialTestResponse(success=False, message=str(e))
 
 
+def _build_mongodb_uri(secret: Dict[str, Any]) -> str:
+    """
+    Assemble a MongoDB connection string.Both are supported
+    because a hosted string holds more than a host and a port: the replica set,
+    the TLS setting and the read preference all travel in it.
+    """
+    if secret.get("configuration_type") == "connection_string" or (
+        secret.get("connection_string") and not secret.get("host")
+    ):
+        uri = (secret.get("connection_string") or "").strip()
+        if not uri:
+            raise ValueError("A connection string is required.")
+        return uri
+
+    host = (secret.get("host") or "").strip()
+    if not host:
+        raise ValueError("A host is required.")
+
+    port = str(secret.get("port") or "27017").strip()
+    username = (secret.get("username") or "").strip()
+    password = secret.get("password") or ""
+    auth_source = (secret.get("auth_source") or "").strip()
+
+    if username:
+        from urllib.parse import quote_plus
+
+        # A password may hold characters that would otherwise break the URI.
+        credentials = f"{quote_plus(username)}:{quote_plus(password)}@"
+    else:
+        credentials = ""
+
+    uri = f"mongodb://{credentials}{host}:{port}"
+    if auth_source:
+        uri += f"/?authSource={auth_source}"
+    return uri
+
+async def _test_mongodb(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Open a connection and ask the server for a ping."""
+    database = secret.get("database", "")
+    if not database:
+        return CredentialTestResponse(
+            success=False, message="A database name is required."
+        )
+
+    try:
+        connection_string = _build_mongodb_uri(secret)
+    except ValueError as exc:
+        return CredentialTestResponse(success=False, message=str(exc))
+
+    try:
+        from pymongo import MongoClient
+    except ImportError:
+        return CredentialTestResponse(
+            success=False,
+            message="The pymongo package is not installed on the server.",
+        )
+
+    client = None
+    try:
+        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        client.admin.command("ping")
+        collections = client[database].list_collection_names()
+        return CredentialTestResponse(
+            success=True,
+            message=f"Connected. The '{database}' database holds {len(collections)} collection(s).",
+        )
+    except Exception as exc:
+        # The message is passed on as it is, so the URI never appears in it.
+        return CredentialTestResponse(
+            success=False, message=f"Could not connect: {exc}"
+        )
+    finally:
+        if client is not None:
+            client.close()
+
 async def _test_kafka(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from confluent_kafka.admin import AdminClient
@@ -584,6 +659,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_tavily(secret)
     elif service_type == "postgresql_vectorstore":
         return await _test_postgresql(secret)
+    elif service_type == "mongodb":
+        return await _test_mongodb(secret)
     elif service_type == "kafka":
         return await _test_kafka(secret)
     elif service_type == "minio":
@@ -641,6 +718,17 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
+    # MongoDB, either by its own marker or by the connection string scheme
+    if (
+            data.get("configuration_type") in ("values", "connection_string")
+            and "database" in data
+    ) or (
+            "connection_string" in data
+            and isinstance(data.get("connection_string"), str)
+            and data.get("connection_string", "").lower().startswith("mongodb")
+    ):
+        return "mongodb"
+
     # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (
         # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)

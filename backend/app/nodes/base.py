@@ -119,6 +119,10 @@ class NodePropertyType(str, Enum):
     DATETIME = "datetime"
     CODE_EDITOR = "code-editor"
     SESSION_ID = "session-id"
+    DYNAMIC_SELECT = "dynamic-select"
+    COLUMN_MAPPER = "column-mapper"
+    DOCUMENT_EDITOR = "document-editor"
+    CONDITION_BUILDER = "condition-builder"
 
 
 class NodeProperty(BaseModel):
@@ -234,6 +238,22 @@ class NodeProperty(BaseModel):
     minLength: Optional[int] = Field(
         default=None,
         description="Minimum length of the input"
+    )
+    optionsMethod: Optional[str] = Field(
+        default=None,
+        description="Name of the method on the node that returns the option list",
+        alias="optionsMethod"
+    )
+
+    optionsDependsOn: Optional[List[str]] = Field(
+        default=None,
+        description="Fields that trigger a refetch of the option list when they change",
+        alias="optionsDependsOn"
+    )
+
+    multiple: Optional[bool] = Field(
+        default=None,
+        description="Allow more than one value to be selected"
     )
     
     colSpan: Optional[int] = Field(
@@ -639,13 +659,6 @@ class BaseNode(ABC):
         meta = getattr(self, "_metadata", {})
         return meta.get("condition")
 
-    def validate_configuration(self, **inputs) -> None:
-        """Validate this node's own settings before resolving dependencies.
-
-        Dependency-aware nodes override this hook when ordering matters.
-        """
-        return None
-
     def execute(self, *args, **kwargs) -> Runnable:
         """Main execution method.
 
@@ -798,9 +811,11 @@ class BaseNode(ABC):
                     state.node_outputs = {}
                 state.node_outputs[node_id] = standard_error_output
                 
-                # Recording an error is not a successful node result. Let the
-                # execution layer preserve ownership and publish a failed status.
-                raise
+                return {
+                    "errors": state.errors,
+                    "last_output": f"ERROR: {error_msg}",
+                    "node_outputs": state.node_outputs
+                }
         
         return graph_node_function
     
@@ -823,9 +838,7 @@ class BaseNode(ABC):
                 executed_result = result.invoke(invoke_input)
                 return executed_result
             except Exception as e:
-                raise RuntimeError(
-                    f"Runnable execution error: {str(e)}"
-                ) from e
+                return f"Runnable execution error: {str(e)}"
         
         # For other types, ensure JSON-serializable
         try:
