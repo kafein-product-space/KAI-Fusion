@@ -1,8 +1,3 @@
-export interface FieldCondition {
-  field: string;
-  values: string[];
-}
-
 export interface ServiceField {
   name: string;
   label: string;
@@ -11,10 +6,11 @@ export interface ServiceField {
   placeholder?: string;
   default?: any;
   options?: { value: string; label: string }[];
-  showEmptyOption?: boolean;
-  helpText?: string;
   description?: string;
-  dependsOn?: FieldCondition | FieldCondition[];
+  dependsOn?: {
+    field: string;
+    values: string[];
+  };
   validation?: {
     minLength?: number;
     maxLength?: number;
@@ -205,7 +201,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     fields: [
       {
         name: 'authentication', label: 'Authentication', type: 'select', required: true,
-        default: 'oauth2', showEmptyOption: false,
+        default: 'oauth2',
         options: [
           { value: 'oauth2', label: 'OAuth2 (recommended)' },
           { value: 'service_account', label: 'Service Account' }
@@ -218,7 +214,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       { name: 'private_key', label: 'Private Key', type: 'textarea', required: true, placeholder: '-----BEGIN PRIVATE KEY-----', dependsOn: { field: 'authentication', values: ['service_account'] } },
       { name: 'delegated_user', label: 'Delegated User', type: 'text', required: false, placeholder: 'user@example.com', dependsOn: { field: 'authentication', values: ['service_account'] }, description: 'Optional Google Workspace user for domain-wide delegation' },
       { name: 'custom_scopes', label: 'Custom Scopes', type: 'checkbox', required: false, default: false, description: 'Define custom scopes instead of the default Google scopes' },
-      { name: 'enabled_scopes', label: 'Enabled Scopes', type: 'text', required: false, default: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata', dependsOn: { field: 'custom_scopes', values: ['true'] }, description: 'Space-separated OAuth scopes' }
+      { name: 'enabled_scopes', label: 'Enabled Scopes', type: 'text', required: false, default: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.metadata', description: 'Space-separated OAuth scopes; used when Custom Scopes is enabled' }
     ]
   },
   {
