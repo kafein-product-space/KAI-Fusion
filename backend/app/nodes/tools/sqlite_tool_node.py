@@ -286,45 +286,45 @@ class SQLiteToolNode(ProviderNode):
                     tabName="basic",
                 ),
                 NodeProperty(
-                    name="allowed_tables", displayName="Allowed Tables", type=NodePropertyType.TEXT,
-                    placeholder="customers, orders", required=False,
-                    description="Optional allowlist. Leave empty to allow all tables in the database file.",
-                    tabName="basic",
-                ),
-                NodeProperty(
-                    name="return_all_rows", displayName="Return All Rows", type=NodePropertyType.CHECKBOX,
-                    default=False, required=False, description="Ignore the row limit up to a hard safety ceiling.",
-                    tabName="basic",
-                ),
-                NodeProperty(
-                    name="max_rows", displayName="Maximum Rows", type=NodePropertyType.NUMBER,
-                    default=200, min=1, max=5000, required=False,
-                    description="Maximum rows placed in the Agent context.",
-                    tabName="basic",
-                ),
-                NodeProperty(
                     name="permissions_title", displayName="Permissions", type=NodePropertyType.TITLE,
                     description="What the agent is allowed to do with the database.",
                     required=True, tabName="basic",
                 ),
                 NodeProperty(
+                    name="allowed_tables", displayName="Allowed Tables", type=NodePropertyType.TEXT,
+                    placeholder="customers, orders", required=True,
+                    description="Optional allowlist. Leave empty to allow all tables in the database file.",
+                    tabName="basic",
+                ),
+                NodeProperty(
+                    name="return_all_rows", displayName="Return All Rows", type=NodePropertyType.CHECKBOX,
+                    default=False, required=True, description="Ignore the row limit up to a hard safety ceiling.",
+                    tabName="basic",
+                ),
+                NodeProperty(
+                    name="max_rows", displayName="Maximum Rows", type=NodePropertyType.NUMBER,
+                    default=200, min=1, max=5000, required=True,
+                    description="Maximum rows placed in the Agent context.",
+                    tabName="basic",
+                ),
+                NodeProperty(
                     name="allow_read", displayName="Allow Read", type=NodePropertyType.CHECKBOX,
-                    default=True, required=False, description="Allow SELECT and EXPLAIN statements.",
+                    default=True, required=True, description="Allow SELECT and EXPLAIN statements.",
                     tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_insert", displayName="Allow Insert", type=NodePropertyType.CHECKBOX,
-                    default=False, required=False, description="Allow INSERT statements.",
+                    default=False, required=True, description="Allow INSERT statements.",
                     tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_update", displayName="Allow Update", type=NodePropertyType.CHECKBOX,
-                    default=False, required=False, description="Allow UPDATE statements.",
+                    default=False, required=True, description="Allow UPDATE statements.",
                     tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_delete", displayName="Allow Delete", type=NodePropertyType.CHECKBOX,
-                    default=False, required=False, description="Allow DELETE statements and REPLACE when Insert is also allowed.",
+                    default=False, required=True, description="Allow DELETE statements and REPLACE when Insert is also allowed.",
                     tabName="basic",
                 ),
                 NodeProperty(
