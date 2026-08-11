@@ -6,7 +6,6 @@ export interface ServiceField {
   placeholder?: string;
   default?: any;
   options?: { value: string; label: string }[];
-  helpText?: string;
   description?: string;
   dependsOn?: {
     field: string;
@@ -203,7 +202,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
       { name: 'database_path', label: 'Database Path', type: 'text', required: true, placeholder: '/data/app.sqlite', description: 'Absolute path to the SQLite database file on the backend host' },
       { name: 'timeout_ms', label: 'Connection Timeout (ms)', type: 'text', required: false, default: '30000', description: 'How long SQLite waits for a locked database before failing' },
       { name: 'read_only', label: 'Read Only', type: 'checkbox', required: false, default: false, description: 'Open the file in read-only mode as an additional database-level guard' },
-      { name: 'create_if_missing', label: 'Create if Missing', type: 'checkbox', required: false, default: false, dependsOn: { field: 'read_only', values: ['false'] }, description: 'Create the database file and parent directories when they do not exist' }
+      { name: 'create_if_missing', label: 'Create if Missing', type: 'checkbox', required: false, default: false, description: 'Create the database file and parent directories when they do not exist; ignored when Read Only is enabled' }
     ]
   },
   {
