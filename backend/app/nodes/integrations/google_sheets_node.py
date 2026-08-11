@@ -345,20 +345,20 @@ class GoogleSheetsNode(ProcessorNode):
                          displayOptions=show("delete_rows_columns"), required=True),
             NodeProperty(name="range", displayName="Data Range", type=NodePropertyType.TEXT,
                          description="Optional A1 range used for reading and row mapping.", placeholder="A:Z",
-                         tabName="options", required=False),
+                         tabName="advanced", required=False),
             NodeProperty(name="value_input_mode", displayName="Value Input Mode", type=NodePropertyType.SELECT,
                          description="USER_ENTERED parses values as if typed in Sheets; RAW stores them unchanged.",
                          default="USER_ENTERED", options=[
                              {"label": "User Entered", "value": "USER_ENTERED"},
                              {"label": "Raw", "value": "RAW"},
-                         ], tabName="options", required=False),
+                         ], tabName="advanced", required=False),
             NodeProperty(name="value_render_mode", displayName="Value Render Mode", type=NodePropertyType.SELECT,
                          description="How values are represented when rows are read.", default="UNFORMATTED_VALUE",
                          options=[
                              {"label": "Unformatted Value", "value": "UNFORMATTED_VALUE"},
                              {"label": "Formatted Value", "value": "FORMATTED_VALUE"},
                              {"label": "Formula", "value": "FORMULA"},
-                         ], tabName="options", required=False),
+                         ], tabName="advanced", required=False),
         ]
 
     def get_required_packages(self) -> List[str]:
