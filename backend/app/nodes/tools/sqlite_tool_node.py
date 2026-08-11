@@ -9,20 +9,22 @@ from typing import Any, Dict, List, Mapping
 from langchain_core.tools import Tool
 
 from ..base import NodeInput, NodeOutput, NodePosition, NodeProperty, NodePropertyType, NodeType, ProviderNode
-from .sqlite_common import (
+from ..databases.sqlite_node import (
     _allowed_commands,
     _as_bool,
     _case_insensitive_predicates,
+    _database_path,
     _flatten_node_configuration,
     _mask_sqlite_strings,
     _normalized_allowed_tables,
     _referenced_tables,
     _requires_where_clause,
+    _sqlite_credential_secret,
     _statement_command,
     _strip_code_fence,
     _validate_single_statement,
+    sqlite_connection,
 )
-from .sqlite_node import _database_path, _sqlite_credential_secret, sqlite_connection
 
 
 class SQLiteToolNode(ProviderNode):
@@ -65,45 +67,58 @@ class SQLiteToolNode(ProviderNode):
                 NodeProperty(
                     name="credential_id", displayName="Credential", type=NodePropertyType.CREDENTIAL_SELECT,
                     serviceType="sqlite", required=True, description="SQLite credential used only by this tool.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="allowed_tables", displayName="Allowed Tables", type=NodePropertyType.TEXT,
                     placeholder="customers, orders", required=False,
                     description="Optional allowlist. Leave empty to allow all tables in the database file.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="return_all_rows", displayName="Return All Rows", type=NodePropertyType.CHECKBOX,
                     default=False, required=False, description="Ignore the row limit up to a hard safety ceiling.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="max_rows", displayName="Maximum Rows", type=NodePropertyType.NUMBER,
                     default=200, min=1, max=5000, required=False,
                     description="Maximum rows placed in the Agent context.",
+                    tabName="basic",
+                ),
+                NodeProperty(
+                    name="permissions_title", displayName="Permissions", type=NodePropertyType.TITLE,
+                    description="What the agent is allowed to do with the database.",
+                    required=True, tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_read", displayName="Allow Read", type=NodePropertyType.CHECKBOX,
                     default=True, required=False, description="Allow SELECT and EXPLAIN statements.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_insert", displayName="Allow Insert", type=NodePropertyType.CHECKBOX,
                     default=False, required=False, description="Allow INSERT statements.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_update", displayName="Allow Update", type=NodePropertyType.CHECKBOX,
                     default=False, required=False, description="Allow UPDATE statements.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="allow_delete", displayName="Allow Delete", type=NodePropertyType.CHECKBOX,
                     default=False, required=False, description="Allow DELETE statements and REPLACE when Insert is also allowed.",
+                    tabName="basic",
                 ),
                 NodeProperty(
                     name="tool_name", displayName="Tool Name", type=NodePropertyType.TEXT,
-                    default="sqlite_database", required=False, tabName="options",
+                    default="sqlite_database", required=False, tabName="advanced",
                     description="Stable name exposed to the Agent.",
                 ),
                 NodeProperty(
                     name="connection_timeout_ms", displayName="Connection Timeout (ms)", type=NodePropertyType.NUMBER,
-                    default=30000, min=1000, max=300000, required=False, tabName="options",
+                    default=30000, min=1000, max=300000, required=False, tabName="advanced",
                 ),
             ],
         }
