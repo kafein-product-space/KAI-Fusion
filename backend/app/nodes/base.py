@@ -108,6 +108,7 @@ class NodePropertyType(str, Enum):
     TEXT_AREA = "textarea"
     SELECT = "select"
     CREDENTIAL_SELECT = "credential-select"
+    MODEL_SELECT = "model-select"
     TEXT = "text"
     READONLY_TEXT = "readonly-text"
     NUMBER = "number"
@@ -157,7 +158,7 @@ class NodeProperty(BaseModel):
     
     type: NodePropertyType = Field(
         ...,
-        description="Node type (textarea, select, credential-select, text, number, password, checkbox, title, range, json-editor, datetime)"
+        description="Node type (textarea, select, credential-select, model-select, text, number, password, checkbox, title, range, json-editor, datetime)"
     )
     
     default: Optional[Any] = Field(

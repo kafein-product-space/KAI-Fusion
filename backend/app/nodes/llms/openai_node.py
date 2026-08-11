@@ -376,16 +376,22 @@ class OpenAINode(BaseNode):
                 NodeProperty(
                     name="model_name",
                     displayName="Model",
-                    type=NodePropertyType.SELECT,
+                    type=NodePropertyType.MODEL_SELECT,
                     default="gpt-4o",
+                    placeholder="Select or type a model",
                     options=[
+                        {"label": "o3-mini", "value": "o3-mini"},
+                        {"label": "o3", "value": "o3"},
                         {"label": "GPT-4o", "value": "gpt-4o"},
                         {"label": "GPT-4o Mini", "value": "gpt-4o-mini"},
+                        {"label": "GPT-4.1 Nano", "value": "gpt-4.1-nano"},
                         {"label": "GPT-4 Turbo", "value": "gpt-4-turbo"},
+                        {"label": "GPT-4 Turbo Preview", "value": "gpt-4-turbo-preview"},
                         {"label": "GPT-4", "value": "gpt-4"},
                         {"label": "GPT-4 32K", "value": "gpt-4-32k"},
                     ],
-                    required=True
+                    required=True,
+                    hint="Models are loaded from the selected OpenAI credential. You can also type a custom model name.",
                 ),
                 NodeProperty(
                     name="temperature",

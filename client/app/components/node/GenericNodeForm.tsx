@@ -8,6 +8,7 @@ import {
   NodeNumber,
   NodePassword,
   NodeSelect,
+  NodeModelSelect,
   NodeCheckbox,
   NodeTitle,
   NodeRange,
@@ -256,6 +257,8 @@ export default function GenericNodeForm({
                     );
                   case "select":
                     return <NodeSelect property={fullWidthProperty} values={values} />;
+                  case "model-select":
+                    return <NodeModelSelect property={fullWidthProperty} values={values} />;
                   case "credential-select":
                     return (
                       <NodeCredentialSelect

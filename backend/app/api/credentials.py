@@ -355,6 +355,169 @@ class CredentialTestRawRequest(BaseModel):
     data: Dict[str, Any]
 
 
+class CredentialModelOption(BaseModel):
+    id: str
+    owned_by: Optional[str] = None
+
+
+class CredentialModelsResponse(BaseModel):
+    models: List[CredentialModelOption]
+    source: str  # "provider" | "fallback"
+    message: Optional[str] = None
+
+
+# Static fallback when OpenAI /models cannot be reached
+OPENAI_FALLBACK_MODELS = [
+    "o3-mini",
+    "o3",
+    "gpt-4o",
+    "gpt-4o-mini",
+    "gpt-4.1-nano",
+    "gpt-4-turbo",
+    "gpt-4-turbo-preview",
+    "gpt-4",
+    "gpt-4-32k",
+]
+
+_OPENAI_NON_CHAT_PREFIXES = (
+    "whisper",
+    "dall-e",
+    "tts-",
+    "text-embedding",
+    "davinci",
+    "babbage",
+    "curie",
+    "ada",
+    "omni-moderation",
+    "gpt-image",
+    "chatgpt-image",
+)
+
+
+def _is_openai_chat_model(model_id: str) -> bool:
+    lower = model_id.lower()
+    return not any(lower.startswith(prefix) for prefix in _OPENAI_NON_CHAT_PREFIXES)
+
+
+def _build_openai_client(secret: Dict[str, Any], *, compatible: bool = False):
+    from openai import AsyncOpenAI
+
+    api_key = secret.get("api_key", "")
+    if not api_key:
+        api_key = "dummy_for_local"
+
+    client_kwargs: Dict[str, Any] = {"api_key": api_key}
+
+    if compatible:
+        base_url = secret.get("base_url", "")
+        if base_url:
+            client_kwargs["base_url"] = base_url
+
+        skip_ssl = secret.get("skip_ssl_verify", False)
+        if isinstance(skip_ssl, str):
+            skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
+        if skip_ssl:
+            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
+
+    return AsyncOpenAI(**client_kwargs)
+
+
+async def _list_models_from_provider(
+    secret: Dict[str, Any],
+    *,
+    compatible: bool = False,
+    filter_chat: bool = False,
+) -> List[CredentialModelOption]:
+    client = _build_openai_client(secret, compatible=compatible)
+    response = await asyncio.wait_for(client.models.list(), timeout=15)
+    models: List[CredentialModelOption] = []
+    for item in getattr(response, "data", []) or []:
+        model_id = getattr(item, "id", None)
+        if not model_id:
+            continue
+        if filter_chat and not _is_openai_chat_model(model_id):
+            continue
+        models.append(
+            CredentialModelOption(
+                id=model_id,
+                owned_by=getattr(item, "owned_by", None),
+            )
+        )
+    models.sort(key=lambda m: m.id.lower())
+    return models
+
+
+@router.get("/{credential_id}/models", response_model=CredentialModelsResponse)
+async def list_credential_models(
+    credential_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    List available LLM models for a credential by querying the provider's /models API.
+    Falls back to a static OpenAI catalog when the provider cannot be reached.
+    """
+    user_id = current_user.id
+    decrypted = await credential_service.get_decrypted_credential(db, user_id, credential_id)
+    if not decrypted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+
+    service_type: str = decrypted.get("service_type", "")
+    secret: Dict[str, Any] = decrypted.get("secret", {}) or {}
+
+    if service_type not in ("openai", "openai_compatible"):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Model listing is not supported for service type: {service_type}",
+        )
+
+    try:
+        models = await _list_models_from_provider(
+            secret,
+            compatible=(service_type == "openai_compatible"),
+            filter_chat=(service_type == "openai"),
+        )
+        if models:
+            return CredentialModelsResponse(models=models, source="provider")
+        if service_type == "openai":
+            return CredentialModelsResponse(
+                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
+                source="fallback",
+                message="Provider returned no models; showing built-in OpenAI catalog.",
+            )
+        return CredentialModelsResponse(
+            models=[],
+            source="provider",
+            message="Provider returned no models. You can type a model name manually.",
+        )
+    except asyncio.TimeoutError:
+        if service_type == "openai":
+            return CredentialModelsResponse(
+                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
+                source="fallback",
+                message="Connection timed out; showing built-in OpenAI catalog.",
+            )
+        return CredentialModelsResponse(
+            models=[],
+            source="fallback",
+            message="Connection timed out. You can type a model name manually.",
+        )
+    except Exception as e:
+        logger.warning(f"Failed to list models for credential {credential_id}: {e}")
+        if service_type == "openai":
+            return CredentialModelsResponse(
+                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
+                source="fallback",
+                message=f"Could not fetch models from provider ({e}). Showing built-in catalog.",
+            )
+        return CredentialModelsResponse(
+            models=[],
+            source="fallback",
+            message=f"Could not fetch models from provider ({e}). You can type a model name manually.",
+        )
+
+
 async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
         from openai import AsyncOpenAI
