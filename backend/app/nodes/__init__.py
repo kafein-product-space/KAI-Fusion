@@ -22,6 +22,7 @@ from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
 from .tools.retriever import RetrieverProvider
 from .tools.markitdown_tool import MarkItDownToolNode
+from .tools.postgres_tool import PostgresToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -32,6 +33,9 @@ from .splitters.chunk_splitter import ChunkSplitterNode
 
 # Vector Stores
 from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
+
+# Database Nodes
+from .databases.postgres_node import PostgresNode
 
 # Default Nodes
 from .default.start_node import StartNode
@@ -87,7 +91,7 @@ __all__ = [
     "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode","PostgresToolNode",
     
     # Document Loaders
     "WebScraperNode", "DocumentLoaderNode",
@@ -97,6 +101,9 @@ __all__ = [
     
     # Vector Stores
     "VectorStoreOrchestrator",
+
+    # Databases
+    "PostgresNode",
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode", "ErrorTriggerNode",
