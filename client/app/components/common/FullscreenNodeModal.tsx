@@ -652,9 +652,12 @@ export default function FullscreenNodeModal({
     nodeAliasRef.current = alias;
     setNodeAlias(alias);
     setNodeAliasError(validateNodeAlias(alias));
-    // Sync workflow state into the form after undo/redo or when configData changes externally (e.g., import).
+    // Live form edits are written back to the canvas through onConfigChange. Do not
+    // feed those canvas echoes into Formik's initialValues: enableReinitialize would
+    // otherwise replace a newer keystroke with an older debounced value. Explicit
+    // workflow revisions (undo/redo/import) still reinitialize the form below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [historyRevision, configData]);
+  }, [historyRevision]);
 
   useEffect(() => {
     if (prevHistoryRevisionRef.current === historyRevision) return;

@@ -2327,6 +2327,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         onImportStart={() => { isImportingRef.current = true; loadedWorkflowIdRef.current = null; }}
         onWorkflowImported={(importedNodes, importedEdges) => {
           resetHistory(importedNodes, importedEdges);
+          setHistoryRevision((revision) => revision + 1);
         }}
         onUndo={handleUndo}
         onRedo={handleRedo}
