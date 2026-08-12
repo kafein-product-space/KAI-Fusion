@@ -1688,7 +1688,7 @@ def cleanup_webhook_events(max_age_hours: int = 24) -> int:
         ]
         cleaned_count += original_count - len(webhook_events[webhook_id])
     
-    logger.info(f"🧹 Cleaned up {cleaned_count} old webhook events")
+    logger.info(f"Cleaned up {cleaned_count} old webhook events")
     return cleaned_count
 
 

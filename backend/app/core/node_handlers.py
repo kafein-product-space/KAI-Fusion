@@ -107,7 +107,7 @@ class MemoryNodeHandler(NodeExecutionHandler):
         try:
             # Set session_id on memory nodes before execution
             source_node_instance.session_id = state.session_id
-            print(f"[DEBUG] Set session_id on memory node {node_id}: {state.session_id}")
+            logger.debug("Set session_id on memory node %s", node_id)
             
             # Inject user_id if supported
             self._inject_user_context(source_node_instance, state, node_id)
