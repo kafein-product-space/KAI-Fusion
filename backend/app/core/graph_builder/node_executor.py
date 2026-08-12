@@ -479,7 +479,7 @@ class NodeExecutor:
                         user_inputs[prop.name] = gnode.user_data[prop.name]
                         logger.debug(f"Found property {prop.name} in user_data")
 
-        logger.debug(f"Processor {gnode.id} resolved user_inputs: {user_inputs}")
+        logger.debug("Processor %s resolved user inputs: %s", gnode.id, list(user_inputs.keys()))
         return user_inputs
     
     # Note: Redundant helper methods _normalize_display_name_for_template, _get_primary_output_for_node,
@@ -608,9 +608,9 @@ class NodeExecutor:
                 elif not isinstance(runnable_input, dict):
                     runnable_input = {"input": str(runnable_input)}
                 
-                logger.debug(f"Executing Runnable for {node_id} with input: {runnable_input}")
+                logger.debug("Executing Runnable for %s (input_type=%s)", node_id, type(runnable_input).__name__)
                 executed_result = result.invoke(runnable_input)
-                logger.debug(f"Runnable execution result: {executed_result}")
+                logger.debug("Runnable execution completed for %s (result_type=%s)", node_id, type(executed_result).__name__)
                 return executed_result
             except Exception as e:
                 # Enhanced error logging for debugging connection format issues
@@ -1062,4 +1062,4 @@ class NodeExecutor:
         if hasattr(self.connection_extractor, 'set_nodes_registry'):
             self.connection_extractor.set_nodes_registry(nodes_registry)
             
-        logger.debug(f"🔧 NodeExecutor: nodes_registry set with {len(nodes_registry)} nodes")
+        logger.debug(f"NodeExecutor: nodes_registry set with {len(nodes_registry)} nodes")

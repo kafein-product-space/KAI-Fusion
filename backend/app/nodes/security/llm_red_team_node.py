@@ -350,7 +350,11 @@ class LLMRedTeamNode(ProcessorNode):
                 logger.warning(f"LLMRedTeam: target_callback error — {type(e).__name__}: {e}")
                 content = f"[ERROR] {e}"
 
-            logger.info(f"LLMRedTeam: callback prompt[:80]='{input[:80]}' → response[:80]='{content[:80]}'")
+            logger.debug(
+                "LLMRedTeam callback completed (prompt_length=%s, response_length=%s)",
+                len(input),
+                len(content),
+            )
             return RTTurn(role="assistant", content=content)
 
         # ── Wrap canvas LangChain LLMs → DeepEvalBaseLLM ──

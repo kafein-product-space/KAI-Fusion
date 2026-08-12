@@ -19,6 +19,21 @@ from langchain_core.callbacks import BaseCallbackHandler
 
 logger = logging.getLogger(__name__)
 
+
+def _agent_log(*values, sep=" ", **_kwargs):
+    """Route legacy agent diagnostics through the configured logger."""
+    message = sep.join(str(value) for value in values)
+    if "ERROR]" in message:
+        logger.error(message)
+    elif "[WARNING]" in message or "Warning:" in message:
+        logger.warning(message)
+    else:
+        logger.debug(message)
+
+
+# Keep the existing call sites small while making LOG_LEVEL/presets effective.
+print = _agent_log
+
 # ================================================================================
 # DEBUG CALLBACK HANDLER (Console step-by-step traces for LLM and Tool calls)
 # ================================================================================
@@ -109,10 +124,8 @@ class AgentDebugCallback(BaseCallbackHandler):
             name = self._safe_name(serialized)
             count = len(prompts) if hasattr(prompts, "__len__") else "unknown"
             print(f"[TRACE][LLM.START] {name} prompts={count}")
-            for i, p in enumerate(prompts or [], 1):
-                p_str = str(p)
-                snippet = p_str[:500].replace("\n", " ")
-                print(f"[TRACE][LLM.PROMPT {i}] {snippet}")
+            for i, prompt in enumerate(prompts or [], 1):
+                print(f"[TRACE][LLM.PROMPT {i}] length={len(str(prompt))}")
         except Exception as e:
             print(f"[TRACE][LLM.START] error={e}")
 
@@ -127,7 +140,7 @@ class AgentDebugCallback(BaseCallbackHandler):
         try:
             gens = getattr(response, "generations", None)
             text = gens[0][0].text if gens and gens[0] and gens[0][0] else ""
-            print(f"[TRACE][LLM.END] text_snippet={text[:300].replace(chr(10), ' ')}")
+            print(f"[TRACE][LLM.END] text_length={len(text)}")
             llm_output = getattr(response, "llm_output", None)
             usage = llm_output.get("token_usage") if isinstance(llm_output, dict) else None
             if usage:
@@ -159,7 +172,7 @@ class AgentDebugCallback(BaseCallbackHandler):
         """
         try:
             name = self._safe_name(serialized)
-            print(f"[TRACE][TOOL.START] {name} args={input_str}")
+            print(f"[TRACE][TOOL.START] {name} input_length={len(str(input_str))}")
         except Exception as e:
             print(f"[TRACE][TOOL.START] error={e}")
 
@@ -172,8 +185,7 @@ class AgentDebugCallback(BaseCallbackHandler):
             **kwargs: Additional keyword arguments.
         """
         try:
-            out_snippet = str(output)[:300].replace("\n", " ")
-            print(f"[TRACE][TOOL.END] output={out_snippet}")
+            print(f"[TRACE][TOOL.END] output_type={type(output).__name__} output_length={len(str(output))}")
         except Exception as e:
             print(f"[TRACE][TOOL.END] error={e}")
 
@@ -197,7 +209,7 @@ class AgentDebugCallback(BaseCallbackHandler):
 # ================================================================================
 
 # ================================================================================
-# REACTAGENT NODE - THE ORCHESTRATION BRAIN OF KAI-FUSION
+# REACTAGENT NODE - THE ORCHESTRATION BRAIN OF KAI FLOW
 # ================================================================================
 
 class ReactAgentNode(ProcessorNode):
@@ -555,7 +567,7 @@ class ReactAgentNode(ProcessorNode):
         # Use the templated/custom value if it's static (no variables) OR if the variables were successfully resolved
         if templated_user_prompt and raw_template:
             if (not has_variables) or (templated_user_prompt != raw_template and "${{" not in templated_user_prompt):
-                print(f"[TEMPLATE] ReactAgent using user_prompt_template: '{templated_user_prompt[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using user_prompt_template length={len(templated_user_prompt)}")
                 return templated_user_prompt
 
         # STARTNODE MODE or FALLBACK: Use the connected 'input' field
@@ -563,19 +575,19 @@ class ReactAgentNode(ProcessorNode):
         if isinstance(templated_inputs, dict) and "input" in templated_inputs:
             templated_input = templated_inputs["input"]
             if isinstance(templated_input, str) and templated_input.strip():
-                print(f"[TEMPLATE] ReactAgent using connected input (StartNode mode): '{templated_input[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using connected input length={len(templated_input)}")
                 return templated_input
 
         # Priority 2: runtime_inputs string
         if isinstance(runtime_inputs, str) and runtime_inputs.strip():
-            print(f"[TEMPLATE] ReactAgent using runtime input: '{runtime_inputs[:50]}...'")
+            print(f"[TEMPLATE] ReactAgent using runtime input length={len(runtime_inputs)}")
             return runtime_inputs
 
         # Priority 3: runtime_inputs dict
         if isinstance(runtime_inputs, dict):
             runtime_input = runtime_inputs.get("input", "")
             if runtime_input and isinstance(runtime_input, str):
-                print(f"[TEMPLATE] ReactAgent using runtime dict input: '{runtime_input[:50]}...'")
+                print(f"[TEMPLATE] ReactAgent using runtime dict input length={len(runtime_input)}")
                 return runtime_input
 
         # Fallback: empty string (should not happen in normal flow)
@@ -630,7 +642,7 @@ class ReactAgentNode(ProcessorNode):
         # - For Chat mode: the templated user_prompt_template (e.g., "bana baklava tarifi")
         # - For StartNode mode: the connected input value
         if user_input and user_input.strip():
-            print(f"[AGENT] Adding HumanMessage: '{user_input[:50]}...'")
+            print(f"[AGENT] Adding HumanMessage length={len(user_input)}")
             messages.append(HumanMessage(content=user_input))
         else:
             print(f"[AGENT] Warning: No user input to add as HumanMessage")
@@ -715,7 +727,7 @@ class ReactAgentNode(ProcessorNode):
             if 'messages' in result and result['messages']:
                 last_ai_message = result['messages'][-1]
                 output_content = last_ai_message.content if hasattr(last_ai_message, 'content') else str(last_ai_message)
-                print(f"[AGENT OUTPUT] {output_content}")
+                print(f"[AGENT OUTPUT] type={type(output_content).__name__} length={len(str(output_content))}")
                 # Debug: Check memory after execution and save to database
                 if memory:
                     try:
@@ -743,7 +755,7 @@ class ReactAgentNode(ProcessorNode):
                 return {"output": output_content}
             else:
                 fallback_output = str(result)
-                print(f"[AGENT OUTPUT] {fallback_output}")
+                print(f"[AGENT OUTPUT] type={type(fallback_output).__name__} length={len(str(fallback_output))}")
                 return {"output": fallback_output}
 
         except UnicodeEncodeError as unicode_error:
@@ -863,7 +875,7 @@ class ReactAgentNode(ProcessorNode):
             return "".join(result)
 
         custom_instructions = escape_braces(custom_instructions)
-        header = "You are an agent running inside KAI-Fusion."
+        header = "You are an agent running inside KAI Flow."
         tool_rule = (
             "Use tools when needed. If no tools are available, answer directly."
             if has_tools

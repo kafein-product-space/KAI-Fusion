@@ -1,7 +1,7 @@
 
 def get_kafka_config(credential_data: dict) -> dict:
     """
-    Maps KAI-Fusion credential data to confluent-kafka configuration.
+    Maps KAI Flow credential data to confluent-kafka configuration.
     """
     config = {
         "bootstrap.servers": (
@@ -10,7 +10,7 @@ def get_kafka_config(credential_data: dict) -> dict:
             or credential_data.get("brokers")
         ),
         "security.protocol": credential_data.get("security_protocol", "PLAINTEXT"),
-        "client.id": credential_data.get("client_id", "kai-fusion-node"),
+        "client.id": credential_data.get("client_id", "kai-flow-node"),
     }
     
     # SASL Settings

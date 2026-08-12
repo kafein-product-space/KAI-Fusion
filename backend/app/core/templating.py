@@ -416,11 +416,17 @@ def apply_jinja_to_inputs(
         except Exception:
             pass
 
-        # Print before and after for terminal visualization if there's any Jinja template in inputs
+        # Show the complete values before and after Jinja rendering. Keep this at
+        # DEBUG so normal production logging can omit potentially large inputs.
         if has_jinja:
-            print(f"\n[JINJA TEMPLATING] Node: {node_id}")
-            print(f"   BEFORE: {inputs}")
-            print(f"   AFTER : {rendered_inputs}\n")
+            logger.debug(
+                "\n[JINJA TEMPLATING] Node: %s\n"
+                "   BEFORE: %s\n"
+                "   AFTER : %s",
+                node_id,
+                inputs,
+                rendered_inputs,
+            )
             
         return rendered_inputs
         
