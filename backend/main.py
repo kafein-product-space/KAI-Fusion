@@ -1,12 +1,20 @@
 from dotenv import load_dotenv, find_dotenv
+import os
 
 load_dotenv(find_dotenv())
+
+# A single existing logging preset can be used for customer deployments that
+# must not emit application logs or external LangChain traces.
+if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    os.environ["LANGCHAIN_TRACING_V2"] = "false"
+    os.environ["ENABLE_WORKFLOW_TRACING"] = "false"
+    os.environ["TRACE_AGENT_REASONING"] = "false"
+    os.environ["TRACE_MEMORY_OPERATIONS"] = "false"
 
 import asyncio
 import logging
 from datetime import datetime, timezone
 from app.core.enhanced_logging import auto_configure_enhanced_logging
-import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, status, Body, Depends
 from fastapi.middleware.cors import CORSMiddleware
@@ -57,13 +65,18 @@ from app.api.logs import router as logs_router
 
 logger = logging.getLogger(__name__)
 
+# Suppress import/startup logs as well when the existing logging preset is
+# explicitly disabled. The normal handler setup still happens in lifespan.
+if os.getenv("KAI_FLOW_LOGGING_PRESET", "").strip().lower() == "disabled":
+    logging.disable(logging.CRITICAL)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize enhanced logging system first
     auto_configure_enhanced_logging()
     
-    logger.info("Starting Agent-Flow V2 Backend...")
+    logger.info("Starting KAI Flow Backend...")
     
     # Initialize node registry
     try:
@@ -141,8 +154,8 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title="Agent-Flow V2",
-    description="Advanced workflow automation platform with LangGraph engine",
+    title="KAI Flow",
+    description="KAI Flow workflow automation platform with LangGraph engine",
     version="2.0.0",
     docs_url="/docs",
     redoc_url="/redoc",
@@ -317,7 +330,7 @@ async def health_check_api():
 async def get_info():
     try:
         return {
-            "name": "Agent-Flow V2",
+            "name": "KAI Flow",
             "version": "2.0.0",
             "description": "Advanced workflow automation platform",
             "features": [
@@ -373,8 +386,8 @@ async def get_info_v1():
 async def root():
     return {
         "status": "healthy",
-        "app": "Agent-Flow V2",
-        "message": "Agent-Flow V2 API",
+        "app": "KAI Flow",
+        "message": "KAI Flow API",
         "version": "2.0.0",
         "docs": "/docs",
         "health": f"/{API_START}/health",

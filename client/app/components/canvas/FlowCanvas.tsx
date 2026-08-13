@@ -1021,7 +1021,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   // Listen for chat execution errors and display them
   useEffect(() => {
     const handleChatExecutionError = (event: CustomEvent) => {
-      console.error("❌ Chat execution error received:", event.detail);
+      console.error("Chat execution error received:", event.detail);
 
       const errorDetails = {
         message: event.detail.error || event.detail.message || "Chat execution failed",

@@ -52,7 +52,7 @@ class EnhancedWorkflowTracer:
                 "user_id": self.user_id,
                 "node_count": node_count,
                 "edge_count": connection_count,
-                "platform": "kai-fusion",
+                "platform": "kai-flow",
                 "version": "2.1.0"
             }
             
@@ -143,7 +143,7 @@ class EnhancedWorkflowTracer:
                 from app.core.constants import LANGCHAIN_API_KEY, LANGCHAIN_PROJECT
                 if LANGCHAIN_API_KEY:
                     tracer = LangChainTracer(
-                        project_name=LANGCHAIN_PROJECT or "kai-fusion",
+                        project_name=LANGCHAIN_PROJECT or "kai-flow",
                         session_id=self.session_id
                     )
                     return CallbackManager([tracer])
