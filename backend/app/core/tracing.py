@@ -232,7 +232,7 @@ class DistributedTracer:
     """Enhanced distributed tracer with correlation IDs and span tracking."""
     
     def __init__(self, 
-                 service_name: str = "kai-fusion",
+                 service_name: str = "kai-flow",
                  sampling_strategy: SamplingStrategy = SamplingStrategy.ALWAYS,
                  **sampling_config):
         self.service_name = service_name
@@ -477,7 +477,7 @@ class WorkflowTracer:
             user_id=self.user_id,
             node_count=node_count,
             edge_count=connection_count,
-            platform="kai-fusion",
+            platform="kai-flow",
             version="2.1.0"
         )
         
@@ -923,7 +923,7 @@ class WorkflowTracer:
                 if LANGCHAIN_API_KEY:
                     # Create tracer with correlation ID
                     tracer = LangChainTracer(
-                        project_name=LANGCHAIN_PROJECT or "kai-fusion",
+                        project_name=LANGCHAIN_PROJECT or "kai-flow",
                         session_id=self.session_id or "default"
                     )
                     
@@ -932,7 +932,7 @@ class WorkflowTracer:
                         tracer.tags = {
                             "correlation_id": self.trace_context.correlation_id,
                             "trace_id": self.trace_context.trace_id,
-                            "kai_fusion_enhanced": True
+                            "kai_flow_enhanced": True
                         }
                     
                     return CallbackManager([tracer])

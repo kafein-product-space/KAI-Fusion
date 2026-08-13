@@ -215,7 +215,7 @@ def create_clean_node_file(node_source: str, node_type: str) -> str:
     
     # Simple header
     header = f'''# -*- coding: utf-8 -*-
-"""{node_type} Node - Extracted from KAI-Fusion"""
+"""{node_type} Node - Extracted from KAI Flow"""
 
 from nodes import BaseNode, ProviderNode, ProcessorNode, TerminatorNode, NodeType, NodeInput, NodeOutput
 from typing import Dict, Any, Optional, List
@@ -740,7 +740,7 @@ def _register_discovered_items():
         logger.debug(f"Registered classes: {_available_classes}")
         
     except Exception as e:
-        logger.warning(f"⚠️  Registration failed: {e}")
+        logger.warning(f"Registration failed: {e}")
 
 # Register discovered items
 _register_discovered_items()

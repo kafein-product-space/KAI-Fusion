@@ -525,7 +525,11 @@ class RetrieverProvider(ProviderNode):
         def retriever_search(query: str) -> str:
             """Search function that the agent will call."""
             try:
-                logger.info(f"[SEARCH] Agent searching '{collection_name}' for: {query}")
+                logger.debug(
+                    "Retriever search started (collection=%s, query_length=%s)",
+                    collection_name,
+                    len(query),
+                )
 
                 # Perform search using configured retriever
                 docs = retriever.invoke(query)

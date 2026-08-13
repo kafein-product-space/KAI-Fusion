@@ -57,17 +57,17 @@ async def broadcast_kafka_execution_event(listener_id: str, event: Dict[str, Any
 
 async def find_kafka_workflow(db, listener_id: str):
     """
-    Verilen listener_id (node ID) ile eşleşen KafkaConsumer node'u içeren
-    workflow'u JSONB sorgusuyla bulur.
+    Find the workflow containing the KafkaConsumer node that matches the
+    given listener_id (node ID) using a JSONB query.
     
-    webhook_trigger.py'deki find_workflow() kalıbını takip eder.
+    Follows the find_workflow() pattern in webhook_trigger.py.
     """
     from sqlalchemy import select, text
     from sqlalchemy.sql import bindparam
     from app.models.workflow import Workflow
 
     try:
-        logger.info(f"Kafka workflow araniyor: listener_id={listener_id}")
+        logger.info(f"Searching for Kafka workflow: listener_id={listener_id}")
 
         search_stmt = select(Workflow).where(
             text("""
@@ -86,30 +86,30 @@ async def find_kafka_workflow(db, listener_id: str):
 
         if workflows:
             if len(workflows) > 1:
-                logger.warning(f"Birden fazla workflow bulundu listener_id={listener_id}, ilki kullanılıyor")
+                logger.warning(f"Multiple workflows found for listener_id={listener_id}; using the first one")
             workflow = workflows[0]
-            logger.info(f"Kafka workflow bulundu: {workflow.id} ({workflow.name})")
+            logger.info(f"Kafka workflow found: {workflow.id} ({workflow.name})")
             return workflow
 
-        logger.warning(f"Kafka workflow bulunamadı: listener_id={listener_id}")
+        logger.warning(f"Kafka workflow not found: listener_id={listener_id}")
         return None
 
     except Exception as e:
-        logger.error(f"Kafka workflow aranırken hata: {e}", exc_info=True)
+        logger.error(f"Error while searching for Kafka workflow: {e}", exc_info=True)
         return None
 
 
 # ══════════════════════════════════════════════════════════════════
-# KafkaListenerService — Arka plan Kafka tüketici yöneticisi
+# KafkaListenerService — Background Kafka consumer manager
 # ══════════════════════════════════════════════════════════════════
 
 class KafkaListenerService:
     """
-    İş akışı bazında Kafka consumer arka plan görevlerini yönetir.
+    Manage background Kafka consumer tasks per workflow.
     
-    Her listener_id (canvas üzerindeki node ID) için ayrı bir asyncio task
-    oluşturur. Task, confluent_kafka.Consumer ile mesaj poll'lar ve her mesajda
-    WorkflowExecutor aracılığıyla iş akışını tetikler.
+    Creates a separate asyncio task for each listener_id (the node ID on the
+    canvas). The task polls messages through confluent_kafka.Consumer and
+    triggers the workflow through WorkflowExecutor for every message.
     """
 
     _listeners: Dict[str, Dict[str, Any]] = {}
@@ -125,7 +125,7 @@ class KafkaListenerService:
         group_id: str,
         options: Optional[Dict[str, Any]] = None,
     ) -> dict:
-        """Belirtilen yapılandırma ile Kafka consumer başlatır."""
+        """Start a Kafka consumer with the specified configuration."""
 
         if listener_id in cls._listeners:
             existing = cls._listeners[listener_id]
@@ -133,7 +133,7 @@ class KafkaListenerService:
                 return {
                     "status": "already_running",
                     "listener_id": listener_id,
-                    "message": "Bu listener zaten çalışıyor.",
+                    "message": "This listener is already running.",
                 }
 
         opts = options or {}
@@ -148,7 +148,7 @@ class KafkaListenerService:
             "options": opts,
         }
 
-        # Listener kaydını oluştur
+        # Create the listener record
         cls._listeners[listener_id] = {
             "config": config,
             "status": "starting",
@@ -163,12 +163,12 @@ class KafkaListenerService:
             "task": None,
         }
 
-        # Arka plan görevini başlat
+        # Start the background task
         task = asyncio.create_task(cls._consumer_loop(listener_id))
         cls._listeners[listener_id]["task"] = task
         cls._listeners[listener_id]["status"] = "running"
 
-        logger.info(f"Kafka listener başlatıldı: {listener_id} topic={topic} group={group_id}")
+        logger.info(f"Kafka listener started: {listener_id} topic={topic} group={group_id}")
 
         return {
             "status": "started",
@@ -179,7 +179,7 @@ class KafkaListenerService:
 
     @classmethod
     async def stop_listener(cls, listener_id: str) -> dict:
-        """Çalışan bir Kafka consumer'ı durdurur ve kayıt temizler."""
+        """Stop a running Kafka consumer and remove its listener record."""
 
         if listener_id not in cls._listeners:
             return {"status": "not_found", "listener_id": listener_id}
@@ -199,7 +199,7 @@ class KafkaListenerService:
                 except asyncio.CancelledError:
                     pass
 
-        # Memory leak fix: stopped listener'ı dict'ten sil
+        # Memory leak fix: remove the stopped listener from the dictionary
         del cls._listeners[listener_id]
 
         logger.info(f"Kafka listener has been stopped and cleaned: {listener_id}")
@@ -208,7 +208,7 @@ class KafkaListenerService:
 
     @classmethod
     def get_listener_status(cls, listener_id: str) -> Optional[dict]:
-        """Belirli bir listener'ın durumunu döner."""
+        """Return the status of a specific listener."""
         if listener_id not in cls._listeners:
             return None
 
@@ -228,7 +228,7 @@ class KafkaListenerService:
 
     @classmethod
     def get_all_listeners(cls) -> List[dict]:
-        """Tüm listener'ların durumunu döner."""
+        """Return the status of all listeners."""
         return [
             cls.get_listener_status(lid)
             for lid in cls._listeners
@@ -236,12 +236,12 @@ class KafkaListenerService:
 
     @classmethod
     async def stop_listeners_by_credential(cls, credential_id: str):
-        """Belirli bir credential kullanan tüm listener'ları durdurur."""
+        """Stop all listeners that use a specific credential."""
         listeners_to_stop = []
         for lid, entry in cls._listeners.items():
             config = entry.get("config", {})
             cred_data = config.get("credential_data", {})
-            # credential_id string olarak karşılaştır
+            # Compare credential_id as a string
             if str(cred_data.get("credential_id", "")) == credential_id:
                 listeners_to_stop.append(lid)
 
@@ -249,26 +249,26 @@ class KafkaListenerService:
         for lid in listeners_to_stop:
             result = await cls.stop_listener(lid)
             results.append(result)
-            logger.info(f"Credential {credential_id} için listener durduruldu: {lid}")
+            logger.info(f"Stopped listener {lid} for credential {credential_id}")
 
         return results
 
     # ──────────────────────────────────────────────
-    # Arka plan tüketici döngüsü
+    # Background consumer loop
     # ──────────────────────────────────────────────
 
     @classmethod
     async def _consumer_loop(cls, listener_id: str):
         """
-        confluent_kafka.Consumer ile mesaj dinler.
-        poll() bloklayıcı olduğu için asyncio.to_thread() ile sarmalanır.
+        Listen for messages with confluent_kafka.Consumer.
+        Wrap poll() with asyncio.to_thread() because it is blocking.
         """
         entry = cls._listeners[listener_id]
         config = entry["config"]
         stats = entry["stats"]
         opts = config["options"]
 
-        # confluent-kafka yapılandırması
+        # confluent-kafka configuration
         kafka_conf = get_kafka_config(config["credential_data"])
         kafka_conf["group.id"] = config["group_id"]
         kafka_conf["session.timeout.ms"] = opts.get("session_timeout_ms", 45000)
@@ -276,56 +276,56 @@ class KafkaListenerService:
         kafka_conf["fetch.min.bytes"] = opts.get("fetch_min_bytes", 1)
         kafka_conf["fetch.max.bytes"] = opts.get("fetch_max_bytes", 52428800)
 
-        # allow_auto_create_topics: Broker'da topic yoksa otomatik oluşturulsun mu
+        # allow_auto_create_topics: whether the broker may create a missing topic automatically
         kafka_conf["allow.auto.create.topics"] = opts.get("allow_auto_create_topics", True)
 
-        # batch_size: Partition başına max fetch boyutu (bytes)
+        # batch_size: maximum fetch size per partition (bytes)
         kafka_conf["max.partition.fetch.bytes"] = opts.get("batch_size", 1048576)
 
-        # rebalance_timeout_ms: Consumer group rebalance zaman aşımı
+        # rebalance_timeout_ms: consumer group rebalance timeout
         kafka_conf["max.poll.interval.ms"] = opts.get("rebalance_timeout_ms", 300000)
 
-        # auto_commit_threshold: N mesaj sonra manuel commit
-        # threshold <= 1 → otomatik commit (varsayılan davranış)
-        # threshold > 1  → otomatik commit kapatılır, N mesajda bir commit yapılır
+        # auto_commit_threshold: perform a manual commit after N messages
+        # threshold <= 1: automatic commits (default behavior)
+        # threshold > 1: disable automatic commits and commit every N messages
         commit_threshold = opts.get("auto_commit_threshold", 1)
         if commit_threshold and commit_threshold > 1:
             kafka_conf["enable.auto.commit"] = False
-            logger.info(f"Manuel commit aktif: her {commit_threshold} mesajda (listener={listener_id})")
+            logger.info(f"Manual commits enabled every {commit_threshold} messages (listener={listener_id})")
         else:
             kafka_conf["enable.auto.commit"] = True
             kafka_conf["auto.commit.interval.ms"] = opts.get("auto_commit_interval_ms", 5000)
-            commit_threshold = 0  # Manuel commit devre dışı
+            commit_threshold = 0  # Manual commits are disabled
 
-        # max_poll_records: Döngü başına işlenecek max mesaj sayısı
+        # max_poll_records: maximum number of messages processed per loop iteration
         max_poll_records = opts.get("max_poll_records", 500)
 
-        # Baştan oku ayarı
+        # Read-from-beginning setting
         if opts.get("read_messages_from_beginning", False):
             kafka_conf["auto.offset.reset"] = "earliest"
         else:
             kafka_conf["auto.offset.reset"] = "latest"
 
         logger.info(f"Kafka consumer config: servers={kafka_conf.get('bootstrap.servers')}, group={kafka_conf.get('group.id')}, topic={config['topic']}")
-        logger.debug(f"Kafka consumer full config: {kafka_conf}")
+        logger.debug("Kafka consumer config keys: %s", sorted(kafka_conf.keys()))
 
         consumer = None
         retry_delay = opts.get("retry_delay_on_error", 1000) / 1000.0  # ms → s
 
         try:
-            # Consumer() ve subscribe() bloklayıcı C kütüphanesi çağrılarıdır.
-            # Kafka broker ulaşılamaz olduğunda event loop'u 45sn boyunca dondurur.
-            # Bu yüzden asyncio.to_thread() ile izole ediyoruz.
+            # Consumer() and subscribe() are blocking C library calls.
+            # An unreachable Kafka broker can block the event loop for 45 seconds,
+            # so isolate these calls with asyncio.to_thread().
             consumer = await asyncio.to_thread(Consumer, kafka_conf)
             await asyncio.to_thread(consumer.subscribe, [config["topic"]])
-            logger.info(f"Kafka consumer topic'e abone oldu: {config['topic']} (listener={listener_id})")
+            logger.info(f"Kafka consumer subscribed to topic: {config['topic']} (listener={listener_id})")
 
-            # Manuel commit sayacı
+            # Manual commit counter
             _commit_counter = 0
 
             while entry["status"] == "running":
                 try:
-                    # Bloklayıcı poll'u thread pool'da çalıştır
+                    # Run the blocking poll call in the thread pool
                     msg = await asyncio.to_thread(consumer.poll, 1.0)
 
                     if msg is None:
@@ -334,71 +334,71 @@ class KafkaListenerService:
                     if msg.error():
                         error_code = msg.error().code()
                         if error_code == KafkaError._PARTITION_EOF:
-                            logger.debug(f"Partition sonu: {msg.topic()}[{msg.partition()}]")
+                            logger.debug(f"Partition EOF: {msg.topic()}[{msg.partition()}]")
                             continue
                         else:
                             error_str = str(msg.error())
-                            logger.error(f"Kafka hata: {error_str}")
+                            logger.error(f"Kafka error: {error_str}")
                             stats["errors"] += 1
                             stats["last_error"] = error_str
                             await asyncio.sleep(retry_delay)
                             continue
 
-                    # ── Mesaj başarıyla alındı ──
+                    # Message received successfully
                     stats["messages_received"] += 1
                     stats["last_message_at"] = datetime.now(timezone.utc).isoformat()
 
-                    # Mesaj verisini hazırla
+                    # Prepare message data
                     message_data = cls._parse_message(msg, opts)
 
                     logger.info(
-                        f"Kafka mesaj alındı: topic={msg.topic()} "
+                        f"Kafka message received: topic={msg.topic()} "
                         f"partition={msg.partition()} offset={msg.offset()} "
                         f"(listener={listener_id})"
                     )
 
-                    # İş akışını tetikle
+                    # Trigger the workflow
                     try:
                         await cls._trigger_workflow(listener_id, message_data)
                         stats["workflows_triggered"] += 1
                     except Exception as e:
-                        logger.error(f"Workflow tetiklenirken hata: {e}", exc_info=True)
+                        logger.error(f"Error while triggering workflow: {e}", exc_info=True)
                         stats["errors"] += 1
                         stats["last_error"] = str(e)
 
-                    # auto_commit_threshold: N mesajda bir manuel commit
+                    # auto_commit_threshold: perform a manual commit every N messages
                     if commit_threshold > 1:
                         _commit_counter += 1
                         if _commit_counter >= commit_threshold:
                             try:
                                 await asyncio.to_thread(consumer.commit, asynchronous=False)
-                                logger.debug(f"Manuel commit yapıldı: {_commit_counter} mesaj (listener={listener_id})")
+                                logger.debug(f"Manual commit completed for {_commit_counter} messages (listener={listener_id})")
                             except Exception as ce:
-                                logger.warning(f"Manuel commit hatası: {ce}")
+                                logger.warning(f"Manual commit failed: {ce}")
                             _commit_counter = 0
 
-                    # max_poll_records: Döngü başına mesaj limiti
+                    # max_poll_records: message limit per loop iteration
                     if stats["messages_received"] % max_poll_records == 0:
-                        await asyncio.sleep(0)  # Event loop'a kontrol ver
+                        await asyncio.sleep(0)  # Yield control to the event loop
 
                 except asyncio.CancelledError:
-                    logger.info(f"Kafka consumer iptal edildi: {listener_id}")
+                    logger.info(f"Kafka consumer cancelled: {listener_id}")
                     break
                 except Exception as e:
-                    logger.error(f"Consumer loop hatası: {e}", exc_info=True)
+                    logger.error(f"Consumer loop error: {e}", exc_info=True)
                     stats["errors"] += 1
                     stats["last_error"] = str(e)
                     await asyncio.sleep(retry_delay)
 
         except asyncio.CancelledError:
-            logger.info(f"Kafka consumer görevi iptal edildi: {listener_id}")
+            logger.info(f"Kafka consumer task cancelled: {listener_id}")
         except KafkaException as e:
-            logger.error(f"Kafka bağlantı hatası: {e}", exc_info=True)
+            logger.error(f"Kafka connection error: {e}", exc_info=True)
             stats["errors"] += 1
             stats["last_error"] = str(e)
             entry["status"] = "error"
         except Exception as e:
-            logger.error(f"Beklenmeyen consumer hatası: {e}", exc_info=True)
+            logger.error(f"Unexpected consumer error: {e}", exc_info=True)
             stats["errors"] += 1
             stats["last_error"] = str(e)
             entry["status"] = "error"
@@ -406,16 +406,16 @@ class KafkaListenerService:
             if consumer:
                 try:
                     await asyncio.to_thread(consumer.close)
-                    logger.info(f"Kafka consumer kapatıldı: {listener_id}")
+                    logger.info(f"Kafka consumer closed: {listener_id}")
                 except Exception as e:
-                    logger.warning(f"Consumer kapatılırken hata: {e}")
+                    logger.warning(f"Error while closing consumer: {e}")
 
             if entry["status"] == "running":
                 entry["status"] = "stopped"
 
     @staticmethod
     def _parse_message(msg, opts: dict) -> dict:
-        """Kafka mesajını dict'e dönüştürür."""
+        """Convert a Kafka message to a dictionary."""
         # Value
         raw_value = msg.value()
         value = None
@@ -466,7 +466,7 @@ class KafkaListenerService:
             "headers": headers,
         }
 
-        # only_message seçeneği: sadece value döndür
+        # only_message option: return only the value
         if opts.get("only_message", False):
             return {"value": value}
 
@@ -475,9 +475,9 @@ class KafkaListenerService:
     @classmethod
     async def _trigger_workflow(cls, listener_id: str, message_data: dict):
         """
-        Kafka mesajı geldiğinde ilgili iş akışını çalıştırır.
-        Kafka trigger bağımsız bir node'dur — webhook değildir.
-        Workflow sahibinin User objesi doğrudan yüklenir.
+        Run the related workflow when a Kafka message arrives.
+        The Kafka trigger is an independent node, not a webhook.
+        Load the workflow owner's User object directly.
         """
         from app.core.database import get_db_session_context
         from app.services.workflow_executor import WorkflowExecutor
@@ -487,40 +487,40 @@ class KafkaListenerService:
 
         entry = cls._listeners.get(listener_id)
         if not entry:
-            logger.error(f"Listener bulunamadı: {listener_id}")
+            logger.error(f"Listener not found: {listener_id}")
             return
 
         config = entry["config"]
         workflow_id = config.get("workflow_id")
 
         if not workflow_id:
-            logger.error(f"Listener config'de workflow_id bulunamadı: {listener_id}")
+            logger.error(f"workflow_id is missing from listener config: {listener_id}")
             return
 
-        logger.info(f"Kafka trigger: workflow yükleniyor workflow_id={workflow_id}, listener={listener_id}")
+        logger.info(f"Kafka trigger: loading workflow workflow_id={workflow_id}, listener={listener_id}")
 
         async with get_db_session_context() as db:
-            # Workflow'u doğrudan ID ile yükle
+            # Load the workflow directly by ID
             stmt = select(Workflow).where(Workflow.id == workflow_id)
             result = await db.execute(stmt)
             workflow = result.scalar_one_or_none()
 
             if not workflow:
-                logger.error(f"Workflow bulunamadı: workflow_id={workflow_id}, listener={listener_id}")
+                logger.error(f"Workflow not found: workflow_id={workflow_id}, listener={listener_id}")
                 return
 
-            # Workflow sahibini yükle (credential erişimi için)
+            # Load the workflow owner for credential access
             user_stmt = select(User).where(User.id == workflow.user_id)
             user_result = await db.execute(user_stmt)
             owner = user_result.scalar_one_or_none()
 
             if not owner:
-                logger.error(f"Workflow sahibi bulunamadı: user_id={workflow.user_id}, workflow={workflow_id}")
+                logger.error(f"Workflow owner not found: user_id={workflow.user_id}, workflow={workflow_id}")
                 return
 
-            logger.info(f"Kafka trigger: workflow bulundu {workflow.name} (id={workflow.id}, owner={owner.email})")
+            logger.info(f"Kafka trigger: workflow found {workflow.name} (id={workflow.id}, owner={owner.email})")
 
-            # Kafka mesaj verisini hazırla
+            # Prepare Kafka message data
             kafka_input = ""
             if message_data:
                 value = message_data.get("value", "")
@@ -532,27 +532,27 @@ class KafkaListenerService:
             if not kafka_input:
                 kafka_input = f"Kafka triggered: {listener_id}"
 
-            # Execution girdilerini hazırla
+            # Prepare execution inputs
             execution_inputs = {
-                "input": kafka_input,                    # Start node uyumluluğu
-                "input_text": kafka_input,               # Geriye uyumluluk
+                "input": kafka_input,                    # Start node compatibility
+                "input_text": kafka_input,               # Backward compatibility
                 "kafka_trigger": True,
-                "kafka_data": message_data,              # Tam mesaj verisi
+                "kafka_data": message_data,              # Complete message data
                 "listener_id": listener_id,
                 "triggered_at": datetime.now(timezone.utc).isoformat(),
             }
 
-            logger.info(f"Kafka trigger: workflow çalıştırılıyor inputs={list(execution_inputs.keys())}")
+            logger.info(f"Kafka trigger: executing workflow inputs={list(execution_inputs.keys())}")
 
-            # WorkflowExecutor ile çalıştır — workflow sahibi doğrudan geçiriliyor
+            # Execute through WorkflowExecutor and pass the workflow owner directly
             executor = WorkflowExecutor()
 
             ctx = await executor.prepare_execution_context(
                 db=db,
                 workflow=workflow,
                 execution_inputs=execution_inputs,
-                user=owner,            # Workflow sahibi doğrudan
-                is_webhook=False,      # Kafka trigger webhook değil
+                user=owner,            # Workflow owner
+                is_webhook=False,      # Kafka trigger is not a webhook
             )
 
             result_stream = await executor.execute_workflow(
@@ -585,14 +585,14 @@ class KafkaListenerService:
             if isinstance(result, dict) and result.get("success") is False:
                 error_msg = result.get("error", "Unknown workflow error")
                 logger.error(
-                    f"Kafka-tetiklemeli workflow HATA ile tamamlandı: "
+                    f"Kafka-triggered workflow completed with an error: "
                     f"workflow={workflow.id} listener={listener_id} "
                     f"execution={ctx.execution_id} error={error_msg}"
                 )
                 raise RuntimeError(f"Workflow execution failed: {error_msg}")
 
             logger.info(
-                f"Kafka-tetiklemeli workflow tamamlandı: "
+                f"Kafka-triggered workflow completed: "
                 f"workflow={workflow.id} listener={listener_id} "
                 f"execution={ctx.execution_id}"
             )
@@ -601,7 +601,7 @@ class KafkaListenerService:
 
 
 # ══════════════════════════════════════════════════════════════════
-# Reconciliation Loop — Periyodik Kafka listener senkronizasyonu
+# Reconciliation Loop — Periodic Kafka listener synchronization
 # ══════════════════════════════════════════════════════════════════
 
 import hashlib
@@ -609,8 +609,8 @@ import hashlib
 
 def _compute_config_hash(topic: str, credential_id: str, group_id: str) -> str:
     """
-    Topic, credential_id ve group_id'den hash üretir.
-    Config değişikliği tespiti için kullanılır.
+    Generate a hash from topic, credential_id, and group_id.
+    Used to detect configuration changes.
     """
     raw = f"{topic}|{credential_id}|{group_id}"
     return hashlib.md5(raw.encode()).hexdigest()
@@ -618,8 +618,8 @@ def _compute_config_hash(topic: str, credential_id: str, group_id: str) -> str:
 
 async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
     """
-    DB'den public + KafkaConsumer/KafkaTrigger node'lu workflow'ları çeker.
-    Her Kafka node için istenen config'i döner.
+    Fetch public workflows containing KafkaConsumer/KafkaTrigger nodes from the database.
+    Return the desired configuration for each Kafka node.
     
     Returns:
         {node_id: {workflow_id, user_id, topic, group_id, credential_id, 
@@ -659,12 +659,12 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
 
             node_data = node.get("data", {})
 
-            # Config çıkar: doğrudan node.data'dan
+            # Read configuration directly from node.data
             credential_id = node_data.get("credential")
             topic = node_data.get("topic")
             group_id = node_data.get("group_id")
 
-            # Fallback: metadata.properties'den
+            # Fallback to metadata.properties
             if not topic or not credential_id:
                 metadata_props = node_data.get("metadata", {}).get("properties", [])
                 if isinstance(metadata_props, list):
@@ -683,16 +683,18 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
                 continue
 
             if not group_id:
+                # Keep the legacy group prefix so existing deployments preserve
+                # committed offsets during the product-name transition.
                 group_id = f"kai-fusion-{workflow.id}"
 
-            # Opsiyonel ayarları topla
+            # Collect optional settings
             options = {}
             optional_keys = [
                 "auto_commit_interval_ms", "session_timeout_ms", "heartbeat_interval_ms",
                 "fetch_min_bytes", "fetch_max_bytes", "read_messages_from_beginning",
                 "retry_delay_on_error", "json_parse_message", "only_message",
                 "return_headers", "keep_message_as_binary_data",
-                # Yeni eklenen parametreler
+                # Additional parameters
                 "allow_auto_create_topics", "auto_commit_threshold", "batch_size",
                 "max_poll_records", "rebalance_timeout_ms",
             ]
@@ -717,8 +719,8 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
 
 def _build_actual_state() -> Dict[str, Dict[str, Any]]:
     """
-    KafkaListenerService._listeners dict'inden çalışan listener'ların
-    durumunu ve config hash'ini döner.
+    Return the status and configuration hash of active listeners from
+    KafkaListenerService._listeners.
     """
     actual: Dict[str, Dict[str, Any]] = {}
 
@@ -726,7 +728,7 @@ def _build_actual_state() -> Dict[str, Dict[str, Any]]:
         config = entry.get("config", {})
         status = entry.get("status", "unknown")
 
-        # Mevcut config'den hash hesapla
+        # Calculate the hash from the current configuration
         config_hash = _compute_config_hash(
             config.get("topic", ""),
             str(config.get("credential_data", {}).get("credential_id", "")),
@@ -744,8 +746,8 @@ def _build_actual_state() -> Dict[str, Dict[str, Any]]:
 
 async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     """
-    Desired state'ten tek bir listener başlatır.
-    Credential çözümlemesini burada yapar.
+    Start a single listener from the desired state.
+    Resolve its credential here.
     """
     from app.core.credential_provider import credential_provider
 
@@ -756,7 +758,7 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     workflow_id = desired_entry["workflow_id"]
     options = desired_entry.get("options", {})
 
-    # Credential çöz
+    # Resolve the credential
     try:
         cred_uuid = uuid.UUID(str(cred_id))
         user_uuid = uuid.UUID(str(user_id))
@@ -768,11 +770,11 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
 
         if not raw_credential:
             logger.warning(
-                f"Reconciliation: node {node_id} credential {cred_uuid} bulunamadı, atlanıyor."
+                f"Reconciliation: credential {cred_uuid} not found for node {node_id}; skipping"
             )
             return
 
-        # Secret alanını çöz
+        # Resolve the secret field
         if isinstance(raw_credential, dict):
             secret = raw_credential.get("secret", raw_credential)
             if isinstance(secret, str):
@@ -791,15 +793,15 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
         else:
             credential_data = raw_credential
 
-        # credential_id'yi credential_data'ya ekle (stop_by_credential için)
+        # Add credential_id to credential_data for stop_by_credential
         if isinstance(credential_data, dict):
             credential_data["credential_id"] = str(cred_id)
 
     except Exception as e:
-        logger.error(f"Reconciliation: node {node_id} credential hatası: {e}")
+        logger.error(f"Reconciliation: credential error for node {node_id}: {e}")
         return
 
-    # Listener başlat
+    # Start the listener
     result = await KafkaListenerService.start_listener(
         listener_id=node_id,
         workflow_id=workflow_id,
@@ -811,7 +813,7 @@ async def _start_from_desired(node_id: str, desired_entry: Dict[str, Any]):
     )
 
     logger.info(
-        f"Reconciliation: listener başlatıldı: node={node_id} topic={topic} → {result.get('status')}"
+        f"Reconciliation: listener started: node={node_id} topic={topic} status={result.get('status')}"
     )
 
 
@@ -819,20 +821,21 @@ kafka_reconciliation_wakeup = asyncio.Event()
 
 async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVAL_SECONDS):
     """
-    Periyodik Kafka listener reconciliation döngüsü.
+    Periodic Kafka listener reconciliation loop.
     
-    Her 'interval' saniyede:
-    1. DB'den istenen durumu çeker (public + Kafka node'lu workflow'lar)
-    2. Çalışan listener'ların gerçek durumunu kontrol eder
-    3. Farkı hesaplar: eksik → başlat, fazla → durdur, config değişen → restart
-    4. Crash/error olan listener'ları otomatik iyileştirir
+    Every 'interval' seconds:
+    1. Fetch the desired state from the database (public workflows with Kafka nodes).
+    2. Inspect the actual state of active listeners.
+    3. Calculate the difference: start missing listeners, stop extra listeners,
+       and restart listeners whose configuration changed.
+    4. Automatically recover listeners in a crash/error state.
     
-    Bu döngü main.py lifespan'da asyncio.create_task ile başlatılır.
-    Tüm event-driven Kafka yönetimini (save, visibility, credential) değiştirir.
+    The main.py lifespan starts this loop with asyncio.create_task.
+    It handles event-driven Kafka changes for save, visibility, and credentials.
     """
     from app.core.database import get_db_session_context
 
-    logger.info(f"Kafka reconciliation loop başlatıldı (interval={interval}s)")
+    logger.info(f"Kafka reconciliation loop started (interval={interval}s)")
 
     first_run = True
 
@@ -846,29 +849,29 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
         first_run = False
 
         try:
-            # 1. İstenen durum: public + KafkaConsumer node'lu workflow'lar
+            # 1. Desired state: public workflows containing KafkaConsumer nodes
             async with get_db_session_context() as db:
                 desired = await _build_desired_state(db)
-            # DB session HEMEN kapanıyor — pool baskısı yok
+            # Close the database session immediately to avoid pool pressure
 
-            # 2. Gerçek durum
+            # 2. Actual state
             actual = _build_actual_state()
 
-            # 3. Fark hesapla
+            # 3. Calculate differences
             desired_ids = set(desired.keys())
             actual_ids = set(actual.keys())
 
-            to_start = desired_ids - actual_ids       # Olması gerekip olmayan
-            to_stop = actual_ids - desired_ids         # Olmaması gerekip olan
-            common = desired_ids & actual_ids          # Her ikisinde de olan
+            to_start = desired_ids - actual_ids       # Desired but not active
+            to_stop = actual_ids - desired_ids        # Active but no longer desired
+            common = desired_ids & actual_ids         # Present in both states
 
-            # Config değişenler → restart
+            # Restart listeners whose configuration changed
             to_restart = {
                 lid for lid in common
                 if desired[lid]["hash"] != actual[lid].get("hash")
             }
 
-            # Crash/error/stopped olanlar → yeniden başlat
+            # Restart listeners in a crash/error/stopped state
             to_heal = {
                 lid for lid in (common - to_restart)
                 if actual[lid]["status"] in ("error", "stopped")
@@ -882,18 +885,18 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
                     f"restart={len(to_restart)} heal={len(to_heal)}"
                 )
 
-            # 4. SIRALI uygula — race condition yok
+            # 4. Apply sequentially to avoid race conditions
             for lid in to_stop:
-                logger.info(f"Reconciliation: listener durduruluyor: {lid}")
+                logger.info(f"Reconciliation: stopping listener: {lid}")
                 await KafkaListenerService.stop_listener(lid)
 
             for lid in to_restart:
-                logger.info(f"Reconciliation: listener yeniden başlatılıyor (config değişti): {lid}")
+                logger.info(f"Reconciliation: restarting listener after configuration change: {lid}")
                 await KafkaListenerService.stop_listener(lid)
                 await _start_from_desired(lid, desired[lid])
 
             for lid in to_heal:
-                logger.info(f"Reconciliation: listener iyileştiriliyor (crash/error): {lid}")
+                logger.info(f"Reconciliation: recovering listener from crash/error state: {lid}")
                 await _start_from_desired(lid, desired[lid])
 
             for lid in to_start:
@@ -901,20 +904,20 @@ async def kafka_reconciliation_loop(interval: int = KAFKA_RECONCILIATION_INTERVA
 
             if changes == 0:
                 logger.debug(
-                    f"Reconciliation: değişiklik yok "
+                    f"Reconciliation: no changes "
                     f"(desired={len(desired_ids)}, actual={len(actual_ids)})"
                 )
 
         except asyncio.CancelledError:
-            logger.info("Kafka reconciliation loop iptal edildi (shutdown)")
+            logger.info("Kafka reconciliation loop cancelled during shutdown")
             break
         except Exception as e:
-            logger.error(f"Reconciliation döngüsü hatası: {e}", exc_info=True)
+            logger.error(f"Reconciliation loop error: {e}", exc_info=True)
 
-    logger.info("Kafka reconciliation loop sonlandı")
+    logger.info("Kafka reconciliation loop ended")
 
 # ══════════════════════════════════════════════════════════════════
-# FastAPI Router — Kafka listener yönetim endpointleri
+# FastAPI Router — Kafka listener management endpoints
 # ══════════════════════════════════════════════════════════════════
 
 kafka_router = APIRouter(prefix=f"/{API_START}/{API_VERSION}/kafka")
@@ -958,15 +961,15 @@ async def stream_kafka_listener_execution(listener_id: str):
 
 @kafka_router.post("/listeners/{listener_id}/stop")
 async def stop_kafka_listener(listener_id: str):
-    """Çalışan Kafka consumer listener'ı durdurur."""
+    """Stop a running Kafka consumer listener."""
     try:
         result = await KafkaListenerService.stop_listener(listener_id)
         return result
     except Exception as e:
-        logger.error(f"Listener durdurulamadı: {e}", exc_info=True)
+        logger.error(f"Failed to stop listener: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Listener durdurulamadı: {str(e)}",
+            detail=f"Failed to stop listener: {str(e)}",
         )
 
 
@@ -977,8 +980,8 @@ async def debug_kafka_single_message(
     db: AsyncSession = Depends(get_db_session),
 ):
     """
-    Debug modu: Kafka'dan TEK mesaj çeker ve workflow'u bir kez çalıştırır.
-    Start node'un kullandığı aynı WorkflowExecutor pipeline'ını kullanır.
+    Debug mode: consume one message from Kafka and run the workflow once.
+    Uses the same WorkflowExecutor pipeline as the Start node.
     """
     from app.core.credential_provider import credential_provider
     from app.services.workflow_executor import WorkflowExecutor, get_workflow_executor
@@ -986,19 +989,19 @@ async def debug_kafka_single_message(
     from sqlalchemy import select as sa_select
     from app.core.json_utils import make_json_serializable
 
-    # 1. Workflow'u bul (node_id ile JSONB sorgusu)
+    # 1. Find the workflow with a JSONB query using node_id
     workflow = await find_kafka_workflow(db, node_id)
     if not workflow:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Kafka node {node_id} içeren workflow bulunamadı",
+            detail=f"Workflow containing Kafka node {node_id} was not found",
         )
 
-    # Yetki kontrolü
+    # Authorization check
     if workflow.user_id != current_user.id and not workflow.is_public:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # 2. Node config'ini çıkar
+    # 2. Extract node configuration
     node_config = None
     for node in workflow.flow_data.get("nodes", []):
         if node.get("id") == node_id:
@@ -1008,7 +1011,7 @@ async def debug_kafka_single_message(
     if not node_config:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail=f"Node {node_id} config bulunamadı",
+            detail=f"Configuration for node {node_id} was not found",
         )
 
     topic = node_config.get("topic")
@@ -1018,10 +1021,10 @@ async def debug_kafka_single_message(
     if not topic or not credential_id:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Topic veya credential eksik",
+            detail="Topic or credential is missing",
         )
 
-    # 3. Credential'ı çöz
+    # 3. Resolve the credential
     try:
         raw_credential = await credential_provider.get_credential(
             credential_id=uuid.UUID(credential_id) if isinstance(credential_id, str) else credential_id,
@@ -1030,7 +1033,7 @@ async def debug_kafka_single_message(
         if not raw_credential:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Credential {credential_id} bulunamadı",
+                detail=f"Credential {credential_id} was not found",
             )
 
         if isinstance(raw_credential, dict):
@@ -1055,12 +1058,12 @@ async def debug_kafka_single_message(
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Credential çözümlenirken hata: {str(e)}",
+            detail=f"Error while resolving credential: {str(e)}",
         )
 
-    # 4. Geçici consumer oluştur ve 1 mesaj poll et
+    # 4. Create a temporary consumer and poll one message
     kafka_conf = get_kafka_config(credential_data)
-    # Debug için benzersiz group_id — mevcut consumer group'u etkilememek için
+    # Use a unique group_id in debug mode to avoid affecting the existing consumer group
     kafka_conf["group.id"] = f"kai-debug-{uuid.uuid4().hex[:8]}"
     kafka_conf["enable.auto.commit"] = False
     kafka_conf["auto.offset.reset"] = "latest"
@@ -1068,18 +1071,18 @@ async def debug_kafka_single_message(
     consumer = None
     message_data = None
     try:
-        # Consumer() ve subscribe() bloklayıcı C calls — asyncio.to_thread ile izole et
+        # Isolate blocking Consumer() and subscribe() C calls with asyncio.to_thread
         consumer = await asyncio.to_thread(Consumer, kafka_conf)
         await asyncio.to_thread(consumer.subscribe, [topic])
-        logger.info(f"[KAFKA DEBUG] Tek mesaj bekleniyor: topic={topic}, node={node_id}")
+        logger.debug(f"Kafka: waiting for one message: topic={topic}, node={node_id}")
 
-        # 10 saniye timeout ile tek mesaj bekle
+        # Wait up to 10 seconds for one message
         msg = await asyncio.to_thread(consumer.poll, 10.0)
 
         if msg is None:
             raise HTTPException(
                 status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                detail=f"10 saniye içinde topic '{topic}' üzerinden mesaj gelmedi",
+                detail=f"No message was received from topic '{topic}' within 10 seconds",
             )
 
         if msg.error():
@@ -1087,28 +1090,28 @@ async def debug_kafka_single_message(
             if error_code == KafkaError._PARTITION_EOF:
                 raise HTTPException(
                     status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                    detail=f"Topic '{topic}' partition sonuna ulaşıldı, yeni mesaj yok",
+                    detail=f"Topic '{topic}' reached partition EOF; no new message is available",
                 )
             raise HTTPException(
                 status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail=f"Kafka hatası: {msg.error()}",
+                detail=f"Kafka error: {msg.error()}",
             )
 
-        # Mesajı parse et
+        # Parse the message
         opts = {k: node_config.get(k) for k in ["json_parse_message", "only_message", "return_headers", "keep_message_as_binary_data"] if k in node_config}
         opts.setdefault("json_parse_message", True)
         opts.setdefault("return_headers", True)
         message_data = KafkaListenerService._parse_message(msg, opts)
 
-        logger.info(f"[KAFKA DEBUG] Mesaj alındı: topic={msg.topic()} partition={msg.partition()} offset={msg.offset()}")
+        logger.debug(f"Kafka: message received: topic={msg.topic()} partition={msg.partition()} offset={msg.offset()}")
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"[KAFKA DEBUG] Consumer hatası: {e}", exc_info=True)
+        logger.error(f"[KAFKA DEBUG] Consumer error: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Kafka consumer hatası: {str(e)}",
+            detail=f"Kafka consumer error: {str(e)}",
         )
     finally:
         if consumer:
@@ -1117,7 +1120,7 @@ async def debug_kafka_single_message(
             except Exception:
                 pass
 
-    # 5. Mevcut WorkflowExecutor ile workflow'u çalıştır (Start node ile aynı pipeline)
+    # 5. Run the workflow with the existing WorkflowExecutor (same pipeline as Start node)
     kafka_input = ""
     if message_data:
         value = message_data.get("value", "")
@@ -1177,12 +1180,12 @@ async def debug_kafka_single_message(
         logger.error(f"[KAFKA DEBUG] Workflow execution failed: {e}", exc_info=True)
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Workflow çalıştırılamadı: {str(e)}",
+            detail=f"Workflow execution failed: {str(e)}",
         )
 
 
 # ══════════════════════════════════════════════════════════════════
-# KafkaTriggerNode — Node tanımı
+# KafkaTriggerNode — Node definition
 # ══════════════════════════════════════════════════════════════════
 
 class KafkaTriggerNode(BaseNode):
@@ -1374,13 +1377,12 @@ class KafkaTriggerNode(BaseNode):
 
     def execute(self, inputs: Dict[str, Any], previous_node: Any = None, **kwargs) -> Dict[str, Any]:
         """
-        Trigger node execute metodu.
-        KafkaListenerService tarafından tetiklendiğinde, inputs içinde
-        kafka_data mesaj verisi bulunur.
+        Execute the trigger node.
+        When KafkaListenerService invokes it, inputs contains kafka_data.
         """
         kafka_data = inputs.get("kafka_data", {})
 
-        # Eğer doğrudan mesaj alanları gönderildiyse (geriye uyumluluk)
+        # Support directly supplied message fields for backward compatibility
         if not kafka_data and inputs.get("value") is not None:
             kafka_data = {
                 "value": inputs.get("value"),

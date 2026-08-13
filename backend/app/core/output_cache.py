@@ -448,9 +448,9 @@ class NodeConnectionExtractor:
                         'handle': connection_info.get('source_handle', 'output'),
                         'data': result
                     })
-                    print(f"[DEBUG] ✓ Connection {i+1} successful: {source_node_id}")
+                    logger.debug("Connection %s successful: %s", i + 1, source_node_id)
                 else:
-                    logger.debug(f"✗ Connection {i + 1} returned None: {source_node_id}")
+                    logger.debug(f"Connection {i + 1} returned None: {source_node_id}")
 
             except Exception as error:
                 logger.error(f"Failed to process connection {i}: {error}")

@@ -49,21 +49,3 @@ def create_directories():
 def get_database_url() -> str:
     """Get database URL for direct connections"""
     return DATABASE_URL
-
-def get_cors_origins() -> List[str]:
-    """Get CORS origins"""
-    # Parse CORS origins if it's a string
-    origins = []
-    if isinstance(ALLOWED_ORIGINS, str):
-        origins = [origin.strip() for origin in ALLOWED_ORIGINS.split(',')]
-    else:
-        origins = ALLOWED_ORIGINS
-    
-    # Add dynamic origins based on environment
-    if DEBUG:
-        origins.extend([
-            "http://localhost:*",
-            "https://localhost:*"
-        ])
-    
-    return origins
