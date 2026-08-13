@@ -6,7 +6,7 @@ import { Trash, Palette } from "lucide-react";
 import { getExecutionStatusStyle, PendingWormRing } from "~/lib/nodeStatusUtils";
 
 const COLORS = [
-  { bg: "#fff5d6", border: "#f6c036", borderUnselected: "#eede8e" }, // Varsayılan renk
+  { bg: "#fff5d6", border: "#f6c036", borderUnselected: "#eede8e" }, // Default color
   { bg: "#F4E34A", border: "#D4C32A", borderUnselected: "#E4D33A" },
   { bg: "#4DA7D1", border: "#2D87B1", borderUnselected: "#3D97C1" },
   { bg: "#E98AA3", border: "#C96A83", borderUnselected: "#D97A93" },
@@ -62,7 +62,7 @@ function StickyNoteNode({ id, data, selected }: StickyNoteNodeProps) {
         if (n.id === id) {
           return {
             ...n,
-            selected: true, // Mantains visibility of CSS button
+            selected: true, // Maintains visibility of CSS button
             data: {
               ...n.data,
               colorIndex: nextIndex,
@@ -160,14 +160,16 @@ function StickyNoteNode({ id, data, selected }: StickyNoteNodeProps) {
                 onChange={handleChange}
                 onBlur={handleBlur}
                 /* Textarea has its own scrollbar, avoiding double scrollbars */
-                className="w-full h-full resize-none bg-transparent border-none focus:outline-none focus:ring-0 text-gray-800 leading-relaxed overflow-y-auto custom-scrollbar"
+                className="nodrag nowheel w-full h-full resize-none bg-transparent border-none focus:outline-none focus:ring-0 text-gray-800 leading-relaxed overflow-y-auto custom-scrollbar"
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
                 style={{ fontSize: FONT_SIZE }}
                 placeholder="Type your markdown here..."
               />
             ) : (
               /* 
-                Markdown için prose kullanıldı. Boyut `FONT_SIZE` değişkeninden alınır.
-                Etkileşimi kapatmak ve scroll'u gizlemek için overflow-hidden kullanıldı.
+                Prose is used for Markdown. Size is derived from `FONT_SIZE` variable.
+                overflow-hidden is used to disable interaction and hide scrollbars.
               */
               <div
                 className="prose prose-yellow max-w-none text-gray-800 break-words leading-relaxed select-none overflow-hidden"
