@@ -329,7 +329,8 @@ We welcome PRs! Please:
 
 **Frontend cannot reach backend**
 
-* Check `client/.env` → `VITE_API_BASE_URL=http://localhost:8000`
+* Check the root `.env` → `VITE_API_BASE_URL=http://localhost:23056`
+* For local frontend runtime values, verify `client/public/config.js`
 * CORS: ensure backend CORS is configured for your dev origin
 
 **VS Code doesn’t load env**

@@ -389,11 +389,11 @@ class OpenAICompatibleNode(BaseNode):
 
     def execute(self, **kwargs) -> Runnable:
         """Execute Node to create the ChatOpenAI instance."""
-        logger.info("\nOPENAI COMPATIBLE NODE SETUP")
+        logger.debug("OpenAI-compatible node setup started")
         
         # Get API Key and config from credential
         credential_id = kwargs.get("credential_id") or self.user_data.get("credential_id")
-        logger.info(f"[DEBUG][COMPATIBLE] credential_id: {credential_id}")
+        logger.debug("Resolving OpenAI-compatible credential (configured=%s)", bool(credential_id))
         
         api_key_value = ""
         cred_base_url = None
@@ -402,7 +402,7 @@ class OpenAICompatibleNode(BaseNode):
         
         if credential_id:
             cred = self.get_credential(credential_id)
-            logger.info(f"[DEBUG][COMPATIBLE] cred found: {cred is not None}")
+            logger.debug("OpenAI-compatible credential resolved (found=%s)", cred is not None)
             if cred and cred.get('secret'):
                 secret = cred.get('secret')
                 api_key_value = str(secret.get('api_key', '')).strip()
@@ -414,7 +414,7 @@ class OpenAICompatibleNode(BaseNode):
                 if isinstance(skip_ssl, str):
                     skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
                 cred_verify_ssl = not bool(skip_ssl)
-                logger.info(f"[DEBUG][COMPATIBLE] API key length: {len(api_key_value)}")
+                logger.debug("OpenAI-compatible API key loaded")
 
         if credential_id and not api_key_value:
             raise ValueError(

@@ -274,7 +274,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     id: 'kafka',
     name: 'Kafka',
     description: 'Apache Kafka connection credentials for producing and consuming messages',
-    icon: 'kafka_credetial.svg',
+    icon: 'kafka-credentials.svg',
     category: 'api',
     color: 'from-green-500 to-emerald-600',
     fields: [
