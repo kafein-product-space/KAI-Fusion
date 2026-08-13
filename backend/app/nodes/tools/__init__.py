@@ -10,6 +10,7 @@ from .cohere_reranker import CohereRerankerNode
 from .retriever import RetrieverProvider
 from .markitdown_tool import MarkItDownToolNode
 from .postgres_tool import PostgresToolNode
+from .scrapling_tool import ScraplingToolNode
 
 __all__ = [
     "HttpClientNode",
@@ -19,5 +20,6 @@ __all__ = [
     "CohereRerankerNode",
     "RetrieverProvider",
     "MarkItDownToolNode",
-    "PostgresToolNode"
+    "PostgresToolNode",
+    "ScraplingToolNode"
 ]

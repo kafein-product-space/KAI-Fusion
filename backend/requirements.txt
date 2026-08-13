@@ -110,8 +110,12 @@ pytest-asyncio==1.3.0
 
 # HTML Processing
 beautifulsoup4==4.13.5
-lxml==6.0.1
+lxml==6.1.1
 soupsieve==2.7
+scrapling==0.4.14
+curl-cffi==0.16.0
+browserforge==1.2.4
+playwright==1.62.0
 
 # ML/Vector/AI
 numpy==2.3.2
@@ -156,7 +160,7 @@ marshmallow==3.26.2
 multidict==6.6.4
 mypy-extensions==1.0.0
 oauthlib==3.3.1
-orjson==3.11.6
+orjson==3.11.9
 packaging==25.0
 parameterized==0.9.0
 pillow==12.2.0

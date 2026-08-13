@@ -89,6 +89,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",
+        ScraplingTool: "icons/scrapling.svg",
         WebScraper: "icons/pickaxe.svg",
         HttpRequest: "icons/globe.svg",
         WebhookTrigger: "icons/webhook.svg",

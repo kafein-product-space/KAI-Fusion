@@ -23,6 +23,7 @@ from .tools.cohere_reranker import CohereRerankerNode
 from .tools.retriever import RetrieverProvider
 from .tools.markitdown_tool import MarkItDownToolNode
 from .tools.postgres_tool import PostgresToolNode
+from .tools.scrapling_tool import ScraplingToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -91,7 +92,7 @@ __all__ = [
     "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode","PostgresToolNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "ScraplingToolNode",
     
     # Document Loaders
     "WebScraperNode", "DocumentLoaderNode",
