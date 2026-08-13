@@ -22,12 +22,14 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
   const [loading, setLoading] = useState(false);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const [allowManual, setAllowManual] = useState(false);
+  const [highlightedIndex, setHighlightedIndex] = useState(0);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const optionRefs = useRef<Array<HTMLButtonElement | null>>([]);
   const lastPrefillCredentialRef = useRef<string | null>(null);
 
   const credentialId = values?.credential_id as string | undefined;
-  const staticOptions = property.options || [];
+  const staticOptions = useMemo(() => property.options || [], [property.options]);
   const currentValue = field.value ?? property?.default ?? "";
 
   const displayOptions = property?.displayOptions || {};
@@ -135,6 +137,29 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
     );
   }, [mergedOptions, search]);
 
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    const selectedIndex = filteredOptions.findIndex(
+      (option: { value: string }) => option.value === currentValue
+    );
+    setHighlightedIndex(selectedIndex >= 0 ? selectedIndex : 0);
+    // Snap to the selected model only when the dropdown opens.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dropdownOpen]);
+
+  useEffect(() => {
+    if (!dropdownOpen) return;
+    setHighlightedIndex(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [search]);
+
+  useEffect(() => {
+    const el = optionRefs.current[highlightedIndex];
+    if (dropdownOpen && el) {
+      el.scrollIntoView({ block: "nearest" });
+    }
+  }, [highlightedIndex, dropdownOpen]);
+
   if (Object.keys(show).length > 0) {
     for (const [dependencyName, validValue] of Object.entries(show)) {
       const dependencyValue = values[dependencyName];
@@ -165,6 +190,42 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
     helpers.setValue(next);
     setDropdownOpen(false);
     setSearch("");
+  };
+
+  const handleSearchKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === "ArrowDown") {
+      event.preventDefault();
+      if (filteredOptions.length === 0) return;
+      setHighlightedIndex((index) => (index + 1) % filteredOptions.length);
+      return;
+    }
+
+    if (event.key === "ArrowUp") {
+      event.preventDefault();
+      if (filteredOptions.length === 0) return;
+      setHighlightedIndex((index) =>
+        (index - 1 + filteredOptions.length) % filteredOptions.length
+      );
+      return;
+    }
+
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (filteredOptions[highlightedIndex]) {
+        handleSelect(filteredOptions[highlightedIndex].value);
+        return;
+      }
+      if (allowManual || filteredOptions.length === 0) {
+        handleManualCommit();
+      }
+      return;
+    }
+
+    if (event.key === "Escape") {
+      event.preventDefault();
+      setDropdownOpen(false);
+      setSearch("");
+    }
   };
 
   return (
@@ -219,12 +280,7 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && (allowManual || filteredOptions.length === 0)) {
-                    e.preventDefault();
-                    handleManualCommit();
-                  }
-                }}
+                onKeyDown={handleSearchKeyDown}
                 placeholder={
                   allowManual || mergedOptions.length === 0
                     ? "Search or type a model name..."
@@ -252,21 +308,29 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
               )}
 
               {!loading &&
-                filteredOptions.map((option: { label: string; value: string; hint?: string }) => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => handleSelect(option.value)}
-                    className={`w-full flex flex-col items-start gap-0.5 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
-                      currentValue === option.value
-                        ? "bg-blue-500/20 text-blue-300"
-                        : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
-                    }`}
-                  >
-                    <span>{option.label}</span>
-                    {option.hint && <span className="text-xs text-slate-500">{option.hint}</span>}
-                  </button>
-                ))}
+                filteredOptions.map((option: { label: string; value: string; hint?: string }, index: number) => {
+                  const selected = currentValue === option.value;
+                  const highlighted = index === highlightedIndex;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      ref={(el) => {
+                        optionRefs.current[index] = el;
+                      }}
+                      onMouseEnter={() => setHighlightedIndex(index)}
+                      onClick={() => handleSelect(option.value)}
+                      className={`w-full flex flex-col items-start gap-0.5 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
+                        highlighted || selected
+                          ? "bg-blue-500/20 text-blue-300"
+                          : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
+                      }`}
+                    >
+                      <span>{option.label}</span>
+                      {option.hint && <span className="text-xs text-slate-500">{option.hint}</span>}
+                    </button>
+                  );
+                })}
             </div>
 
             {(allowManual || mergedOptions.length === 0) && search.trim() && (

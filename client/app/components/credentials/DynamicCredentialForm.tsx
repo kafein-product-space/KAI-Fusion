@@ -4,6 +4,7 @@ import { Check, Loader2, X as XIcon, Zap } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
 import type { ServiceDefinition, ServiceField } from "~/types/credentials";
 import CredentialPasswordField from "./CredentialPasswordField";
+import CredentialModelCombobox from "./CredentialModelCombobox";
 
 interface DynamicCredentialFormProps {
   service: ServiceDefinition;
@@ -108,7 +109,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
     return values;
   }, [initialValues, service]);
 
-  const renderField = (field: ServiceField) => {
+  const renderField = (field: ServiceField, values: Record<string, any>) => {
     const commonProps = {
       name: field.name,
       placeholder: field.placeholder,
@@ -162,6 +163,16 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             />
             <span className="text-sm text-gray-700">{field.label}</span>
           </label>
+        );
+
+      case "model-combobox":
+        return (
+          <CredentialModelCombobox
+            field={field}
+            serviceType={service.id}
+            values={values}
+            className={commonProps.className}
+          />
         );
 
       default:
@@ -242,7 +253,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                     </label>
                   )}
 
-                  {renderField(field)}
+                  {renderField(field, values)}
 
                   {field.description && (
                     <p className="text-xs text-gray-500 mt-1">

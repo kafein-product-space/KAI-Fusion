@@ -279,7 +279,7 @@ class OpenAICompatibleNode(BaseNode):
                     type=NodePropertyType.MODEL_SELECT,
                     placeholder="Select or type a model",
                     required=False,
-                    hint="Models are loaded from the selected credential's provider. Falls back to the credential model name if empty.",
+                    hint="Models are loaded from the selected credential's provider. Use arrow keys to move through the list. Falls back to the credential model name if empty.",
                 ),
                 NodeProperty(
                     name="temperature",

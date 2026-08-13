@@ -68,3 +68,13 @@ export const getCredentialModels = async (
     API_ENDPOINTS.CREDENTIALS.MODELS(id)
   );
 };
+
+export const listModelsRaw = async (
+  serviceType: string,
+  data: Record<string, any>
+): Promise<CredentialModelsResponse> => {
+  return await apiClient.post<CredentialModelsResponse>(
+    API_ENDPOINTS.CREDENTIALS.LIST_MODELS,
+    { service_type: serviceType, data }
+  );
+};

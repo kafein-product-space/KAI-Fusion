@@ -447,29 +447,22 @@ async def _list_models_from_provider(
     return models
 
 
-@router.get("/{credential_id}/models", response_model=CredentialModelsResponse)
-async def list_credential_models(
-    credential_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db_session),
-    credential_service: CredentialService = Depends(get_credential_service_dep),
-):
-    """
-    List available LLM models for a credential by querying the provider's /models API.
-    Falls back to a static OpenAI catalog when the provider cannot be reached.
-    """
-    user_id = current_user.id
-    decrypted = await credential_service.get_decrypted_credential(db, user_id, credential_id)
-    if not decrypted:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
-
-    service_type: str = decrypted.get("service_type", "")
-    secret: Dict[str, Any] = decrypted.get("secret", {}) or {}
-
+async def _list_models_response(
+    service_type: str,
+    secret: Dict[str, Any],
+) -> CredentialModelsResponse:
+    """Query a provider's /models API, with a static OpenAI catalog as fallback."""
     if service_type not in ("openai", "openai_compatible"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Model listing is not supported for service type: {service_type}",
+        )
+
+    if service_type == "openai_compatible" and not str(secret.get("base_url") or "").strip():
+        return CredentialModelsResponse(
+            models=[],
+            source="fallback",
+            message="Enter a Base URL to load available models.",
         )
 
     try:
@@ -504,7 +497,7 @@ async def list_credential_models(
             message="Connection timed out. You can type a model name manually.",
         )
     except Exception as e:
-        logger.warning(f"Failed to list models for credential {credential_id}: {e}")
+        logger.warning(f"Failed to list models for service type {service_type}: {e}")
         if service_type == "openai":
             return CredentialModelsResponse(
                 models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
@@ -516,6 +509,37 @@ async def list_credential_models(
             source="fallback",
             message=f"Could not fetch models from provider ({e}). You can type a model name manually.",
         )
+
+
+@router.post("/list-models", response_model=CredentialModelsResponse)
+async def list_models_raw(
+    request: CredentialTestRawRequest,
+    current_user: User = Depends(get_current_user),
+):
+    """List models from unsaved credential form data (base URL / API key)."""
+    return await _list_models_response(request.service_type, request.data or {})
+
+
+@router.get("/{credential_id}/models", response_model=CredentialModelsResponse)
+async def list_credential_models(
+    credential_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db_session),
+    credential_service: CredentialService = Depends(get_credential_service_dep),
+):
+    """
+    List available LLM models for a credential by querying the provider's /models API.
+    Falls back to a static OpenAI catalog when the provider cannot be reached.
+    """
+    user_id = current_user.id
+    decrypted = await credential_service.get_decrypted_credential(db, user_id, credential_id)
+    if not decrypted:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Credential not found")
+
+    return await _list_models_response(
+        decrypted.get("service_type", ""),
+        decrypted.get("secret", {}) or {},
+    )
 
 
 async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
