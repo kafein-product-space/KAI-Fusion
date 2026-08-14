@@ -325,6 +325,7 @@ The main builder interface.
 
 ### Tools
 *   **Tavily Search**: Optimized web search for AI agents.
+*   **Scrapling Web Scraper**: API-key-free, HTTP-only text/HTML/link/JSON extraction and bounded same-host crawling. Connect its `tool` output to the Agent's `tools` input. It does not render JavaScript or open a browser.
 *   **HTTP Client**: Generic API connector (GET/POST/PUT).
 *   **Retriever**: Fetches relevant documents from Vector Memory.
 *   **Cohere Reranker**: improves retrieval accuracy by re-ranking results.
