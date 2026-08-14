@@ -2,6 +2,7 @@ export interface ServiceField {
   name: string;
   label: string;
   type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
+  helpText?: string;
   required: boolean;
   placeholder?: string;
   default?: any;
@@ -9,7 +10,7 @@ export interface ServiceField {
   description?: string;
   dependsOn?: {
     field: string;
-    values: string[];
+    values: Array<string | boolean>;
   };
   validation?: {
     minLength?: number;
@@ -376,6 +377,98 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: false,
         default: false,
         helpText: 'Toggle on if your endpoint requires HTTPS'
+      }
+    ]
+  },
+  {
+    id: 'mysql',
+    name: 'MySQL',
+    description: 'Connect to a MySQL database for workflow query and row operations',
+    icon: 'mysql-credentials.svg',
+    category: 'database',
+    color: 'from-cyan-600 to-blue-700',
+    fields: [
+      {
+        name: 'host',
+        label: 'Host',
+        type: 'text',
+        required: true,
+        default: 'localhost',
+        placeholder: 'localhost',
+        description: 'MySQL server hostname or IP address'
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: true,
+        default: '3306',
+        placeholder: '3306',
+        description: 'MySQL TCP port'
+      },
+      {
+        name: 'database',
+        label: 'Database',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'Default database used by the connection'
+      },
+      {
+        name: 'username',
+        label: 'User',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'MySQL account username'
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'MySQL account password'
+      },
+      {
+        name: 'connect_timeout',
+        label: 'Connect Timeout (ms)',
+        type: 'text',
+        required: false,
+        default: '10000',
+        description: 'Maximum time allowed for the initial connection'
+      },
+      {
+        name: 'ssl',
+        label: 'SSL',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Encrypt the MySQL connection with TLS'
+      },
+      {
+        name: 'ca_certificate',
+        label: 'CA Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM certificate authority'
+      },
+      {
+        name: 'client_certificate',
+        label: 'Client Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client certificate'
+      },
+      {
+        name: 'client_private_key',
+        label: 'Client Private Key',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client private key'
       }
     ]
   }

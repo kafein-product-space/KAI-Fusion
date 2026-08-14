@@ -86,6 +86,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         PostgresNode: "icons/postgresql_vectorstore.svg",
         PostgresTool: "icons/postgresql_vectorstore.svg",
         MarkItDownTool: "icons/markitdown.svg",
+        MySQLNode: "icons/mysql.svg",
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",

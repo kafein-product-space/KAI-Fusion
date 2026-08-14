@@ -37,6 +37,7 @@ from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
 
 # Database Nodes
 from .databases.postgres_node import PostgresNode
+from .databases.mysql_node import MySQLNode
 
 # Default Nodes
 from .default.start_node import StartNode
@@ -104,7 +105,7 @@ __all__ = [
     "VectorStoreOrchestrator",
 
     # Databases
-    "PostgresNode",
+    "PostgresNode", "MySQLNode",
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode", "ErrorTriggerNode",

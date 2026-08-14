@@ -572,6 +572,27 @@ def _test_webhook_auth(secret: Dict[str, Any], service_type: str) -> CredentialT
     return CredentialTestResponse(success=False, message="Unknown credential type.")
 
 
+async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a MySQL credential without exposing connection details."""
+    from app.nodes.databases.mysql_node import MySQLNode, mysql_connection
+
+    def check_connection() -> None:
+        with mysql_connection(secret) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="MySQL connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="MySQL connection timed out.")
+    except Exception as exc:
+        message = MySQLNode._database_error(exc)
+        logger.warning("MySQL credential test failed: %s", message)
+        return CredentialTestResponse(success=False, message=message)
+
+
 async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
     if service_type == "openai":
@@ -588,6 +609,8 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "mysql":
+        return await _test_mysql(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
