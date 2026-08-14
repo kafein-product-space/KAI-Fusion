@@ -13,6 +13,7 @@ psycopg2-binary==2.9.10
 psycopg[binary]==3.2.10
 psycopg-pool==3.2.7
 pglast==8.4
+PyMySQL==1.2.0
 PyJWT==2.12.1
 
 # Vector Database
