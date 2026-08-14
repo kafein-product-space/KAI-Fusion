@@ -10,6 +10,7 @@ from .cohere_reranker import CohereRerankerNode
 from .retriever import RetrieverProvider
 from .markitdown_tool import MarkItDownToolNode
 from .postgres_tool import PostgresToolNode
+from .mysql_tool import MySQLToolNode
 from .scrapling_tool import ScraplingToolNode
 
 __all__ = [
@@ -21,5 +22,6 @@ __all__ = [
     "RetrieverProvider",
     "MarkItDownToolNode",
     "PostgresToolNode",
+    "MySQLToolNode",
     "ScraplingToolNode"
 ]
