@@ -411,6 +411,13 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setEdges
   );
   const [historyRevision, setHistoryRevision] = useState(0);
+  const resetWorkflowHistory = useCallback(
+    (snapshotNodes: Node[], snapshotEdges: Edge[]) => {
+      resetHistory(snapshotNodes, snapshotEdges);
+      setHistoryRevision((revision) => revision + 1);
+    },
+    [resetHistory]
+  );
   const configFlushRef = useRef<(() => void) | null>(null);
   const reactFlowWrapper = useRef<HTMLDivElement>(null);
   const hasInitializedEmptyCanvas = useRef(false);
@@ -823,7 +830,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     startLLMChat,
     sendLLMMessage,
     loading: chatLoading,
-    thinking: chatThinking, // thinking state'ini al
+    thinking: chatThinking, // Read the thinking state
     error: chatError,
     addMessage,
     fetchChatMessages,
@@ -855,17 +862,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   useEffect(() => {
     if (workflowId) {
-      // Tekil workflow'u doğrudan fetch et
+      // Fetch the selected workflow directly
       fetchWorkflow(workflowId).catch(() => {
         setCurrentWorkflow(null);
         clearAllChats(); // Clear chats when workflow loading fails
-        enqueueSnackbar("Workflow bulunamadı veya yüklenemedi.", {
+        enqueueSnackbar("Workflow could not be found or loaded.", {
           variant: "error",
         });
       });
       hasInitializedEmptyCanvas.current = false;
     } else {
-      // Yeni workflow: state'i sıfırla
+      // Reset state for a new workflow
       setCurrentWorkflow(null);
       setNodes([]);
       setEdges([]);
@@ -915,7 +922,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       if (loadedWorkflowIdRef.current !== null && !isImportingRef.current) {
         setNodes([]);
         setEdges([]);
-        resetHistory([], []);
+        resetWorkflowHistory([], []);
         loadedWorkflowIdRef.current = null;
       }
       isImportingRef.current = false;
@@ -972,11 +979,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
         );
         setEdges(validEdges);
-        resetHistory(enrichedNodes, validEdges);
+        resetWorkflowHistory(enrichedNodes, validEdges);
       } else {
         const loadedEdges = edges || [];
         setEdges(loadedEdges);
-        resetHistory(enrichedNodes, loadedEdges);
+        resetWorkflowHistory(enrichedNodes, loadedEdges);
       }
 
       loadedWorkflowIdRef.current = currentWorkflow.id;
@@ -984,7 +991,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
     // Reset import flag after every useEffect run (self-healing)
     isImportingRef.current = false;
-  }, [currentWorkflow, availableNodes, customNodes, resetHistory]);
+  }, [currentWorkflow, availableNodes, customNodes, resetWorkflowHistory]);
 
   useEffect(() => {
     if (currentWorkflow) {
@@ -1072,8 +1079,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }, [handleUndo, handleRedo]);
 
   const activeModalNode = fullscreenModal.nodeData
-    ? nodes.find((node) => node.id === fullscreenModal.nodeData.id) ?? fullscreenModal.nodeData
+    ? nodes.find((node) => node.id === fullscreenModal.nodeData.id) ?? null
     : null;
+
+  useEffect(() => {
+    if (fullscreenModal.isOpen && fullscreenModal.nodeData && !activeModalNode) {
+      setFullscreenModal({ isOpen: false });
+    }
+  }, [activeModalNode, fullscreenModal.isOpen, fullscreenModal.nodeData]);
 
   // Clean up edges when nodes are deleted
   useEffect(() => {
@@ -2078,7 +2091,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         handleNavigation(pendingNavigation);
       }
     } catch (error) {
-      enqueueSnackbar("Kaydetme başarısız oldu", { variant: "error" });
+      enqueueSnackbar("Failed to save changes", { variant: "error" });
     }
   }, [handleSave, pendingNavigation, enqueueSnackbar, handleNavigation]);
 
@@ -2107,7 +2120,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     [hasUnsavedChanges]
   );
 
-  // handleSendMessage fonksiyonu güncellendi
+  // Send a chat message
   const handleSendMessage = async () => {
     if (chatInput.trim() === "") return;
     const userMessage = chatInput;
@@ -2121,7 +2134,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
     try {
       if (!currentWorkflow) {
-        enqueueSnackbar("Bir workflow seçili değil!", { variant: "warning" });
+        enqueueSnackbar("No workflow is selected!", { variant: "warning" });
         return;
       }
       if (!activeChatflowId) {
@@ -2135,18 +2148,18 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         );
       }
     } catch (e: any) {
-      // Hata mesajını chat'e ekle
+      // Add the error message to the chat
       addMessage(activeChatflowId || "error", {
         id: uuidv4(),
         chatflow_id: activeChatflowId || "error",
         role: "assistant",
-        content: e.message || "Bilinmeyen bir hata oluştu.",
+        content: e.message || "An unknown error occurred.",
         created_at: new Date().toISOString(),
       });
     }
   };
 
-  // Chat geçmişini store'dan al
+  // Read the chat history from the store
   const chatHistory = activeChatflowId ? chats[activeChatflowId] || [] : [];
 
   const handleClearChat = () => {
@@ -2326,7 +2339,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         updateWorkflowVisibility={updateWorkflowVisibility}
         onImportStart={() => { isImportingRef.current = true; loadedWorkflowIdRef.current = null; }}
         onWorkflowImported={(importedNodes, importedEdges) => {
-          resetHistory(importedNodes, importedEdges);
+          resetWorkflowHistory(importedNodes, importedEdges);
         }}
         onUndo={handleUndo}
         onRedo={handleRedo}
@@ -2340,7 +2353,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         hasUnsavedChanges={hasUnsavedChanges}
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
-        {/* Left Activity Bar (Dikey Sol Menü) */}
+        {/* Left Activity Bar */}
         <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-[#18181B] border-r border-gray-800/80 z-30 flex flex-col items-center justify-between py-4 select-none">
           {/* Top section: Nodes */}
           <div className="flex flex-col items-center gap-4 w-full">
@@ -2394,7 +2407,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         {/* Sidebar modal */}
         {isSidebarOpen && <Sidebar onClose={() => setIsSidebarOpen(false)} />}
 
-        {/* Canvas alanı */}
+        {/* Canvas area */}
         <div className="flex-1 pl-16 relative">
           {/* Error Display */}
           <ErrorDisplayComponent
@@ -2557,7 +2570,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       {/* Fullscreen Node Configuration Modal */}
       {fullscreenModal.isOpen &&
         fullscreenModal.nodeMetadata &&
-        fullscreenModal.configComponent && (
+        fullscreenModal.configComponent &&
+        activeModalNode && (
           <FullscreenNodeModal
             key={fullscreenModal.nodeData?.id}
             isOpen={fullscreenModal.isOpen}
