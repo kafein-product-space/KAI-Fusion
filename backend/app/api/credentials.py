@@ -611,11 +611,35 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_minio(secret)
     elif service_type == "mysql":
         return await _test_mysql(secret)
+    elif service_type == "sqlite":
+        return await _test_sqlite(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
+        )
+
+
+async def _test_sqlite(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a SQLite credential without exposing its filesystem path."""
+    from app.nodes.databases.sqlite_node import SQLiteNode, sqlite_connection
+
+    def check_connection() -> None:
+        with sqlite_connection(secret) as connection:
+            connection.execute("SELECT 1").fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="SQLite connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="SQLite connection timed out.")
+    except Exception as exc:
+        message = SQLiteNode._database_error(exc)
+        logger.warning("SQLite credential test failed: %s", message)
+        return CredentialTestResponse(
+            success=False,
+            message=message,
         )
 
 
@@ -664,6 +688,9 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
+    if "database_path" in data:
+        return "sqlite"
+
     # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (
         # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)

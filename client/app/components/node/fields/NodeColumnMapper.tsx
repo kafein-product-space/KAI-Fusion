@@ -5,6 +5,7 @@ import type { NodeProperty } from "../types";
 import { apiClient } from "~/lib/api-client";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 import { ThemedDateTimeInput } from "./ThemedDateTimeInput";
+import { ThemedNumberInput } from "./ThemedNumberInput";
 
 interface NodeColumnMapperProps {
   property: NodeProperty;
@@ -217,13 +218,13 @@ export const NodeColumnMapper = ({
 
       case "number":
         return (
-          <input
-            type="number"
-            className={inputClass}
+          <ThemedNumberInput
             value={value ?? ""}
             placeholder={placeholderFor(column)}
-            onChange={(e) =>
-              setColumnValue(column.name, e.target.value === "" ? null : Number(e.target.value))
+            ariaLabel={column.name}
+            size="compact"
+            onChange={(nextValue) =>
+              setColumnValue(column.name, nextValue === "" ? null : Number(nextValue))
             }
           />
         );

@@ -1,6 +1,7 @@
-import { Field } from "formik";
+import { useField } from "formik";
 import type { NodeProperty } from "../types";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
+import { ThemedNumberInput } from "./ThemedNumberInput";
 
 interface NodeNumberProps {
   property: NodeProperty;
@@ -8,6 +9,7 @@ interface NodeNumberProps {
 }
 
 export const NodeNumber = ({ property, values }: NodeNumberProps) => {
+  const [field, , helpers] = useField(property.name);
   const displayOptions = property?.displayOptions || {};
   const show = displayOptions.show || {};
 
@@ -26,13 +28,16 @@ export const NodeNumber = ({ property, values }: NodeNumberProps) => {
         label={property.displayName}
         helpText={getFieldHelpText(property)}
       />
-      <Field
-        type="number"
-        defaultValue={property?.default}
+      <ThemedNumberInput
         name={property.name}
-        className="input input-bordered w-full bg-[#10182c] text-white text-sm rounded-lg px-4 py-3 border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20"
+        value={field.value ?? property.default ?? ""}
         min={property?.min}
         max={property?.max}
+        step={property?.step}
+        placeholder={property?.placeholder}
+        ariaLabel={property.displayName}
+        onBlur={field.onBlur}
+        onChange={(nextValue) => helpers.setValue(nextValue)}
       />
     </div>
   );

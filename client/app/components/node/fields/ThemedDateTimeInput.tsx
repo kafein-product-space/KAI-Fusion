@@ -1,13 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CalendarDays,
-  ChevronDown,
   ChevronLeft,
   ChevronRight,
-  ChevronUp,
   Clock,
   X,
 } from "lucide-react";
+import { NumberStepControls } from "./ThemedNumberInput";
 
 interface ThemedDateTimeInputProps {
   value?: string | null;
@@ -84,28 +83,14 @@ const TimeControl = ({
       }}
       className="min-w-0 flex-1 bg-transparent px-2 text-center text-sm text-white outline-none"
     />
-    <div className="flex w-6 shrink-0 flex-col border-l border-slate-700">
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-label={`Increase ${label.toLowerCase()}`}
-        disabled={disabled}
-        onClick={() => onStep(1)}
-        className="flex flex-1 items-center justify-center text-slate-500 hover:bg-blue-500/15 hover:text-blue-300 disabled:pointer-events-none"
-      >
-        <ChevronUp size={11} />
-      </button>
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-label={`Decrease ${label.toLowerCase()}`}
-        disabled={disabled}
-        onClick={() => onStep(-1)}
-        className="flex flex-1 items-center justify-center border-t border-slate-700 text-slate-500 hover:bg-blue-500/15 hover:text-blue-300 disabled:pointer-events-none"
-      >
-        <ChevronDown size={11} />
-      </button>
-    </div>
+    <NumberStepControls
+      increaseDisabled={disabled}
+      decreaseDisabled={disabled}
+      increaseLabel={`Increase ${label.toLowerCase()}`}
+      decreaseLabel={`Decrease ${label.toLowerCase()}`}
+      onIncrease={() => onStep(1)}
+      onDecrease={() => onStep(-1)}
+    />
   </div>
 );
 
