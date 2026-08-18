@@ -15,6 +15,7 @@ import {
   NodeDateTime,
   NodeCodeEditor,
   NodeSessionId,
+  ThemedNumberInput,
 } from "./fields";
 import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
@@ -393,13 +394,20 @@ export default function GenericNodeForm({
                         className="text-sm text-slate-200"
                       />
                       <div className="flex items-center gap-3">
-                        <input
-                          type="number"
+                        <ThemedNumberInput
                           value={values[property.name] ?? property.default ?? ""}
-                          onChange={(e) => setFieldValue(property.name, e.target.value ? Number(e.target.value) : "")}
+                          onChange={(nextValue) =>
+                            setFieldValue(
+                              property.name,
+                              nextValue === "" ? "" : Number(nextValue)
+                            )
+                          }
                           min={property.min}
                           max={property.max}
-                          className="w-20 bg-[#10182c] border border-slate-600 rounded-lg px-2 py-1 text-sm text-white text-center focus:outline-none focus:border-blue-500"
+                          step={property.step}
+                          ariaLabel={property.displayName}
+                          size="compact"
+                          className="w-28"
                         />
                         <button
                           type="button"
