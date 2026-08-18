@@ -89,6 +89,7 @@ export function getNodeTypeIconPath(nodeType: string): string {
         MySQLNode: "icons/mysql.svg",
         MySQLTool: "icons/mysql.svg",
         SQLiteNode: "icons/sqlite.svg",
+        SQLiteTool: "icons/sqlite.svg",
 
         // Web & APIs
         TavilySearch: "icons/tavily-nonbrand.svg",
