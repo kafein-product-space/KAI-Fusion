@@ -204,9 +204,12 @@ backend/
 │   │       ├── __init__.py
 │   │       └── vector_store_orchestrator.py # Vector store management
 │   │
-│   ├── routes/                   # Additional route handlers
+│   ├── api/                      # FastAPI route controllers
 │   │   ├── __init__.py
-│   │   └── export.py             # Data export routes
+│   │   ├── workflows.py          # Workflow endpoints
+│   │   ├── executions.py         # Execution endpoints
+│   │   ├── export.py             # Workflow bundle export endpoints
+│   │   └── ...                   # Other API route handlers
 │   │
 │   ├── schemas/                  # Pydantic schemas for API validation
 │   │   ├── __init__.py
