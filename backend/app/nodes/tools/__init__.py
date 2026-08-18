@@ -11,6 +11,7 @@ from .retriever import RetrieverProvider
 from .markitdown_tool import MarkItDownToolNode
 from .postgres_tool import PostgresToolNode
 from .mysql_tool import MySQLToolNode
+from .sqlite_tool import SQLiteToolNode
 from .scrapling_tool import ScraplingToolNode
 
 __all__ = [
@@ -23,5 +24,6 @@ __all__ = [
     "MarkItDownToolNode",
     "PostgresToolNode",
     "MySQLToolNode",
-    "ScraplingToolNode"
+    "SQLiteToolNode",
+    "ScraplingToolNode",
 ]
