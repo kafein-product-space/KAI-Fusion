@@ -416,11 +416,6 @@ class OpenAICompatibleNode(BaseNode):
                 cred_verify_ssl = not bool(skip_ssl)
                 logger.debug("OpenAI-compatible API key loaded")
 
-        if credential_id and not api_key_value:
-            raise ValueError(
-                "The selected OpenAI-compatible credential has no API key."
-            )
-
         # Resolve base URL with priority: kwargs -> credential -> self.user_data
         base_url = kwargs.get("base_url") or cred_base_url or self.user_data.get("base_url")
         if not base_url:
@@ -490,16 +485,8 @@ class OpenAICompatibleNode(BaseNode):
         site_name = kwargs.get("site_name") or self.user_data.get("site_name", "KAI-Flow")
         
         if not api_key_value:
-             # Try environment variables as fallback
-             import os
-             api_key_value = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_COMPATIBLE_API_KEY")
-             if api_key_value:
-                 logger.info("INFO: Using API Key from environment.")
-             else:
-                 # Some local endpoints might not require a key.
-                 # We provide a dummy key because langchain/openai usually expects one.
-                 api_key_value = "sk-no-key-required"
-                 logger.info("INFO: No API Key provided. Using placeholder key.")
+            import os
+            api_key_value = os.getenv("OPENAI_API_KEY") or os.getenv("OPENAI_COMPATIBLE_API_KEY") or ""
         
         # Prepare Extra Headers
         extra_headers = {}

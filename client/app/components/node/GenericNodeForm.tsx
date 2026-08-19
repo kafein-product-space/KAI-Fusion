@@ -8,6 +8,7 @@ import {
   NodeNumber,
   NodePassword,
   NodeSelect,
+  NodeModelSelect,
   NodeCheckbox,
   NodeTitle,
   NodeRange,
@@ -89,9 +90,14 @@ export default function GenericNodeForm({
   onSave,
   onChange,
 }: GenericNodeFormProps) {
-  const properties = configData?.metadata?.properties || [];
+  const rawProperties = configData?.metadata?.properties || [];
   const nodeType =
     configData?.metadata?.name || configData?.name || configData?.type;
+  // OpenAI GPT and OpenAI Compatible take the model from the credential; ignore stale saved metadata.
+  const properties =
+    nodeType === "OpenAIChat" || nodeType === "openai_gpt" || nodeType === "OpenAICompatible" || nodeType === "openai_compatible"
+      ? rawProperties.filter((property: NodeProperty) => property.name !== "model_name")
+      : rawProperties;
   const columnMapperSessionsRef = useRef<Record<string, any>>({});
 
   const tabs = properties.reduce((acc: any[], property: NodeProperty) => {
@@ -281,7 +287,8 @@ export default function GenericNodeForm({
                     );
                   case "select":
                     return <NodeSelect property={fullWidthProperty} values={values} />;
-
+                  case "model-select":
+                    return <NodeModelSelect property={fullWidthProperty} values={values} />;
                   case "dynamic-select":
                     return (
                       <NodeDynamicSelect
