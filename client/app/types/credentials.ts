@@ -7,6 +7,7 @@ export interface ServiceField {
   default?: any;
   options?: { value: string; label: string }[];
   description?: string;
+  helpText?: string;
   dependsOn?: {
     field: string;
     values: string[];

@@ -273,15 +273,6 @@ class OpenAICompatibleNode(BaseNode):
                     serviceType="openai_compatible",
                 ),
                 NodeProperty(
-                    name="model_name",
-                    displayName="Model",
-                    tabName="basic",
-                    type=NodePropertyType.MODEL_SELECT,
-                    placeholder="Select or type a model",
-                    required=False,
-                    hint="Models are loaded from the selected credential's provider. Use arrow keys to move through the list. Falls back to the credential model name if empty.",
-                ),
-                NodeProperty(
                     name="temperature",
                     displayName="Temperature",
                     tabName="basic",

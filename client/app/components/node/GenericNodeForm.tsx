@@ -8,7 +8,6 @@ import {
   NodeNumber,
   NodePassword,
   NodeSelect,
-  NodeModelSelect,
   NodeCheckbox,
   NodeTitle,
   NodeRange,
@@ -17,6 +16,7 @@ import {
   NodeCodeEditor,
   NodeSessionId,
 } from "./fields";
+import { NodeModelSelect } from "./fields/NodeModelSelect";
 import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
 import { useState, useRef, useEffect } from "react";
