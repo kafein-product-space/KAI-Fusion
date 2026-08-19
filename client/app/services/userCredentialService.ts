@@ -57,7 +57,7 @@ export interface CredentialModelOption {
 
 export interface CredentialModelsResponse {
   models: CredentialModelOption[];
-  source: 'provider' | 'fallback' | string;
+  source: 'provider' | 'empty' | string;
   message?: string | null;
 }
 

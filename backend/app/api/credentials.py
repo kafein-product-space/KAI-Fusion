@@ -1,7 +1,9 @@
 """User Credentials API endpoints"""
 
+import ast
 import asyncio
 import logging
+import re
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -362,51 +364,24 @@ class CredentialModelOption(BaseModel):
 
 class CredentialModelsResponse(BaseModel):
     models: List[CredentialModelOption]
-    source: str  # "provider" | "fallback"
+    source: str  # "provider" | "empty"
     message: Optional[str] = None
 
 
-# Static fallback when OpenAI /models cannot be reached
-OPENAI_FALLBACK_MODELS = [
-    "o3-mini",
-    "o3",
-    "gpt-4o",
-    "gpt-4o-mini",
-    "gpt-4.1-nano",
-    "gpt-4-turbo",
-    "gpt-4-turbo-preview",
-    "gpt-4",
-    "gpt-4-32k",
-]
-
-_OPENAI_NON_CHAT_PREFIXES = (
-    "whisper",
-    "dall-e",
-    "tts-",
-    "text-embedding",
-    "davinci",
-    "babbage",
-    "curie",
-    "ada",
-    "omni-moderation",
-    "gpt-image",
-    "chatgpt-image",
-)
-
-
-def _is_openai_chat_model(model_id: str) -> bool:
-    lower = model_id.lower()
-    return not any(lower.startswith(prefix) for prefix in _OPENAI_NON_CHAT_PREFIXES)
-
-
-def _build_openai_client(secret: Dict[str, Any], *, compatible: bool = False):
+def _build_openai_client(
+    secret: Dict[str, Any],
+    *,
+    compatible: bool = False,
+    timeout: float = 15,
+):
     from openai import AsyncOpenAI
 
     api_key = secret.get("api_key", "")
     if not api_key:
         api_key = "dummy_for_local"
 
-    client_kwargs: Dict[str, Any] = {"api_key": api_key}
+    request_timeout = httpx.Timeout(timeout, connect=min(timeout, 5.0))
+    client_kwargs: Dict[str, Any] = {"api_key": api_key, "timeout": request_timeout}
 
     if compatible:
         base_url = secret.get("base_url", "")
@@ -417,26 +392,79 @@ def _build_openai_client(secret: Dict[str, Any], *, compatible: bool = False):
         if isinstance(skip_ssl, str):
             skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
         if skip_ssl:
-            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
+            client_kwargs["http_client"] = httpx.AsyncClient(
+                verify=False,
+                timeout=request_timeout,
+            )
 
     return AsyncOpenAI(**client_kwargs)
+
+
+_NON_CHAT_MODEL_HINTS = ("embed", "embedding", "rerank")
+
+
+def _is_chat_model(model_id: str) -> bool:
+    lowered = model_id.lower()
+    return not any(hint in lowered for hint in _NON_CHAT_MODEL_HINTS)
+
+
+def _model_size_score(model_id: str) -> float:
+    match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])\b", model_id.lower())
+    if not match:
+        return 10**9
+    size = float(match.group(1))
+    return size * (1 if match.group(2) == "b" else 0.001)
+
+
+def _pick_chat_model(model_ids: List[str]) -> Optional[str]:
+    chat_models = [model_id for model_id in model_ids if _is_chat_model(model_id)]
+    candidates = chat_models or model_ids
+    if not candidates:
+        return None
+    return min(candidates, key=lambda model_id: (_model_size_score(model_id), model_id.lower()))
+
+
+def _is_license_restriction(error: Exception) -> bool:
+    if _extract_allowed_models(error):
+        return True
+    text = str(error).lower()
+    return "model not allowed" in text or "allowed_models" in text
+
+
+def _extract_allowed_models(error: Exception) -> List[str]:
+    """Read allowed_models from a provider 403 body or error string."""
+    body = getattr(error, "body", None)
+    if isinstance(body, dict):
+        models = body.get("allowed_models")
+        if isinstance(models, list):
+            return [str(model_id) for model_id in models if model_id]
+
+    match = re.search(r"allowed_models['\"]?\s*[:=]\s*(\[[^\]]*\])", str(error))
+    if not match:
+        return []
+    try:
+        parsed = ast.literal_eval(match.group(1))
+    except (ValueError, SyntaxError):
+        return []
+    if isinstance(parsed, list):
+        return [str(model_id) for model_id in parsed if model_id]
+    return []
 
 
 async def _list_models_from_provider(
     secret: Dict[str, Any],
     *,
     compatible: bool = False,
-    filter_chat: bool = False,
 ) -> List[CredentialModelOption]:
     client = _build_openai_client(secret, compatible=compatible)
     response = await asyncio.wait_for(client.models.list(), timeout=15)
+    seen: set[str] = set()
     models: List[CredentialModelOption] = []
     for item in getattr(response, "data", []) or []:
         model_id = getattr(item, "id", None)
-        if not model_id:
+        if not model_id or model_id in seen:
             continue
-        if filter_chat and not _is_openai_chat_model(model_id):
-            continue
+        seen.add(model_id)
         models.append(
             CredentialModelOption(
                 id=model_id,
@@ -451,17 +479,24 @@ async def _list_models_response(
     service_type: str,
     secret: Dict[str, Any],
 ) -> CredentialModelsResponse:
-    """Query a provider's /models API, with a static OpenAI catalog as fallback."""
+    """Query a provider's /models API. Never return a hardcoded model catalog."""
     if service_type not in ("openai", "openai_compatible"):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"Model listing is not supported for service type: {service_type}",
         )
 
+    if service_type == "openai" and not str(secret.get("api_key") or "").strip():
+        return CredentialModelsResponse(
+            models=[],
+            source="empty",
+            message="Enter your API key to load available models.",
+        )
+
     if service_type == "openai_compatible" and not str(secret.get("base_url") or "").strip():
         return CredentialModelsResponse(
             models=[],
-            source="fallback",
+            source="empty",
             message="Enter a Base URL to load available models.",
         )
 
@@ -469,44 +504,31 @@ async def _list_models_response(
         models = await _list_models_from_provider(
             secret,
             compatible=(service_type == "openai_compatible"),
-            filter_chat=(service_type == "openai"),
         )
         if models:
             return CredentialModelsResponse(models=models, source="provider")
-        if service_type == "openai":
-            return CredentialModelsResponse(
-                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
-                source="fallback",
-                message="Provider returned no models; showing built-in OpenAI catalog.",
-            )
         return CredentialModelsResponse(
             models=[],
-            source="provider",
+            source="empty",
             message="Provider returned no models. You can type a model name manually.",
         )
     except asyncio.TimeoutError:
-        if service_type == "openai":
-            return CredentialModelsResponse(
-                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
-                source="fallback",
-                message="Connection timed out; showing built-in OpenAI catalog.",
-            )
         return CredentialModelsResponse(
             models=[],
-            source="fallback",
+            source="empty",
             message="Connection timed out. You can type a model name manually.",
         )
     except Exception as e:
-        logger.warning(f"Failed to list models for service type {service_type}: {e}")
-        if service_type == "openai":
+        allowed = _extract_allowed_models(e)
+        if allowed:
             return CredentialModelsResponse(
-                models=[CredentialModelOption(id=m) for m in OPENAI_FALLBACK_MODELS],
-                source="fallback",
-                message=f"Could not fetch models from provider ({e}). Showing built-in catalog.",
+                models=[CredentialModelOption(id=model_id) for model_id in allowed],
+                source="provider",
             )
+        logger.warning(f"Failed to list models for service type {service_type}: {e}")
         return CredentialModelsResponse(
             models=[],
-            source="fallback",
+            source="empty",
             message=f"Could not fetch models from provider ({e}). You can type a model name manually.",
         )
 
@@ -529,7 +551,6 @@ async def list_credential_models(
 ):
     """
     List available LLM models for a credential by querying the provider's /models API.
-    Falls back to a static OpenAI catalog when the provider cannot be reached.
     """
     user_id = current_user.id
     decrypted = await credential_service.get_decrypted_credential(db, user_id, credential_id)
@@ -563,45 +584,45 @@ async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
 
 async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
-        from openai import AsyncOpenAI
+        if not str(secret.get("base_url") or "").strip():
+            return CredentialTestResponse(success=False, message="Base URL is required.")
 
-        # Use dummy key for local servers that don't need auth, so client doesn't complain about empty key
-        api_key = secret.get("api_key", "")
-        if not api_key:
-            api_key = "dummy_for_local"
-
-        # Check if SSL verification should be skipped
         skip_ssl = secret.get("skip_ssl_verify", False)
         if isinstance(skip_ssl, str):
             skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
         skip_ssl = bool(skip_ssl)
-
-        client_kwargs = {
-            "api_key": api_key,
-            "base_url": secret.get("base_url", "")
-        }
-
-        # Inject custom HTTP client to bypass SSL verification
         if skip_ssl:
             logger.info("SSL verification disabled for test connection.")
-            client_kwargs["http_client"] = httpx.AsyncClient(verify=False)
 
-        client = AsyncOpenAI(**client_kwargs)
-        
-        # 1. First, test using chat/completions endpoint
-        model_name = secret.get("model_name", "")
-        await asyncio.wait_for(
-            client.chat.completions.create(
-                model=model_name,
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=16
-            ),
-            timeout=10
-        )
-        msg = "Connected to OpenAI Compatible provider successfully via chat/completions."
-        if skip_ssl:
-            msg += " (SSL verification was skipped)"
-        return CredentialTestResponse(success=True, message=msg)
+        client = _build_openai_client(secret, compatible=True, timeout=8)
+        selected_model = str(secret.get("model_name") or "").strip()
+
+        def _success(model: Optional[str] = None) -> CredentialTestResponse:
+            if model:
+                msg = f"Connected to OpenAI Compatible provider successfully using {model}."
+            else:
+                msg = "Connected to OpenAI Compatible provider successfully."
+            if skip_ssl:
+                msg += " (SSL verification was skipped)"
+            return CredentialTestResponse(success=True, message=msg)
+
+        try:
+            response = await asyncio.wait_for(client.models.list(), timeout=8)
+            listed_ids = [
+                str(getattr(item, "id", "")).strip()
+                for item in (getattr(response, "data", None) or [])
+                if getattr(item, "id", None)
+            ]
+            return _success(selected_model or _pick_chat_model(listed_ids))
+        except asyncio.TimeoutError:
+            return CredentialTestResponse(success=False, message="Connection timed out.")
+        except Exception as list_error:
+            if isinstance(list_error, httpx.TimeoutException) or "timed out" in str(list_error).lower():
+                return CredentialTestResponse(success=False, message="Connection timed out.")
+            allowed = _extract_allowed_models(list_error)
+            if allowed or _is_license_restriction(list_error):
+                return _success(selected_model or _pick_chat_model(allowed))
+            return CredentialTestResponse(success=False, message=str(list_error))
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:

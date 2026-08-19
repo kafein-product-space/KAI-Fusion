@@ -29,7 +29,6 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
   const lastPrefillCredentialRef = useRef<string | null>(null);
 
   const credentialId = values?.credential_id as string | undefined;
-  const staticOptions = useMemo(() => property.options || [], [property.options]);
   const currentValue = field.value ?? property?.default ?? "";
 
   const displayOptions = property?.displayOptions || {};
@@ -59,19 +58,9 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
       const result = await getCredentialModels(credId);
       setModels(result.models || []);
       setAllowManual(true);
-      if (result.message) {
-        setStatusMessage(result.message);
-      } else if (result.source === "fallback") {
-        setStatusMessage("Showing fallback model list.");
-      } else {
-        setStatusMessage(null);
-      }
+      setStatusMessage(result.message || null);
     } catch (error: any) {
-      console.error("Failed to load credential models:", error);
-      const fallback = staticOptions.map((opt: { value: string; label?: string }) => ({
-        id: opt.value,
-      }));
-      setModels(fallback);
+      setModels([]);
       setAllowManual(true);
       setStatusMessage(
         error?.message || "Could not load models. You can type a model name manually."
@@ -113,20 +102,19 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
   }, [credentialId]);
 
   const mergedOptions = useMemo(() => {
-    const fromProvider = models.map((m) => ({
-      label: m.id,
-      value: m.id,
-      hint: m.owned_by ? `owned by ${m.owned_by}` : undefined,
-    }));
-
-    if (fromProvider.length > 0) return fromProvider;
-
-    return staticOptions.map((opt: { label: string; value: string; hint?: string }) => ({
-      label: opt.label || opt.value,
-      value: opt.value,
-      hint: opt.hint,
-    }));
-  }, [models, staticOptions]);
+    const seen = new Set<string>();
+    const options: Array<{ label: string; value: string; hint?: string }> = [];
+    for (const model of models) {
+      if (seen.has(model.id)) continue;
+      seen.add(model.id);
+      options.push({
+        label: model.id,
+        value: model.id,
+        hint: model.owned_by ? `owned by ${model.owned_by}` : undefined,
+      });
+    }
+    return options;
+  }, [models]);
 
   const filteredOptions = useMemo(() => {
     const q = search.trim().toLowerCase();

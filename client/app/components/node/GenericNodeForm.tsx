@@ -87,7 +87,13 @@ export default function GenericNodeForm({
   onSave,
   onChange,
 }: GenericNodeFormProps) {
-  const properties = configData?.metadata?.properties || [];
+  const rawProperties = configData?.metadata?.properties || [];
+  const nodeTypeName = configData?.metadata?.name;
+  // OpenAI GPT takes the model from the credential; ignore stale saved metadata.
+  const properties =
+    nodeTypeName === "OpenAIChat"
+      ? rawProperties.filter((property: NodeProperty) => property.name !== "model_name")
+      : rawProperties;
 
   const tabs = properties.reduce((acc: any[], property: NodeProperty) => {
     const tabId = property.tabName || "basic";

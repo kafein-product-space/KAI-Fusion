@@ -61,19 +61,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         type: 'model-combobox',
         required: true,
         placeholder: 'Select or type a model',
-        default: 'gpt-4o',
-        options: [
-          { value: 'o3-mini', label: 'o3-mini' },
-          { value: 'o3', label: 'o3' },
-          { value: 'gpt-4o', label: 'GPT-4o' },
-          { value: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-          { value: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
-          { value: 'gpt-4-turbo', label: 'GPT-4 Turbo' },
-          { value: 'gpt-4-turbo-preview', label: 'GPT-4 Turbo Preview' },
-          { value: 'gpt-4', label: 'GPT-4' },
-          { value: 'gpt-4-32k', label: 'GPT-4 32K' }
-        ],
-        description: 'Available models are loaded from OpenAI after you enter your API key. Use the arrow keys to move through the list.'
+        description: 'Models are loaded from OpenAI after you enter your API key. Use the arrow keys to move through the list.'
       }
     ]
   },
@@ -90,24 +78,24 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         label: 'Base URL',
         type: 'text',
         required: true,
-        placeholder: 'https://openrouter.ai/api/v1',
+        placeholder: 'e.g. https://openrouter.ai/api/v1',
         description: 'The endpoint URL for the compatible service'
-      },
-      {
-        name: 'model_name',
-        label: 'Model Name',
-        type: 'model-combobox',
-        required: true,
-        placeholder: 'Select or type a model',
-        description: 'Available models are loaded from the Base URL above. Use the arrow keys to move through the list, then press Enter to select.'
       },
       {
         name: 'api_key',
         label: 'API Key',
         type: 'password',
         required: true,
-        placeholder: '...',
+        placeholder: 'Paste your API key',
         description: 'The authentication key for the compatible service'
+      },
+      {
+        name: 'model_name',
+        label: 'Model',
+        type: 'model-combobox',
+        required: true,
+        placeholder: 'Select or type a model',
+        description: 'Models are loaded from your provider when Base URL and API key are set. Use the arrow keys to move through the list.'
       },
       {
         name: 'skip_ssl_verify',

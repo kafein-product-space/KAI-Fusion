@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useField } from "formik";
+import { useField, useFormikContext } from "formik";
 import { ChevronDown, Loader2 } from "lucide-react";
 import type { ServiceField } from "~/types/credentials";
 import {
@@ -31,12 +31,28 @@ const isUsableUrl = (value: string): boolean => {
   }
 };
 
+const isLocalProvider = (value: string): boolean => {
+  try {
+    const host = new URL(value.trim()).hostname;
+    return (
+      host === "localhost" ||
+      host === "127.0.0.1" ||
+      host.endsWith(".local") ||
+      /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
+    );
+  } catch {
+    return false;
+  }
+};
+
 const CredentialModelCombobox = ({
   field,
   serviceType,
-  values,
+  values: valuesProp,
   className = "",
 }: CredentialModelComboboxProps) => {
+  const { values: formikValues } = useFormikContext<Record<string, any>>();
+  const values = formikValues || valuesProp;
   const [formikField, , helpers] = useField(field.name);
   const [open, setOpen] = useState(false);
   const [models, setModels] = useState<CredentialModelOption[]>([]);
@@ -48,35 +64,53 @@ const CredentialModelCombobox = ({
   const requestIdRef = useRef(0);
 
   const currentValue = String(formikField.value ?? field.default ?? "");
-  const staticOptions = useMemo(() => field.options || [], [field.options]);
+  const baseUrl = String(values.base_url || "").trim();
+  const apiKey = String(values.api_key || "").trim();
 
   const canFetch = useMemo(() => {
     if (serviceType === "openai") {
-      return String(values.api_key || "").trim().length >= 20;
+      return apiKey.length >= 20;
     }
     if (serviceType === "openai_compatible") {
-      return isUsableUrl(String(values.base_url || ""));
+      if (!isUsableUrl(baseUrl)) return false;
+      if (isLocalProvider(baseUrl)) return true;
+      return apiKey.length > 0;
     }
     return false;
-  }, [serviceType, values.api_key, values.base_url]);
+  }, [serviceType, apiKey, baseUrl]);
+
+  const idleMessage = useMemo(() => {
+    if (serviceType === "openai") {
+      return "Enter your API key to load available models.";
+    }
+    if (serviceType === "openai_compatible") {
+      if (!isUsableUrl(baseUrl)) {
+        return "Enter a Base URL to load available models.";
+      }
+      if (!apiKey) {
+        return "Enter your API key to load available models.";
+      }
+    }
+    return "No models available.";
+  }, [serviceType, apiKey, baseUrl]);
 
   const fetchKey = useMemo(
     () =>
       JSON.stringify({
         serviceType,
-        base_url: values.base_url || "",
-        api_key: values.api_key || "",
+        base_url: baseUrl,
+        api_key: apiKey,
         skip_ssl_verify: values.skip_ssl_verify || false,
         canFetch,
       }),
-    [serviceType, values.base_url, values.api_key, values.skip_ssl_verify, canFetch]
+    [serviceType, baseUrl, apiKey, values.skip_ssl_verify, canFetch]
   );
 
   const fetchModels = useCallback(async () => {
     const requestId = ++requestIdRef.current;
     if (!canFetch) {
       setModels([]);
-      setStatusMessage(null);
+      setStatusMessage(idleMessage);
       setLoading(false);
       return;
     }
@@ -102,7 +136,7 @@ const CredentialModelCombobox = ({
         setLoading(false);
       }
     }
-  }, [canFetch, field.name, serviceType, values]);
+  }, [canFetch, field.name, idleMessage, serviceType, values]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -114,18 +148,27 @@ const CredentialModelCombobox = ({
   }, [fetchKey]);
 
   const mergedOptions = useMemo(() => {
-    const fromProvider = models.map((model) => ({
-      label: model.id,
-      value: model.id,
-      hint: model.owned_by ? `owned by ${model.owned_by}` : undefined,
-    }));
-    if (fromProvider.length > 0) return fromProvider;
-    return staticOptions.map((option) => ({
-      label: option.label || option.value,
-      value: option.value,
-      hint: undefined as string | undefined,
-    }));
-  }, [models, staticOptions]);
+    const seen = new Set<string>();
+    const options: Array<{ label: string; value: string; hint?: string }> = [];
+    for (const model of models) {
+      if (seen.has(model.id)) continue;
+      seen.add(model.id);
+      options.push({
+        label: model.id,
+        value: model.id,
+        hint: model.owned_by ? `owned by ${model.owned_by}` : undefined,
+      });
+    }
+    return options;
+  }, [models]);
+
+  useEffect(() => {
+    if (loading || currentValue.trim() || mergedOptions.length === 0) return;
+    const firstChat =
+      mergedOptions.find((option) => !/embed|embedding|rerank/i.test(option.value)) ||
+      mergedOptions[0];
+    helpers.setValue(firstChat.value);
+  }, [currentValue, helpers, loading, mergedOptions]);
 
   const filteredOptions = useMemo(() => {
     const query = currentValue.trim().toLowerCase();
@@ -279,7 +322,7 @@ const CredentialModelCombobox = ({
             <div className="px-4 py-3 text-sm text-gray-500">
               {currentValue.trim()
                 ? "No matches. Keep typing to use a custom model name."
-                : statusMessage || "No models available."}
+                : statusMessage || idleMessage}
             </div>
           )}
 

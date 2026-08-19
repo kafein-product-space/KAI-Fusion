@@ -280,13 +280,6 @@ class OpenAINode(BaseNode):
             "colors": ["purple-500", "indigo-600"],
             "inputs": [
                 NodeInput(
-                    name="model_name",
-                    type="str",
-                    description="OpenAI model to use",
-                    default="gpt-4o",  # Changed default to gpt-4o
-                    required=False,
-                ),
-                NodeInput(
                     name="temperature",
                     type="float",
                     description="Sampling temperature (0.0-2.0) - Controls randomness",
@@ -506,7 +499,8 @@ class OpenAINode(BaseNode):
                 api_key = secret.get("api_key")
                 cred_model_name = secret.get("model_name")
 
-        # Model is chosen on the credential. Node data is only a fallback for older workflows.
+        # Model is chosen on the OpenAI credential, not on the node.
+        # Node data is only a fallback for older workflows that still store model_name.
         model_name = (
             cred_model_name
             or kwargs.get("model_name")
