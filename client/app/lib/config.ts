@@ -80,6 +80,8 @@ export const API_ENDPOINTS = {
     TEST: (id: string) => `/credentials/${id}/test`,
     TEST_RAW: '/credentials/test-raw',
     WORKFLOWS: (id: string) => `/credentials/${id}/workflows`,
+    MODELS: (id: string) => `/credentials/${id}/models`,
+    LIST_MODELS: '/credentials/list-models',
   },
   API_KEYS: {
     LIST: '/api-keys',

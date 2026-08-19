@@ -1,7 +1,7 @@
 export interface ServiceField {
   name: string;
   label: string;
-  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox';
+  type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox' | 'model-combobox';
   helpText?: string;
   required: boolean;
   placeholder?: string;
@@ -55,6 +55,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
             return undefined;
           }
         }
+      },
+      {
+        name: 'model_name',
+        label: 'Model',
+        type: 'model-combobox',
+        required: true,
+        placeholder: 'Select or type a model',
+        description: 'Models are loaded from OpenAI after you enter your API key. Use the arrow keys to move through the list.'
       }
     ]
   },
@@ -71,24 +79,24 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         label: 'Base URL',
         type: 'text',
         required: true,
-        placeholder: 'https://openrouter.ai/api/v1',
+        placeholder: 'e.g. https://openrouter.ai/api/v1',
         description: 'The endpoint URL for the compatible service'
-      },
-      {
-        name: 'model_name',
-        label: 'Model Name',
-        type: 'text',
-        required: true,
-        placeholder: 'google/gemma-3n-e4b-it',
-        description: 'The model name/identifier (e.g. llama3-70b-8192)'
       },
       {
         name: 'api_key',
         label: 'API Key',
         type: 'password',
+        required: false,
+        placeholder: 'Optional for local endpoints (Ollama, LM Studio, etc.)',
+        description: 'The authentication key for the compatible service (leave empty if not required)'
+      },
+      {
+        name: 'model_name',
+        label: 'Model',
+        type: 'model-combobox',
         required: true,
-        placeholder: '...',
-        description: 'The authentication key for the compatible service'
+        placeholder: 'Select or type a model',
+        description: 'Models are loaded from your provider when Base URL is set. Use the arrow keys to move through the list.'
       },
       {
         name: 'skip_ssl_verify',
