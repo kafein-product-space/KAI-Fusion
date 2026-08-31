@@ -232,6 +232,7 @@ class MarkItDownToolNode(ProviderNode):
                 access_key=access_key,
                 secret_key=secret_key,
                 use_ssl=use_ssl,
+                region_name=secret.get("region") or secret.get("aws_region"),
             )
         except Exception as e:
             logger.error(f"Failed to create MinIO client: {str(e)}")

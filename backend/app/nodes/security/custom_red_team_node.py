@@ -352,7 +352,13 @@ class CustomRedTeamNode(ProcessorNode):
 
         from app.services.minio_service import minio_service
         
-        client = minio_service.get_client(endpoint, access_key, secret_key, use_ssl=use_ssl)
+        client = minio_service.get_client(
+            endpoint,
+            access_key,
+            secret_key,
+            use_ssl=use_ssl,
+            region_name=secret.get("region") or secret.get("aws_region"),
+        )
         dataset = minio_service.download_dataset(client, bucket, key)
         
         # Validate format

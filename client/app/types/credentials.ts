@@ -405,6 +405,14 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         helpText: 'The host and port for your MinIO/S3 instance (without http/https)'
       },
       {
+        name: 'region',
+        label: 'AWS Region (optional)',
+        type: 'text',
+        required: false,
+        placeholder: 'e.g. eu-north-1',
+        helpText: 'Optional AWS region. It is inferred automatically from regional S3 endpoints.'
+      },
+      {
         name: 'access_key',
         label: 'Access Key',
         type: 'text',

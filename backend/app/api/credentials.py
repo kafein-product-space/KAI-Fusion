@@ -814,7 +814,13 @@ async def _test_minio(secret: Dict[str, Any]) -> CredentialTestResponse:
         def _connect():
             logger.info(f"Testing MinIO connection to {endpoint} (SSL: {use_ssl})")
             # Force path-style for MinIO
-            client = minio_service.get_client(endpoint, access_key, secret_key, use_ssl=use_ssl)
+            client = minio_service.get_client(
+                endpoint,
+                access_key,
+                secret_key,
+                use_ssl=use_ssl,
+                region_name=secret.get("region") or secret.get("aws_region"),
+            )
             # Try to list buckets to verify credentials and connectivity
             client.list_buckets()
 

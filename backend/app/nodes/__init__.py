@@ -26,6 +26,7 @@ from .tools.postgres_tool import PostgresToolNode
 from .tools.mysql_tool import MySQLToolNode
 from .tools.sqlite_tool import SQLiteToolNode
 from .tools.scrapling_tool import ScraplingToolNode
+from .tools.model_security_tool import ModelSecurityToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -70,6 +71,7 @@ from .decorative.sticky_note import StickyNoteNode
 from .security.llm_red_team_node import LLMRedTeamNode
 from .security.agentic_red_team_node import AgenticRedTeamNode
 from .security.custom_red_team_node import CustomRedTeamNode
+from .security.model_security_gate_node import ModelSecurityGateNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -96,7 +98,7 @@ __all__ = [
     "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "MySQLToolNode", "SQLiteToolNode", "ScraplingToolNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "MySQLToolNode", "SQLiteToolNode", "ScraplingToolNode", "ModelSecurityToolNode",
     
     # Document Loaders
     "WebScraperNode", "DocumentLoaderNode",
@@ -128,6 +130,7 @@ __all__ = [
     "LLMRedTeamNode",
     "AgenticRedTeamNode",
     "CustomRedTeamNode",
+    "ModelSecurityGateNode",
 
     # Decorative
     "StickyNoteNode",

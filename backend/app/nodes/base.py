@@ -121,6 +121,7 @@ class NodePropertyType(str, Enum):
     SESSION_ID = "session-id"
     DYNAMIC_SELECT = "dynamic-select"
     COLUMN_MAPPER = "column-mapper"
+    MODEL_ARTIFACT_SOURCE = "model-artifact-source"
 
 
 class NodeProperty(BaseModel):
@@ -211,6 +212,11 @@ class NodeProperty(BaseModel):
     step: Optional[float] = Field(
         default=None,
         description="Step value of the input (for range inputs)"
+    )
+
+    unit: Optional[str] = Field(
+        default=None,
+        description="Display unit for numeric values; the stored value remains in the backend unit"
     )
 
     minLabel: Optional[str] = Field(

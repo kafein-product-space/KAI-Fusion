@@ -17,6 +17,7 @@ import {
   NodeCodeEditor,
   NodeSessionId,
   ThemedNumberInput,
+  NodeModelArtifactSource,
 } from "./fields";
 import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
@@ -272,7 +273,13 @@ export default function GenericNodeForm({
                 if (!shouldShow) return null;
               }
 
-              const fullWidthProperty = { ...property, colSpan: 2 };
+              // Model Security uses compound source fields whose visibility is
+              // already resolved by this form (including `_any` conditions).
+              // Keep the existing field behavior for every other node type.
+              const fullWidthProperty =
+                (nodeType === "ModelSecurityGate" || nodeType === "ModelSecurityTool")
+                  ? { ...property, colSpan: 2, displayOptions: undefined }
+                  : { ...property, colSpan: 2 };
               const fieldComponent = (() => {
                 switch (property.type) {
                   case "textarea":
@@ -344,6 +351,15 @@ export default function GenericNodeForm({
                         property={fullWidthProperty}
                         values={values}
                         setFieldValue={setFieldValue}
+                      />
+                    );
+                  case "model-artifact-source":
+                    return (
+                      <NodeModelArtifactSource
+                        property={fullWidthProperty}
+                        values={values}
+                        setFieldValue={setFieldValue}
+                        nodeType={nodeType}
                       />
                     );
                   default:

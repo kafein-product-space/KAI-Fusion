@@ -1,10 +1,18 @@
 import boto3
 import json
+import re
 from typing import Any, Dict, List, Optional
 from botocore.exceptions import ClientError
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+_AWS_S3_ENDPOINT_RE = re.compile(
+    r"^s3(?:[.-](?:(?:dualstack)[.-])?(?P<region>[a-z0-9-]+))?"
+    r"\.amazonaws\.com(?:\.cn)?(?::\d+)?$",
+    re.IGNORECASE,
+)
 
 class MinioService:
     """S3-compatible object storage client using boto3.
@@ -15,20 +23,52 @@ class MinioService:
     KAI-Flow Credential Service.
     """
 
-    def get_client(self, endpoint: str, access_key: str, secret_key: str, use_ssl: bool = False):
+    @staticmethod
+    def _normalize_endpoint(endpoint: str) -> str:
+        """Return an endpoint host suitable for constructing an S3 URL."""
+        normalized = str(endpoint or "").strip()
+        if normalized.startswith("http://"):
+            normalized = normalized[7:]
+        elif normalized.startswith("https://"):
+            normalized = normalized[8:]
+        return normalized.rstrip("/")
+
+    @classmethod
+    def _infer_region(cls, endpoint: str) -> Optional[str]:
+        """Infer an AWS region from a regional S3 endpoint when possible."""
+        match = _AWS_S3_ENDPOINT_RE.fullmatch(cls._normalize_endpoint(endpoint))
+        return match.group("region") if match else None
+
+    def get_client(
+        self,
+        endpoint: str,
+        access_key: str,
+        secret_key: str,
+        use_ssl: bool = False,
+        region_name: Optional[str] = None,
+    ):
         """Initialize and return a boto3 S3 client with the provided credentials."""
+        normalized_endpoint = self._normalize_endpoint(endpoint)
         protocol = "https" if use_ssl else "http"
-        endpoint_url = f"{protocol}://{endpoint}"
+        endpoint_url = f"{protocol}://{normalized_endpoint}"
+        resolved_region = str(region_name or "").strip() or self._infer_region(
+            normalized_endpoint
+        )
         
         try:
-            client = boto3.client(
-                "s3",
-                endpoint_url=endpoint_url,
-                aws_access_key_id=access_key,
-                aws_secret_access_key=secret_key,
+            client_kwargs = {
+                "endpoint_url": endpoint_url,
+                "aws_access_key_id": access_key,
+                "aws_secret_access_key": secret_key,
                 # For MinIO, we typically need addressing style path rather than virtual-hosted
-                config=boto3.session.Config(signature_version='s3v4')
-            )
+                "config": boto3.session.Config(signature_version="s3v4"),
+            }
+            if resolved_region:
+                # AWS rejects requests signed for us-east-1 when a regional
+                # bucket is in another region. MinIO ignores this optional value.
+                client_kwargs["region_name"] = resolved_region
+
+            client = boto3.client("s3", **client_kwargs)
             return client
         except Exception as e:
             logger.error(f"Failed to initialize MinIO client: {str(e)}")
