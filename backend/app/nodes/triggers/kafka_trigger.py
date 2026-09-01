@@ -685,7 +685,7 @@ async def _build_desired_state(db) -> Dict[str, Dict[str, Any]]:
             if not group_id:
                 # Keep the legacy group prefix so existing deployments preserve
                 # committed offsets during the product-name transition.
-                group_id = f"kai-fusion-{workflow.id}"
+                group_id = f"kai-flow-{workflow.id}"
 
             # Collect optional settings
             options = {}
