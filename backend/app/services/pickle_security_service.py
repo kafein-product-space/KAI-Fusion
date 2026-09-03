@@ -14,6 +14,8 @@ from typing import Any, Protocol
 from app.services.model_artifact_analysis_service import (
     DEFAULT_TIMEOUT_SECONDS,
     StagedModelArtifact,
+    _worker_exit_details,
+    _worker_failure_details,
     staged_source_is_unchanged,
     stage_model_artifact,
 )
@@ -353,11 +355,15 @@ def _execute_pickle_scan(path: str, artifact_name: str) -> dict[str, Any]:
     return payload
 
 
+def _pickle_worker_memory_limit(max_memory_bytes: int) -> int:
+    return max(128 * 1024 * 1024, min(max_memory_bytes, MAX_PICKLE_MEMORY_BYTES))
+
+
 def _set_worker_limits(max_memory_bytes: int, timeout_seconds: int) -> None:
     try:
         import resource  # noqa: PLC0415 - unavailable on some platforms
 
-        memory_limit = max(128 * 1024 * 1024, min(max_memory_bytes, MAX_PICKLE_MEMORY_BYTES))
+        memory_limit = _pickle_worker_memory_limit(max_memory_bytes)
         resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
         cpu_limit = max(1, int(timeout_seconds) + 1)
         resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
@@ -380,7 +386,17 @@ def _pickle_process_entry(
         )
     except BaseException as exc:
         try:
-            send_connection.send({"ok": False, "error_type": type(exc).__name__})
+            send_connection.send(
+                {
+                    "ok": False,
+                    "error_type": type(exc).__name__,
+                    "error_message": _bounded_text(
+                        exc,
+                        path=path,
+                        artifact_name=artifact_name,
+                    ),
+                }
+            )
         except BaseException:
             pass
     finally:
@@ -401,6 +417,7 @@ class ProcessPickleSecurityRunner:
         artifact_name: str,
         max_memory_bytes: int,
     ) -> dict[str, Any]:
+        memory_limit_bytes = _pickle_worker_memory_limit(max_memory_bytes)
         receive_connection, send_connection = self._context.Pipe(duplex=False)
         process = self._context.Process(
             target=_pickle_process_entry,
@@ -423,16 +440,32 @@ class ProcessPickleSecurityRunner:
                 if process.is_alive():
                     process.kill()
                     process.join(timeout=2)
-                raise PickleSecurityTimeoutError("Pickle security analysis scan timed out.")
+                raise PickleSecurityTimeoutError(
+                    "Pickle security analysis scan timed out: "
+                    f"{_worker_exit_details(process.exitcode)} "
+                    f"memory_limit_bytes={memory_limit_bytes}."
+                )
             try:
                 message = receive_connection.recv()
             except EOFError as exc:
+                process.join(timeout=2)
                 raise PickleSecurityRunnerError(
-                    "Pickle security analysis worker exited without a result."
+                    "Pickle security analysis worker exited without a result: "
+                    f"{_worker_exit_details(process.exitcode)} "
+                    f"memory_limit_bytes={memory_limit_bytes}."
                 ) from exc
             process.join(timeout=2)
             if not isinstance(message, Mapping) or not message.get("ok"):
-                raise PickleSecurityRunnerError("Pickle security analysis worker failed.")
+                details = _worker_failure_details(
+                    message,
+                    artifact_path=path,
+                    artifact_name=artifact_name,
+                    exit_code=process.exitcode,
+                    memory_limit_bytes=memory_limit_bytes,
+                )
+                raise PickleSecurityRunnerError(
+                    f"Pickle security analysis worker failed: {details}."
+                )
             result = message.get("result")
             if not isinstance(result, dict):
                 raise PickleSecurityRunnerError("Pickle security analysis returned an invalid result.")
@@ -648,11 +681,19 @@ class PickleSecurityService:
                         ),
                     }
             return result
-        except PickleSecurityTimeoutError:
+        except PickleSecurityTimeoutError as exc:
+            logger.warning(
+                "Pickle security analysis scan timed out: error=%s",
+                _bounded_text(exc, path=staged.path, artifact_name=staged.name),
+            )
             status = "timeout"
             reasons = ["timeout"]
         except Exception as exc:
-            logger.error("Pickle security analysis scan failed: error_type=%s", type(exc).__name__)
+            logger.error(
+                "Pickle security analysis scan failed: error_type=%s error=%s",
+                type(exc).__name__,
+                _bounded_text(exc, path=staged.path, artifact_name=staged.name),
+            )
             status = "error"
             reasons = ["engine_error"]
         return make_layer_result(

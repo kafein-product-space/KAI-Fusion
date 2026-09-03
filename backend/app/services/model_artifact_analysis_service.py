@@ -16,6 +16,7 @@ import logging
 import multiprocessing
 import os
 import re
+import signal
 import shutil
 import stat
 import tempfile
@@ -189,6 +190,43 @@ class ModelArtifactAnalysisRunnerError(RuntimeError):
 
 class ModelArtifactAnalysisTimeoutError(ModelArtifactAnalysisRunnerError):
     """Raised when the isolated scanner exceeds its deadline."""
+
+
+def _worker_exit_details(exit_code: int | None) -> str:
+    if exit_code is None:
+        return "exit_code=unavailable"
+    if exit_code >= 0:
+        return f"exit_code={exit_code}"
+    try:
+        signal_name = signal.Signals(-exit_code).name
+    except (ValueError, OverflowError):
+        signal_name = "unknown"
+    return f"exit_code={exit_code} signal={signal_name}"
+
+
+def _worker_failure_details(
+    message: Any,
+    *,
+    artifact_path: str,
+    artifact_name: str,
+    exit_code: int | None,
+    memory_limit_bytes: int,
+) -> str:
+    payload = message if isinstance(message, Mapping) else {}
+    error_type = _safe_text(
+        payload.get("error_type") or "UnknownWorkerError",
+        replace_path=artifact_path,
+        artifact_name=artifact_name,
+    )[:96]
+    error_message = _safe_text(
+        payload.get("error_message") or "No error message was returned.",
+        replace_path=artifact_path,
+        artifact_name=artifact_name,
+    )
+    return (
+        f"child_error_type={error_type} {_worker_exit_details(exit_code)} "
+        f"memory_limit_bytes={memory_limit_bytes} child_error_message={error_message}"
+    )
 
 
 def _ensure_staging_disk_space(path: str | os.PathLike[str], required_bytes: int = 0) -> None:
@@ -629,7 +667,17 @@ def _static_analysis_process_entry(
         BaseException
     ) as exc:  # Child failures must cross the boundary as a bounded status only.
         try:
-            send_connection.send({"ok": False, "error_type": type(exc).__name__})
+            send_connection.send(
+                {
+                    "ok": False,
+                    "error_type": type(exc).__name__,
+                    "error_message": _safe_text(
+                        exc,
+                        replace_path=path,
+                        artifact_name=artifact_name,
+                    ),
+                }
+            )
         except BaseException:
             pass
     finally:
@@ -649,6 +697,7 @@ class ProcessModelArtifactAnalysisRunner:
         timeout_seconds: int,
         artifact_name: str,
     ) -> dict[str, Any]:
+        memory_limit_bytes = configured_worker_memory_bytes()
         receive_connection, send_connection = self._context.Pipe(duplex=False)
         process = self._context.Process(
             target=_static_analysis_process_entry,
@@ -665,18 +714,34 @@ class ProcessModelArtifactAnalysisRunner:
                 if process.is_alive():
                     process.kill()
                     process.join(timeout=2)
-                raise ModelArtifactAnalysisTimeoutError("Static model analysis scan timed out.")
+                raise ModelArtifactAnalysisTimeoutError(
+                    "Static model analysis scan timed out: "
+                    f"{_worker_exit_details(process.exitcode)} "
+                    f"memory_limit_bytes={memory_limit_bytes}."
+                )
 
             try:
                 message = receive_connection.recv()
             except EOFError as exc:
+                process.join(timeout=2)
                 raise ModelArtifactAnalysisRunnerError(
-                    "Static model analysis worker exited without a result."
+                    "Static model analysis worker exited without a result: "
+                    f"{_worker_exit_details(process.exitcode)} "
+                    f"memory_limit_bytes={memory_limit_bytes}."
                 ) from exc
             process.join(timeout=2)
 
             if not isinstance(message, Mapping) or not message.get("ok"):
-                raise ModelArtifactAnalysisRunnerError("Static model analysis worker failed.")
+                details = _worker_failure_details(
+                    message,
+                    artifact_path=path,
+                    artifact_name=artifact_name,
+                    exit_code=process.exitcode,
+                    memory_limit_bytes=memory_limit_bytes,
+                )
+                raise ModelArtifactAnalysisRunnerError(
+                    f"Static model analysis worker failed: {details}."
+                )
             result = message.get("result")
             if not isinstance(result, dict):
                 raise ModelArtifactAnalysisRunnerError(
@@ -1665,9 +1730,15 @@ class ModelArtifactAnalysisService:
             )
         except Exception as exc:
             logger.error(
-                "Static model analysis staged scan failed: scan_id=%s error_type=%s",
+                "Static model analysis staged scan failed: "
+                "scan_id=%s error_type=%s error=%s",
                 scan_id,
                 type(exc).__name__,
+                _safe_text(
+                    exc,
+                    replace_path=staged.path,
+                    artifact_name=staged.name,
+                ),
             )
             result = self._failure_result(
                 scan_id=scan_id,
