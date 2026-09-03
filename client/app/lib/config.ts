@@ -115,6 +115,12 @@ export const API_ENDPOINTS = {
     CUSTOM: '/nodes/custom',
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
   },
+  MODEL_ARTIFACTS: {
+    UPLOAD: '/model-artifacts/upload',
+    UPLOAD_DIRECTORY: '/model-artifacts/upload-directory',
+    CAPABILITIES: '/model-artifacts/capabilities',
+    DELETE: (id: string) => `/model-artifacts/${id}`,
+  },
   CHAT: {
     LIST: '/chat', // Get all chats
     CREATE: '/chat', // Start new chat

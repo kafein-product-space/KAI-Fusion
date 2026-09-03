@@ -16,6 +16,10 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Uygulama kodunu kopyala
 COPY backend .
 
+# Stable mount point for read-only enterprise model repositories. The host,
+# orchestrator, or Kubernetes manifest supplies the actual data volume.
+RUN mkdir -p /models /app/uploads/model-artifacts
+
 
 # Çalışma portunu belirt
 EXPOSE 8000

@@ -46,6 +46,16 @@ services:
       KAI_FLOW_FILE_LOGGING: ${KAI_FLOW_FILE_LOGGING:-false}
       ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-*}
 
+      # Model security artifacts are streamed to persistent disk, never kept in RAM.
+      KAI_MODEL_ARTIFACT_DIR: /app/uploads/model-artifacts
+      KAI_MODEL_MAX_ARTIFACT_BYTES: ${KAI_MODEL_MAX_ARTIFACT_BYTES:-274877906944}
+      KAI_MODEL_ARCHIVE_MAX_EXPANDED_BYTES: ${KAI_MODEL_ARCHIVE_MAX_EXPANDED_BYTES:-274877906944}
+      KAI_MODEL_UPLOAD_MAX_BYTES: ${KAI_MODEL_UPLOAD_MAX_BYTES:-8589934592}
+      KAI_MODEL_SCAN_MEMORY_LIMIT_BYTES: ${KAI_MODEL_SCAN_MEMORY_LIMIT_BYTES:-4294967296}
+      # JSON keeps Windows drive-letter syntax portable when the backend runs natively.
+      # In this container, mount company storage read-only at /models and enter /models/...
+      KAI_MODEL_LOCAL_ALLOWED_ROOTS: '${KAI_MODEL_LOCAL_ALLOWED_ROOTS:-["/models"]}'
+
       # LangSmith Settings
       LANGCHAIN_TRACING_V2: ${LANGCHAIN_TRACING_V2}
       LANGCHAIN_ENDPOINT: ${LANGCHAIN_ENDPOINT}
@@ -68,6 +78,10 @@ services:
              uvicorn main:app --host 0.0.0.0 --port 8000"
     networks:
       - kai_network
+    volumes:
+      - kai_model_artifacts:/app/uploads/model-artifacts
+      # Example enterprise bind/PVC mount (do not copy models into the image):
+      # - /mnt/company-models:/models:ro
     stdin_open: true
     tty: true
 
@@ -115,3 +129,4 @@ networks:
 
 volumes:
   kai_db_data:
+  kai_model_artifacts:

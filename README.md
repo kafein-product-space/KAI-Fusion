@@ -52,6 +52,7 @@ Using a simple drag-and-drop interface, you can design workflows that answer que
 * [🧭 VS Code Debugging](#-vs-code-debugging-vscodelaunchjson)
 * [🧱 Project Structure](#-project-structure)
 * [✨ App Overview](#-app-overview-what-you-can-build)
+* [Model Security Deployment](docs/model-security-deployment.md)
 * [📊 Repository Stats](#-repository-stats--stars---downloads)
 * [🙌 Contributing](#-contributing)
 * [🆘 Troubleshooting](#-troubleshooting)
@@ -77,6 +78,10 @@ Once running, open:
 
 * **Frontend:** [http://localhost:23058](http://localhost:23058)
 * **Backend (Swagger):** [http://localhost:23056/docs](http://localhost:23056/docs)
+
+For zero-copy model scanning from local, NFS, SMB, or PVC storage, mount the
+approved model root read-only and follow the
+[model security deployment contract](docs/model-security-deployment.md).
 
 
 
