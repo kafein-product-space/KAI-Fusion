@@ -357,6 +357,17 @@ class SecurityLoggingMiddleware(BaseHTTPMiddleware):
         
         # Check request body for POST/PUT requests
         if request.method in ["POST", "PUT", "PATCH"]:
+            is_model_upload = request.url.path.endswith(
+                ("/model-artifacts/upload", "/model-artifacts/upload-directory")
+            )
+
+            # Multipart bodies can contain very large model files.  Reading the
+            # whole request here defeats the upload endpoint's bounded streaming
+            # implementation and can duplicate the payload in RAM.  URL, query,
+            # header and user-agent checks above remain active for these requests.
+            if is_model_upload:
+                return
+
             try:
                 body = await request.body()
                 if body:

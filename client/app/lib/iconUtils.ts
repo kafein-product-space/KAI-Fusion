@@ -124,6 +124,8 @@ export function getNodeTypeIconPath(nodeType: string): string {
         LLMRedTeam: "icons/red_teaming_menu.svg",
         AgenticRedTeam: "icons/redteaming_agentic_menu.svg",
         CustomRedTeam: "icons/redteaming_custom_menu.svg",
+        LLMModelScanner: "icons/llm_model_scanner.svg",
+        LLMModelScannerTool: "icons/llm_model_scanner.svg",
 
         // Decorative Nodes
         StickyNoteNode: "icons/sticky_note.svg",

@@ -17,6 +17,7 @@ import {
   NodeCodeEditor,
   NodeSessionId,
   ThemedNumberInput,
+  NodeModelArtifactSource,
 } from "./fields";
 import { FieldLabel, getFieldHelpText } from "./fields/FieldLabel";
 import TabNavigation from "../common/TabNavigation";
@@ -39,7 +40,7 @@ const cleanValues = (obj: any): any => {
   if (obj === null || obj === undefined) return "";
   if (typeof obj !== "object") return obj;
   if (Array.isArray(obj)) return obj.map(cleanValues);
-  
+
   const cleaned: any = {};
   const keys = Object.keys(obj).sort();
   for (const key of keys) {
@@ -133,18 +134,6 @@ export default function GenericNodeForm({
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  /*
-    const initialValues = propInitialValues || {
-      ...configData,
-      include_answer: configData?.include_answer || false,
-      include_raw_content: configData?.include_raw_content || false,
-      include_images: configData?.include_images || false,
-      rate_limit_requests: configData?.rate_limit_requests || 10,
-      rate_limit_window: configData?.rate_limit_window || 60,
-      text_input: configData?.text_input || "",
-    };
-  */
 
   // Default values for missing fields
   const initialValues = propInitialValues || {
@@ -244,265 +233,273 @@ export default function GenericNodeForm({
           <>
             <FormValuesObserver values={values} initialValues={initialValues} onChange={onChange} />
             <Form className="grid grid-cols-2 gap-3 w-full p-6">
-            {getVisibleProperties(activeTab).map((property: NodeProperty) => {
-              // Check display options
-              if (property.displayOptions?.show) {
-                const shouldShow = Object.entries(property.displayOptions.show).every(
-                  ([key, value]) => {
-                    const matches = (name: string, expected: any) => {
-                      const current = values[name];
-                      // "*" means the field only has to be filled in.
-                      if (expected === "*") {
-                        return current !== undefined && current !== null && current !== "";
+              {getVisibleProperties(activeTab).map((property: NodeProperty) => {
+                // Check display options
+                if (property.displayOptions?.show) {
+                  const shouldShow = Object.entries(property.displayOptions.show).every(
+                    ([key, value]) => {
+                      const matches = (name: string, expected: any) => {
+                        const current = values[name];
+                        // "*" means the field only has to be filled in.
+                        if (expected === "*") {
+                          return current !== undefined && current !== null && current !== "";
+                        }
+                        return Array.isArray(expected)
+                          ? expected.includes(current)
+                          : current === expected;
+                      };
+
+                      // "_any" holds alternatives; matching one of them is enough.
+                      if (key === "_any" && value && typeof value === "object") {
+                        return Object.entries(value).some(([name, expected]) =>
+                          matches(name, expected)
+                        );
                       }
-                      return Array.isArray(expected)
-                        ? expected.includes(current)
-                        : current === expected;
-                    };
-
-                    // "_any" holds alternatives; matching one of them is enough.
-                    if (key === "_any" && value && typeof value === "object") {
-                      return Object.entries(value).some(([name, expected]) =>
-                        matches(name, expected)
-                      );
+                      return matches(key, value);
                     }
-                    return matches(key, value);
-                  }
-                );
-                if (!shouldShow) return null;
-              }
-
-              const fullWidthProperty = { ...property, colSpan: 2 };
-              const fieldComponent = (() => {
-                switch (property.type) {
-                  case "textarea":
-                    return <NodeTextArea property={fullWidthProperty} values={values} />;
-                  case "readonly-text":
-                    return (
-                      <NodeReadonlyText
-                        property={fullWidthProperty}
-                        values={values}
-                        setFieldValue={setFieldValue}
-                      />
-                    );
-                  case "select":
-                    return <NodeSelect property={fullWidthProperty} values={values} />;
-                  case "model-select":
-                    return <NodeModelSelect property={fullWidthProperty} values={values} />;
-                  case "dynamic-select":
-                    return (
-                      <NodeDynamicSelect
-                        property={fullWidthProperty}
-                        values={values}
-                        nodeType={nodeType}
-                      />
-                    );
-                  case "column-mapper":
-                    return (
-                      <NodeColumnMapper
-                        property={fullWidthProperty}
-                        values={values}
-                        nodeType={nodeType}
-                        sessionStore={columnMapperSessionsRef.current}
-                      />
-                    );
-                  case "credential-select":
-                    return (
-                      <NodeCredentialSelect
-                        property={fullWidthProperty}
-                        values={values}
-                        setFieldValue={setFieldValue}
-                      />
-                    );
-                  case "text":
-                    return <NodeText property={fullWidthProperty} values={values} />;
-                  case "number":
-                    return <NodeNumber property={fullWidthProperty} values={values} />;
-                  case "password":
-                    return <NodePassword property={fullWidthProperty} values={values} />;
-                  case "checkbox":
-                    return <NodeCheckbox property={fullWidthProperty} values={values} />;
-                  case "title":
-                    return <NodeTitle property={fullWidthProperty} />;
-                  case "range":
-                    return <NodeRange property={fullWidthProperty} values={values} />;
-                  case "json-editor":
-                    return (
-                      <NodeJsonEditor
-                        property={fullWidthProperty}
-                        values={values}
-                        setFieldValue={setFieldValue}
-                      />
-                    );
-                  case "datetime":
-                    return <NodeDateTime property={fullWidthProperty} values={values} />;
-                  case "code-editor":
-                    return <NodeCodeEditor property={fullWidthProperty} values={values} />;
-                  case "session-id":
-                    return (
-                      <NodeSessionId
-                        property={fullWidthProperty}
-                        values={values}
-                        setFieldValue={setFieldValue}
-                      />
-                    );
-                  default:
-                    return null;
-                }
-              })();
-
-              if (!property.required && visibleOptionalFields.has(property.name)) {
-                // Checkbox için kompakt görünüm
-                if (property.type === "checkbox") {
-                  return (
-                    <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
-                      <FieldLabel
-                        label={property.displayName}
-                        helpText={getFieldHelpText(property)}
-                        className="text-sm text-slate-200"
-                      />
-                      <div className="flex items-center gap-3">
-                        {/* Toggle Switch */}
-                        <button
-                          type="button"
-                          onClick={() => setFieldValue(property.name, !values[property.name])}
-                          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${values[property.name] ? "bg-blue-500" : "bg-slate-600"
-                            }`}
-                        >
-                          <span
-                            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${values[property.name] ? "translate-x-5" : "translate-x-0"
-                              }`}
-                          />
-                        </button>
-                        {/* Remove Button */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            removeOptionalField(property.name);
-                            setFieldValue(property.name, false);
-                          }}
-                          className="text-slate-400 hover:text-red-400 transition-colors"
-                          title={`Remove ${property.displayName}`}
-                        >
-                          <X size={16} />
-                        </button>
-                      </div>
-                    </div>
                   );
+                  if (!shouldShow) return null;
                 }
 
-                // Number için kompakt görünüm (checkbox gibi)
-                if (property.type === "number") {
-                  return (
-                    <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
-                      <FieldLabel
-                        label={property.displayName}
-                        helpText={getFieldHelpText(property)}
-                        className="text-sm text-slate-200"
-                      />
-                      <div className="flex items-center gap-3">
-                        <ThemedNumberInput
-                          value={values[property.name] ?? property.default ?? ""}
-                          onChange={(nextValue) =>
-                            setFieldValue(
-                              property.name,
-                              nextValue === "" ? "" : Number(nextValue)
-                            )
-                          }
-                          min={property.min}
-                          max={property.max}
-                          step={property.step}
-                          ariaLabel={property.displayName}
-                          size="compact"
-                          className="w-28"
+                const fullWidthProperty = { ...property, colSpan: 2 };
+                const fieldComponent = (() => {
+                  switch (property.type) {
+                    case "textarea":
+                      return <NodeTextArea property={fullWidthProperty} values={values} />;
+                    case "readonly-text":
+                      return (
+                        <NodeReadonlyText
+                          property={fullWidthProperty}
+                          values={values}
+                          setFieldValue={setFieldValue}
                         />
-                        <button
-                          type="button"
-                          onClick={() => {
-                            removeOptionalField(property.name);
-                            setFieldValue(property.name, property.default ?? "");
-                          }}
-                          className="text-slate-400 hover:text-red-400 transition-colors"
-                          title={`Remove ${property.displayName}`}
-                        >
-                          <X size={16} />
-                        </button>
+                      );
+                    case "select":
+                      return <NodeSelect property={fullWidthProperty} values={values} />;
+                    case "model-select":
+                      return <NodeModelSelect property={fullWidthProperty} values={values} />;
+                    case "dynamic-select":
+                      return (
+                        <NodeDynamicSelect
+                          property={fullWidthProperty}
+                          values={values}
+                          nodeType={nodeType}
+                        />
+                      );
+                    case "column-mapper":
+                      return (
+                        <NodeColumnMapper
+                          property={fullWidthProperty}
+                          values={values}
+                          nodeType={nodeType}
+                          sessionStore={columnMapperSessionsRef.current}
+                        />
+                      );
+                    case "credential-select":
+                      return (
+                        <NodeCredentialSelect
+                          property={fullWidthProperty}
+                          values={values}
+                          setFieldValue={setFieldValue}
+                        />
+                      );
+                    case "text":
+                      return <NodeText property={fullWidthProperty} values={values} />;
+                    case "number":
+                      return <NodeNumber property={fullWidthProperty} values={values} />;
+                    case "password":
+                      return <NodePassword property={fullWidthProperty} values={values} />;
+                    case "checkbox":
+                      return <NodeCheckbox property={fullWidthProperty} values={values} />;
+                    case "title":
+                      return <NodeTitle property={fullWidthProperty} />;
+                    case "range":
+                      return <NodeRange property={fullWidthProperty} values={values} />;
+                    case "json-editor":
+                      return (
+                        <NodeJsonEditor
+                          property={fullWidthProperty}
+                          values={values}
+                          setFieldValue={setFieldValue}
+                        />
+                      );
+                    case "datetime":
+                      return <NodeDateTime property={fullWidthProperty} values={values} />;
+                    case "code-editor":
+                      return <NodeCodeEditor property={fullWidthProperty} values={values} />;
+                    case "session-id":
+                      return (
+                        <NodeSessionId
+                          property={fullWidthProperty}
+                          values={values}
+                          setFieldValue={setFieldValue}
+                        />
+                      );
+                    case "model-artifact-source":
+                      return (
+                        <NodeModelArtifactSource
+                          property={fullWidthProperty}
+                          values={values}
+                          setFieldValue={setFieldValue}
+                        />
+                      );
+                    default:
+                      return null;
+                  }
+                })();
+
+                if (!property.required && visibleOptionalFields.has(property.name)) {
+                  // Checkbox için kompakt görünüm
+                  if (property.type === "checkbox") {
+                    return (
+                      <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                        <FieldLabel
+                          label={property.displayName}
+                          helpText={getFieldHelpText(property)}
+                          className="text-sm text-slate-200"
+                        />
+                        <div className="flex items-center gap-3">
+                          {/* Toggle Switch */}
+                          <button
+                            type="button"
+                            onClick={() => setFieldValue(property.name, !values[property.name])}
+                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${values[property.name] ? "bg-blue-500" : "bg-slate-600"
+                              }`}
+                          >
+                            <span
+                              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${values[property.name] ? "translate-x-5" : "translate-x-0"
+                                }`}
+                            />
+                          </button>
+                          {/* Remove Button */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeOptionalField(property.name);
+                              setFieldValue(property.name, false);
+                            }}
+                            className="text-slate-400 hover:text-red-400 transition-colors"
+                            title={`Remove ${property.displayName}`}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
                       </div>
+                    );
+                  }
+
+                  // Compact view for Numbers (like a checkbox)
+                  if (property.type === "number" && !property.unit) {
+                    return (
+                      <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                        <FieldLabel
+                          label={property.displayName}
+                          helpText={getFieldHelpText(property)}
+                          className="text-sm text-slate-200"
+                        />
+                        <div className="flex items-center gap-3">
+                          <ThemedNumberInput
+                            value={values[property.name] ?? property.default ?? ""}
+                            onChange={(nextValue) =>
+                              setFieldValue(
+                                property.name,
+                                nextValue === "" ? "" : Number(nextValue)
+                              )
+                            }
+                            min={property.min}
+                            max={property.max}
+                            step={property.step}
+                            ariaLabel={property.displayName}
+                            size="compact"
+                            className="w-28"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              removeOptionalField(property.name);
+                              setFieldValue(property.name, property.default ?? "");
+                            }}
+                            className="text-slate-400 hover:text-red-400 transition-colors"
+                            title={`Remove ${property.displayName}`}
+                          >
+                            <X size={16} />
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  // Diğer field türleri için container stili
+                  return (
+                    <div key={property.name} className="col-span-2 relative bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                      {fieldComponent}
+                      <button
+                        type="button"
+                        onClick={() => removeOptionalField(property.name)}
+                        className="absolute top-3 right-4 text-slate-400 hover:text-red-400 transition-colors"
+                        title={`Remove ${property.displayName}`}
+                      >
+                        <X size={16} />
+                      </button>
                     </div>
                   );
                 }
 
-                // Diğer field türleri için container stili
                 return (
-                  <div key={property.name} className="col-span-2 relative bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                  <div
+                    key={property.name}
+                    className={
+                      property.type === "title"
+                        ? "col-span-2 pt-3 pb-1"
+                        : "col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3"
+                    }
+                  >
                     {fieldComponent}
-                    <button
-                      type="button"
-                      onClick={() => removeOptionalField(property.name)}
-                      className="absolute top-3 right-4 text-slate-400 hover:text-red-400 transition-colors"
-                      title={`Remove ${property.displayName}`}
-                    >
-                      <X size={16} />
-                    </button>
                   </div>
                 );
-              }
+              })}
 
-              return (
-                  <div
-                  key={property.name}
-                  className={
-                    property.type === "title"
-                      ? "col-span-2 pt-3 pb-1"
-                      : "col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3"
-                  }
-                >
-                  {fieldComponent}
+              {/* Add Option Dropdown */}
+              {getHiddenOptionalProperties(activeTab).length > 0 && (
+                <div className="col-span-2 mt-4 border-t border-slate-600 pt-4">
+                  <div className="relative" ref={dropdownRef}>
+                    <button
+                      type="button"
+                      onClick={() => setOptionDropdownOpen(!optionDropdownOpen)}
+                      className="w-full flex items-center justify-between bg-slate-700/50 border border-dashed border-slate-500 rounded-lg px-4 py-2.5 text-slate-300 cursor-pointer hover:bg-slate-600/50 hover:border-slate-400 hover:text-white transition-all duration-200 group"
+                    >
+                      <span className="flex items-center gap-2 text-sm font-medium">
+                        <Plus size={16} className="text-slate-400 group-hover:text-blue-400 transition-colors duration-200" />
+                        Add Option
+                      </span>
+                      <ChevronDown
+                        size={16}
+                        className={`text-slate-400 group-hover:text-white transition-all duration-200 ${optionDropdownOpen ? "rotate-180" : ""}`}
+                      />
+                    </button>
+
+                    {optionDropdownOpen && (
+                      <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
+                        {getHiddenOptionalProperties(activeTab).map((property: NodeProperty) => (
+                          <button
+                            key={property.name}
+                            type="button"
+                            onClick={() => {
+                              addOptionalField(property.name);
+                              setOptionDropdownOpen(false);
+                            }}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left group"
+                          >
+                            <Plus size={14} className="text-slate-500 group-hover:text-blue-300 flex-shrink-0" />
+                            {property.displayName}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              );
-            })}
-
-            {/* Add Option Dropdown */}
-            {getHiddenOptionalProperties(activeTab).length > 0 && (
-              <div className="col-span-2 mt-4 border-t border-slate-600 pt-4">
-                <div className="relative" ref={dropdownRef}>
-                  <button
-                    type="button"
-                    onClick={() => setOptionDropdownOpen(!optionDropdownOpen)}
-                    className="w-full flex items-center justify-between bg-slate-700/50 border border-dashed border-slate-500 rounded-lg px-4 py-2.5 text-slate-300 cursor-pointer hover:bg-slate-600/50 hover:border-slate-400 hover:text-white transition-all duration-200 group"
-                  >
-                    <span className="flex items-center gap-2 text-sm font-medium">
-                      <Plus size={16} className="text-slate-400 group-hover:text-blue-400 transition-colors duration-200" />
-                      Add Option
-                    </span>
-                    <ChevronDown
-                      size={16}
-                      className={`text-slate-400 group-hover:text-white transition-all duration-200 ${optionDropdownOpen ? "rotate-180" : ""}`}
-                    />
-                  </button>
-
-                  {optionDropdownOpen && (
-                    <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
-                      {getHiddenOptionalProperties(activeTab).map((property: NodeProperty) => (
-                        <button
-                          key={property.name}
-                          type="button"
-                          onClick={() => {
-                            addOptionalField(property.name);
-                            setOptionDropdownOpen(false);
-                          }}
-                          className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left group"
-                        >
-                          <Plus size={14} className="text-slate-500 group-hover:text-blue-300 flex-shrink-0" />
-                          {property.displayName}
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
-            )}
-          </Form>
+              )}
+            </Form>
           </>
         )}
       </Formik>
