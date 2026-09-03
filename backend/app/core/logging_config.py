@@ -230,6 +230,14 @@ def configure_third_party_loggers():
     # HTTP libraries
     logging.getLogger("httpx").setLevel(logging.WARNING)
     logging.getLogger("requests").setLevel(logging.WARNING)
+    logging.getLogger("urllib3").setLevel(logging.WARNING)
+
+    # Object-storage SDK debug logs include internal endpoints, object names,
+    # access-key identifiers, and signed request headers. Keep those details out
+    # of normal application logs while preserving warnings and failures.
+    logging.getLogger("boto3").setLevel(logging.WARNING)
+    logging.getLogger("botocore").setLevel(logging.WARNING)
+    logging.getLogger("s3transfer").setLevel(logging.WARNING)
     
     # Asyncio
     logging.getLogger("asyncio").setLevel(logging.WARNING)
