@@ -116,6 +116,24 @@ async def lifespan(app: FastAPI):
     
     logger.info("Backend initialization complete - KAI Flow Ready!")
     
+    # Start managed model artifact lifecycle maintenance. The first pass also
+    # recovers stale leases and crash-left staging files.
+    _model_artifact_maintenance_task = None
+    try:
+        from app.services.model_artifact_maintenance import (
+            model_artifact_maintenance_loop,
+        )
+
+        _model_artifact_maintenance_task = asyncio.create_task(
+            model_artifact_maintenance_loop()
+        )
+        logger.info("Managed model artifact maintenance loop started")
+    except Exception as e:
+        logger.error(
+            f"Failed to start managed model artifact maintenance loop: {e}",
+            exc_info=True,
+        )
+
     # Start Kafka reconciliation loop — periodic listener synchronization
     _kafka_reconciliation_task = None
     try:
@@ -129,6 +147,17 @@ async def lifespan(app: FastAPI):
     
     # Cleanup
     logger.info("Shutting down KAI Flow Backend...")
+
+    if (
+        _model_artifact_maintenance_task
+        and not _model_artifact_maintenance_task.done()
+    ):
+        _model_artifact_maintenance_task.cancel()
+        try:
+            await _model_artifact_maintenance_task
+        except asyncio.CancelledError:
+            pass
+        logger.info("Managed model artifact maintenance loop stopped")
     
     # Stop the reconciliation loop.
     if _kafka_reconciliation_task and not _kafka_reconciliation_task.done():
@@ -291,7 +320,22 @@ async def health_check():
                 'error': str(e)
             })
         
-        overall_healthy = nodes_healthy and engine_healthy and db_status.get("status") == "healthy"
+        model_artifact_storage = {"status": "error"}
+        try:
+            from app.services.model_artifact_store import managed_model_artifact_store
+
+            model_artifact_storage = await asyncio.to_thread(
+                managed_model_artifact_store.storage_status
+            )
+        except Exception as e:
+            model_artifact_storage["error"] = type(e).__name__
+
+        overall_healthy = (
+            nodes_healthy
+            and engine_healthy
+            and db_status.get("status") == "healthy"
+            and model_artifact_storage.get("status") not in {"error", "critical"}
+        )
         
         return {
             "status": "healthy" if overall_healthy else "degraded",
@@ -308,6 +352,7 @@ async def health_check():
                     "type": "LangGraph Unified Engine"
                 },
                 "database": db_status,
+                "model_artifact_storage": model_artifact_storage,
                 "logging": {
                     "status": "healthy",
                     "middleware_active": True,

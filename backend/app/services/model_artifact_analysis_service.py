@@ -13,10 +13,8 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
-import multiprocessing
 import os
 import re
-import signal
 import shutil
 import stat
 import tempfile
@@ -37,13 +35,21 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr
 from app.services.model_artifact_store import (
     DISK_CHECK_INTERVAL_BYTES,
     ManagedArtifactError,
-    MIN_FREE_DISK_BYTES,
+    ManagedArtifactInsufficientDiskError,
     managed_model_artifact_store,
 )
 from app.services.model_scan_limits import (
     configured_archive_expanded_max_bytes,
     configured_artifact_max_bytes,
+    configured_staging_retention_seconds,
+    configured_storage_min_free_bytes,
+    configured_storage_min_free_percent,
     configured_worker_memory_bytes,
+)
+from app.services.model_scan_process import (
+    IsolatedProcessError,
+    IsolatedProcessTimeoutError,
+    run_in_isolated_process,
 )
 from app.services.minio_service import minio_service
 from app.services.model_security_error_catalog import enrich_security_finding
@@ -192,52 +198,19 @@ class ModelArtifactAnalysisTimeoutError(ModelArtifactAnalysisRunnerError):
     """Raised when the isolated scanner exceeds its deadline."""
 
 
-def _worker_exit_details(exit_code: int | None) -> str:
-    if exit_code is None:
-        return "exit_code=unavailable"
-    if exit_code >= 0:
-        return f"exit_code={exit_code}"
-    try:
-        signal_name = signal.Signals(-exit_code).name
-    except (ValueError, OverflowError):
-        signal_name = "unknown"
-    return f"exit_code={exit_code} signal={signal_name}"
-
-
-def _worker_failure_details(
-    message: Any,
-    *,
-    artifact_path: str,
-    artifact_name: str,
-    exit_code: int | None,
-    memory_limit_bytes: int,
-) -> str:
-    payload = message if isinstance(message, Mapping) else {}
-    error_type = _safe_text(
-        payload.get("error_type") or "UnknownWorkerError",
-        replace_path=artifact_path,
-        artifact_name=artifact_name,
-    )[:96]
-    error_message = _safe_text(
-        payload.get("error_message") or "No error message was returned.",
-        replace_path=artifact_path,
-        artifact_name=artifact_name,
-    )
-    return (
-        f"child_error_type={error_type} {_worker_exit_details(exit_code)} "
-        f"memory_limit_bytes={memory_limit_bytes} child_error_message={error_message}"
-    )
-
-
 def _ensure_staging_disk_space(path: str | os.PathLike[str], required_bytes: int = 0) -> None:
     try:
-        available = int(shutil.disk_usage(path).free)
+        usage = shutil.disk_usage(path)
     except OSError as exc:
         raise ArtifactDiskSpaceError(
             "The staging volume could not be checked for available disk space."
         ) from exc
-    required = max(0, int(required_bytes)) + MIN_FREE_DISK_BYTES
-    if available < required:
+    reserve = max(
+        configured_storage_min_free_bytes(),
+        int(usage.total * configured_storage_min_free_percent() / 100),
+    )
+    required = max(0, int(required_bytes)) + reserve
+    if usage.free < required:
         raise ArtifactDiskSpaceError(
             "Not enough free disk space to stage this model artifact safely."
         )
@@ -259,17 +232,20 @@ class ModelArtifact(BaseModel):
     storage: str = Field(default="connected", max_length=32)
     _stream_factory: Callable[[], Any] | None = PrivateAttr(default=None)
     _direct_path: str | None = PrivateAttr(default=None)
+    _expected_sha256: str | None = PrivateAttr(default=None)
 
     def __init__(
         self,
         *,
         stream_factory: Callable[[], Any] | None = None,
         direct_path: str | os.PathLike[str] | None = None,
+        expected_sha256: str | None = None,
         **data: Any,
     ):
         super().__init__(**data)
         self._stream_factory = stream_factory
         self._direct_path = os.fspath(direct_path) if direct_path is not None else None
+        self._expected_sha256 = expected_sha256
 
     def open_stream(self) -> Any:
         """Open a fresh binary stream for one bounded scan."""
@@ -290,6 +266,10 @@ class ModelArtifact(BaseModel):
         """Return a validated service-local path when the source already exists on disk."""
 
         return self._direct_path
+
+    @property
+    def expected_sha256(self) -> str | None:
+        return self._expected_sha256
 
     def __repr__(self) -> str:
         return "ModelArtifact(name={!r}, size_bytes={!r}, format_hint={!r}, storage={!r})".format(
@@ -687,8 +667,8 @@ def _static_analysis_process_entry(
 class ProcessModelArtifactAnalysisRunner:
     """Run Static model analysis in a killable child process with a strict deadline."""
 
-    def __init__(self, start_method: str = "spawn"):
-        self._context: Any = multiprocessing.get_context(start_method)
+    def __init__(self, start_method: str | None = None):
+        self._start_method = start_method
 
     def run(
         self,
@@ -698,69 +678,21 @@ class ProcessModelArtifactAnalysisRunner:
         artifact_name: str,
     ) -> dict[str, Any]:
         memory_limit_bytes = configured_worker_memory_bytes()
-        receive_connection, send_connection = self._context.Pipe(duplex=False)
-        process = self._context.Process(
-            target=_static_analysis_process_entry,
-            args=(send_connection, path, config, artifact_name, timeout_seconds),
-            daemon=True,
-        )
         try:
-            process.start()
-            send_connection.close()
-            if not receive_connection.poll(timeout_seconds):
-                if process.is_alive():
-                    process.terminate()
-                    process.join(timeout=2)
-                if process.is_alive():
-                    process.kill()
-                    process.join(timeout=2)
-                raise ModelArtifactAnalysisTimeoutError(
-                    "Static model analysis scan timed out: "
-                    f"{_worker_exit_details(process.exitcode)} "
-                    f"memory_limit_bytes={memory_limit_bytes}."
-                )
-
-            try:
-                message = receive_connection.recv()
-            except EOFError as exc:
-                process.join(timeout=2)
-                raise ModelArtifactAnalysisRunnerError(
-                    "Static model analysis worker exited without a result: "
-                    f"{_worker_exit_details(process.exitcode)} "
-                    f"memory_limit_bytes={memory_limit_bytes}."
-                ) from exc
-            process.join(timeout=2)
-
-            if not isinstance(message, Mapping) or not message.get("ok"):
-                details = _worker_failure_details(
-                    message,
-                    artifact_path=path,
-                    artifact_name=artifact_name,
-                    exit_code=process.exitcode,
-                    memory_limit_bytes=memory_limit_bytes,
-                )
-                raise ModelArtifactAnalysisRunnerError(
-                    f"Static model analysis worker failed: {details}."
-                )
-            result = message.get("result")
-            if not isinstance(result, dict):
-                raise ModelArtifactAnalysisRunnerError(
-                    "Static model analysis worker returned an invalid result."
-                )
-            return result
-        finally:
-            receive_connection.close()
-            try:
-                send_connection.close()
-            except OSError:
-                pass
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=2)
-            try:
-                process.close()
-            except ValueError:
-                pass
+            return run_in_isolated_process(
+                target=_static_analysis_process_entry,
+                worker_args=(path, config, artifact_name, timeout_seconds),
+                timeout_seconds=timeout_seconds,
+                worker_name="Static model analysis",
+                memory_limit_bytes=memory_limit_bytes,
+                artifact_path=path,
+                artifact_name=artifact_name,
+                start_method=self._start_method,
+            )
+        except IsolatedProcessTimeoutError as exc:
+            raise ModelArtifactAnalysisTimeoutError(str(exc)) from exc
+        except IsolatedProcessError as exc:
+            raise ModelArtifactAnalysisRunnerError(str(exc)) from exc
 
 
 class InProcessModelArtifactAnalysisRunner:
@@ -907,6 +839,7 @@ def _managed_artifact_from_mapping(
         storage="managed",
         stream_factory=record.open_stream,
         direct_path=record.payload_path,
+        expected_sha256=record.sha256,
     )
 
 
@@ -1338,7 +1271,7 @@ def _archive_entry_matches(
 
 
 @contextmanager
-def stage_model_artifact(
+def _stage_model_artifact_unleased(
     artifact_value: Any,
     *,
     credential_lookup: Callable[[str], Any] | None = None,
@@ -1372,6 +1305,10 @@ def stage_model_artifact(
             deadline,
             maximum_bytes,
         )
+        if artifact.expected_sha256 and sha256 != artifact.expected_sha256:
+            raise ArtifactReferenceError(
+                "Managed artifact integrity validation failed before scanning."
+            )
         yield StagedModelArtifact(
             artifact=artifact,
             path=artifact.direct_path,
@@ -1388,13 +1325,22 @@ def stage_model_artifact(
         )
         return
 
-    temp_dir = tempfile.mkdtemp(prefix=prefix)
-    os.chmod(temp_dir, 0o700)
-    temp_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}-{artifact_name}")
-    size_bytes = 0
-    digest = hashlib.sha256()
-
+    staging_reservation_id: str | None = None
+    temp_dir = ""
     try:
+        try:
+            staging_reservation_id = managed_model_artifact_store.reserve_staging_capacity(
+                artifact.size_bytes or maximum_bytes
+            )
+        except ManagedArtifactInsufficientDiskError as exc:
+            raise ArtifactDiskSpaceError(str(exc)) from exc
+        staging_root = managed_model_artifact_store.staging_root
+        staging_root.mkdir(mode=0o700, parents=True, exist_ok=True)
+        temp_dir = tempfile.mkdtemp(prefix=prefix, dir=staging_root)
+        os.chmod(temp_dir, 0o700)
+        temp_path = os.path.join(temp_dir, f"{uuid.uuid4().hex}-{artifact_name}")
+        size_bytes = 0
+        digest = hashlib.sha256()
         _ensure_staging_disk_space(temp_dir, artifact.size_bytes or 0)
         logger.info(
             "Model artifact staging started: source=%s name=%s expected_bytes=%s",
@@ -1464,12 +1410,71 @@ def stage_model_artifact(
             digest.hexdigest(),
         )
     finally:
-        if temp_dir:
+        try:
+            if temp_dir:
+                try:
+                    shutil.rmtree(temp_dir)
+                except OSError:
+                    logger.error("Security scanner temporary workspace cleanup failed.")
+                    raise
+        finally:
+            managed_model_artifact_store.release_staging_capacity(
+                staging_reservation_id
+            )
+
+
+@contextmanager
+def stage_model_artifact(
+    artifact_value: Any,
+    *,
+    credential_lookup: Callable[[str], Any] | None = None,
+    owner_id: Any = None,
+    max_bytes: Any = DEFAULT_MAX_BYTES,
+    timeout_seconds: Any = DEFAULT_TIMEOUT_SECONDS,
+    prefix: str = "kai-model-security-",
+):
+    """Stage an artifact while protecting managed uploads with a DB-backed lease."""
+
+    timeout = _coerce_positive_int(
+        timeout_seconds, DEFAULT_TIMEOUT_SECONDS, MAX_TIMEOUT_SECONDS
+    )
+    candidate = _unwrap_artifact_value(artifact_value)
+    managed_artifact_id: str | None = None
+    lease_id: str | None = None
+    if isinstance(candidate, Mapping) and _artifact_storage(candidate) == "managed":
+        managed_artifact_id = str(candidate.get("artifact_id") or "").strip()
+        try:
+            lease_id = managed_model_artifact_store.acquire_lease(
+                managed_artifact_id,
+                owner_id=owner_id,
+                lease_seconds=timeout + configured_staging_retention_seconds(),
+            )
+        except ManagedArtifactError as exc:
+            raise ArtifactReferenceError(str(exc)) from exc
+
+    try:
+        with _stage_model_artifact_unleased(
+            artifact_value,
+            credential_lookup=credential_lookup,
+            owner_id=owner_id,
+            max_bytes=max_bytes,
+            timeout_seconds=timeout,
+            prefix=prefix,
+        ) as staged:
+            yield staged
+    finally:
+        if managed_artifact_id and lease_id:
             try:
-                shutil.rmtree(temp_dir)
-            except OSError:
-                logger.error("Security scanner temporary workspace cleanup failed.")
-                raise
+                managed_model_artifact_store.release_lease(
+                    managed_artifact_id,
+                    lease_id,
+                    scan_attempted=True,
+                )
+            except ManagedArtifactError:
+                logger.error(
+                    "Managed model artifact scan lease release failed: artifact_id=%s",
+                    managed_artifact_id,
+                )
 
 
 def parse_scanner_allowlist(value: Any) -> list[str] | None:

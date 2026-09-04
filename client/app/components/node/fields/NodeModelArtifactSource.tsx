@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import {
   ChevronDown,
+  Clock3,
   Database,
   FileArchive,
   FolderOpen,
@@ -11,6 +12,7 @@ import {
 import CredentialSelector from "../../credentials/CredentialSelector";
 import { apiClient } from "~/lib/api-client";
 import { API_ENDPOINTS } from "~/lib/config";
+import { useWorkflows } from "~/stores/workflows";
 import type { NodeProperty } from "../types";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
@@ -18,10 +20,16 @@ interface NodeModelArtifactSourceProps {
   property: NodeProperty;
   values: any;
   setFieldValue: (name: string, value: any) => void;
+  nodeId?: string;
 }
 
 type SourceMode = "local" | "minio";
 type BrowserFile = File & { webkitRelativePath?: string };
+type ManagedArtifactStatus = {
+  artifact_id?: string;
+  expires_at?: string;
+  available?: boolean;
+};
 
 const MAX_DIRECTORY_FILES = 512;
 const FALLBACK_MANAGED_UPLOAD_MAX_BYTES = 8 * 1024 * 1024 * 1024;
@@ -52,6 +60,12 @@ function formatBytes(value: number | undefined): string {
   return `${amount.toFixed(index === 0 ? 0 : 1)} ${units[index]}`;
 }
 
+function formatDuration(seconds: number): string {
+  if (seconds % 86400 === 0) return `${seconds / 86400} day${seconds === 86400 ? "" : "s"}`;
+  if (seconds % 3600 === 0) return `${seconds / 3600} hour${seconds === 3600 ? "" : "s"}`;
+  return `${Math.max(1, Math.round(seconds / 60))} minutes`;
+}
+
 function localDisplayPath(value: Record<string, any>): string {
   if (value.source_type === "path") return String(value.path || "");
   if (value.artifact_id && value.name) return `managed://${value.name}`;
@@ -78,7 +92,9 @@ export function NodeModelArtifactSource({
   property,
   values,
   setFieldValue,
+  nodeId,
 }: NodeModelArtifactSourceProps) {
+  const workflowId = useWorkflows((state) => state.currentWorkflow?.id);
   const rawValue = values[property.name];
   const value: Record<string, any> =
     rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)
@@ -97,15 +113,20 @@ export function NodeModelArtifactSource({
   );
   const [browserMenuOpen, setBrowserMenuOpen] = useState(false);
   const [modelAcceptedFiles, setModelAcceptedFiles] = useState("");
-  const [staticAnalysisVersion, setStaticAnalysisVersion] = useState("");
+  const [scannerVersion, setScannerVersion] = useState("");
   const [managedUploadMaxBytes, setManagedUploadMaxBytes] = useState(
     FALLBACK_MANAGED_UPLOAD_MAX_BYTES,
   );
   const [artifactMaxBytes, setArtifactMaxBytes] = useState<number>();
+  const [managedRetentionSeconds, setManagedRetentionSeconds] = useState(24 * 60 * 60);
+  const [postScanRetentionSeconds, setPostScanRetentionSeconds] = useState(60 * 60);
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState("");
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadStatus, setUploadStatus] = useState("");
+  const [artifactExpired, setArtifactExpired] = useState(false);
+  const [managedArtifactStatus, setManagedArtifactStatus] =
+    useState<ManagedArtifactStatus | null>(null);
   const [pathDraft, setPathDraft] = useState(
     sourceMode === "minio" ? minioDisplayPath(value) : localDisplayPath(value),
   );
@@ -128,6 +149,10 @@ export function NodeModelArtifactSource({
           artifact_max_bytes?: number;
           managed_upload_max_bytes?: number;
         };
+        managed_artifact_policy?: {
+          unscanned_retention_seconds?: number;
+          post_scan_retention_seconds?: number;
+        };
       }>(
         API_ENDPOINTS.MODEL_ARTIFACTS.CAPABILITIES,
       )
@@ -141,7 +166,7 @@ export function NodeModelArtifactSource({
         );
         extensions.add(".zip");
         setModelAcceptedFiles(Array.from(extensions).sort().join(","));
-        setStaticAnalysisVersion(capabilities.version || "");
+        setScannerVersion(capabilities.version || "");
         const uploadLimit = capabilities.limits?.managed_upload_max_bytes;
         if (Number.isFinite(uploadLimit) && Number(uploadLimit) > 0) {
           setManagedUploadMaxBytes(Number(uploadLimit));
@@ -149,6 +174,16 @@ export function NodeModelArtifactSource({
         const artifactLimit = capabilities.limits?.artifact_max_bytes;
         if (Number.isFinite(artifactLimit) && Number(artifactLimit) > 0) {
           setArtifactMaxBytes(Number(artifactLimit));
+        }
+        const unscannedRetention =
+          capabilities.managed_artifact_policy?.unscanned_retention_seconds;
+        if (Number.isFinite(unscannedRetention) && Number(unscannedRetention) > 0) {
+          setManagedRetentionSeconds(Number(unscannedRetention));
+        }
+        const postScanRetention =
+          capabilities.managed_artifact_policy?.post_scan_retention_seconds;
+        if (Number.isFinite(postScanRetention) && Number(postScanRetention) > 0) {
+          setPostScanRetentionSeconds(Number(postScanRetention));
         }
       })
       .catch(() => {
@@ -158,6 +193,56 @@ export function NodeModelArtifactSource({
       active = false;
     };
   }, []);
+
+  useEffect(() => {
+    const artifactId = String(value.artifact_id || "").trim();
+    if (!artifactId || value.storage !== "managed") return;
+    let active = true;
+    const refreshStatus = async () => {
+      try {
+        const status = await apiClient.get<ManagedArtifactStatus>(
+          API_ENDPOINTS.MODEL_ARTIFACTS.GET(artifactId),
+        );
+        if (active) setManagedArtifactStatus(status);
+      } catch (error: unknown) {
+        const typedError = error as {
+          status?: number;
+          response?: { status?: number };
+        };
+        const statusCode = typedError.status ?? typedError.response?.status;
+        if (active && statusCode === 404) {
+          setManagedArtifactStatus({ artifact_id: artifactId, available: false });
+        }
+        // Retain the last known state for transient failures; execution remains authoritative.
+      }
+    };
+    void refreshStatus();
+    const interval = window.setInterval(() => void refreshStatus(), 60_000);
+    return () => {
+      active = false;
+      window.clearInterval(interval);
+    };
+  }, [value.artifact_id, value.storage]);
+
+  const currentManagedStatus =
+    managedArtifactStatus?.artifact_id === value.artifact_id
+      ? managedArtifactStatus
+      : null;
+  const effectiveExpiresAt = currentManagedStatus?.expires_at || value.expires_at;
+  const artifactUnavailable = currentManagedStatus?.available === false;
+
+  useEffect(() => {
+    const refreshExpiry = () => {
+      const expiresAt = Date.parse(String(effectiveExpiresAt || ""));
+      setArtifactExpired(Number.isFinite(expiresAt) && expiresAt <= Date.now());
+    };
+    const initialTimer = window.setTimeout(refreshExpiry, 0);
+    const interval = window.setInterval(refreshExpiry, 60_000);
+    return () => {
+      window.clearTimeout(initialTimer);
+      window.clearInterval(interval);
+    };
+  }, [effectiveExpiresAt]);
 
   useEffect(() => {
     setPathDraft(
@@ -203,6 +288,7 @@ export function NodeModelArtifactSource({
 
   const replaceSource = (next: Record<string, any>) => {
     const previousArtifactId = value.artifact_id;
+    if (previousArtifactId !== next.artifact_id) setManagedArtifactStatus(null);
     setSource(next);
     if (previousArtifactId && previousArtifactId !== next.artifact_id) {
       void releaseManagedArtifact(previousArtifactId);
@@ -291,6 +377,8 @@ export function NodeModelArtifactSource({
     setUploadStatus(directory ? "Uploading folder for streamed ZIP creation…" : "Uploading model artifact…");
 
     const form = new FormData();
+    if (workflowId) form.append("workflow_id", workflowId);
+    if (nodeId) form.append("node_id", nodeId);
     let endpoint: string = API_ENDPOINTS.MODEL_ARTIFACTS.UPLOAD;
     if (directory) {
       endpoint = API_ENDPOINTS.MODEL_ARTIFACTS.UPLOAD_DIRECTORY;
@@ -322,6 +410,7 @@ export function NodeModelArtifactSource({
         },
       });
       replaceSource({ source_type: "local", ...artifact });
+      setManagedArtifactStatus(artifact as ManagedArtifactStatus);
     } catch (error: any) {
       setUploadError(error?.message || "Model artifact upload failed.");
     } finally {
@@ -467,13 +556,38 @@ export function NodeModelArtifactSource({
             </div>
           )}
           {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+          {value.storage === "managed" && value.artifact_id && (
+            <div
+              className={`flex items-start gap-2 rounded-lg border p-3 text-xs leading-relaxed ${
+                artifactExpired || artifactUnavailable
+                  ? "border-red-800/70 bg-red-950/30 text-red-300"
+                  : "border-amber-700/60 bg-amber-950/20 text-amber-200"
+              }`}
+            >
+              <Clock3 className="mt-0.5 shrink-0" size={15} />
+              <span>
+                {artifactExpired || artifactUnavailable ? (
+                  <>This temporary browser upload has expired. Select it again before running the workflow.</>
+                ) : (
+                  <>
+                    Temporary browser upload. It is retained for up to {formatDuration(managedRetentionSeconds)}
+                    {effectiveExpiresAt
+                      ? ` (until ${new Date(effectiveExpiresAt).toLocaleString()})`
+                      : ""}
+                    , then for {formatDuration(postScanRetentionSeconds)} after a scan for retries. Disk-pressure
+                    cleanup may remove it earlier. Use a shared path or MinIO for repeatable workflows.
+                  </>
+                )}
+              </span>
+            </div>
+          )}
           <p className="text-xs leading-relaxed text-slate-500">
             An absolute service-visible path is scanned in place without copying; files, ZIPs, and
             directories are supported. Paths must be under an administrator-approved model root.
             Browser security does not expose a usable operating-system path, so Select is an ad-hoc
-            upload fallback; uploaded folders become a bounded temporary ZIP. Browser upload: {formatBytes(managedUploadMaxBytes)}
+            upload fallback; uploaded folders become a bounded temporary ZIP with automatic retention cleanup. Browser upload: {formatBytes(managedUploadMaxBytes)}
             {artifactMaxBytes ? ` · Local/MinIO admission: ${formatBytes(artifactMaxBytes)}` : ""}
-            {staticAnalysisVersion ? ` · Static model analysis v${staticAnalysisVersion}` : ""}.
+            {scannerVersion ? ` · LLM model scanner v${scannerVersion}` : ""}.
           </p>
         </div>
       ) : (

@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import multiprocessing
 import os
 import time
 from collections.abc import Callable, Mapping
@@ -14,10 +13,13 @@ from typing import Any, Protocol
 from app.services.model_artifact_analysis_service import (
     DEFAULT_TIMEOUT_SECONDS,
     StagedModelArtifact,
-    _worker_exit_details,
-    _worker_failure_details,
     staged_source_is_unchanged,
     stage_model_artifact,
+)
+from app.services.model_scan_process import (
+    IsolatedProcessError,
+    IsolatedProcessTimeoutError,
+    run_in_isolated_process,
 )
 from app.services.model_security_error_catalog import (
     enrich_security_finding,
@@ -406,8 +408,8 @@ def _pickle_process_entry(
 class ProcessPickleSecurityRunner:
     """Run Pickle security analysis in a killable child process with resource limits."""
 
-    def __init__(self, start_method: str = "spawn"):
-        self._context: Any = multiprocessing.get_context(start_method)
+    def __init__(self, start_method: str | None = None):
+        self._start_method = start_method
 
     def run(
         self,
@@ -418,71 +420,26 @@ class ProcessPickleSecurityRunner:
         max_memory_bytes: int,
     ) -> dict[str, Any]:
         memory_limit_bytes = _pickle_worker_memory_limit(max_memory_bytes)
-        receive_connection, send_connection = self._context.Pipe(duplex=False)
-        process = self._context.Process(
-            target=_pickle_process_entry,
-            args=(
-                send_connection,
-                path,
-                timeout_seconds,
-                artifact_name,
-                max_memory_bytes,
-            ),
-            daemon=True,
-        )
         try:
-            process.start()
-            send_connection.close()
-            if not receive_connection.poll(timeout_seconds):
-                if process.is_alive():
-                    process.terminate()
-                    process.join(timeout=2)
-                if process.is_alive():
-                    process.kill()
-                    process.join(timeout=2)
-                raise PickleSecurityTimeoutError(
-                    "Pickle security analysis scan timed out: "
-                    f"{_worker_exit_details(process.exitcode)} "
-                    f"memory_limit_bytes={memory_limit_bytes}."
-                )
-            try:
-                message = receive_connection.recv()
-            except EOFError as exc:
-                process.join(timeout=2)
-                raise PickleSecurityRunnerError(
-                    "Pickle security analysis worker exited without a result: "
-                    f"{_worker_exit_details(process.exitcode)} "
-                    f"memory_limit_bytes={memory_limit_bytes}."
-                ) from exc
-            process.join(timeout=2)
-            if not isinstance(message, Mapping) or not message.get("ok"):
-                details = _worker_failure_details(
-                    message,
-                    artifact_path=path,
-                    artifact_name=artifact_name,
-                    exit_code=process.exitcode,
-                    memory_limit_bytes=memory_limit_bytes,
-                )
-                raise PickleSecurityRunnerError(
-                    f"Pickle security analysis worker failed: {details}."
-                )
-            result = message.get("result")
-            if not isinstance(result, dict):
-                raise PickleSecurityRunnerError("Pickle security analysis returned an invalid result.")
-            return result
-        finally:
-            receive_connection.close()
-            try:
-                send_connection.close()
-            except OSError:
-                pass
-            if process.is_alive():
-                process.terminate()
-                process.join(timeout=2)
-            try:
-                process.close()
-            except ValueError:
-                pass
+            return run_in_isolated_process(
+                target=_pickle_process_entry,
+                worker_args=(
+                    path,
+                    timeout_seconds,
+                    artifact_name,
+                    max_memory_bytes,
+                ),
+                timeout_seconds=timeout_seconds,
+                worker_name="Pickle security analysis",
+                memory_limit_bytes=memory_limit_bytes,
+                artifact_path=path,
+                artifact_name=artifact_name,
+                start_method=self._start_method,
+            )
+        except IsolatedProcessTimeoutError as exc:
+            raise PickleSecurityTimeoutError(str(exc)) from exc
+        except IsolatedProcessError as exc:
+            raise PickleSecurityRunnerError(str(exc)) from exc
 
 
 class InProcessPickleSecurityRunner:
