@@ -443,6 +443,7 @@ export default function GenericNode({ data, id }: GenericNodeProps) {
     return (
       <GenericNodeForm
         configData={configData}
+        nodeId={id}
         initialValues={{
           ...configData,
           text_input: configData.text_input || "",

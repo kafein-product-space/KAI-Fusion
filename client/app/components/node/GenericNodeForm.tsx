@@ -34,6 +34,7 @@ interface GenericNodeFormProps {
   configData?: any;
   onSave?: (values: any) => void;
   onChange?: (values: GenericData) => void;
+  nodeId?: string;
 }
 
 const cleanValues = (obj: any): any => {
@@ -88,6 +89,7 @@ export default function GenericNodeForm({
   onSubmit: propOnSubmit,
   onCancel,
   configData,
+  nodeId,
   onSave,
   onChange,
 }: GenericNodeFormProps) {
@@ -341,6 +343,7 @@ export default function GenericNodeForm({
                           property={fullWidthProperty}
                           values={values}
                           setFieldValue={setFieldValue}
+                          nodeId={nodeId}
                         />
                       );
                     default:

@@ -119,6 +119,7 @@ export const API_ENDPOINTS = {
     UPLOAD: '/model-artifacts/upload',
     UPLOAD_DIRECTORY: '/model-artifacts/upload-directory',
     CAPABILITIES: '/model-artifacts/capabilities',
+    GET: (id: string) => `/model-artifacts/${id}`,
     DELETE: (id: string) => `/model-artifacts/${id}`,
   },
   CHAT: {

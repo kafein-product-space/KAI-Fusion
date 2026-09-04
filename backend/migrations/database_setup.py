@@ -81,7 +81,9 @@ class DatabaseSetup:
             "webhook_events",
             "vector_collections",
             "vector_documents",
-            "external_workflows"
+            "external_workflows",
+            "managed_model_artifacts",
+            "managed_model_artifact_leases"
         ]
 
     async def initialize(self):
@@ -252,7 +254,8 @@ class DatabaseSetup:
                 DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
                 WebhookEndpoint, WebhookEvent,
                 VectorCollection, VectorDocument,
-                ExternalWorkflow
+                ExternalWorkflow,
+                ManagedModelArtifact, ManagedModelArtifactLease
             )
 
             # Check API Key model
@@ -290,7 +293,9 @@ class DatabaseSetup:
                 'webhook_events': WebhookEvent,
                 'vector_collections': VectorCollection,
                 'vector_documents': VectorDocument,
-                'external_workflows': ExternalWorkflow
+                'external_workflows': ExternalWorkflow,
+                'managed_model_artifacts': ManagedModelArtifact,
+                'managed_model_artifact_leases': ManagedModelArtifactLease
             }
 
             # Add API Key if available
@@ -334,6 +339,7 @@ class DatabaseSetup:
             'TEXT': 'text',
             'BOOLEAN': 'boolean',
             'INTEGER': 'integer',
+            'BIGINT': 'bigint',
             'TIMESTAMP': 'timestamp with time zone',
             'DATETIME': 'timestamp with time zone',
             'JSONB': 'jsonb',
@@ -520,7 +526,8 @@ class DatabaseSetup:
                 DocumentCollection, Document, DocumentChunk, DocumentAccessLog, DocumentVersion,
                 WebhookEndpoint, WebhookEvent,
                 VectorCollection, VectorDocument,
-                ExternalWorkflow
+                ExternalWorkflow,
+                ManagedModelArtifact, ManagedModelArtifactLease
             )
 
             # Check API Key model
