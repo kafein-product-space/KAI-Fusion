@@ -2,15 +2,15 @@ export interface ServiceField {
   name: string;
   label: string;
   type: 'text' | 'password' | 'textarea' | 'select' | 'checkbox' | 'model-combobox';
+  helpText?: string;
   required: boolean;
   placeholder?: string;
   default?: any;
   options?: { value: string; label: string }[];
   description?: string;
-  helpText?: string;
   dependsOn?: {
     field: string;
-    values: string[];
+    values: Array<string | boolean>;
   };
   validation?: {
     minLength?: number;
@@ -86,9 +86,9 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         name: 'api_key',
         label: 'API Key',
         type: 'password',
-        required: true,
-        placeholder: 'Paste your API key',
-        description: 'The authentication key for the compatible service'
+        required: false,
+        placeholder: 'Optional for local endpoints (Ollama, LM Studio, etc.)',
+        description: 'The authentication key for the compatible service (leave empty if not required)'
       },
       {
         name: 'model_name',
@@ -96,7 +96,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         type: 'model-combobox',
         required: true,
         placeholder: 'Select or type a model',
-        description: 'Models are loaded from your provider when Base URL and API key are set. Use the arrow keys to move through the list.'
+        description: 'Models are loaded from your provider when Base URL is set. Use the arrow keys to move through the list.'
       },
       {
         name: 'skip_ssl_verify',
@@ -201,6 +201,48 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     ]
   },
   {
+    id: 'sqlite',
+    name: 'SQLite',
+    description: 'Connect to a SQLite database file for workflow query and row operations',
+    icon: 'sqlite.svg',
+    category: 'database',
+    color: 'from-sky-600 to-cyan-800',
+    fields: [
+      {
+        name: 'database_path',
+        label: 'Database Path',
+        type: 'text',
+        required: true,
+        placeholder: '/data/app.sqlite',
+        description: 'Absolute path to the SQLite database file on the backend host'
+      },
+      {
+        name: 'timeout_ms',
+        label: 'Connection Timeout (ms)',
+        type: 'text',
+        required: false,
+        default: '30000',
+        description: 'Maximum time SQLite waits for a locked database'
+      },
+      {
+        name: 'read_only',
+        label: 'Read Only',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Open the database in read-only mode as an additional safety guard'
+      },
+      {
+        name: 'create_if_missing',
+        label: 'Create if Missing',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Create the database file when it does not exist; the parent directory must already exist'
+      }
+    ]
+  },
+  {
     id: 'basic_auth',
     name: 'Basic Auth',
     description: 'Basic authentication credentials for webhook endpoints (username and password)',
@@ -257,7 +299,7 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
     id: 'kafka',
     name: 'Kafka',
     description: 'Apache Kafka connection credentials for producing and consuming messages',
-    icon: 'kafka_credetial.svg',
+    icon: 'kafka-credentials.svg',
     category: 'api',
     color: 'from-green-500 to-emerald-600',
     fields: [
@@ -385,6 +427,98 @@ export const SERVICE_DEFINITIONS: ServiceDefinition[] = [
         required: false,
         default: false,
         helpText: 'Toggle on if your endpoint requires HTTPS'
+      }
+    ]
+  },
+  {
+    id: 'mysql',
+    name: 'MySQL',
+    description: 'Connect to a MySQL database for workflow query and row operations',
+    icon: 'mysql-credentials.svg',
+    category: 'database',
+    color: 'from-cyan-600 to-blue-700',
+    fields: [
+      {
+        name: 'host',
+        label: 'Host',
+        type: 'text',
+        required: true,
+        default: 'localhost',
+        placeholder: 'localhost',
+        description: 'MySQL server hostname or IP address'
+      },
+      {
+        name: 'port',
+        label: 'Port',
+        type: 'text',
+        required: true,
+        default: '3306',
+        placeholder: '3306',
+        description: 'MySQL TCP port'
+      },
+      {
+        name: 'database',
+        label: 'Database',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'Default database used by the connection'
+      },
+      {
+        name: 'username',
+        label: 'User',
+        type: 'text',
+        required: true,
+        placeholder: 'kai',
+        description: 'MySQL account username'
+      },
+      {
+        name: 'password',
+        label: 'Password',
+        type: 'password',
+        required: false,
+        placeholder: '••••••••',
+        description: 'MySQL account password'
+      },
+      {
+        name: 'connect_timeout',
+        label: 'Connect Timeout (ms)',
+        type: 'text',
+        required: false,
+        default: '10000',
+        description: 'Maximum time allowed for the initial connection'
+      },
+      {
+        name: 'ssl',
+        label: 'SSL',
+        type: 'checkbox',
+        required: false,
+        default: false,
+        description: 'Encrypt the MySQL connection with TLS'
+      },
+      {
+        name: 'ca_certificate',
+        label: 'CA Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM certificate authority'
+      },
+      {
+        name: 'client_certificate',
+        label: 'Client Certificate',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client certificate'
+      },
+      {
+        name: 'client_private_key',
+        label: 'Client Private Key',
+        type: 'textarea',
+        required: false,
+        dependsOn: { field: 'ssl', values: [true] },
+        description: 'Optional PEM client private key'
       }
     ]
   }

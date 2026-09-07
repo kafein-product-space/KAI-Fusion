@@ -260,7 +260,7 @@ class TavilySearchNode(ProviderNode):
         def tavily_web_search(query: str) -> str:
             """Web search function that agents will call."""
             try:
-                logger.info(f"Agent performing web search for: {query}")
+                logger.debug("Web search started (query_length=%s)", len(query))
 
                 # Perform search using Tavily
                 raw_results = tavily_search.run(query)

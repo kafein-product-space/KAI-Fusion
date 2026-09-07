@@ -23,6 +23,7 @@ import { getWorkflowChats } from "~/services/chatService";
 import { v4 as uuidv4 } from "uuid";
 import type { ChatMessage } from "~/types/api";
 import CredentialSelector from "../credentials/CredentialSelector";
+import { useAutosizeTextArea } from "~/hooks/useAutosizeTextArea";
 
 interface ChatComponentProps {
   chatOpen: boolean;
@@ -67,7 +68,7 @@ export default function ChatComponent({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
     chats,
     setActiveChatflowId,
@@ -481,6 +482,8 @@ export default function ChatComponent({
   const setCurrentInput = mode === "builder" ? setBuilderInput : setChatInput;
   const isLoading = mode === "builder" ? builderLoading : chatLoading;
 
+  useAutosizeTextArea(inputRef.current, currentInput, 160);
+
   if (!chatOpen) return null;
 
   return (
@@ -860,11 +863,11 @@ export default function ChatComponent({
           </div>
 
           {/* ─── Input Area ─── */}
-          <div className="p-3 border-t border-gray-700 flex gap-2">
-            <input
+          <div className="p-3 border-t border-gray-700 flex gap-2 items-end">
+            <textarea
               ref={inputRef}
-              type="text"
-              className={`flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none ${mode === "builder"
+              rows={1}
+              className={`flex-1 border rounded-lg px-3 py-2 text-sm transition-all duration-200 focus:outline-none resize-none overflow-y-auto max-h-40 min-h-[40px] ${mode === "builder"
                   ? "border-purple-500 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-purple-400 focus:ring-1 focus:ring-purple-500/20"
                   : "border-gray-600 bg-gray-800 text-gray-100 placeholder-gray-400 focus:border-blue-400 focus:ring-1 focus:ring-blue-500/20"
                 }`}
@@ -878,13 +881,16 @@ export default function ChatComponent({
               value={currentInput}
               onChange={(e) => setCurrentInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") handleUnifiedSend();
+                if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
+                  e.preventDefault();
+                  handleUnifiedSend();
+                }
               }}
               disabled={isLoading}
             />
             <button
               onClick={handleUnifiedSend}
-              className={`text-white px-4 py-2 rounded-lg disabled:opacity-50 ${mode === "builder"
+              className={`text-white px-4 py-2 rounded-lg disabled:opacity-50 shrink-0 ${mode === "builder"
                   ? "bg-purple-600 hover:bg-purple-700"
                   : "bg-blue-600 hover:bg-blue-700"
                 }`}

@@ -22,6 +22,11 @@ from .tools.http_client import HttpClientNode
 from .tools.cohere_reranker import CohereRerankerNode
 from .tools.retriever import RetrieverProvider
 from .tools.markitdown_tool import MarkItDownToolNode
+from .tools.postgres_tool import PostgresToolNode
+from .tools.mysql_tool import MySQLToolNode
+from .tools.sqlite_tool import SQLiteToolNode
+from .tools.scrapling_tool import ScraplingToolNode
+from .tools.llm_model_scanner_tool import LLMModelScannerToolNode
 
 # Document Loaders
 from .document_loaders.web_scraper import WebScraperNode
@@ -32,6 +37,11 @@ from .splitters.chunk_splitter import ChunkSplitterNode
 
 # Vector Stores
 from .vector_stores.vector_store_orchestrator import VectorStoreOrchestrator
+
+# Database Nodes
+from .databases.postgres_node import PostgresNode
+from .databases.mysql_node import MySQLNode
+from .databases.sqlite_node import SQLiteNode
 
 # Default Nodes
 from .default.start_node import StartNode
@@ -61,6 +71,7 @@ from .decorative.sticky_note import StickyNoteNode
 from .security.llm_red_team_node import LLMRedTeamNode
 from .security.agentic_red_team_node import AgenticRedTeamNode
 from .security.custom_red_team_node import CustomRedTeamNode
+from .security.llm_model_scanner_node import LLMModelScannerNode
 
 # ================================================================
 # DEPRECATED: Legacy node registry systems - kept for compatibility
@@ -87,7 +98,7 @@ __all__ = [
     "BufferMemoryNode",
     
     # Tools
-    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode",
+    "TavilySearchNode", "HttpClientNode", "CohereRerankerNode", "RetrieverProvider", "MarkItDownToolNode", "PostgresToolNode", "MySQLToolNode", "SQLiteToolNode", "ScraplingToolNode", "LLMModelScannerToolNode",
     
     # Document Loaders
     "WebScraperNode", "DocumentLoaderNode",
@@ -97,6 +108,9 @@ __all__ = [
     
     # Vector Stores
     "VectorStoreOrchestrator",
+
+    # Databases
+    "PostgresNode", "MySQLNode", "SQLiteNode",
     
     # Default & Triggers
     "StartNode", "EndNode", "WebhookTriggerNode", "TimerStartNode", "ErrorTriggerNode",
@@ -116,6 +130,7 @@ __all__ = [
     "LLMRedTeamNode",
     "AgenticRedTeamNode",
     "CustomRedTeamNode",
+    "LLMModelScannerNode",
 
     # Decorative
     "StickyNoteNode",

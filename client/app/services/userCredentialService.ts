@@ -65,7 +65,7 @@ export const getCredentialModels = async (
   id: string
 ): Promise<CredentialModelsResponse> => {
   return await apiClient.get<CredentialModelsResponse>(
-    `/credentials/${id}/models`
+    API_ENDPOINTS.CREDENTIALS.MODELS(id)
   );
 };
 
@@ -74,7 +74,7 @@ export const listModelsRaw = async (
   data: Record<string, any>
 ): Promise<CredentialModelsResponse> => {
   return await apiClient.post<CredentialModelsResponse>(
-    '/credentials/list-models',
+    API_ENDPOINTS.CREDENTIALS.LIST_MODELS,
     { service_type: serviceType, data }
   );
 };

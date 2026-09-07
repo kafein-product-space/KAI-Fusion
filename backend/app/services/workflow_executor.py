@@ -37,7 +37,7 @@ logger = logging.getLogger(__name__)
 
 
 # Webhook user email for webhook-triggered executions
-WEBHOOK_USER_EMAIL = "webhook@kai-fusion.ai"
+WEBHOOK_USER_EMAIL = "webhook@kaiflow.io"
 
 
 class WorkflowExecutionContext:

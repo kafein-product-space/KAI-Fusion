@@ -80,6 +80,8 @@ export const API_ENDPOINTS = {
     TEST: (id: string) => `/credentials/${id}/test`,
     TEST_RAW: '/credentials/test-raw',
     WORKFLOWS: (id: string) => `/credentials/${id}/workflows`,
+    MODELS: (id: string) => `/credentials/${id}/models`,
+    LIST_MODELS: '/credentials/list-models',
   },
   API_KEYS: {
     LIST: '/api-keys',
@@ -112,6 +114,13 @@ export const API_ENDPOINTS = {
     CATEGORIES: '/nodes/categories',
     CUSTOM: '/nodes/custom',
     GET_CUSTOM: (id: string) => `/nodes/custom/${id}`,
+  },
+  MODEL_ARTIFACTS: {
+    UPLOAD: '/model-artifacts/upload',
+    UPLOAD_DIRECTORY: '/model-artifacts/upload-directory',
+    CAPABILITIES: '/model-artifacts/capabilities',
+    GET: (id: string) => `/model-artifacts/${id}`,
+    DELETE: (id: string) => `/model-artifacts/${id}`,
   },
   CHAT: {
     LIST: '/chat', // Get all chats

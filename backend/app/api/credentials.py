@@ -1,9 +1,8 @@
 """User Credentials API endpoints"""
 
-import ast
 import asyncio
 import logging
-import re
+import time
 import uuid
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Depends, HTTPException, status, Query
@@ -368,109 +367,111 @@ class CredentialModelsResponse(BaseModel):
     message: Optional[str] = None
 
 
-def _build_openai_client(
-    secret: Dict[str, Any],
-    *,
-    compatible: bool = False,
-    timeout: float = 15,
-):
+_MODELS_CACHE: Dict[str, tuple[float, List[CredentialModelOption]]] = {}
+_CACHE_TTL_SECONDS = 60.0
+
+
+async def _list_openai_models(api_key: str) -> List[CredentialModelOption]:
+    """Query official OpenAI /models endpoint."""
     from openai import AsyncOpenAI
 
-    api_key = secret.get("api_key", "")
-    if not api_key:
-        api_key = "dummy_for_local"
+    client = AsyncOpenAI(api_key=api_key)
+    response = await asyncio.wait_for(client.models.list(), timeout=10)
+    raw_items = getattr(response, "data", None) or []
 
-    request_timeout = httpx.Timeout(timeout, connect=min(timeout, 5.0))
-    client_kwargs: Dict[str, Any] = {"api_key": api_key, "timeout": request_timeout}
-
-    if compatible:
-        base_url = secret.get("base_url", "")
-        if base_url:
-            client_kwargs["base_url"] = base_url
-
-        skip_ssl = secret.get("skip_ssl_verify", False)
-        if isinstance(skip_ssl, str):
-            skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
-        if skip_ssl:
-            client_kwargs["http_client"] = httpx.AsyncClient(
-                verify=False,
-                timeout=request_timeout,
-            )
-
-    return AsyncOpenAI(**client_kwargs)
-
-
-_NON_CHAT_MODEL_HINTS = ("embed", "embedding", "rerank")
-
-
-def _is_chat_model(model_id: str) -> bool:
-    lowered = model_id.lower()
-    return not any(hint in lowered for hint in _NON_CHAT_MODEL_HINTS)
-
-
-def _model_size_score(model_id: str) -> float:
-    match = re.search(r"(\d+(?:\.\d+)?)\s*([mb])\b", model_id.lower())
-    if not match:
-        return 10**9
-    size = float(match.group(1))
-    return size * (1 if match.group(2) == "b" else 0.001)
-
-
-def _pick_chat_model(model_ids: List[str]) -> Optional[str]:
-    chat_models = [model_id for model_id in model_ids if _is_chat_model(model_id)]
-    candidates = chat_models or model_ids
-    if not candidates:
-        return None
-    return min(candidates, key=lambda model_id: (_model_size_score(model_id), model_id.lower()))
-
-
-def _is_license_restriction(error: Exception) -> bool:
-    if _extract_allowed_models(error):
-        return True
-    text = str(error).lower()
-    return "model not allowed" in text or "allowed_models" in text
-
-
-def _extract_allowed_models(error: Exception) -> List[str]:
-    """Read allowed_models from a provider 403 body or error string."""
-    body = getattr(error, "body", None)
-    if isinstance(body, dict):
-        models = body.get("allowed_models")
-        if isinstance(models, list):
-            return [str(model_id) for model_id in models if model_id]
-
-    match = re.search(r"allowed_models['\"]?\s*[:=]\s*(\[[^\]]*\])", str(error))
-    if not match:
-        return []
-    try:
-        parsed = ast.literal_eval(match.group(1))
-    except (ValueError, SyntaxError):
-        return []
-    if isinstance(parsed, list):
-        return [str(model_id) for model_id in parsed if model_id]
-    return []
-
-
-async def _list_models_from_provider(
-    secret: Dict[str, Any],
-    *,
-    compatible: bool = False,
-) -> List[CredentialModelOption]:
-    client = _build_openai_client(secret, compatible=compatible)
-    response = await asyncio.wait_for(client.models.list(), timeout=15)
     seen: set[str] = set()
     models: List[CredentialModelOption] = []
-    for item in getattr(response, "data", []) or []:
-        model_id = getattr(item, "id", None)
+    for item in raw_items:
+        model_id = str(getattr(item, "id", "") or "").strip()
         if not model_id or model_id in seen:
             continue
         seen.add(model_id)
+        owned_by = getattr(item, "owned_by", None)
+        models.append(CredentialModelOption(id=model_id, owned_by=str(owned_by) if owned_by else None))
+
+    models.sort(key=lambda m: m.id.lower())
+    return models
+
+
+def _is_html_response(content_type: str = "", body: str = "") -> bool:
+    """Check if an HTTP response is an HTML web page rather than API JSON."""
+    ct = (content_type or "").lower()
+    if "text/html" in ct or "application/xhtml" in ct:
+        return True
+    body_strip = (body or "").strip().lower()
+    if body_strip.startswith("<!doctype html") or body_strip.startswith("<html") or "<title>" in body_strip:
+        return True
+    return False
+
+
+def _format_error_text(text: str, status_code: Optional[int] = None) -> str:
+    """Sanitize error text to avoid dumping massive HTML documents or empty messages in the UI."""
+    text_strip = (text or "").strip()
+    if not text_strip:
+        code_str = f" (HTTP {status_code})" if status_code else ""
+        return f"Connection failed{code_str}. Please check your connection details."
+    if _is_html_response(body=text_strip):
+        code_str = f" (HTTP {status_code})" if status_code else ""
+        return f"Server returned an HTML page instead of API response{code_str}. Please check your Base URL."
+    if len(text_strip) > 500:
+        return text_strip[:500] + "..."
+    return text_strip
+
+
+async def _list_openai_compatible_models(
+    base_url: str,
+    api_key: str = "",
+    skip_ssl: bool = False,
+) -> List[CredentialModelOption]:
+    """Query an OpenAI Compatible endpoint's /models API."""
+    url = f"{base_url.rstrip('/')}/models"
+    headers: Dict[str, str] = {
+        "User-Agent": "KAI-Flow/1.0",
+        "Accept": "application/json",
+    }
+    if api_key:
+        headers["Authorization"] = f"Bearer {api_key}"
+
+    async with httpx.AsyncClient(verify=not skip_ssl, timeout=httpx.Timeout(10.0, connect=4.0)) as http_client:
+        resp = await http_client.get(url, headers=headers)
+        if _is_html_response(resp.headers.get("content-type"), resp.text):
+            raise ValueError(
+                f"Server returned an HTML page (HTTP {resp.status_code}) instead of API response. Please check your Base URL."
+            )
+        if resp.status_code >= 400:
+            raise ValueError(f"HTTP {resp.status_code}: {_format_error_text(resp.text, resp.status_code)}")
+
+        json_data = resp.json()
+        raw_items = None
+        if isinstance(json_data, dict):
+            raw_items = json_data.get("data") or json_data.get("models") or []
+        elif isinstance(json_data, list):
+            raw_items = json_data
+
+    seen: set[str] = set()
+    models: List[CredentialModelOption] = []
+    for item in (raw_items or []):
+        model_id = (
+            getattr(item, "id", None)
+            or (item.get("id") if isinstance(item, dict) else None)
+            or (item.get("name") if isinstance(item, dict) else None)
+            or (str(item) if isinstance(item, str) else None)
+        )
+        if not model_id or not str(model_id).strip():
+            continue
+        model_id_str = str(model_id).strip()
+        if model_id_str in seen:
+            continue
+
+        seen.add(model_id_str)
+        owned_by = getattr(item, "owned_by", None) or (item.get("owned_by") if isinstance(item, dict) else None)
         models.append(
             CredentialModelOption(
-                id=model_id,
-                owned_by=getattr(item, "owned_by", None),
+                id=model_id_str,
+                owned_by=str(owned_by) if owned_by else None,
             )
         )
+
     models.sort(key=lambda m: m.id.lower())
     return models
 
@@ -479,58 +480,97 @@ async def _list_models_response(
     service_type: str,
     secret: Dict[str, Any],
 ) -> CredentialModelsResponse:
-    """Query a provider's /models API. Never return a hardcoded model catalog."""
-    if service_type not in ("openai", "openai_compatible"):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Model listing is not supported for service type: {service_type}",
-        )
-
-    if service_type == "openai" and not str(secret.get("api_key") or "").strip():
-        return CredentialModelsResponse(
-            models=[],
-            source="empty",
-            message="Enter your API key to load available models.",
-        )
-
-    if service_type == "openai_compatible" and not str(secret.get("base_url") or "").strip():
-        return CredentialModelsResponse(
-            models=[],
-            source="empty",
-            message="Enter a Base URL to load available models.",
-        )
-
-    try:
-        models = await _list_models_from_provider(
-            secret,
-            compatible=(service_type == "openai_compatible"),
-        )
-        if models:
-            return CredentialModelsResponse(models=models, source="provider")
-        return CredentialModelsResponse(
-            models=[],
-            source="empty",
-            message="Provider returned no models. You can type a model name manually.",
-        )
-    except asyncio.TimeoutError:
-        return CredentialModelsResponse(
-            models=[],
-            source="empty",
-            message="Connection timed out. You can type a model name manually.",
-        )
-    except Exception as e:
-        allowed = _extract_allowed_models(e)
-        if allowed:
+    """Query a provider's /models API with caching and error handling."""
+    if service_type == "openai":
+        api_key = str(secret.get("api_key") or "").strip()
+        if not api_key:
             return CredentialModelsResponse(
-                models=[CredentialModelOption(id=model_id) for model_id in allowed],
-                source="provider",
+                models=[],
+                source="empty",
+                message="Enter your API key to load available models.",
             )
-        logger.warning(f"Failed to list models for service type {service_type}: {e}")
-        return CredentialModelsResponse(
-            models=[],
-            source="empty",
-            message=f"Could not fetch models from provider ({e}). You can type a model name manually.",
-        )
+
+        cache_key = f"openai::{api_key}"
+        now = time.time()
+        if cache_key in _MODELS_CACHE:
+            cached_time, cached_models = _MODELS_CACHE[cache_key]
+            if now - cached_time < _CACHE_TTL_SECONDS:
+                return CredentialModelsResponse(models=cached_models, source="provider")
+
+        try:
+            models = await _list_openai_models(api_key)
+            if models:
+                _MODELS_CACHE[cache_key] = (now, models)
+                return CredentialModelsResponse(models=models, source="provider")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Provider returned no models. You can type a model name manually.",
+            )
+        except asyncio.TimeoutError:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Connection timed out. You can type a model name manually.",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to list OpenAI models: {e}")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message=f"Could not fetch models: {_format_error_text(str(e))}",
+            )
+
+    elif service_type == "openai_compatible":
+        base_url = str(secret.get("base_url") or "").strip().rstrip("/")
+        if not base_url:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Enter a Base URL to load available models.",
+            )
+
+        api_key = str(secret.get("api_key") or "").strip()
+        skip_ssl = secret.get("skip_ssl_verify", False)
+        if isinstance(skip_ssl, str):
+            skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
+        skip_ssl = bool(skip_ssl)
+
+        cache_key = f"openai_compatible:{base_url}:{api_key}"
+        now = time.time()
+        if cache_key in _MODELS_CACHE:
+            cached_time, cached_models = _MODELS_CACHE[cache_key]
+            if now - cached_time < _CACHE_TTL_SECONDS:
+                return CredentialModelsResponse(models=cached_models, source="provider")
+
+        try:
+            models = await _list_openai_compatible_models(base_url, api_key=api_key, skip_ssl=skip_ssl)
+            if models:
+                _MODELS_CACHE[cache_key] = (now, models)
+                return CredentialModelsResponse(models=models, source="provider")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Provider returned no models. You can type a model name manually.",
+            )
+        except asyncio.TimeoutError:
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message="Connection timed out. You can type a model name manually.",
+            )
+        except Exception as e:
+            logger.warning(f"Failed to list OpenAI Compatible models: {e}")
+            return CredentialModelsResponse(
+                models=[],
+                source="empty",
+                message=f"Could not fetch models: {_format_error_text(str(e))}",
+            )
+
+    raise HTTPException(
+        status_code=status.HTTP_400_BAD_REQUEST,
+        detail=f"Model listing is not supported for service type: {service_type}",
+    )
 
 
 @router.post("/list-models", response_model=CredentialModelsResponse)
@@ -565,68 +605,94 @@ async def list_credential_models(
 
 async def _test_openai(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
+        api_key = str(secret.get("api_key") or "").strip()
+        if not api_key:
+            return CredentialTestResponse(success=False, message="API key is required.")
+
         from openai import AsyncOpenAI
 
-        client = AsyncOpenAI(api_key=secret.get("api_key", ""))
+        client = AsyncOpenAI(api_key=api_key)
         await asyncio.wait_for(client.models.list(), timeout=10)
         return CredentialTestResponse(success=True, message="Connected to OpenAI successfully.")
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:
-        msg = str(e)
-        if "invalid" in msg.lower() or "auth" in msg.lower():
-            msg += (
-                " Note: If this key is for an OpenAI-compatible provider "
-                "(OpenRouter, vLLM, etc.), it may still be valid for that provider."
-            )
-        return CredentialTestResponse(success=False, message=msg)
+        return CredentialTestResponse(success=False, message=str(e) or "Connection failed. Please check your API key.")
 
 
 async def _test_openai_compatible(secret: Dict[str, Any]) -> CredentialTestResponse:
     try:
-        if not str(secret.get("base_url") or "").strip():
+        base_url = str(secret.get("base_url") or "").strip().rstrip("/")
+        if not base_url:
             return CredentialTestResponse(success=False, message="Base URL is required.")
 
+        api_key = str(secret.get("api_key") or "").strip()
+        model_name = str(secret.get("model_name") or "").strip()
         skip_ssl = secret.get("skip_ssl_verify", False)
         if isinstance(skip_ssl, str):
             skip_ssl = skip_ssl.lower() in ("true", "1", "yes", "on")
         skip_ssl = bool(skip_ssl)
+
+        headers: Dict[str, str] = {
+            "User-Agent": "KAI-Flow/1.0",
+            "Accept": "application/json",
+        }
+        if api_key:
+            headers["Authorization"] = f"Bearer {api_key}"
+
+        async with httpx.AsyncClient(verify=not skip_ssl, timeout=httpx.Timeout(10.0, connect=4.0)) as http_client:
+            # 1. Connectivity check via /models
+            models_url = f"{base_url}/models"
+            try:
+                models_resp = await http_client.get(models_url, headers=headers)
+                if _is_html_response(models_resp.headers.get("content-type"), models_resp.text):
+                    return CredentialTestResponse(
+                        success=False,
+                        message=f"Server returned an HTML page (HTTP {models_resp.status_code}) instead of API response. Please check your Base URL.",
+                    )
+                if models_resp.status_code >= 400:
+                    return CredentialTestResponse(
+                        success=False,
+                        message=_format_error_text(models_resp.text, models_resp.status_code),
+                    )
+            except httpx.RequestError as req_err:
+                return CredentialTestResponse(success=False, message=str(req_err) or "Connection failed. Please check your Base URL.")
+
+            # 2. Authentication probe: if API key is provided, test it with a lightweight POST request
+            if api_key:
+                chat_url = f"{base_url}/chat/completions"
+                probe_model = model_name
+                try:
+                    chat_resp = await http_client.post(
+                        chat_url,
+                        headers=headers,
+                        json={
+                            "model": probe_model,
+                            "messages": [{"role": "user", "content": "ping"}],
+                            "max_tokens": 1,
+                        },
+                    )
+                    if _is_html_response(chat_resp.headers.get("content-type"), chat_resp.text):
+                        return CredentialTestResponse(
+                            success=False,
+                            message=f"Server returned an HTML page (HTTP {chat_resp.status_code}) instead of API response. Please check your Base URL.",
+                        )
+                    if chat_resp.status_code >= 400:
+                        return CredentialTestResponse(
+                            success=False,
+                            message=_format_error_text(chat_resp.text, chat_resp.status_code),
+                        )
+                except httpx.RequestError as req_err:
+                    logger.debug(f"Chat probe request error: {req_err}")
+
+        msg = "Connected to OpenAI Compatible provider successfully."
         if skip_ssl:
-            logger.info("SSL verification disabled for test connection.")
-
-        client = _build_openai_client(secret, compatible=True, timeout=8)
-        selected_model = str(secret.get("model_name") or "").strip()
-
-        def _success(model: Optional[str] = None) -> CredentialTestResponse:
-            if model:
-                msg = f"Connected to OpenAI Compatible provider successfully using {model}."
-            else:
-                msg = "Connected to OpenAI Compatible provider successfully."
-            if skip_ssl:
-                msg += " (SSL verification was skipped)"
-            return CredentialTestResponse(success=True, message=msg)
-
-        try:
-            response = await asyncio.wait_for(client.models.list(), timeout=8)
-            listed_ids = [
-                str(getattr(item, "id", "")).strip()
-                for item in (getattr(response, "data", None) or [])
-                if getattr(item, "id", None)
-            ]
-            return _success(selected_model or _pick_chat_model(listed_ids))
-        except asyncio.TimeoutError:
-            return CredentialTestResponse(success=False, message="Connection timed out.")
-        except Exception as list_error:
-            if isinstance(list_error, httpx.TimeoutException) or "timed out" in str(list_error).lower():
-                return CredentialTestResponse(success=False, message="Connection timed out.")
-            allowed = _extract_allowed_models(list_error)
-            if allowed or _is_license_restriction(list_error):
-                return _success(selected_model or _pick_chat_model(allowed))
-            return CredentialTestResponse(success=False, message=str(list_error))
+            msg += " (SSL verification was skipped)"
+        return CredentialTestResponse(success=True, message=msg)
     except asyncio.TimeoutError:
         return CredentialTestResponse(success=False, message="Connection timed out.")
     except Exception as e:
-        return CredentialTestResponse(success=False, message=str(e))
+        return CredentialTestResponse(success=False, message=str(e) or "Connection failed. Please check your connection details.")
 
 
 async def _test_cohere(secret: Dict[str, Any]) -> CredentialTestResponse:
@@ -780,6 +846,27 @@ def _test_webhook_auth(secret: Dict[str, Any], service_type: str) -> CredentialT
     return CredentialTestResponse(success=False, message="Unknown credential type.")
 
 
+async def _test_mysql(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a MySQL credential without exposing connection details."""
+    from app.nodes.databases.mysql_node import MySQLNode, mysql_connection
+
+    def check_connection() -> None:
+        with mysql_connection(secret) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT 1")
+                cursor.fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="MySQL connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="MySQL connection timed out.")
+    except Exception as exc:
+        message = MySQLNode._database_error(exc)
+        logger.warning("MySQL credential test failed: %s", message)
+        return CredentialTestResponse(success=False, message=message)
+
+
 async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTestResponse:
     """Route a test request to the appropriate handler based on service type."""
     if service_type == "openai":
@@ -796,11 +883,37 @@ async def _run_test(service_type: str, secret: Dict[str, Any]) -> CredentialTest
         return await _test_kafka(secret)
     elif service_type == "minio":
         return await _test_minio(secret)
+    elif service_type == "mysql":
+        return await _test_mysql(secret)
+    elif service_type == "sqlite":
+        return await _test_sqlite(secret)
     elif service_type in ("basic_auth", "header_auth"):
         return _test_webhook_auth(secret, service_type)
     else:
         return CredentialTestResponse(
             success=False, message=f"Test not supported for service type: {service_type}"
+        )
+
+
+async def _test_sqlite(secret: Dict[str, Any]) -> CredentialTestResponse:
+    """Test a SQLite credential without exposing its filesystem path."""
+    from app.nodes.databases.sqlite_node import SQLiteNode, sqlite_connection
+
+    def check_connection() -> None:
+        with sqlite_connection(secret) as connection:
+            connection.execute("SELECT 1").fetchone()
+
+    try:
+        await asyncio.wait_for(asyncio.to_thread(check_connection), timeout=15)
+        return CredentialTestResponse(success=True, message="SQLite connection successful.")
+    except asyncio.TimeoutError:
+        return CredentialTestResponse(success=False, message="SQLite connection timed out.")
+    except Exception as exc:
+        message = SQLiteNode._database_error(exc)
+        logger.warning("SQLite credential test failed: %s", message)
+        return CredentialTestResponse(
+            success=False,
+            message=message,
         )
 
 
@@ -849,6 +962,9 @@ def _detect_service_type(data: dict) -> str:
     - **Returns**: Detected service type
     """
     # Simple heuristics to detect service type
+    if "database_path" in data:
+        return "sqlite"
+
     # 1) PostgreSQL Vector Store (must be detected BEFORE generic username/password)
     if (
         # Connection string form (accept postgresql://, postgresql+asyncpg://, etc.)

@@ -17,32 +17,7 @@ interface CredentialModelComboboxProps {
 const META_KEYS = new Set(["id", "name", "service_type", "created_at", "updated_at", "data", "secret"]);
 
 const isUsableUrl = (value: string): boolean => {
-  try {
-    const parsed = new URL(value.trim());
-    if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return false;
-    const host = parsed.hostname;
-    return (
-      host === "localhost" ||
-      host.includes(".") ||
-      /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
-    );
-  } catch {
-    return false;
-  }
-};
-
-const isLocalProvider = (value: string): boolean => {
-  try {
-    const host = new URL(value.trim()).hostname;
-    return (
-      host === "localhost" ||
-      host === "127.0.0.1" ||
-      host.endsWith(".local") ||
-      /^\d{1,3}(\.\d{1,3}){3}$/.test(host)
-    );
-  } catch {
-    return false;
-  }
+  return value.trim().length > 0;
 };
 
 const CredentialModelCombobox = ({
@@ -69,12 +44,10 @@ const CredentialModelCombobox = ({
 
   const canFetch = useMemo(() => {
     if (serviceType === "openai") {
-      return apiKey.length >= 20;
+      return apiKey.length > 0;
     }
     if (serviceType === "openai_compatible") {
-      if (!isUsableUrl(baseUrl)) return false;
-      if (isLocalProvider(baseUrl)) return true;
-      return apiKey.length > 0;
+      return baseUrl.length > 0;
     }
     return false;
   }, [serviceType, apiKey, baseUrl]);
@@ -84,15 +57,10 @@ const CredentialModelCombobox = ({
       return "Enter your API key to load available models.";
     }
     if (serviceType === "openai_compatible") {
-      if (!isUsableUrl(baseUrl)) {
-        return "Enter a Base URL to load available models.";
-      }
-      if (!apiKey) {
-        return "Enter your API key to load available models.";
-      }
+      return "Enter a Base URL to load available models.";
     }
     return "No models available.";
-  }, [serviceType, apiKey, baseUrl]);
+  }, [serviceType]);
 
   const fetchKey = useMemo(
     () =>
@@ -141,7 +109,7 @@ const CredentialModelCombobox = ({
   useEffect(() => {
     const timeout = window.setTimeout(() => {
       void fetchModels();
-    }, 450);
+    }, 300);
     return () => window.clearTimeout(timeout);
     // fetchKey captures the fields that should trigger a refetch
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -161,14 +129,6 @@ const CredentialModelCombobox = ({
     }
     return options;
   }, [models]);
-
-  useEffect(() => {
-    if (loading || currentValue.trim() || mergedOptions.length === 0) return;
-    const firstChat =
-      mergedOptions.find((option) => !/embed|embedding|rerank/i.test(option.value)) ||
-      mergedOptions[0];
-    helpers.setValue(firstChat.value);
-  }, [currentValue, helpers, loading, mergedOptions]);
 
   const filteredOptions = useMemo(() => {
     const query = currentValue.trim().toLowerCase();
@@ -278,7 +238,12 @@ const CredentialModelCombobox = ({
             helpers.setValue(event.target.value);
             setOpen(true);
           }}
-          onFocus={() => setOpen(true)}
+          onFocus={() => {
+            setOpen(true);
+            if (canFetch && models.length === 0 && !loading) {
+              void fetchModels();
+            }
+          }}
           onKeyDown={handleKeyDown}
           className={`${className} !pr-10`}
           role="combobox"
@@ -293,7 +258,12 @@ const CredentialModelCombobox = ({
         <button
           type="button"
           tabIndex={-1}
-          onClick={() => setOpen((prev) => !prev)}
+          onClick={() => {
+            if (!open && canFetch && models.length === 0 && !loading) {
+              void fetchModels();
+            }
+            setOpen((prev) => !prev);
+          }}
           className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700"
           aria-label="Toggle model list"
         >
