@@ -5,7 +5,7 @@ import {
   Check,
   ExternalLink,
   Edit,
-  Trash2,
+  X,
   Terminal,
   FileText,
   Quote,
@@ -20,6 +20,7 @@ import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
 import { copyWithFeedback } from "~/lib/clipboard";
+import { useClipboardFeedback } from "~/hooks/useClipboardFeedback";
 interface ChatBubbleProps {
   message: string;
   from: "user" | "assistant";
@@ -54,6 +55,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isError = false,
 }) => {
   const { user } = useAuth();
+  const { copy: copyMessageWithFeedback } = useClipboardFeedback();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [messageCopied, setMessageCopied] = useState(false);
   const [editContent, setEditContent] = useState(message);
@@ -99,12 +101,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   };
 
   const handleCopyMessage = async () => {
-    try {
-      await navigator.clipboard.writeText(message);
+    const copied = await copyMessageWithFeedback(message);
+    if (copied) {
       setMessageCopied(true);
       setTimeout(() => setMessageCopied(false), 2000);
-    } catch (err) {
-      console.error("Failed to copy message:", err);
     }
   };
 
@@ -154,59 +154,51 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         }
         relative transition-all duration-200 hover:shadow-xl group`}
       >
-        {/* Message actions */}
+        {/* Copy and edit actions below the message bubble */}
         {!loading && !isEditing && (
           <div
             className={`absolute top-full ${isUser ? "right-0" : "left-0"} z-10 flex translate-y-1 gap-1 pt-1 opacity-0 pointer-events-none transition-[opacity,transform] duration-200 ease-out group-hover:translate-y-0 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 group-focus-within:pointer-events-auto`}
             role="toolbar"
             aria-label="Message actions"
           >
-            <div className="relative">
+            <button
+              type="button"
+              onClick={handleCopyMessage}
+              className="flex h-7 w-7 items-center justify-center rounded-md bg-transparent text-gray-400 transition-colors hover:bg-gray-500/10 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40"
+              title="Copy"
+              aria-label={messageCopied ? "Message copied" : "Copy message"}
+            >
+              {messageCopied ? (
+                <Check className="h-4 w-4" />
+              ) : (
+                <Copy className="h-4 w-4" />
+              )}
+            </button>
+            {isUser && messageId && (
               <button
                 type="button"
-                onClick={handleCopyMessage}
-                className="w-6 h-6 bg-gray-500 hover:bg-gray-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-                title="Copy"
-                aria-label="Copy"
+                onClick={handleEdit}
+                className="flex h-7 w-7 items-center justify-center rounded-md bg-transparent text-gray-400 transition-colors hover:bg-gray-500/10 hover:text-gray-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-gray-400/40"
+                title="Düzenle"
+                aria-label="Edit message"
               >
-                {messageCopied ? (
-                  <Check className="w-3 h-3" />
-                ) : (
-                  <Copy className="w-3 h-3" />
-                )}
+                <Edit className="h-4 w-4" />
               </button>
-              {messageCopied && (
-                <span
-                  className="absolute bottom-full right-0 mb-1 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-xs text-white shadow-lg"
-                  role="status"
-                >
-                  Copied!
-                </span>
-              )}
-            </div>
-            {isUser && messageId && (
-              <>
-                <button
-                  type="button"
-                  onClick={handleEdit}
-                  className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-                  title="Düzenle"
-                  aria-label="Edit message"
-                >
-                  <Edit className="w-3 h-3" />
-                </button>
-                <button
-                  type="button"
-                  onClick={handleDelete}
-                  className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-                  title="Sil"
-                  aria-label="Delete message"
-                >
-                  <Trash2 className="w-3 h-3" />
-                </button>
-              </>
             )}
           </div>
+        )}
+
+        {/* Delete action in the top-right corner of user message bubbles */}
+        {!loading && !isEditing && isUser && messageId && (
+          <button
+            type="button"
+            onClick={handleDelete}
+            className="absolute -right-2 -top-2 z-10 flex h-6 w-6 items-center justify-center rounded-md bg-white/10 text-gray-300 opacity-0 pointer-events-none backdrop-blur-sm transition-all hover:bg-red-500/15 hover:text-red-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-300/50 group-hover:opacity-100 group-hover:pointer-events-auto group-focus-within:opacity-100 group-focus-within:pointer-events-auto"
+            title="Sil"
+            aria-label="Delete message"
+          >
+            <X className="h-3.5 w-3.5" />
+          </button>
         )}
 
         {loading && !isUser ? (
