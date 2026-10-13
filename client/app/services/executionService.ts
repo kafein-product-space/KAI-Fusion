@@ -152,6 +152,7 @@ export const executeWorkflowStream = async (executionData: {
   execution_type?: string;
   trigger_source?: string;
   workflow_id?: string;
+  edited_message_id?: string;
 }): Promise<ReadableStream> => {
   broadcastExecutionStarted();
   const base = apiClient.getBaseURL();

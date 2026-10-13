@@ -579,6 +579,7 @@ class AdhocExecuteRequest(BaseModel):
     session_id: Optional[str] = None
     chatflow_id: Optional[str] = None  # Yeni eklenen alan
     workflow_id: Optional[str] = None  # Execution kaydı için workflow_id
+    edited_message_id: Optional[uuid.UUID] = None
     node_id: Optional[str] = None
     node_outputs: Optional[Dict[str, Any]] = None
 
@@ -820,6 +821,22 @@ async def execute_adhoc_workflow(
         await db.commit()
         await db.refresh(workflow)
     
+    if req.edited_message_id:
+        if is_internal_call or not chatflow_id or not req.workflow_id:
+            raise HTTPException(status_code=400, detail="Editing requires a chat and workflow")
+        try:
+            edited = await chat_service.edit_user_message(
+                req.edited_message_id,
+                chatflow_id,
+                user_id,
+                req.input_text,
+                workflow.id,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
+        if not edited:
+            raise HTTPException(status_code=404, detail="Editable chat message not found")
+
     # Prepare execution context using WorkflowExecutor
     ctx = await executor.prepare_execution_context(
         db=db,
@@ -832,7 +849,7 @@ async def execute_adhoc_workflow(
     )
     
     # Create chat message (skip for webhook calls)
-    if not is_internal_call:
+    if not is_internal_call and not req.edited_message_id:
         try:
             await chat_service.create_chat_message(ChatMessageCreate(
                 role="user",

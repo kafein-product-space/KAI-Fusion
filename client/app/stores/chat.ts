@@ -2,7 +2,6 @@ import { create } from 'zustand';
 import { v4 as uuidv4 } from 'uuid';
 import type { ChatMessage, WorkflowExecution } from '../types/api';
 import * as chatService from '../services/chatService';
-import { executeWorkflow } from '../services/workflowService';
 import { executeWorkflowStream } from '../services/executionService';
 import { useExecutionsStore } from './executions';
 import {
@@ -42,7 +41,7 @@ interface ChatStore {
   // LLM entegrasyonu:
   startLLMChat: (flow_data: any, input_text: string, workflow_id: string) => Promise<void>;
   sendLLMMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
-  sendEditedMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => Promise<void>;
+  sendEditedMessage: (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string, message_id: string) => Promise<void>;
 }
 
 const getChatErrorMessage = (error: unknown): string => {
@@ -69,13 +68,17 @@ const getChatErrorMessage = (error: unknown): string => {
   return message || 'Workflow execution failed';
 };
 
+// Ignore history requests that were started before a chat execution changed it.
+let chatExecutionEpoch = 0;
+
 // Helper function to execute workflow with streaming and capture execution data
 const executeWorkflowWithStreaming = async (
   flow_data: any,
   input_text: string,
   session_id: string,
   chatflow_id: string,
-  workflow_id: string
+  workflow_id: string,
+  edited_message_id?: string
 ) => {
   console.log('Starting chat execution with streaming...');
 
@@ -105,6 +108,7 @@ const executeWorkflowWithStreaming = async (
     session_id,
     chatflow_id,
     workflow_id,
+    ...(edited_message_id ? { edited_message_id } : {}),
     execution_type: 'chat',
     trigger_source: 'chat_message'
   };
@@ -388,16 +392,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   fetchWorkflowChats: async (workflow_id: string, isBuilder?: boolean) => {
+    if (get().thinking) return;
+    const requestEpoch = chatExecutionEpoch;
     set({ loading: true, error: null });
     try {
       const workflowChats = await chatService.getWorkflowChats(workflow_id, isBuilder);
-      // Replace chats state entirely with workflow-specific chats instead of merging
-      set((state) => ({
-        chats: workflowChats,
-        loading: false,
-      }));
+      if (requestEpoch !== chatExecutionEpoch || get().thinking) return;
+      set({ chats: workflowChats, loading: false });
     } catch (e: any) {
-      set({ error: e.message || 'Failed to load workflow chat history', loading: false });
+      if (requestEpoch === chatExecutionEpoch && !get().thinking) {
+        set({ error: e.message || 'Failed to load workflow chat history', loading: false });
+      }
     }
   },
 
@@ -446,19 +451,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   fetchChatMessages: async (chatflow_id) => {
+    // A history request started by selecting a new chat must not erase its
+    // optimistic first message before the execution has saved it.
+    if (get().thinking) return;
+    const requestEpoch = chatExecutionEpoch;
     set({ loading: true, error: null });
     try {
       const messages = await chatService.getChatMessages(chatflow_id);
-      set((state) => {
-        // Backend messages are authoritative - just use them directly
-        // This replaces any local optimistic updates with the real data
-        return {
-          chats: { ...state.chats, [chatflow_id]: messages },
-          loading: false,
-        };
-      });
+      if (requestEpoch !== chatExecutionEpoch || get().thinking) return;
+      set((state) => ({
+        chats: { ...state.chats, [chatflow_id]: messages },
+        loading: false,
+      }));
     } catch (e: any) {
-      set({ error: e.message || 'Failed to retrieve messages', loading: false });
+      if (requestEpoch === chatExecutionEpoch && !get().thinking) {
+        set({ error: e.message || 'Failed to retrieve messages', loading: false });
+      }
     }
   },
 
@@ -592,6 +600,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   // LLM integration:
   startLLMChat: async (flow_data, input_text, workflow_id) => {
+    chatExecutionEpoch += 1;
     set({ loading: true, thinking: true, error: null }); // Set thinking to true
 
     // Use existing activeChatflowId or generate new one
@@ -615,8 +624,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
       const workflowError = await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
-      // Fetch only new messages (agent responses) instead of all messages
-      await get().fetchChatMessages(chatflow_id);
+      const messages = await chatService.getChatMessages(chatflow_id);
+      set((state) => ({ chats: { ...state.chats, [chatflow_id]: messages } }));
       if (workflowError) {
         set({ error: null });
         if (!(get().chats[chatflow_id] || []).some(
@@ -650,6 +659,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   },
 
   sendLLMMessage: async (flow_data, input_text, chatflow_id, workflow_id) => {
+    chatExecutionEpoch += 1;
     set({ loading: true, thinking: true, error: null }); // Set thinking to true
     const previousMessageIds = new Set((get().chats[chatflow_id] || []).map((message) => message.id));
 
@@ -666,8 +676,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     try {
       // Use chatflow_id as session_id for memory consistency - now with streaming
       const workflowError = await executeWorkflowWithStreaming(flow_data, input_text, chatflow_id, chatflow_id, workflow_id);
-      // Note: Streaming execution saves messages to backend, so fetch to get the assistant response
-      await get().fetchChatMessages(chatflow_id);
+      const messages = await chatService.getChatMessages(chatflow_id);
+      set((state) => ({ chats: { ...state.chats, [chatflow_id]: messages } }));
       if (workflowError) {
         set({ error: null });
         if (!(get().chats[chatflow_id] || []).some(
@@ -700,26 +710,45 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }
   },
 
-  // New function specifically for handling edited messages
-  sendEditedMessage: async (flow_data: any, input_text: string, chatflow_id: string, workflow_id: string) => {
-    set({ loading: true, thinking: true, error: null }); // Set thinking to true
+  sendEditedMessage: async (flow_data, input_text, chatflow_id, workflow_id, message_id) => {
+    const previousMessages = get().chats[chatflow_id] || [];
+    const original = previousMessages.find((message) => message.id === message_id && message.role === 'user');
+    if (!original || !input_text.trim() || get().thinking) return;
+
+    chatExecutionEpoch += 1;
+    const previousMessageIds = new Set(previousMessages.map((message) => message.id));
+    set({ loading: true, thinking: true, error: null });
+    get().updateMessage(chatflow_id, { ...original, content: input_text });
 
     try {
-      await executeWorkflow(flow_data, input_text, chatflow_id, undefined, workflow_id);
-      // Fetch only new messages (agent responses) instead of all messages
-      await get().fetchChatMessages(chatflow_id);
-    } catch (e: any) {
-      set({ error: null });
-      get().addMessage(chatflow_id, {
-        id: uuidv4(),
-        chatflow_id,
-        role: 'assistant',
-        content: getChatErrorMessage(e),
-        source_documents: 'workflow_error',
-        created_at: new Date().toISOString(),
-      });
+      const workflowError = await executeWorkflowWithStreaming(
+        flow_data, input_text, chatflow_id, chatflow_id, workflow_id, message_id
+      );
+      const messages = await chatService.getChatMessages(chatflow_id);
+      set((state) => ({ chats: { ...state.chats, [chatflow_id]: messages } }));
+      if (workflowError && !messages.some(
+        (message) => !previousMessageIds.has(message.id) &&
+          (message.source_documents === 'workflow_error' || message.role === 'error')
+      )) {
+        get().addMessage(chatflow_id, {
+          id: uuidv4(),
+          chatflow_id,
+          role: 'assistant',
+          content: workflowError,
+          source_documents: 'workflow_error',
+          created_at: new Date().toISOString(),
+        });
+      }
+    } catch (error) {
+      try {
+        const messages = await chatService.getChatMessages(chatflow_id);
+        set((state) => ({ chats: { ...state.chats, [chatflow_id]: messages } }));
+      } catch {
+        set((state) => ({ chats: { ...state.chats, [chatflow_id]: previousMessages } }));
+      }
+      set({ error: getChatErrorMessage(error) });
     } finally {
-      set({ loading: false, thinking: false }); // Set thinking to false
+      set({ loading: false, thinking: false });
     }
   },
 })); 

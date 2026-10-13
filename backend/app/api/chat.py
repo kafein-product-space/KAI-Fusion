@@ -68,11 +68,14 @@ async def update_chat_message(
     current_user: User = Depends(get_current_user)
 ):
     service = ChatService(db)
-    updated_chat_history = await service.update_chat_message(
-        chat_message_id, 
-        ChatMessageUpdate(content=chat_message_update.content),
-        user_id=current_user.id
-    )
+    try:
+        updated_chat_history = await service.update_chat_message(
+            chat_message_id,
+            ChatMessageUpdate(content=chat_message_update.content),
+            user_id=current_user.id,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if updated_chat_history is None:
         raise HTTPException(status_code=404, detail="Chat message not found")
     return updated_chat_history

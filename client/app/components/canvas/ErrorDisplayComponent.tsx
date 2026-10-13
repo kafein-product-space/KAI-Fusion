@@ -22,7 +22,7 @@ interface ErrorDetails {
 interface ErrorDisplayComponentProps {
   error: ErrorDetails | string | null;
   onRetry?: () => void;
-  onDismiss?: () => void;
+  onDismiss: () => void;
   className?: string;
 }
 
@@ -161,24 +161,24 @@ export default function ErrorDisplayComponent({
   const errorIcon = getErrorIcon(type);
 
   return (
-    <div className={`fixed top-20 left-20 z-50 max-w-lg ${className}`}>
+    <div className={`fixed top-20 left-4 right-4 z-50 max-w-lg sm:left-20 sm:right-auto ${className}`}>
       <div
         className={`${errorColor} border rounded-lg shadow-lg overflow-hidden`}
       >
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-current border-opacity-20">
-          <div className="flex items-center space-x-2">
+          <div className="flex min-w-0 items-center space-x-2">
             {errorIcon}
-            <div>
+            <div className="min-w-0">
               <h3 className="font-semibold text-sm capitalize">{type} Error</h3>
               {nodeId && (
-                <p className="text-xs opacity-75">
+                <p className="break-all text-xs opacity-75">
                   Node: {nodeId} {nodeType && `(${nodeType})`}
                 </p>
               )}
             </div>
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex shrink-0 items-center space-x-2">
             {onRetry && (
               <button
                 onClick={onRetry}
@@ -195,15 +195,15 @@ export default function ErrorDisplayComponent({
             >
               <Info className="h-4 w-4" />
             </button>
-            {onDismiss && (
-              <button
-                onClick={onDismiss}
-                className="p-1 hover:bg-current hover:bg-opacity-10 rounded transition-colors"
-                title="Dismiss error"
-              >
-                <X className="h-4 w-4" />
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onDismiss}
+              className="p-1 hover:bg-current hover:bg-opacity-10 rounded transition-colors"
+              aria-label="Dismiss error"
+              title="Dismiss error"
+            >
+              <X className="h-4 w-4" />
+            </button>
           </div>
         </div>
 

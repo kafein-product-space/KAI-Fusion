@@ -29,11 +29,6 @@ export const updateChatMessage = async (chat_message_id: string, content: string
   return apiClient.put(API_ENDPOINTS.CHAT.UPDATE(chat_message_id), { content });
 };
 
-// Delete message
-export const deleteChatMessage = async (chat_message_id: string): Promise<{ detail: string }> => {
-  return apiClient.delete(API_ENDPOINTS.CHAT.DELETE(chat_message_id));
-};
-
 // Delete chatflow (all messages)
 export const deleteChatflow = async (chatflow_id: string): Promise<{ detail: string }> => {
   return apiClient.delete(API_ENDPOINTS.CHAT.DELETE_CHATFLOW(chatflow_id));

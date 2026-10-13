@@ -1,15 +1,10 @@
-import React, { useState } from "react";
+import React, { useEffect, useLayoutEffect, useRef, useState } from "react";
 import {
   Bot,
-  Copy,
-  Check,
   ExternalLink,
-  Edit,
-  Trash2,
   Terminal,
   FileText,
   Quote,
-  CheckCircle,
 } from "lucide-react";
 import { useAuth } from "~/stores/auth";
 import ReactMarkdown from "react-markdown";
@@ -19,7 +14,7 @@ import rehypeKatex from "rehype-katex";
 import rehypeRaw from "rehype-raw";
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
 import { vscDarkPlus } from "react-syntax-highlighter/dist/cjs/styles/prism";
-import { copyWithFeedback } from "~/lib/clipboard";
+import { useClipboardFeedback } from "~/hooks/useClipboardFeedback";
 interface ChatBubbleProps {
   message: string;
   from: "user" | "assistant";
@@ -29,7 +24,6 @@ interface ChatBubbleProps {
   timestamp?: Date;
   messageId?: string;
   onEdit?: (messageId: string, newContent: string) => void;
-  onDelete?: (messageId: string) => void;
   isEditing?: boolean;
   onSaveEdit?: (messageId: string, newContent: string) => void;
   onCancelEdit?: () => void;
@@ -46,7 +40,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   timestamp,
   messageId,
   onEdit,
-  onDelete,
   isEditing,
   onSaveEdit,
   onCancelEdit,
@@ -54,7 +47,11 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   isError = false,
 }) => {
   const { user } = useAuth();
+  const { copy } = useClipboardFeedback();
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
+  const [copiedMessage, setCopiedMessage] = useState(false);
+  const copyResetTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const editTextareaRef = useRef<HTMLTextAreaElement>(null);
   const [editContent, setEditContent] = useState(message);
   const isUser = from === "user";
   const [isErrorExpanded, setIsErrorExpanded] = useState(false);
@@ -63,23 +60,31 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
     ? `${message.slice(0, 320).trimEnd()}…`
     : message;
 
-  const copyToClipboard = async (text: string) => {
-    await copyWithFeedback(
-      text,
-      () => {
-        setCopiedCode(text);
-        setTimeout(() => {
-          setCopiedCode(null);
-        }, 2000);
-      },
-      (err) => {
-        console.error("Kopyalama başarısız:", err);
-      }
-    );
+  useEffect(() => () => {
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!isUser || !isEditing || !editTextareaRef.current) return;
+    const textarea = editTextareaRef.current;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.max(56, Math.min(textarea.scrollHeight, 288))}px`;
+  }, [editContent, isEditing, isUser]);
+
+  const copyToClipboard = async (text: string, target: "message" | "code") => {
+    if (!(await copy(text))) return;
+    if (copyResetTimer.current) clearTimeout(copyResetTimer.current);
+    if (target === "message") setCopiedMessage(true);
+    else setCopiedCode(text);
+    copyResetTimer.current = setTimeout(() => {
+      setCopiedMessage(false);
+      setCopiedCode(null);
+      copyResetTimer.current = null;
+    }, 2000);
   };
 
   const formatTimestamp = (date: Date) => {
-    return date.toLocaleTimeString("tr-TR", {
+    return date.toLocaleTimeString("en-GB", {
       hour: "2-digit",
       minute: "2-digit",
     });
@@ -88,12 +93,6 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
   const handleEdit = () => {
     if (messageId && onEdit) {
       onEdit(messageId, message);
-    }
-  };
-
-  const handleDelete = () => {
-    if (messageId && onDelete) {
-      onDelete(messageId);
     }
   };
 
@@ -130,10 +129,15 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         </div>
       )}
 
+      <div className={`group flex min-w-0 max-w-[calc(100%-3rem)] sm:max-w-[85%] flex-col ${isUser ? "items-end" : "items-start"} ${isUser && isEditing ? "w-full" : ""}`}>
       <div
-        className={`max-w-[calc(100%-3rem)] sm:max-w-[85%] px-3 sm:px-4 py-2 sm:py-3 rounded-2xl shadow-lg text-sm
+        className={`relative max-w-full rounded-2xl text-sm ${isUser && isEditing
+          ? "w-full bg-[#2f2f2f] text-[#f4f4f4] border border-[#424242] px-3 sm:px-4 py-3 sm:py-4 shadow-sm focus-within:border-[#707070]"
+          : "w-fit px-3 sm:px-4 py-2 sm:py-3 shadow-lg transition-all duration-200 hover:shadow-xl"}
         ${
-          isUser
+          isUser && isEditing
+            ? ""
+          : isUser
             ? isBuilder
               ? "bg-gradient-to-r from-purple-500 to-purple-600 text-white rounded-br-md border border-purple-400"
               : "bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-br-md border border-blue-400"
@@ -141,28 +145,8 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
               ? "bg-red-950/90 text-red-50 rounded-bl-md border border-red-500/70 shadow-red-950/40"
               : "bg-white text-gray-800 rounded-bl-md border border-gray-200"
         }
-        relative transition-all duration-200 hover:shadow-xl group`}
+        `}
       >
-        {/* Action buttons for user messages */}
-        {isUser && messageId && !isEditing && (
-          <div className="absolute -top-2 -right-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 flex gap-1">
-            <button
-              onClick={handleEdit}
-              className="w-6 h-6 bg-blue-500 hover:bg-blue-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Düzenle"
-            >
-              <Edit className="w-3 h-3" />
-            </button>
-            <button
-              onClick={handleDelete}
-              className="w-6 h-6 bg-red-500 hover:bg-red-600 text-white rounded-full flex items-center justify-center text-xs shadow-lg"
-              title="Sil"
-            >
-              <Trash2 className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
         {loading && !isUser ? (
           <div className="flex items-center gap-3">
             <div className="flex space-x-1">
@@ -183,26 +167,30 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
         ) : (
           <div className="w-full">
             {isUser && isEditing ? (
-              <div className="space-y-2">
+              <div className="flex flex-col gap-4">
                 <textarea
+                  ref={editTextareaRef}
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
-                  className="w-full p-2 border border-gray-300 rounded-lg text-sm text-gray-800 bg-white resize-none"
-                  rows={Math.max(2, editContent.split("\n").length)}
+                  aria-label="Edit message"
+                  className="block w-full min-h-14 max-h-72 resize-none overflow-y-auto border-0 bg-transparent px-1 py-0 text-sm leading-relaxed text-[#f4f4f4] outline-none placeholder:text-[#9b9b9b] focus:outline-none"
+                  rows={2}
                   autoFocus
                 />
-                <div className="flex gap-2">
+                <div className="flex items-center justify-end gap-2">
                   <button
-                    onClick={handleSaveEdit}
-                    className="px-3 py-1 bg-green-500 hover:bg-green-600 text-white rounded text-xs"
-                  >
-                    Save
-                  </button>
-                  <button
+                    type="button"
                     onClick={handleCancelEdit}
-                    className="px-3 py-1 bg-gray-500 hover:bg-gray-600 text-white rounded text-xs"
+                    className="min-h-9 rounded-full px-4 text-sm font-medium text-[#f4f4f4] transition-colors hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
                   >
                     Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleSaveEdit}
+                    className="min-h-9 rounded-full bg-white px-4 text-sm font-semibold text-[#212121] transition-colors hover:bg-[#e7e7e7] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
+                  >
+                    Send
                   </button>
                 </div>
               </div>
@@ -232,7 +220,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                   remarkPlugins={[remarkGfm, remarkMath]}
                   rehypePlugins={[rehypeKatex, rehypeRaw]}
                   components={{
-                    // Kod blokları - modern tasarım ile
+                    // Code blocks
                     code: ({ className, children, ...props }: any) => {
                       const match = /language-(\w+)/.exec(className || "");
                       const language = match ? match[1] : "";
@@ -255,32 +243,16 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                               )}
                             </div>
                             <button
-                              onClick={() => copyToClipboard(codeContent)}
+                              onClick={() => copyToClipboard(codeContent, "code")}
+                              type="button"
+                              aria-label={copiedCode === codeContent ? "Copied code" : "Copy code"}
                               className="flex items-center gap-1 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-gray-700 hover:bg-gray-600 text-gray-200 rounded-lg transition-all duration-200 text-xs sm:text-sm font-medium group-hover:shadow-md flex-shrink-0"
                             >
-                              {copiedCode === codeContent ? (
-                                <>
-                                  <CheckCircle className="w-3 h-3 sm:w-4 sm:h-4 text-green-400" />
-                                  <span className="hidden sm:inline">
-                                    Kopyalandı!
-                                  </span>
-                                  <span className="sm:hidden">✓</span>
-                                </>
-                              ) : (
-                                <>
-                                  <Copy className="w-3 h-3 sm:w-4 sm:h-4" />
-                                  <span className="hidden sm:inline">
-                                    Kopyala
-                                  </span>
-                                </>
-                              )}
-
-                              <span className="text-xs">
-                                {copiedCode === codeContent
-                                  ? "Copied!"
-                                  : "Copy"}
-                              </span>
-
+                              <span
+                                className={`chat-action-icon h-3 w-3 sm:h-4 sm:w-4 ${copiedCode === codeContent ? "chat-action-icon--check text-green-400" : "chat-action-icon--copy"}`}
+                                aria-hidden="true"
+                              />
+                              <span className="text-xs">{copiedCode === codeContent ? "Copied" : "Copy"}</span>
                             </button>
                           </div>
 
@@ -322,14 +294,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       );
                     },
 
-                    // Pre etiketleri için beyaz arka plan
+                    // White background for preformatted text
                     pre: ({ children }: any) => (
                       <pre className="bg-white max-w-full overflow-x-auto p-3 rounded-lg text-sm ">
                         {children}
                       </pre>
                     ),
 
-                    // Başlıklar - modern hiyerarşi
+                    // Heading hierarchy
                     h1: ({ children }: any) => (
                       <h1 className="text-xl font-bold mb-4 text-gray-900 pb-3 border-b-2 border-gradient-to-r from-blue-500 to-purple-600 relative">
                         <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
@@ -356,7 +328,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       </h4>
                     ),
 
-                    // Listeler - modern tasarım ile
+                    // Lists
                     ul: ({ children }: any) => (
                       <ul className="mb-4 space-y-1">{children}</ul>
                     ),
@@ -386,7 +358,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       );
                     },
 
-                    // Linkler - dış bağlantı ikonu ile
+                    // Links with an external-link icon
                     a: ({ href, children }: any) => (
                       <a
                         href={href}
@@ -399,7 +371,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       </a>
                     ),
 
-                    // Alıntılar - modern tasarım
+                    // Blockquotes
                     blockquote: ({ children }: any) => (
                       <blockquote className="relative my-4 sm:my-6 p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200 rounded-xl shadow-sm -mx-2 sm:mx-0">
                         <div className="absolute top-3 sm:top-4 left-3 sm:left-4">
@@ -407,7 +379,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                         </div>
                         <div className="pl-6 sm:pl-8">
                           <div className="text-blue-600 text-xs sm:text-sm font-semibold mb-2 uppercase tracking-wide">
-                            Alıntı
+                            Quote
                           </div>
                           <div className="text-gray-700 italic leading-relaxed text-sm sm:text-base">
                             {children}
@@ -419,7 +391,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       </blockquote>
                     ),
 
-                    // Tablolar - modern responsive tasarım
+                    // Responsive tables
                     table: ({ children }: any) => (
                       <div className="overflow-x-auto my-4 sm:my-6 rounded-xl border border-gray-200 shadow-lg bg-white -mx-2 sm:mx-0">
                         <table className="min-w-full text-xs sm:text-sm">
@@ -461,14 +433,14 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       </td>
                     ),
 
-                    // Paragraflar - daha iyi spacing
+                    // Paragraph spacing
                     p: ({ children }: any) => (
                       <p className="mb-3 last:mb-0 text-gray-700 leading-relaxed break-words overflow-wrap-anywhere">
                         {children}
                       </p>
                     ),
 
-                    // Vurgu metinleri
+                    // Emphasis
                     strong: ({ children }: any) => (
                       <strong className="font-bold text-gray-900 inline">
                         {children}
@@ -478,10 +450,10 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       <em className="italic text-gray-600">{children}</em>
                     ),
 
-                    // Çizgi
+                    // Divider
                     hr: () => <hr className="border-gray-300 my-6" />,
 
-                    // Resimler - responsive
+                    // Responsive images
                     img: ({ src, alt }: any) => (
                       <img
                         src={src}
@@ -491,7 +463,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       />
                     ),
 
-                    // Matematik formülleri için
+                    // Math formulas
                     div: ({ className, children, ...props }: any) => {
                       if (className === "math math-display") {
                         return (
@@ -509,7 +481,7 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
                       );
                     },
 
-                    // Inline matematik
+                    // Inline math
                     span: ({ className, children, ...props }: any) => {
                       if (className === "math math-inline") {
                         return (
@@ -534,6 +506,32 @@ const ChatBubble: React.FC<ChatBubbleProps> = ({
             )}
           </div>
         )}
+      </div>
+
+      {!loading && !isEditing && message && (
+        <div className={`chat-message-actions mt-1 flex items-center gap-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${isUser ? "justify-end" : "justify-start"}`}>
+          <button
+            type="button"
+            onClick={() => copyToClipboard(message, "message")}
+            title={copiedMessage ? "Copied" : "Copy"}
+            aria-label={copiedMessage ? "Copied" : "Copy"}
+            className="chat-message-action"
+          >
+            <span className={`chat-action-icon h-4 w-4 ${copiedMessage ? "chat-action-icon--check" : "chat-action-icon--copy"}`} aria-hidden="true" />
+          </button>
+          {isUser && messageId && onEdit && (
+            <button
+              type="button"
+              onClick={handleEdit}
+              title="Edit"
+              aria-label="Edit"
+              className="chat-message-action"
+            >
+              <span className="chat-action-icon chat-action-icon--edit h-4 w-4" aria-hidden="true" />
+            </button>
+          )}
+        </div>
+      )}
       </div>
 
       {/* User Avatar */}

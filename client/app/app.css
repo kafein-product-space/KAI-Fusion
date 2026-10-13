@@ -58,6 +58,65 @@ html {
 /* Custom positioning for notistack notifications */
 .notistack-SnackbarContainer {
   margin-top: 4% !important;
+  z-index: 40 !important;
+}
+
+.chat-message-action {
+  display: inline-flex;
+  width: 30px;
+  height: 30px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  color: #9ca3af;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.chat-message-action:hover {
+  background-color: #374151;
+  color: #f3f4f6;
+}
+
+.chat-message-action:active {
+  transform: scale(0.94);
+}
+
+.chat-message-action:focus-visible {
+  outline: 2px solid #60a5fa;
+  outline-offset: 2px;
+}
+
+.chat-action-icon {
+  display: inline-block;
+  flex: none;
+  background-color: currentColor;
+  -webkit-mask-position: center;
+  mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+  mask-size: contain;
+}
+
+.chat-action-icon--copy {
+  -webkit-mask-image: url("/icons/chat-copy.svg");
+  mask-image: url("/icons/chat-copy.svg");
+}
+
+.chat-action-icon--check {
+  -webkit-mask-image: url("/icons/chat-check.svg");
+  mask-image: url("/icons/chat-check.svg");
+}
+
+.chat-action-icon--edit {
+  -webkit-mask-image: url("/icons/chat-edit.svg");
+  mask-image: url("/icons/chat-edit.svg");
+}
+
+@media (hover: none) {
+  .chat-message-actions {
+    opacity: 1;
+  }
 }
 
 /* Prevent browser native controls from conflicting with custom password toggle */
