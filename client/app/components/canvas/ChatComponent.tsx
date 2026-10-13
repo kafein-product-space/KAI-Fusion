@@ -67,6 +67,7 @@ export default function ChatComponent({
 }: ChatComponentProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [pendingEditedMessageId, setPendingEditedMessageId] = useState<string | null>(null);
   const [isExpanded, setIsExpanded] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const {
@@ -81,8 +82,6 @@ export default function ChatComponent({
     fetchWorkflowBuilderChats,
     fetchBuilderChatMessages,
     addBuilderMessage,
-    updateMessage,
-    removeMessage,
     sendEditedMessage
   } = useChatStore();
 
@@ -311,28 +310,21 @@ export default function ChatComponent({
   };
 
   const handleSaveEdit = async (messageId: string, newContent: string) => {
-    if (activeChatflowId) {
-      const message = chatHistory.find((msg) => msg.id === messageId);
-      if (message) {
-        setEditingMessageId(null);
-        const updatedMessage = { ...message, content: newContent };
-        updateMessage(activeChatflowId, updatedMessage);
-        const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
-        const messagesToRemove = chatHistory
-          .slice(messageIndex + 1)
-          .filter((msg) => msg.role === "assistant" || msg.role === "error")
-          .map((msg) => msg.id);
-        messagesToRemove.forEach((id) => {
-          removeMessage(activeChatflowId!, id);
-        });
-        if (currentWorkflow && flowData) {
-          try {
-            await sendEditedMessage(flowData, newContent, activeChatflowId, currentWorkflow.id);
-          } catch (error) {
-            console.error("Error sending updated message:", error);
-          }
-        }
-      }
+    if (!activeChatflowId || !currentWorkflow || !flowData || chatThinking ||
+        !newContent.trim()) return;
+    const message = chatHistory.find((msg) => msg.id === messageId && msg.role === "user");
+    if (!message) return;
+    if (message.content === newContent) {
+      setEditingMessageId(null);
+      return;
+    }
+
+    setEditingMessageId(null);
+    setPendingEditedMessageId(messageId);
+    try {
+      await sendEditedMessage(flowData, newContent, activeChatflowId, currentWorkflow.id, messageId);
+    } finally {
+      setPendingEditedMessageId(null);
     }
   };
 
@@ -340,24 +332,26 @@ export default function ChatComponent({
     setEditingMessageId(null);
   };
 
-  const handleDeleteMessage = (messageId: string) => {
-    if (activeChatflowId) {
-      const message = chatHistory.find((msg) => msg.id === messageId);
-      if (message) {
-        removeMessage(activeChatflowId, messageId);
-        if (message.role === "user") {
-          const messageIndex = chatHistory.findIndex((msg) => msg.id === messageId);
-          const messagesToRemove = chatHistory
-            .slice(messageIndex + 1)
-            .filter((msg) => msg.role === "assistant" || msg.role === "error")
-            .map((msg) => msg.id);
-          messagesToRemove.forEach((id) => {
-            removeMessage(activeChatflowId!, id);
-          });
-        }
+  const showEditedPending = chatThinking && pendingEditedMessageId !== null &&
+    chatHistory.some((msg) => msg.id === pendingEditedMessageId);
+  const visibleChatHistory = React.useMemo(() => {
+    const sorted = [...chatHistory].sort((a, b) => {
+      const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      return timeA - timeB;
+    });
+    if (!showEditedPending) return sorted;
+
+    let hideOldResponse = false;
+    return sorted.filter((msg) => {
+      if (msg.id === pendingEditedMessageId) {
+        hideOldResponse = true;
+        return true;
       }
-    }
-  };
+      if (msg.role === "user") hideOldResponse = false;
+      return !hideOldResponse;
+    });
+  }, [chatHistory, pendingEditedMessageId, showEditedPending]);
 
   // ─── Builder Handlers ───
   const canvasHasWorkflow = currentNodes.length > 0;
@@ -823,27 +817,24 @@ export default function ChatComponent({
 
             {/* Chat Messages */}
             {mode === "chat" &&
-              [...chatHistory]
-                .sort((a, b) => {
-                  const timeA = a.created_at ? new Date(a.created_at).getTime() : 0;
-                  const timeB = b.created_at ? new Date(b.created_at).getTime() : 0;
-                  return timeA - timeB;
-                })
-                .map((msg, i) => (
+              visibleChatHistory.map((msg, i) => (
+                <React.Fragment key={msg.id || i}>
                   <ChatBubble
-                    key={msg.id || i}
                     from={msg.role === "user" ? "user" : "assistant"}
                     message={msg.content}
                     userInitial={msg.role === "user" ? "U" : undefined}
                     isError={msg.source_documents === "workflow_error" || msg.role === "error"}
                     messageId={msg.id}
-                    onEdit={handleEditMessage}
-                    onDelete={handleDeleteMessage}
+                    onEdit={chatThinking ? undefined : handleEditMessage}
                     isEditing={editingMessageId === msg.id}
                     onSaveEdit={handleSaveEdit}
                     onCancelEdit={handleCancelEdit}
                   />
-                ))}
+                  {showEditedPending && msg.id === pendingEditedMessageId && (
+                    <ChatBubble from="assistant" message="" loading />
+                  )}
+                </React.Fragment>
+              ))}
 
             {/* Loading indicators */}
             {mode === "builder" && builderLoading && (
@@ -854,7 +845,7 @@ export default function ChatComponent({
                 isBuilder={true}
               />
             )}
-            {mode === "chat" && chatThinking && (
+            {mode === "chat" && chatThinking && !showEditedPending && (
               <ChatBubble from="assistant" message="" loading />
             )}
 

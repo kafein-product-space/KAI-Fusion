@@ -322,14 +322,54 @@ class ChatService:
                 select(ChatMessage).filter(
                     ChatMessage.chatflow_id == chatflow_id,
                     ChatMessage.user_id == user_id
-                )
+                ).order_by(ChatMessage.created_at, ChatMessage.id)
             )
         else:
             result = await self.db.execute(
-                select(ChatMessage).filter(ChatMessage.chatflow_id == chatflow_id)
+                select(ChatMessage).filter(ChatMessage.chatflow_id == chatflow_id).order_by(ChatMessage.created_at, ChatMessage.id)
             )
         messages = result.scalars().all()
         return [self._prepare_message_response(msg) for msg in messages]
+
+    async def edit_user_message(
+        self,
+        chat_message_id: UUID,
+        chatflow_id: UUID,
+        user_id: UUID,
+        content: str,
+        workflow_id: UUID = None,
+    ) -> bool:
+        """Replace one prompt and truncate the obsolete continuation in the same chat."""
+        if not content.strip():
+            raise ValueError("Edited message cannot be empty")
+
+        message_query = select(ChatMessage).filter(
+            ChatMessage.id == chat_message_id,
+            ChatMessage.chatflow_id == chatflow_id,
+            ChatMessage.user_id == user_id,
+            ChatMessage.role == "user",
+        )
+        if workflow_id is not None:
+            message_query = message_query.filter(ChatMessage.workflow_id == workflow_id)
+        result = await self.db.execute(message_query)
+        message = result.scalars().first()
+        if message is None:
+            return False
+
+        history_query = select(ChatMessage.id).filter(
+            ChatMessage.chatflow_id == chatflow_id,
+            ChatMessage.user_id == user_id,
+        )
+        history_ids = list((await self.db.execute(
+            history_query.order_by(ChatMessage.created_at, ChatMessage.id)
+        )).scalars().all())
+        later_ids = history_ids[history_ids.index(message.id) + 1:]
+        if later_ids:
+            await self.db.execute(delete(ChatMessage).where(ChatMessage.id.in_(later_ids)))
+
+        message.content = self._encrypt_content(content)
+        await self.db.commit()
+        return True
 
     async def update_chat_message(self, chat_message_id: UUID, chat_message_update: ChatMessageUpdate, user_id: UUID = None) -> list[ChatMessage]:
         if user_id:
@@ -346,47 +386,23 @@ class ChatService:
         if not db_chat_message:
             return None
 
-        # If the message is not from a user, just update it simply and return the full chat.
-        if db_chat_message.role != 'user':
-            update_data = chat_message_update.dict(exclude_unset=True)
+        if db_chat_message.role == 'user' and chat_message_update.content is not None:
+            await self.edit_user_message(
+                chat_message_id,
+                db_chat_message.chatflow_id,
+                db_chat_message.user_id,
+                chat_message_update.content,
+                db_chat_message.workflow_id,
+            )
+        else:
+            update_data = chat_message_update.model_dump(exclude_unset=True)
             for key, value in update_data.items():
                 if key == 'content' and value is not None:
                     setattr(db_chat_message, key, self._encrypt_content(value))
                 else:
                     setattr(db_chat_message, key, value)
-                    await self.db.commit()
+            await self.db.commit()
         return await self.get_chat_messages(db_chat_message.chatflow_id, user_id)
-
-        # --- Logic for cascading update on a user message ---
-        chatflow_id = db_chat_message.chatflow_id
-        original_timestamp = db_chat_message.created_at
-
-        # 1. Delete all subsequent messages in the same conversation
-        delete_stmt = delete(ChatMessage).where(
-            ChatMessage.chatflow_id == chatflow_id,
-            ChatMessage.created_at > original_timestamp
-        )
-        await self.db.execute(delete_stmt)
-
-        # 2. Update the user's message content
-        new_content = chat_message_update.content
-        if new_content is not None:
-            db_chat_message.content = self._encrypt_content(new_content)
-
-        # 3. Regenerate a new response from the LLM using actual workflow
-        llm_response_content = await self._execute_workflow(new_content, chatflow_id)
-        encrypted_llm_content = self._encrypt_content(llm_response_content)
-        llm_message = ChatMessage(
-            role="assistant",
-            content=encrypted_llm_content,
-            chatflow_id=chatflow_id
-        )
-        self.db.add(llm_message)
-
-        await self.db.commit()
-
-        # 4. Return the new state of the conversation
-        return await self.get_chat_messages(chatflow_id, user_id)
 
     async def delete_chat_message(self, chat_message_id: UUID, user_id: UUID = None) -> bool:
         if user_id:
@@ -490,4 +506,4 @@ class ChatService:
         await self.create_chat_message(llm_message)
         
         # 4. Return all messages for the chatflow
-        return await self.get_chat_messages(chatflow_id, user_id) 
+        return await self.get_chat_messages(chatflow_id, user_id)

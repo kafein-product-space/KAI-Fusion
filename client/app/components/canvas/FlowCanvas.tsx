@@ -593,6 +593,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     setCurrentWorkflow,
     isLoading,
     error,
+    clearError: clearWorkflowError,
     hasUnsavedChanges,
     setHasUnsavedChanges,
     fetchWorkflows,
@@ -858,7 +859,9 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const handleErrorDismiss = useCallback(() => {
     setDetailedExecutionError(null);
     setErrorNodeId(null);
-  }, []);
+    clearWorkflowError();
+    clearExecutionError();
+  }, [clearWorkflowError, clearExecutionError]);
 
   useEffect(() => {
     if (workflowId) {
@@ -2413,7 +2416,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           <ErrorDisplayComponent
             error={detailedExecutionError || error}
             onRetry={detailedExecutionError ? handleErrorRetry : undefined}
-            onDismiss={detailedExecutionError ? handleErrorDismiss : undefined}
+            onDismiss={handleErrorDismiss}
           />
 
           {/* ReactFlow Canvas */}
