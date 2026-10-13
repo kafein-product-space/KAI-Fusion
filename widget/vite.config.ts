@@ -31,7 +31,8 @@ export default defineConfig({
         "react",
         "react-dom",
         "react/jsx-runtime",
-        ...Object.keys(pkg.dependencies || {}),
+        // uuid 14 is ESM-only; bundle it into the CommonJS output.
+        ...Object.keys(pkg.dependencies || {}).filter((dependency) => dependency !== "uuid"),
       ],
       output: {
         dir: "dist",
