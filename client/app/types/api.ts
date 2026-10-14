@@ -205,6 +205,7 @@ export interface NodeOutput {
   displayName?: string;
   type: string;
   description?: string;
+  is_connection?: boolean;
   direction?: Position;
 }
 
