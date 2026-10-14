@@ -28,6 +28,8 @@ import PinButton from "~/components/common/PinButton";
 import * as LucideIcons from "lucide-react";
 import { Box } from "lucide-react";
 import { resolveIconPath } from "~/lib/iconUtils";
+import { hydrateWorkflowGraph } from "~/lib/workflowHydration";
+import { useNodeStore } from "~/stores/nodes";
 
 function MarketplaceLayout() {
   const { enqueueSnackbar } = useSnackbar();
@@ -179,6 +181,12 @@ function MarketplaceLayout() {
     if (!tpl) return;
 
     try {
+      await useNodeStore.getState().ensureNodesReady();
+      const nodeStore = useNodeStore.getState();
+      hydrateWorkflowGraph(tpl.flow_data, [
+        ...nodeStore.nodes,
+        ...nodeStore.customNodes,
+      ]);
       const created = await useWorkflows.getState().createWorkflow({
         name: tpl.name,
         description: tpl.description,
@@ -187,7 +195,7 @@ function MarketplaceLayout() {
       enqueueSnackbar("Template workflow created!", { variant: "success" });
       navigate(`/canvas?workflow=${created.id}`);
     } catch (e: any) {
-      enqueueSnackbar("Failed to create template workflow", {
+      enqueueSnackbar(e instanceof Error ? e.message : "Failed to create template workflow", {
         variant: "error",
       });
     }

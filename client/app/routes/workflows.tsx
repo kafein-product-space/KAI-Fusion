@@ -41,6 +41,8 @@ import type {
 // import ExternalWorkflowViewer from "~/components/external/ExternalWorkflowViewer";
 import { timeAgo } from "~/lib/dateFormatter";
 import { parseWorkflowJson } from "~/lib/workflowJson";
+import { hydrateWorkflowGraph } from "~/lib/workflowHydration";
+import { useNodeStore } from "~/stores/nodes";
 import { Formik, Form, Field, ErrorMessage } from "formik";
 import { Link } from "react-router";
 import { useSnackbar } from "notistack";
@@ -274,6 +276,7 @@ function WorkflowsLayout() {
     setIsImporting(true);
     let successCount = 0;
     let errorCount = 0;
+    let firstImportError: string | null = null;
 
     try {
       for (let i = 0; i < files.length; i++) {
@@ -281,6 +284,12 @@ function WorkflowsLayout() {
         try {
           const text = await file.text();
           const workflowData = parseWorkflowJson(text);
+          await useNodeStore.getState().ensureNodesReady();
+          const nodeStore = useNodeStore.getState();
+          hydrateWorkflowGraph(workflowData.flow_data, [
+            ...nodeStore.nodes,
+            ...nodeStore.customNodes,
+          ]);
 
           // Create workflow using the store
           await createWorkflow({
@@ -293,6 +302,7 @@ function WorkflowsLayout() {
           successCount++;
         } catch (error) {
           console.error(`Error importing ${file.name}:`, error);
+          firstImportError ??= error instanceof Error ? error.message : "Unknown import error";
           errorCount++;
         }
       }
@@ -306,7 +316,7 @@ function WorkflowsLayout() {
       }
       if (errorCount > 0) {
         enqueueSnackbar(
-          `Failed to import ${errorCount} workflow${errorCount > 1 ? "s" : ""}`,
+          `Failed to import ${errorCount} workflow${errorCount > 1 ? "s" : ""}: ${firstImportError}`,
           { variant: "error" }
         );
       }

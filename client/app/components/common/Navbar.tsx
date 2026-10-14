@@ -21,6 +21,7 @@ import WidgetExportModal from "../modals/WidgetExportModal";
 import ErrorWorkflowModal from "../modals/ErrorWorkflowModal";
 import WorkflowService from "~/services/workflows";
 import { useNodeStore } from "~/stores/nodes";
+import { hydrateWorkflowGraph } from "~/lib/workflowHydration";
 import {
   getWorkflowJsonErrorMessage,
   parseWorkflowJson,
@@ -170,58 +171,14 @@ const Navbar: React.FC<NavbarProps> = ({
     }
 
     try {
-      let nodeStore = useNodeStore.getState();
-      const metadataLoads: Promise<void>[] = [];
-      if (nodeStore.nodes.length === 0) {
-        metadataLoads.push(nodeStore.fetchNodes());
-      }
-      if (nodeStore.customNodes.length === 0) {
-        metadataLoads.push(nodeStore.fetchCustomNodes());
-      }
-
-      if (metadataLoads.length > 0) {
-        const metadataResults = await Promise.allSettled(metadataLoads);
-        metadataResults.forEach((result) => {
-          if (result.status === "rejected") {
-            console.warn(
-              "Node metadata could not be refreshed; importing raw workflow nodes.",
-              result.reason,
-            );
-          }
-        });
-      }
-      nodeStore = useNodeStore.getState();
-
-      const allNodesMetadata = [
-        ...(nodeStore.nodes || []),
-        ...(nodeStore.customNodes || []),
-      ];
-      const importedNodes = importedWorkflow.flow_data.nodes;
-      const importedEdges = importedWorkflow.flow_data.edges;
-      const enrichedNodes = importedNodes.map((node: any) => {
-        if (!node.data?.metadata && allNodesMetadata.length > 0) {
-          const metadata = allNodesMetadata.find(
-            (candidate) =>
-              candidate.name === node.type || (candidate as any).id === node.type,
-          ) as any;
-
-          if (metadata) {
-            return {
-              ...node,
-              data: {
-                ...node.data,
-                metadata,
-                icon: metadata.icon,
-                description: metadata.description,
-                displayName: metadata.display_name,
-                inputs: metadata.inputs,
-                outputs: metadata.outputs,
-              },
-            };
-          }
-        }
-        return node;
-      });
+      await useNodeStore.getState().ensureNodesReady();
+      const nodeStore = useNodeStore.getState();
+      const prepared = hydrateWorkflowGraph(importedWorkflow.flow_data, [
+        ...nodeStore.nodes,
+        ...nodeStore.customNodes,
+      ]);
+      const enrichedNodes = prepared.nodes;
+      const importedEdges = prepared.edges;
 
       onImportStart?.();
 
@@ -247,7 +204,7 @@ const Navbar: React.FC<NavbarProps> = ({
       enqueueSnackbar("Workflow loaded successfully!", { variant: "success" });
     } catch (error) {
       console.error("Canvas workflow import error:", error);
-      enqueueSnackbar(getWorkflowJsonErrorMessage(error), { variant: "error" });
+      enqueueSnackbar(error instanceof Error ? error.message : getWorkflowJsonErrorMessage(error), { variant: "error" });
     }
   };
 

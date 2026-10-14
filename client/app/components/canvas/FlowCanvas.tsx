@@ -20,6 +20,8 @@ import {
 import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
+import WorkflowService from "~/services/workflows";
+import { hydrateWorkflowGraph } from "~/lib/workflowHydration";
 import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../node/StartNode";
@@ -37,7 +39,7 @@ import type {
 
 type NodeStatus = "success" | "failed" | "pending";
 
-import { Loader, Plus, BookOpen, ZoomIn, ZoomOut, Maximize, Terminal } from "lucide-react";
+import { Plus, BookOpen, ZoomIn, ZoomOut, Maximize, Terminal } from "lucide-react";
 import ChatComponent from "./ChatComponent";
 import ErrorDisplayComponent from "./ErrorDisplayComponent";
 import ReactFlowCanvas from "./ReactFlowCanvas";
@@ -89,15 +91,22 @@ const normalizeFlowDataForComparison = (flowData: WorkflowData | undefined): str
   if (!flowData) return stableStringify({ nodes: [], edges: [] });
 
   // Normalize nodes - only include properties that matter for saving
-  const normalizedNodes = (flowData.nodes || []).map(node => ({
-    id: node.id,
-    type: node.type,
-    position: {
-      x: Math.round((node.position?.x || 0) * 1000) / 1000, // Round to avoid floating point issues
-      y: Math.round((node.position?.y || 0) * 1000) / 1000,
-    },
-    data: node.data,
-  }));
+  const normalizedNodes = (flowData.nodes || []).map(node => {
+    // Registry metadata is derived at load time; it is not a workflow edit.
+    const data = { ...(node.data || {}) };
+    for (const key of ["metadata", "icon", "description", "displayName", "inputs", "outputs"]) {
+      delete data[key];
+    }
+    return {
+      id: node.id,
+      type: node.type,
+      position: {
+        x: Math.round((node.position?.x || 0) * 1000) / 1000,
+        y: Math.round((node.position?.y || 0) * 1000) / 1000,
+      },
+      data,
+    };
+  });
 
   // Normalize edges - only include properties that matter for saving
   const normalizedEdges = (flowData.edges || []).map(edge => ({
@@ -423,6 +432,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const hasInitializedEmptyCanvas = useRef(false);
   const loadedWorkflowIdRef = useRef<string | null>(null);
   const isImportingRef = useRef(false);
+  const [metadataReady, setMetadataReady] = useState(false);
+  const [loadedRouteId, setLoadedRouteId] = useState<string | null | undefined>(undefined);
+  const [hydratedWorkflowId, setHydratedWorkflowId] = useState<string | null>(null);
+  const [canvasLoadError, setCanvasLoadError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const { screenToFlowPosition, zoomIn, zoomOut, fitView } = useReactFlow();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isTutorialOpen, setIsTutorialOpen] = useState(false);
@@ -599,7 +613,6 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
     fetchWorkflows,
     updateWorkflow,
     createWorkflow,
-    fetchWorkflow,
     deleteWorkflow,
     updateWorkflowStatus,
     updateWorkflowVisibility,
@@ -608,17 +621,17 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const { 
     nodes: availableNodes, 
     customNodes,
-    fetchNodes,
     fetchCategories,
-    fetchCustomNodes
+    ensureNodesReady,
   } = useNodes();
 
-  // Load all node metadata on canvas mount to ensure registry is available for import/load
+  const isCanvasReady = metadataReady && loadedRouteId === (workflowId || null) &&
+    (!workflowId || (currentWorkflow?.id === workflowId && hydratedWorkflowId === workflowId));
+
+  // Categories are sidebar data, not a prerequisite for opening a workflow.
   useEffect(() => {
-    fetchNodes();
-    fetchCategories();
-    fetchCustomNodes();
-  }, [fetchNodes, fetchCategories, fetchCustomNodes]);
+    fetchCategories().catch(() => undefined);
+  }, [fetchCategories]);
 
   // Smart suggestions integration
   const { setLastAddedNode, updateRecommendations } = useSmartSuggestions();
@@ -864,26 +877,41 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   }, [clearWorkflowError, clearExecutionError]);
 
   useEffect(() => {
-    if (workflowId) {
-      // Fetch the selected workflow directly
-      fetchWorkflow(workflowId).catch(() => {
-        setCurrentWorkflow(null);
-        clearAllChats(); // Clear chats when workflow loading fails
-        enqueueSnackbar("Workflow could not be found or loaded.", {
-          variant: "error",
-        });
-      });
-      hasInitializedEmptyCanvas.current = false;
-    } else {
-      // Reset state for a new workflow
-      setCurrentWorkflow(null);
-      setNodes([]);
-      setEdges([]);
-      setWorkflowName("Untitled Workflow");
-      clearAllChats(); // Clear chats for new workflow
-      hasInitializedEmptyCanvas.current = false;
-    }
-  }, [workflowId]);
+    let cancelled = false;
+    setMetadataReady(false);
+    setLoadedRouteId(undefined);
+    setHydratedWorkflowId(null);
+    setCanvasLoadError(null);
+    setCurrentWorkflow(null);
+    setNodes([]);
+    setEdges([]);
+    resetWorkflowHistory([], []);
+    loadedWorkflowIdRef.current = null;
+    isImportingRef.current = false;
+    hasInitializedEmptyCanvas.current = false;
+    clearAllChats();
+
+    const openWorkflow = async () => {
+      try {
+        // Metadata and graph are independent requests, but neither may be
+        // committed to the canvas until both have completed successfully.
+        const [workflow] = await Promise.all([
+          workflowId ? WorkflowService.getWorkflow(workflowId) : Promise.resolve(null),
+          ensureNodesReady(loadAttempt > 0),
+        ]);
+        if (cancelled) return;
+        setMetadataReady(true);
+        setLoadedRouteId(workflowId || null);
+        setCurrentWorkflow(workflow);
+      } catch (error) {
+        if (cancelled) return;
+        setCanvasLoadError(error instanceof Error ? error.message : "Workflow could not be loaded.");
+      }
+    };
+
+    void openWorkflow();
+    return () => { cancelled = true; };
+  }, [workflowId, loadAttempt, ensureNodesReady, setCurrentWorkflow, setNodes, setEdges, clearAllChats, resetWorkflowHistory]);
 
   useEffect(() => {
     if (currentWorkflow?.name) {
@@ -920,6 +948,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
 
   useEffect(() => {
+    if (!metadataReady) return;
     // If currentWorkflow is null and we had a loaded workflow, reset the canvas
     if (!currentWorkflow) {
       if (loadedWorkflowIdRef.current !== null && !isImportingRef.current) {
@@ -928,76 +957,36 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         resetWorkflowHistory([], []);
         loadedWorkflowIdRef.current = null;
       }
+      setHydratedWorkflowId(null);
       isImportingRef.current = false;
       return;
     }
 
     // ONLY load if this is a DIFFERENT workflow or if it hasn't been loaded/initialized yet
     if (loadedWorkflowIdRef.current !== currentWorkflow.id) {
-      const { nodes: rawNodes, edges } = currentWorkflow.flow_data || {};
-      const combinedNodes = [...(availableNodes || []), ...(customNodes || [])];
-
-      // Inject missing metadata/colors for nodes from availableNodes registry
-      const enrichedNodes = (rawNodes || []).map((node) => {
-        if (combinedNodes?.length > 0) {
-          const nodeDef = combinedNodes.find((n) => n.name === node.type || (n as any).id === node.type);
-          if (nodeDef) {
-            const def = nodeDef as any;
-            if (!node.data?.metadata) {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  metadata: def,
-                  icon: def.icon,
-                  description: def.description,
-                  displayName: def.display_name,
-                  inputs: def.inputs,
-                  outputs: def.outputs
-                }
-              };
-            } else if (def.colors && JSON.stringify(node.data.metadata.colors) !== JSON.stringify(def.colors)) {
-              return {
-                ...node,
-                data: {
-                  ...node.data,
-                  metadata: {
-                    ...node.data.metadata,
-                    colors: def.colors
-                  }
-                }
-              };
-            }
-          }
-        }
-        return node;
-      });
-
-      setNodes(enrichedNodes);
-
-      // Clean up invalid edges that reference non-existent nodes
-      if (edges && enrichedNodes) {
-        const nodeIds = new Set(enrichedNodes.map((n) => n.id));
-        const validEdges = edges.filter(
-          (edge) => nodeIds.has(edge.source) && nodeIds.has(edge.target)
-        );
-        setEdges(validEdges);
-        resetWorkflowHistory(enrichedNodes, validEdges);
-      } else {
-        const loadedEdges = edges || [];
-        setEdges(loadedEdges);
-        resetWorkflowHistory(enrichedNodes, loadedEdges);
+      try {
+        const prepared = hydrateWorkflowGraph(currentWorkflow.flow_data, [
+          ...(availableNodes || []),
+          ...(customNodes || []),
+        ]);
+        setNodes(prepared.nodes as Node[]);
+        setEdges(prepared.edges as Edge[]);
+        resetWorkflowHistory(prepared.nodes as Node[], prepared.edges as Edge[]);
+        loadedWorkflowIdRef.current = currentWorkflow.id;
+        setHydratedWorkflowId(currentWorkflow.id);
+        setCanvasLoadError(null);
+      } catch (error) {
+        setHydratedWorkflowId(null);
+        setCanvasLoadError(error instanceof Error ? error.message : "Workflow could not be opened.");
       }
-
-      loadedWorkflowIdRef.current = currentWorkflow.id;
     }
 
     // Reset import flag after every useEffect run (self-healing)
     isImportingRef.current = false;
-  }, [currentWorkflow, availableNodes, customNodes, resetWorkflowHistory]);
+  }, [currentWorkflow, availableNodes, customNodes, metadataReady, setNodes, setEdges, resetWorkflowHistory]);
 
   useEffect(() => {
-    if (currentWorkflow) {
+    if (currentWorkflow && hydratedWorkflowId === currentWorkflow.id) {
       const currentFlowData: WorkflowData = {
         nodes: nodes as WorkflowNode[],
         edges: edges as WorkflowEdge[],
@@ -1008,7 +997,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         normalizeFlowDataForComparison(currentFlowData) !== normalizeFlowDataForComparison(originalFlowData);
       setHasUnsavedChanges(hasChanges);
     }
-  }, [nodes, edges, currentWorkflow]);
+  }, [nodes, edges, currentWorkflow, hydratedWorkflowId, setHasUnsavedChanges]);
 
   // Load chat history on component mount
   useEffect(() => {
@@ -1224,6 +1213,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   );
 
   const handleSave = useCallback(async () => {
+    if (!isCanvasReady) return;
     const flowData: WorkflowData = {
       nodes: nodes as WorkflowNode[],
       edges: edges as WorkflowEdge[],
@@ -1290,6 +1280,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       markSaveError();
     }
   }, [
+    isCanvasReady,
     currentWorkflow,
     nodes,
     edges,
@@ -1394,7 +1385,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Auto-save function
   const handleAutoSave = useCallback(async () => {
-    if (!autoSaveEnabled || !hasUnsavedChanges || !currentWorkflow) {
+    if (!isCanvasReady || !autoSaveEnabled || !hasUnsavedChanges || !currentWorkflow) {
       return;
     }
 
@@ -1434,6 +1425,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       });
     }
   }, [
+    isCanvasReady,
     autoSaveEnabled,
     hasUnsavedChanges,
     currentWorkflow,
@@ -1449,7 +1441,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
   // Auto-save timer effect
   useEffect(() => {
-    if (!autoSaveEnabled || !currentWorkflow) {
+    if (!isCanvasReady || !autoSaveEnabled || !currentWorkflow) {
       return;
     }
 
@@ -1461,6 +1453,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
     return () => clearInterval(timer);
   }, [
+    isCanvasReady,
     autoSaveEnabled,
     autoSaveInterval,
     hasUnsavedChanges,
@@ -2323,6 +2316,21 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   );
 
 
+  if (!isCanvasReady) {
+    return canvasLoadError ? (
+      <div className="flex h-screen w-full flex-col items-center justify-center gap-4 bg-black px-6 text-center text-white">
+        <p role="alert">{canvasLoadError}</p>
+        <button
+          type="button"
+          className="rounded-lg border border-gray-600 px-4 py-2 hover:bg-gray-800"
+          onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+        >
+          Retry opening workflow
+        </button>
+      </div>
+    ) : <div className="h-screen w-full bg-black" aria-busy="true" />;
+  }
+
   return (
     <>
       <Navbar
@@ -2340,7 +2348,11 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         lastAutoSave={lastAutoSave}
         onAutoSaveSettings={handleAutoSaveSettings}
         updateWorkflowVisibility={updateWorkflowVisibility}
-        onImportStart={() => { isImportingRef.current = true; loadedWorkflowIdRef.current = null; }}
+        onImportStart={() => {
+          isImportingRef.current = true;
+          loadedWorkflowIdRef.current = null;
+          setHydratedWorkflowId(null);
+        }}
         onWorkflowImported={(importedNodes, importedEdges) => {
           resetWorkflowHistory(importedNodes, importedEdges);
         }}

@@ -18,11 +18,13 @@ interface NodeState {
   searchQuery: string;
   isLoading: boolean;
   error: string | null;
+  nodesLoaded: boolean;
   
   // Actions
   fetchNodes: () => Promise<void>;
   fetchCategories: () => Promise<void>;
   fetchCustomNodes: () => Promise<void>;
+  ensureNodesReady: (refresh?: boolean) => Promise<void>;
   createCustomNode: (data: CustomNodeCreateRequest) => Promise<CustomNode>;
   updateCustomNode: (id: string, data: Partial<CustomNodeCreateRequest>) => Promise<void>;
   deleteCustomNode: (id: string) => Promise<void>;
@@ -30,6 +32,8 @@ interface NodeState {
   searchNodes: (query: string) => void;
   clearError: () => void;
 }
+
+let metadataLoadPromise: Promise<void> | null = null;
 
 export const useNodeStore = create<NodeState>()(
   subscribeWithSelector((set, get) => ({
@@ -42,6 +46,7 @@ export const useNodeStore = create<NodeState>()(
     searchQuery: '',
     isLoading: false,
     error: null,
+    nodesLoaded: false,
 
     // Actions
     fetchNodes: async () => {
@@ -49,13 +54,17 @@ export const useNodeStore = create<NodeState>()(
       
       try {
         const nodes = await NodeService.getNodes();
+        if (nodes.length === 0) {
+          throw new Error('No node definitions were returned by the server');
+        }
 
         
         set({ 
           nodes,
           filteredNodes: nodes,
           isLoading: false,
-          error: null
+          error: null,
+          nodesLoaded: true
         });
       } catch (error: any) {
 
@@ -63,7 +72,8 @@ export const useNodeStore = create<NodeState>()(
           nodes: [],
           filteredNodes: [],
           isLoading: false,
-          error: error.message || 'Failed to fetch nodes'
+          error: error.message || 'Failed to fetch nodes',
+          nodesLoaded: false
         });
         throw error;
       }
@@ -105,6 +115,16 @@ export const useNodeStore = create<NodeState>()(
         });
         throw error;
       }
+    },
+
+    ensureNodesReady: (refresh = false) => {
+      if (get().nodesLoaded && !refresh) return Promise.resolve();
+      if (!metadataLoadPromise) {
+        metadataLoadPromise = get().fetchNodes().finally(() => {
+          metadataLoadPromise = null;
+        });
+      }
+      return metadataLoadPromise;
     },
 
     createCustomNode: async (data: CustomNodeCreateRequest) => {
@@ -256,6 +276,7 @@ export const useNodes = () => {
     fetchNodes: store.fetchNodes,
     fetchCategories: store.fetchCategories,
     fetchCustomNodes: store.fetchCustomNodes,
+    ensureNodesReady: store.ensureNodesReady,
     createCustomNode: store.createCustomNode,
     updateCustomNode: store.updateCustomNode,
     deleteCustomNode: store.deleteCustomNode,
@@ -265,4 +286,4 @@ export const useNodes = () => {
   };
 };
 
-export default useNodeStore; 
+export default useNodeStore;
