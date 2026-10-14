@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useCallback, useMemo } from 'react';
-import { Terminal, X, Trash2, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from 'lucide-react';
+import { Terminal, X, Trash2, Search, ChevronDown, ChevronUp, ArrowUp, ArrowDown, Download } from 'lucide-react';
 import { useLogStream } from '../../lib/useLogStream';
 
 interface LogPanelProps {
@@ -185,6 +185,19 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   const handleResumeAutoScroll = () => {
     setUserScrolledUp(false);
     scrollToBottom();
+  };
+
+  const handleDownloadLogs = () => {
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const blob = new Blob([JSON.stringify(logs, null, 2)], { type: 'application/json;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `kaiflow_log_${timestamp}.json`;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    URL.revokeObjectURL(url);
   };
 
   // Render log lines with layout-stable highlights (no padding, border, or bold shifts)
@@ -409,6 +422,16 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
             title="Scroll to Bottom"
           >
             <ArrowDown className="w-4 h-4" />
+          </button>
+
+          {/* Download Logs */}
+          <button
+            onClick={handleDownloadLogs}
+            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
+            title="Download Logs"
+            aria-label="Download Logs"
+          >
+            <Download className="w-4 h-4" />
           </button>
 
           {/* Clear Logs */}
