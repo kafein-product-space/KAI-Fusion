@@ -14,9 +14,11 @@ LICENSE: Proprietary - KAI-Flow Platform
 import re
 import json
 import logging
+import os
 from typing import Dict, Any, Optional, List, Union
 
 from jinja2 import Environment
+from app.core.error_normalization import sanitize_error_text
 from app.core.state import FlowState
 
 logger = logging.getLogger(__name__)
@@ -390,6 +392,53 @@ def _contains_template(value: Any) -> bool:
     return False
 
 
+_SENSITIVE_JINJA_LOG_PATTERN = re.compile(
+    r"(?i)password|passwd|secret|api[_-]?key|access[_-]?token|"
+    r"refresh[_-]?token|auth[_-]?token|authorization|credential|cookie|"
+    r"private[_-]?key|(?:^|[\W_])token(?:$|[\W_])"
+)
+
+
+def _jinja_log_changes(before: Any, after: Any) -> tuple[dict[str, str], dict[str, str]]:
+    """Keep debug output focused on templated fields, without logging secrets or large payloads."""
+    before_values: dict[str, str] = {}
+    after_values: dict[str, str] = {}
+    omitted = False
+
+    def collect(original: Any, rendered: Any, path: str, sensitive: bool = False) -> None:
+        nonlocal omitted
+        if omitted:
+            return
+        if isinstance(original, str):
+            if "{{" not in original:
+                return
+            if len(before_values) >= 20:
+                omitted = True
+                return
+            if sensitive or _SENSITIVE_JINJA_LOG_PATTERN.search(original):
+                before_values[path] = "<redacted>"
+                after_values[path] = "<redacted>"
+            else:
+                before_values[path] = sanitize_error_text(original[:1000], limit=300)
+                after_values[path] = sanitize_error_text(str(rendered)[:1000], limit=300)
+        elif isinstance(original, dict) and isinstance(rendered, dict):
+            for key, value in original.items():
+                if key in rendered:
+                    key_name = str(key)
+                    display_path = f"{path}.{key_name[:80]}" if path else key_name[:80]
+                    is_sensitive = sensitive or bool(_SENSITIVE_JINJA_LOG_PATTERN.search(key_name))
+                    collect(value, rendered[key], display_path, is_sensitive)
+        elif isinstance(original, (list, tuple)) and isinstance(rendered, (list, tuple)):
+            for index, (value, result) in enumerate(zip(original, rendered)):
+                collect(value, result, f"{path}[{index}]", sensitive)
+
+    collect(before, after, "")
+    if omitted:
+        before_values["..."] = "additional templated fields omitted"
+        after_values["..."] = "additional templated fields omitted"
+    return before_values, after_values
+
+
 def apply_jinja_to_inputs(
     inputs: Dict[str, Any],
     state: FlowState,
@@ -422,14 +471,23 @@ def apply_jinja_to_inputs(
         # Check if the inputs contain Jinja templates
         has_jinja = logger.isEnabledFor(logging.DEBUG) and _contains_template(inputs)
 
-        # Template values can contain credentials or very large Kafka payloads.
+        # Keep full value diagnostics local to development; production logs only keys.
         if has_jinja:
-            logger.debug(
-                "[JINJA TEMPLATING] Node: %s input_keys=%s rendered_keys=%s",
-                node_id,
-                list(inputs),
-                list(rendered_inputs),
-            )
+            if os.getenv("ENVIRONMENT", "development").lower() == "development":
+                before_values, after_values = _jinja_log_changes(inputs, rendered_inputs)
+                logger.debug(
+                    "\n[JINJA TEMPLATING] Node: %s\n   BEFORE: %s\n   AFTER : %s",
+                    node_id,
+                    before_values,
+                    after_values,
+                )
+            else:
+                logger.debug(
+                    "[JINJA TEMPLATING] Node: %s input_keys=%s rendered_keys=%s",
+                    node_id,
+                    list(inputs),
+                    list(rendered_inputs),
+                )
             
         return rendered_inputs
         
