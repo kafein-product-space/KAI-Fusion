@@ -61,6 +61,10 @@ html {
   z-index: 40 !important;
 }
 
+body[data-node-settings-open="true"] .notistack-SnackbarContainer {
+  z-index: 60 !important;
+}
+
 .chat-message-action {
   display: inline-flex;
   width: 30px;

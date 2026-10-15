@@ -1,5 +1,6 @@
 import React from "react";
 import { X, Copy, Check } from "lucide-react";
+import { useClipboardFeedback } from "~/hooks/useClipboardFeedback";
 
 interface DataViewModalProps {
   isOpen: boolean;
@@ -15,15 +16,17 @@ export default function DataViewModal({
   data,
 }: DataViewModalProps) {
   const [copied, setCopied] = React.useState(false);
+  const { copy } = useClipboardFeedback();
 
   if (!isOpen || data === null) return null;
 
-  const formattedData = typeof data === "object" ? JSON.stringify(data, null, 2) : data;
+  const formattedData = typeof data === "object" ? JSON.stringify(data, null, 2) : String(data);
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(formattedData);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const handleCopy = async () => {
+    if (await copy(formattedData)) {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
   };
 
   return (

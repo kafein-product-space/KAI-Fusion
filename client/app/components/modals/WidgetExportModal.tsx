@@ -1,6 +1,7 @@
 import { forwardRef, useImperativeHandle, useRef, useState, useEffect } from "react";
 import { MessageSquare, Copy, Check, Code, Globe, Type, Key, Eye, Bot } from "lucide-react";
 import { config as appConfig } from "../../lib/config";
+import { useClipboardFeedback } from "~/hooks/useClipboardFeedback";
 import { KaiChatWidget } from "@kaifusion/widget";
 import "@kaifusion/widget/dist/index.css";
 
@@ -24,6 +25,7 @@ const WidgetExportModal = forwardRef<HTMLDialogElement, WidgetExportModalProps>(
     useImperativeHandle(ref, () => dialogRef.current!);
 
     const [copied, setCopied] = useState(false);
+    const { copy } = useClipboardFeedback();
     const [integrationType, setIntegrationType] = useState<"html" | "react">("html");
     const [latestVersion, setLatestVersion] = useState("latest");
     const [showPreview, setShowPreview] = useState(false);
@@ -96,10 +98,11 @@ function App() {
 
     const currentCode = integrationType === "react" ? getReactCode() : getHtmlCode();
 
-    const copyToClipboard = () => {
-      navigator.clipboard.writeText(currentCode);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    const copyToClipboard = async () => {
+      if (await copy(currentCode)) {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
     };
 
     return (
