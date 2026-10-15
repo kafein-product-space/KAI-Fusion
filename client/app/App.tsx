@@ -2,8 +2,7 @@ import { Routes, Route, useLocation } from "react-router";
 import { useEffect } from "react";
 import { config } from "./lib/config";
 import "./app.css";
-import { closeSnackbar, SnackbarProvider } from "notistack";
-import { X } from "lucide-react";
+import { SnackbarProvider } from "notistack";
 import { useThemeStore } from "./stores/theme";
 import { AuthProvider, useAuth as useOidcAuth } from "react-oidc-context";
 import useAuthStore from "./stores/auth";
@@ -102,17 +101,6 @@ export default function App() {
       <SnackbarProvider
         maxSnack={3}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        action={(key) => (
-          <button
-            type="button"
-            onClick={() => closeSnackbar(key)}
-            aria-label="Close notification"
-            title="Close notification"
-            className="ml-2 rounded p-1 text-white hover:bg-white/20 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-white"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        )}
       >
         <ScrollToTop />
         <Routes>

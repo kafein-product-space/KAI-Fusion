@@ -3,6 +3,7 @@ import { Field } from "formik";
 import type { NodeProperty } from "../types";
 import { getActiveSessionId } from "../../../services/chatService";
 import { useWorkflows } from "../../../stores/workflows";
+import { useClipboardFeedback } from "../../../hooks/useClipboardFeedback";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeSessionIdProps {
@@ -13,7 +14,9 @@ interface NodeSessionIdProps {
 
 export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionIdProps) => {
     const { currentWorkflow } = useWorkflows();
+    const { copy } = useClipboardFeedback();
     const isAutomatic = values.session_mode === "automatic" || values.session_mode === "auto";
+    const sessionId = String(values[property.name] ?? "");
 
     // Check if we need to fetch the active session ID (only in automatic mode)
     useEffect(() => {
@@ -29,14 +32,8 @@ export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionId
     }, [isAutomatic, setFieldValue, property.name, currentWorkflow?.id]);
 
     const handleCopy = useCallback(() => {
-        const value = values[property.name];
-        if (!value) return;
-        if (navigator?.clipboard?.writeText) {
-            navigator.clipboard.writeText(value).catch(() => {
-                // Silent failure
-            });
-        }
-    }, [values, property.name]);
+        void copy(sessionId);
+    }, [copy, sessionId]);
 
     return (
         <div
@@ -61,7 +58,9 @@ export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionId
                     <button
                         type="button"
                         onClick={handleCopy}
-                        className="px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 transition-colors shrink-0"
+                        disabled={!sessionId}
+                        aria-label="Copy session ID to clipboard"
+                        className="px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                         Copy
                     </button>

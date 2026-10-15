@@ -113,6 +113,7 @@ export default function FullscreenNodeModal({
   const [configValues, setConfigValues] = useState(configData);
   const [formKey, setFormKey] = useState(0);
   const configChangeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const configContainerRef = useRef<HTMLDivElement>(null);
   const configChangeRevisionRef = useRef(0);
   const pendingConfigValuesRef = useRef<Record<string, unknown> | null>(null);
   const prevHistoryRevisionRef = useRef(historyRevision);
@@ -673,6 +674,15 @@ export default function FullscreenNodeModal({
     };
   }, [cancelPendingConfigChange]);
 
+  useEffect(() => {
+    if (!isOpen) return;
+
+    document.body.dataset.nodeSettingsOpen = "true";
+    return () => {
+      delete document.body.dataset.nodeSettingsOpen;
+    };
+  }, [isOpen]);
+
   const handleSave = (values: any) => {
     try {
       // Validate node alias before saving
@@ -895,7 +905,7 @@ export default function FullscreenNodeModal({
                     Node Configuration
                   </h2>
                 </div>
-                <div className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+                <div ref={configContainerRef} className="flex-1 p-3 overflow-y-auto custom-scrollbar">
                   <div className="max-w-full">
                     <ConfigComponent
                       key={formKey}
@@ -993,16 +1003,9 @@ export default function FullscreenNodeModal({
               <button
                 type="button"
                 onClick={() => {
-                  // Find the form within the config component container more specifically
-                  const configContainer = document.querySelector(
-                    ".flex-1.p-3.overflow-y-auto"
-                  );
-                  const configForm =
-                    configContainer?.querySelector("form") ||
-                    document.querySelector("form");
+                  const configForm = configContainerRef.current?.querySelector("form");
 
                   if (configForm) {
-                    console.log("Form found, submitting...");
                     enqueueSnackbar("Saving configuration...", {
                       variant: "info",
                       autoHideDuration: 1500,
@@ -1013,33 +1016,14 @@ export default function FullscreenNodeModal({
                     });
                     configForm.requestSubmit();
                   } else {
-                    console.error("No form found - checking for submit button");
-                    // Fallback: look for submit button
-                    const submitButton = document.querySelector(
-                      "button[type='submit']"
-                    );
-                    if (submitButton) {
-                      console.log("Submit button found, clicking...");
-                      enqueueSnackbar("Saving configuration...", {
-                        variant: "info",
-                        autoHideDuration: 1500,
-                        anchorOrigin: {
-                          vertical: "top",
-                          horizontal: "right",
-                        },
-                      });
-                      (submitButton as HTMLButtonElement).click();
-                    } else {
-                      console.error("Neither form nor submit button found");
-                      enqueueSnackbar("Unable to save - no form found", {
-                        variant: "error",
-                        autoHideDuration: 4000,
-                        anchorOrigin: {
-                          vertical: "top",
-                          horizontal: "right",
-                        },
-                      });
-                    }
+                    enqueueSnackbar("Unable to save - node configuration form is unavailable", {
+                      variant: "error",
+                      autoHideDuration: 4000,
+                      anchorOrigin: {
+                        vertical: "top",
+                        horizontal: "right",
+                      },
+                    });
                   }
                 }}
                 className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"

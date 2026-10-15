@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { ChevronDown, ChevronRight, Copy, Check } from 'lucide-react';
+import { useClipboardFeedback } from '~/hooks/useClipboardFeedback';
 
 interface DataDisplayModesProps {
   data: any;
@@ -168,6 +169,7 @@ function arrayItemLabel(parentKey: string | undefined, index: number): string {
 function JsonTreeItem({ keyName, displayKeyName, value, isLast = false, depth, path }: JsonTreeItemProps) {
   const [isOpen, setIsOpen] = useState(true);
   const [copied, setCopied] = useState(false);
+  const { copy } = useClipboardFeedback();
   const context = React.useContext(DataTreeContext);
 
   const isObject = value !== null && typeof value === 'object';
@@ -176,13 +178,10 @@ function JsonTreeItem({ keyName, displayKeyName, value, isLast = false, depth, p
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    try {
-      const text = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
-      await navigator.clipboard.writeText(text);
+    const text = typeof value === 'object' ? JSON.stringify(value, null, 2) : String(value);
+    if (await copy(text)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 1500);
-    } catch (err) {
-      console.error('Failed to copy', err);
     }
   };
 
@@ -346,17 +345,15 @@ export default function DataDisplayModes({
   currentNodeName,
 }: DataDisplayModesProps) {
   const [copied, setCopied] = useState(false);
+  const { copy } = useClipboardFeedback();
 
   const handleCopyAll = async () => {
-    try {
-      const textToCopy = typeof data === 'object' && data !== null
-        ? JSON.stringify(data, null, 2)
-        : String(data);
-      await navigator.clipboard.writeText(textToCopy);
+    const textToCopy = typeof data === 'object' && data !== null
+      ? JSON.stringify(data, null, 2)
+      : String(data);
+    if (await copy(textToCopy)) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Failed to copy to clipboard:', error);
     }
   };
 
