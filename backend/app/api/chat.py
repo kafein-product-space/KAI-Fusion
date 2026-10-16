@@ -9,6 +9,9 @@ from app.services.memory.service import memory_service
 from app.core.database import get_db_session, get_db
 from app.auth.dependencies import get_current_user
 from app.models.user import User
+from app.models.workflow import Workflow
+from app.services.workflow_executor import get_workflow_executor
+from app.services.memory.session_id import automatic_memory_session_id
 
 router = APIRouter()
 
@@ -105,8 +108,26 @@ async def delete_chatflow(
 @router.get("/active-session/id", response_model=Dict[str, Optional[str]])
 async def get_active_session_id(
     chatflow_id: Optional[str] = None,
-    current_user: User = Depends(get_current_user)
+    memory_node_id: Optional[str] = None,
+    session_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    async_db: AsyncSession = Depends(get_db_session),
 ):
+    if memory_node_id:
+        if not chatflow_id:
+            raise HTTPException(status_code=400, detail="Workflow ID is required for a memory node session")
+        try:
+            workflow_id = UUID(chatflow_id)
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid workflow ID")
+        workflow = await async_db.get(Workflow, workflow_id)
+        if workflow is None:
+            raise HTTPException(status_code=404, detail="Workflow not found")
+        if workflow.user_id != current_user.id and not workflow.is_public:
+            raise HTTPException(status_code=403, detail="Access denied")
+        base_session_id = session_id or get_workflow_executor().get_canvas_session_id(current_user.id, workflow_id)
+        return {"session_id": automatic_memory_session_id(base_session_id, memory_node_id, chatflow_id)}
+
     db = next(get_db())
     session_id = memory_service.get_active_session_id(db, str(current_user.id), chatflow_id=chatflow_id)
     return {"session_id": session_id}

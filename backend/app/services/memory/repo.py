@@ -43,12 +43,18 @@ class MemoryRepo:
             Memory.user_id == UUID(user_id)
         ).order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
     
-    def get_memories_by_session(self, db: Session, session_id: str, limit: int = 10, 
-                               offset: int = 0) -> List[Memory]:
+    def get_memories_by_session(self, db: Session, session_id: str, limit: int = 10,
+                               offset: int = 0, user_id: str = None,
+                               chatflow_id: str = None, source_type: str = None) -> List[Memory]:
         """Get memories for a session."""
-        memories = db.query(Memory).filter(
-            Memory.session_id == session_id
-        ).order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
+        query = db.query(Memory).filter(Memory.session_id == session_id)
+        if user_id:
+            query = query.filter(Memory.user_id == UUID(str(user_id)))
+        if chatflow_id:
+            query = query.filter(Memory.chatflow_id == UUID(str(chatflow_id)))
+        if source_type:
+            query = query.filter(Memory.source_type == source_type)
+        memories = query.order_by(desc(Memory.created_at)).offset(offset).limit(limit).all()
         
         logger.debug("Memory lookup completed (count=%s, limit=%s)", len(memories), limit)
             

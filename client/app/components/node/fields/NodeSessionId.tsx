@@ -1,35 +1,48 @@
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Field } from "formik";
 import type { NodeProperty } from "../types";
 import { getActiveSessionId } from "../../../services/chatService";
 import { useWorkflows } from "../../../stores/workflows";
+import { useExecutionsStore } from "../../../stores/executions";
 import { useClipboardFeedback } from "../../../hooks/useClipboardFeedback";
 import { FieldLabel, getFieldHelpText } from "./FieldLabel";
 
 interface NodeSessionIdProps {
     property: NodeProperty;
-    values: any;
-    setFieldValue?: (name: string, value: any) => void;
+    values: Record<string, unknown>;
+    nodeId?: string;
 }
 
-export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionIdProps) => {
+export const NodeSessionId = ({ property, values, nodeId }: NodeSessionIdProps) => {
     const { currentWorkflow } = useWorkflows();
+    const executionSessionId = useExecutionsStore(state => {
+        const value = currentWorkflow?.id
+            ? state.currentExecutions[currentWorkflow.id]?.result?.session_id
+            : undefined;
+        return typeof value === "string" ? value : undefined;
+    });
     const { copy } = useClipboardFeedback();
     const isAutomatic = values.session_mode === "automatic" || values.session_mode === "auto";
-    const sessionId = String(values[property.name] ?? "");
+    const previewScope = `${currentWorkflow?.id ?? ""}/${nodeId ?? ""}/${executionSessionId ?? ""}`;
+    const [preview, setPreview] = useState<{ scope: string; sessionId: string } | null>(null);
+    const sessionId = isAutomatic
+        ? (preview?.scope === previewScope ? preview.sessionId : "")
+        : String(values[property.name] ?? "");
 
     // Check if we need to fetch the active session ID (only in automatic mode)
     useEffect(() => {
-        if (isAutomatic && setFieldValue) {
-            getActiveSessionId(currentWorkflow?.id).then(response => {
-                if (response?.session_id) {
-                    setFieldValue(property.name, response.session_id);
+        if (isAutomatic && currentWorkflow?.id && nodeId) {
+            let active = true;
+            getActiveSessionId(currentWorkflow.id, nodeId, executionSessionId).then(response => {
+                if (active && response?.session_id) {
+                    setPreview({ scope: previewScope, sessionId: response.session_id });
                 }
             }).catch(err => {
                 console.error("Failed to fetch active session ID:", err);
             });
+            return () => { active = false; };
         }
-    }, [isAutomatic, setFieldValue, property.name, currentWorkflow?.id]);
+    }, [isAutomatic, currentWorkflow?.id, nodeId, previewScope, executionSessionId]);
 
     const handleCopy = useCallback(() => {
         void copy(sessionId);
@@ -49,7 +62,9 @@ export const NodeSessionId = ({ property, values, setFieldValue }: NodeSessionId
                 <Field
                     name={property.name}
                     type="text"
+                    value={sessionId}
                     readOnly={isAutomatic}
+                    required={!isAutomatic}
                     className={`input input-bordered w-full text-white text-sm rounded-lg px-4 py-3 border border-slate-600 focus:ring-1 focus:ring-blue-500/20 ${isAutomatic ? "bg-slate-900/80 cursor-default" : "bg-[#10182c] focus:border-blue-500 shadow-inner shadow-black/20"
                         }`}
                     placeholder={property.placeholder || (isAutomatic ? "Automatically generated..." : "Enter manual session ID...")}

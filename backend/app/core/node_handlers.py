@@ -107,6 +107,7 @@ class MemoryNodeHandler(NodeExecutionHandler):
         try:
             # Set session_id on memory nodes before execution
             source_node_instance.session_id = state.session_id
+            source_node_instance.workflow_id = state.workflow_id
             logger.debug("Set session_id on memory node %s", node_id)
             
             # Inject user_id if supported

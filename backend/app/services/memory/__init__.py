@@ -26,10 +26,13 @@ def get_memories_by_user(db: Session, user_id: str, limit: int = 10,
     """Get memories for a user."""
     return memory_repo.get_memories_by_user(db, user_id, limit, offset)
 
-def get_memories_by_session(db: Session, session_id: str, limit: int = 10, 
-                           offset: int = 0) -> List:
+def get_memories_by_session(db: Session, session_id: str, limit: int = 10,
+                           offset: int = 0, user_id: str = None,
+                           chatflow_id: str = None, source_type: str = None) -> List:
     """Get memories for a session."""
-    return memory_repo.get_memories_by_session(db, session_id, limit, offset)
+    return memory_repo.get_memories_by_session(
+        db, session_id, limit, offset, user_id, chatflow_id, source_type
+    )
 
 def retrieve_memories(db: Session, user_id: str, query: str = "", 
                      limit: int = 10, semantic_search: bool = True) -> List[MemoryItem]:
