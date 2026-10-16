@@ -70,6 +70,7 @@ interface FullscreenNodeModalProps {
   onExecute?: (values: any) => void; // New execute function
   ConfigComponent: React.ComponentType<{
     configData: any;
+    nodeId?: string;
     onSave: (values: any) => void;
     onCancel: () => void;
     onChange?: (values: any) => void;
@@ -910,6 +911,7 @@ export default function FullscreenNodeModal({
                     <ConfigComponent
                       key={formKey}
                       configData={configValues}
+                      nodeId={executionData?.nodeId}
                       onSave={handleSave}
                       onCancel={onClose}
                       onChange={handleFormChange}

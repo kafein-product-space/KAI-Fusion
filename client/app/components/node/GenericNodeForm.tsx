@@ -351,7 +351,7 @@ export default function GenericNodeForm({
                         <NodeSessionId
                           property={fullWidthProperty}
                           values={values}
-                          setFieldValue={setFieldValue}
+                          nodeId={nodeId}
                         />
                       );
                     case "model-artifact-source":

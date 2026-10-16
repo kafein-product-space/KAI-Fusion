@@ -1,5 +1,6 @@
 from ..base import NodePosition, ProcessorNode, NodeInput, NodePropertyType, NodeType, NodeOutput, NodeProperty
 from app.nodes.memory import BufferMemoryNode
+from app.nodes.memory.buffer_memory import SessionConversationBufferMemory
 from app.core.tool import AutoToolManager
 from typing import Dict, Any, Sequence, List, Optional
 from langchain_core.runnables import Runnable, RunnableLambda
@@ -759,7 +760,7 @@ class ReactAgentNode(ProcessorNode):
                     try:
                         print("   [PERSIST] Persisting conversation to database via memory node...")
                         # Ensure we use the correct IDs for persistent storage
-                        session_id = self.session_id
+                        session_id = getattr(memory, "session_id", None) or self.session_id
                         user_id = getattr(self, 'user_id', None)
                         chatflow_id = getattr(self, 'workflow_id', None)
                         
@@ -773,9 +774,12 @@ class ReactAgentNode(ProcessorNode):
                         
                         # Save to database using BufferMemoryNode's persistent method
                         BufferMemoryNode().save_messages(session_id=session_id, messages=messages_to_save, user_id=user_id, chatflow_id=chatflow_id)
+                        if isinstance(memory, SessionConversationBufferMemory):
+                            memory.chat_memory.add_messages(messages_to_save)
                         
                     except Exception as e:
                         print(f"   [ERROR] Failed to persist memory via _persist_to_database: {e}")
+                        raise
 
 
                 return {"output": output_content}

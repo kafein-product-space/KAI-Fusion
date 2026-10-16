@@ -41,7 +41,11 @@ export const getWorkflowChats = async (workflow_id: string, isBuilder?: boolean)
 };
 
 // Get the latest active session ID
-export const getActiveSessionId = async (chatflow_id?: string): Promise<{ session_id: string | null }> => {
-  const params = chatflow_id ? `?chatflow_id=${chatflow_id}` : '';
+export const getActiveSessionId = async (chatflow_id?: string, memory_node_id?: string, session_id?: string): Promise<{ session_id: string | null }> => {
+  const query = new URLSearchParams();
+  if (chatflow_id) query.set('chatflow_id', chatflow_id);
+  if (memory_node_id) query.set('memory_node_id', memory_node_id);
+  if (session_id) query.set('session_id', session_id);
+  const params = query.toString() ? `?${query.toString()}` : '';
   return apiClient.get(`${API_ENDPOINTS.CHAT.ACTIVE_SESSION.ID}${params}`);
 };

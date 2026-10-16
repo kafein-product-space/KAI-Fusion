@@ -6,7 +6,8 @@ from langchain_core.messages import BaseMessage, HumanMessage, AIMessage, System
 from typing import cast, Dict, Optional, List
 from sqlalchemy.orm import Session
 from app.core.tracing import trace_memory_operation
-from app.services.memory import save_memory, get_memories_by_session, get_memory_count_by_session
+from app.services.memory import save_memory, get_memories_by_session
+from app.services.memory.session_id import automatic_memory_session_id
 from app.core.database import get_db
 
 logger = logging.getLogger(__name__)
@@ -42,7 +43,7 @@ class BufferMemoryNode(MemoryNode):
                 NodeInput(name="user_id", type="str", description="User ID for multi-tenancy.", required=False),
                 NodeInput(name="limit", type="int", description="Memory limit.", default=5, required=True),
                 NodeInput(name="session_mode", type="str", description="Session selection mode.", default="automatic"),
-                NodeInput(name="session_id", type="str", description="Session ID.", required=True),
+                NodeInput(name="session_id", type="str", description="Manual session ID.", required=False),
             ],
             "outputs": [
                 NodeOutput(
@@ -100,7 +101,7 @@ class BufferMemoryNode(MemoryNode):
                     default="automatic",
                     options=[
                         {"label": "Automatic", "value": "automatic"},
-                        {"label": "Manuel", "value": "manuel"}
+                        {"label": "Manual", "value": "manuel"}
                     ],
                     required=True,
                     description="Choose how to select the session ID."
@@ -110,7 +111,7 @@ class BufferMemoryNode(MemoryNode):
                     displayName="SESSION ID",
                     type=NodePropertyType.SESSION_ID,
                     required=True,
-                    description="The session ID for memory context. In automatic mode, this is fetched from the system. In manual mode, you can specify it yourself."
+                    description="Automatic sessions are isolated per memory node and conversation. Shows the latest execution's session, or the current canvas session before execution. Matching manual IDs share history within this workflow."
                 ),
             ]
         })
@@ -130,34 +131,27 @@ class BufferMemoryNode(MemoryNode):
         Retrieves or creates a persistent, session-aware memory instance.
         """
         
-        session_id = kwargs.get("session_id")
-        session_mode = kwargs.get("session_mode", getattr(self, "session_mode", "automatic"))
-        
-        system_id = getattr(self, "session_id", None)
-        input_id = kwargs.get("session_id")
-                
-        if session_mode == "automatic":
-            session_id = system_id
-            if not session_id and input_id:
-                 session_id = input_id
-        else: # manuel
-            session_id = input_id if input_id else system_id            
+        session_mode = kwargs.pop("session_mode", getattr(self, "session_mode", "automatic"))
+        input_id = kwargs.pop("session_id", None)
 
-        if "session_id" in kwargs:
-            del kwargs["session_id"]
-
-        try:
-            memory = self.get_memory_instance(session_id, **kwargs)
-            self._track_memory_operation(session_id, memory)
-            return cast(Runnable, memory)
-        except Exception as e:
-            logger.error(f"Error in BufferMemoryNode.execute: {e}")
-            # Fallback to a non-persistent memory instance in case of DB error
-            return SessionConversationBufferMemory(
-                memory_key=kwargs.get("memory_key", "memory"),
-                return_messages=kwargs.get("return_messages", True),
-                session_id=session_id or "",
+        if session_mode in ("automatic", "auto"):
+            session_id = automatic_memory_session_id(
+                getattr(self, "session_id", None),
+                getattr(self, "node_id", None),
+                getattr(self, "workflow_id", None),
             )
+        elif session_mode in ("manuel", "manual"):
+            session_id = str(input_id or "").strip()
+            if not session_id:
+                raise ValueError("Manual memory requires a session ID.")
+            if len(session_id) > 255:
+                raise ValueError("Manual memory session ID must not exceed 255 characters.")
+        else:
+            raise ValueError(f"Unknown memory session mode: {session_mode}")
+
+        memory = self.get_memory_instance(session_id, **kwargs)
+        self._track_memory_operation(session_id, memory)
+        return cast(Runnable, memory)
 
     def get_memory_instance(self, session_id: str, **kwargs) -> Runnable:
         """
@@ -193,15 +187,20 @@ class BufferMemoryNode(MemoryNode):
         db_gen = get_db()
         db = next(db_gen)
         try:
-            db_memories = get_memories_by_session(db, session_id, limit=limit)
+            db_memories = get_memories_by_session(
+                db, session_id, limit=limit,
+                user_id=getattr(self, "user_id", None),
+                chatflow_id=getattr(self, "workflow_id", None),
+                source_type="buffer_memory",
+            )
             # Database returns DESC (newest first), but LangChain expects ASC (chronological)
             messages = [self._convert_db_memory_to_message(mem) for mem in db_memories]
             messages = [msg for msg in messages if msg is not None]
             messages.reverse()  # Reverse to get chronological order
             return messages
-        except Exception as e:
-            logger.warning(f"Failed to load messages from the database: {e}")
-            return []
+        except Exception:
+            logger.exception("Failed to load persistent memory")
+            raise
         finally:
             # Close the generator
             try:
@@ -233,19 +232,16 @@ class BufferMemoryNode(MemoryNode):
                     else:
                         context = "unknown"
 
-                    try:
-                        save_memory(
-                            db=db,
-                            user_id=user_id,
-                            session_id=session_id,
-                            content=message.content,
-                            context=context,
-                            metadata={"message_type": message.__class__.__name__},
-                            source_type="buffer_memory",
-                            chatflow_id=chatflow_id
-                        )
-                    except Exception as e:
-                        logger.warning(f"Failed to persist a message to the database: {e}")
+                    save_memory(
+                        db=db,
+                        user_id=user_id,
+                        session_id=session_id,
+                        content=message.content,
+                        context=context,
+                        metadata={"message_type": message.__class__.__name__},
+                        source_type="buffer_memory",
+                        chatflow_id=chatflow_id
+                    )
             finally:
                 # Ensure DB session is closed
                 try:
@@ -254,8 +250,9 @@ class BufferMemoryNode(MemoryNode):
                     pass
                 except Exception as e:
                     logger.error(f"Error closing DB session in save_messages: {e}")
-        except Exception as e:
-            logger.warning(f"Database not available, skipping message persistence: {e}")
+        except Exception:
+            logger.exception("Failed to persist memory")
+            raise
 
     def _convert_db_memory_to_message(self, db_memory) -> Optional[BaseMessage]:
         """Converts a database memory record to a LangChain message object."""
