@@ -1,0 +1,7 @@
+# Paths Dijji keeps out of its repository map (gitignore syntax).
+# Suggested by Dijji from the repository contents; edit freely.
+client/package-lock.json
+widget/package-lock.json
+demo.gif
+banner.png
+demo.png
