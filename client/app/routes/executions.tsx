@@ -11,6 +11,7 @@ import {
   Search,
   RotateCcw,
   Download,
+  Eye,
   Loader2,
   StopCircle,
 } from "lucide-react";
@@ -52,6 +53,7 @@ function ExecutionsPage() {
     isOpen: false,
     executionId: null,
   });
+  const [cancelExecutionId, setCancelExecutionId] = useState<string | null>(null);
 
   // Filter states
   const [filters, setFilters] = useState({
@@ -344,11 +346,12 @@ function ExecutionsPage() {
     }
   };
 
-  const handleCancelExecution = async (executionId: string) => {
-    if (!confirm("Are you sure you want to cancel this execution?")) return;
+  const handleCancelExecution = async () => {
+    if (!cancelExecutionId) return;
     setIsMutating(true);
     try {
-      await cancelExecution(executionId);
+      await cancelExecution(cancelExecutionId);
+      setCancelExecutionId(null);
       await loadPage(false, true);
     } catch (e: unknown) {
       setError(getErrorMessage(e, "Failed to cancel execution"));
@@ -582,7 +585,7 @@ function ExecutionsPage() {
                   </span>
                   <button
                     onClick={handleBulkDeleteClick}
-                    className="flex items-center gap-2 px-3 py-1.5 text-sm text-red-700 bg-red-100 hover:bg-red-200 rounded-md transition-colors"
+                    className="kai-delete-trigger flex items-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium"
                   >
                     <Trash2 className="w-4 h-4" />
                     Delete Selected
@@ -793,31 +796,49 @@ function ExecutionsPage() {
                             </td>
                             <td className="px-3 py-4 text-sm align-top">
                               {execution.has_inputs ? (
-                                <button className="text-blue-600 hover:underline" onClick={() => handleViewClick(execution.id, "inputs")}>View input</button>
+                                <button
+                                  type="button"
+                                  className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] px-2.5 text-xs font-medium text-[var(--kai-text-soft)] transition-colors hover:border-[var(--kai-border-hover)] hover:bg-[var(--kai-surface-hover-deep)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kai-accent)]/45"
+                                  onClick={() => handleViewClick(execution.id, "inputs")}
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-[var(--kai-icon-muted)]" />
+                                  View input
+                                </button>
                               ) : "-"}
                             </td>
                             <td className="px-3 py-4 text-sm align-top">
                               {execution.has_outputs ? (
-                                <button className="text-blue-600 hover:underline" onClick={() => handleViewClick(execution.id, "outputs")}>View output</button>
+                                <button
+                                  type="button"
+                                  className="inline-flex h-8 items-center gap-2 rounded-md border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] px-2.5 text-xs font-medium text-[var(--kai-text-soft)] transition-colors hover:border-[var(--kai-border-hover)] hover:bg-[var(--kai-surface-hover-deep)] hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kai-accent)]/45"
+                                  onClick={() => handleViewClick(execution.id, "outputs")}
+                                >
+                                  <Eye className="h-3.5 w-3.5 text-[var(--kai-icon-muted)]" />
+                                  View output
+                                </button>
                               ) : "-"}
                             </td>
                             <td className="px-3 py-4 text-center align-top">
                               <div className="flex justify-center items-start gap-2.5 pt-0.5">
                                 {(execution.status === "running" || execution.status === "pending") && (
                                   <button
-                                    onClick={() => handleCancelExecution(execution.id)}
+                                    type="button"
+                                    onClick={() => setCancelExecutionId(execution.id)}
                                     disabled={isMutating}
-                                    className="p-1.5 text-gray-400 hover:text-orange-500 hover:bg-orange-50 rounded-lg transition-all duration-200"
+                                    className="inline-flex h-8 w-8 items-center justify-center rounded-md border border-amber-400/25 bg-amber-400/10 text-amber-300 transition-colors hover:border-amber-400/45 hover:bg-amber-400/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/40 disabled:cursor-not-allowed disabled:opacity-50"
                                     title="Cancel execution"
+                                    aria-label="Cancel execution"
                                   >
                                     <StopCircle className="w-4 h-4" />
                                   </button>
                                 )}
                                 <button
+                                  type="button"
                                   onClick={() => handleDeleteClick(execution.id)}
                                   disabled={isMutating}
-                                  className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                  className="kai-delete-trigger inline-flex h-8 w-8 items-center justify-center rounded-md disabled:cursor-not-allowed disabled:opacity-50"
                                   title="Delete execution"
+                                  aria-label="Delete execution"
                                 >
                                   <Trash2 className="w-4 h-4" />
                                 </button>
@@ -904,6 +925,25 @@ function ExecutionsPage() {
             : "Delete"
         }
       />
+
+      {cancelExecutionId && (
+        <>
+          <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]" onClick={() => !isMutating && setCancelExecutionId(null)} />
+          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="cancel-execution-title">
+            <div className="w-full max-w-md rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] p-6 text-zinc-100 shadow-2xl shadow-black/50">
+              <div className="mb-4 flex items-center gap-3">
+                <span className="flex h-10 w-10 items-center justify-center rounded-lg border border-amber-400/25 bg-amber-400/10 text-amber-300"><StopCircle className="h-5 w-5" /></span>
+                <h2 id="cancel-execution-title" className="text-lg font-semibold text-white">Cancel execution?</h2>
+              </div>
+              <p className="mb-6 text-sm leading-6 text-zinc-300">This will stop the running workflow execution.</p>
+              <div className="flex justify-end gap-3">
+                <button type="button" onClick={() => setCancelExecutionId(null)} disabled={isMutating} className="rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)] px-4 py-2 text-sm font-medium text-zinc-100 hover:bg-[var(--kai-surface-hover)] disabled:opacity-50">Keep running</button>
+                <button type="button" onClick={handleCancelExecution} disabled={isMutating} className="rounded-lg border border-amber-400/40 bg-amber-400/15 px-4 py-2 text-sm font-medium text-amber-200 hover:bg-amber-400/25 disabled:opacity-50">{isMutating ? "Cancelling..." : "Cancel execution"}</button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
 
       {/* Data View Modal */}
       <DataViewModal

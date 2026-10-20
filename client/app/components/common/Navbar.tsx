@@ -222,7 +222,7 @@ const Navbar: React.FC<NavbarProps> = ({
       category: (currentWorkflow.flow_data as any)?.category || (currentWorkflow as any).category || "automation",
       created_at: currentWorkflow.created_at || new Date().toISOString(),
       colorFrom: (currentWorkflow.flow_data as any)?.colorFrom || (currentWorkflow as any).colorFrom || "from-blue-500",
-      colorTo: (currentWorkflow.flow_data as any)?.colorTo || (currentWorkflow as any).colorTo || "to-indigo-600",
+      colorTo: (currentWorkflow.flow_data as any)?.colorTo || (currentWorkflow as any).colorTo || "to-sky-600",
       icon: (currentWorkflow.flow_data as any)?.icon || (currentWorkflow as any).icon || {
         name: "workflow",
         path: null,
@@ -308,7 +308,7 @@ const Navbar: React.FC<NavbarProps> = ({
 
   return (
     <>
-      <header className="w-full h-16 bg-[#18181B] text-foreground fixed top-0 left-0 z-20">
+      <header className="w-full h-16 bg-[var(--kai-sidebar)] text-foreground fixed top-0 left-0 z-20">
         <nav className="relative flex items-center p-4 bg-background text-foreground m-auto">
           <div className="flex items-center gap-2 z-10">
             <Link
@@ -482,7 +482,7 @@ const Navbar: React.FC<NavbarProps> = ({
               />
               {isDropdownOpen && (
                 <div
-                  className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-gray-700 bg-[#18181B] p-2 shadow-2xl shadow-black/50"
+                  className="absolute right-0 z-50 mt-2 w-56 rounded-xl border border-gray-700 bg-[var(--kai-sidebar)] p-2 shadow-2xl shadow-black/50"
                 >
                   <button
                     className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-gray-300 transition-colors hover:bg-gray-800 hover:text-white"
@@ -563,7 +563,7 @@ const Navbar: React.FC<NavbarProps> = ({
         }}
         className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
+        <div className="rounded-xl border border-gray-700 bg-[var(--kai-sidebar)] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-4">
             <div className="w-10 h-10 bg-red-500/15 rounded-full flex items-center justify-center">
               <Trash className="w-5 h-5 text-red-400" />
@@ -580,7 +580,7 @@ const Navbar: React.FC<NavbarProps> = ({
           <div className="mt-6 flex justify-end">
             <form method="dialog" className="flex items-center gap-3">
               <button className="rounded-lg border border-gray-600 px-4 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white" type="button" onClick={() => deleteDialogRef.current?.close()}>Cancel</button>
-              <button className="flex items-center gap-2 rounded-lg border border-red-600 bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:border-red-700 hover:bg-red-700" type="button" onClick={handleDelete}>
+              <button className="kai-delete-confirm flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors" type="button" onClick={handleDelete}>
                 <Trash className="w-4 h-4" />
                 Delete
               </button>

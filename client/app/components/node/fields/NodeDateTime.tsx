@@ -26,11 +26,11 @@ export const NodeDateTime = ({ property, values }: NodeDateTimeProps) => {
   return (
     <div className={`${property?.colSpan ? `col-span-${property?.colSpan}` : 'col-span-2'}`} key={property.name}>
       <div className="flex items-center space-x-2 mb-2">
-        <CalendarDays className="w-4 h-4 text-green-400" />
+        <CalendarDays className="h-4 w-4 text-[var(--kai-accent-text)]" />
         <FieldLabel
           label={property.displayName}
           helpText={getFieldHelpText(property)}
-          className="text-white text-sm font-medium"
+          className="mb-0 text-sm font-medium text-[var(--kai-text-soft)]"
         />
       </div>
       <ThemedDateTimeInput

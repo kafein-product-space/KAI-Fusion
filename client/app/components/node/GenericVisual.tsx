@@ -14,7 +14,11 @@ import { getExecutionStatusStyle, PendingWormRing } from "~/lib/nodeStatusUtils"
 function resolveNodeColorToken(token: string): string | null {
   if (!token?.trim()) return null;
 
-  const normalized = token.replace(/^(from|to)-/, "").trim();
+  // Imported workflows can retain legacy violet-family metadata even after
+  // their node definitions have moved to the current blue palette.
+  const normalized = token.replace(/^(from|to)-/, "").trim()
+    .replace(/^(purple|violet|fuchsia|indigo)-/, "blue-")
+    .replace(/^pink-/, "cyan-");
 
   // If it's already a valid hex color, CSS function, or CSS variable
   if (
@@ -50,13 +54,13 @@ function resolveNodeColorToken(token: string): string | null {
 function getNodeGradientStyle(
   colorStops?: string[]
 ): CSSProperties | undefined {
-  const stops = (colorStops && colorStops.length > 0) ? colorStops : ["blue-500", "indigo-600"];
+  const stops = (colorStops && colorStops.length > 0) ? colorStops : ["blue-500", "sky-600"];
 
   const from = resolveNodeColorToken(stops[0]);
   const to = resolveNodeColorToken(stops[1] ?? stops[0]);
   if (!from || !to) {
     return {
-      backgroundImage: `linear-gradient(to bottom right, var(--color-blue-500), var(--color-indigo-600))`,
+      backgroundImage: `linear-gradient(to bottom right, var(--color-blue-500), var(--color-sky-600))`,
     };
   }
 

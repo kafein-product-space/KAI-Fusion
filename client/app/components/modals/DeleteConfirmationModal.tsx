@@ -31,23 +31,24 @@ export default function DeleteConfirmationModal({
   return (
     <>
       {/* Backdrop */}
-      <div className="fixed inset-0 backdrop-blur-sm z-50 transition-all duration-300" onClick={onClose} />
+      <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-[2px]" onClick={onClose} />
       
       {/* Modal */}
-      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
-        <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+      <div className="fixed inset-0 z-[60] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="delete-confirmation-title" aria-describedby="delete-confirmation-message">
+        <div className="w-full max-w-md overflow-hidden rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] text-zinc-100 shadow-2xl shadow-black/50">
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <div className="flex items-center justify-between border-b border-[var(--kai-border-dialog)] p-6">
             <div className="flex items-center gap-3">
-              <div className="flex items-center justify-center w-8 h-8 bg-red-100 rounded-full">
-                <AlertTriangle className="w-4 h-4 text-red-600" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-red-400/25 bg-red-400/10">
+                <AlertTriangle className="h-5 w-5 text-red-300" />
               </div>
-              <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
+              <h3 id="delete-confirmation-title" className="text-lg font-semibold text-white">{title}</h3>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
               disabled={isLoading}
+              aria-label="Close delete confirmation"
             >
               <X className="w-5 h-5" />
             </button>
@@ -55,14 +56,14 @@ export default function DeleteConfirmationModal({
 
           {/* Content */}
           <div className="p-6">
-            <p className="text-gray-600">{message}</p>
+            <p id="delete-confirmation-message" className="text-sm leading-6 text-zinc-300">{message}</p>
           </div>
 
           {/* Actions */}
-          <div className="flex items-center justify-end gap-3 p-6 border-t border-gray-200">
+          <div className="flex items-center justify-end gap-3 border-t border-[var(--kai-border-dialog)] bg-[var(--kai-sidebar)] p-4">
             <button
               onClick={onClose}
-              className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-md transition-colors"
+              className="rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)] px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-[var(--kai-surface-hover)]"
               disabled={isLoading}
             >
               {cancelText}
@@ -70,7 +71,7 @@ export default function DeleteConfirmationModal({
             <button
               onClick={handleConfirm}
               disabled={isLoading}
-              className="px-4 py-2 text-sm font-medium text-white bg-red-600 hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-md transition-colors"
+              className="rounded-lg border border-[var(--kai-danger-action)] bg-[var(--kai-danger-action)] px-4 py-2 text-sm font-medium text-white transition-colors hover:border-[var(--kai-danger-action-hover)] hover:bg-[var(--kai-danger-action-hover)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               {isLoading ? "Deleting..." : confirmText}
             </button>

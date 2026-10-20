@@ -151,17 +151,19 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
                 type="button"
                 onClick={() => setDropdownOpen(!dropdownOpen)}
                 onMouseDown={(e: any) => e.stopPropagation()}
-                className="w-full min-h-[46px] flex flex-wrap items-center gap-1.5 bg-[#10182c] border border-slate-600 rounded-lg pl-3 pr-10 py-2 text-left focus:border-blue-500 focus:outline-none transition-colors"
+                aria-haspopup="listbox"
+                aria-expanded={dropdownOpen}
+                className="kai-node-field-control flex min-h-[46px] flex-wrap items-center gap-1.5 py-2 pl-3 pr-10 text-left"
               >
                 {selectedValues.length === 0 && (
-                  <span className="text-sm text-slate-500">
+                  <span className="text-sm text-[var(--kai-placeholder)]">
                     {property.placeholder ?? "Select"}
                   </span>
                 )}
                 {selectedValues.map((value) => (
                   <span
                     key={value}
-                    className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 text-xs"
+                    className="inline-flex items-center gap-1 rounded bg-[var(--kai-accent-soft)] px-2 py-0.5 text-xs text-[var(--kai-accent-text)]"
                     onClick={(e) => {
                       e.stopPropagation();
                       toggleValue(value);
@@ -183,7 +185,7 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
                 }}
                 onFocus={() => setDropdownOpen(true)}
                 onMouseDown={(e: any) => e.stopPropagation()}
-                className="w-full bg-[#10182c] border border-slate-600 rounded-lg pl-4 pr-10 py-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none transition-colors"
+                className="kai-node-field-control py-3 pl-4 pr-10"
               />
             )}
             <button
@@ -191,7 +193,7 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
               tabIndex={-1}
               onClick={() => setDropdownOpen(!dropdownOpen)}
               onMouseDown={(e: any) => e.stopPropagation()}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-200"
+              className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
             >
               <ChevronDown
                 size={16}
@@ -200,7 +202,7 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
             </button>
 
             {dropdownOpen && filtered.length > 0 && (
-              <div className="absolute z-50 mt-1 left-0 right-0 max-h-64 overflow-y-auto bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40">
+              <div className="kai-node-field-menu absolute left-0 right-0 z-50 mt-1 max-h-64 overflow-y-auto" role="listbox">
                 {filtered.map((option) => {
                   const selected = isMultiple
                     ? selectedValues.includes(option.value)
@@ -218,11 +220,9 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
                         }
                       }}
                       onMouseDown={(e: any) => e.stopPropagation()}
-                      className={`w-full flex items-center justify-between gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
-                        selected
-                          ? "bg-blue-500/20 text-blue-300"
-                          : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
-                      }`}
+                      role="option"
+                      aria-selected={selected}
+                      className={`kai-node-field-option flex w-full items-center justify-between gap-3 px-4 py-2.5 text-left text-sm ${selected ? "is-selected" : ""}`}
                     >
                       <span>{option.label}</span>
                       {selected && <Check size={14} />}
@@ -239,11 +239,7 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
             disabled={loading || !!missingDependency}
             onClick={fetchOptions}
             onMouseDown={(e: any) => e.stopPropagation()}
-            className={`px-3 rounded-lg border transition-colors ${
-              loading || missingDependency
-                ? "border-slate-700 text-slate-600 cursor-not-allowed"
-                : "border-slate-600 text-slate-400 hover:text-blue-300 hover:border-blue-500"
-            }`}
+            className="kai-node-field-action px-3"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -253,9 +249,7 @@ export const NodeDynamicSelect = ({ property, values, nodeType }: NodeDynamicSel
 
       {helperText && (
         <div
-          className={`flex items-start gap-1.5 mt-1.5 text-xs ${
-            error ? "text-amber-400" : "text-slate-500"
-          }`}
+          className={`mt-1.5 flex items-start gap-1.5 text-xs ${error ? "text-[var(--kai-warning)]" : "text-[var(--kai-text-muted)]"}`}
         >
           {error && <AlertCircle size={13} className="mt-0.5 shrink-0" />}
           <span>{helperText}</span>

@@ -67,22 +67,22 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]">
+      <div className="max-h-[90vh] w-full max-w-4xl overflow-hidden rounded-xl border border-[var(--kai-border-soft)] bg-[var(--kai-surface-dialog)] text-zinc-100 shadow-2xl shadow-black/50">
         {/* Header */}
-        <div className="p-6 border-b border-gray-200">
+        <div className="border-b border-[var(--kai-border-soft)] p-6">
           <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-2xl font-bold text-gray-900">
+              <h2 className="text-2xl font-semibold text-white">
                 Connect to a Service
               </h2>
-              <p className="text-gray-600 mt-1">
+              <p className="mt-1 text-zinc-400">
                 Choose a service to connect and configure your credentials
               </p>
             </div>
             <button
               onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 transition-colors"
+              className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
             >
               <svg
                 className="w-6 h-6"
@@ -109,14 +109,14 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
                 placeholder="Search services..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                className="w-full rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] py-3 pl-10 pr-4 text-zinc-100 placeholder:text-zinc-500 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
               />
             </div>
 
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="cursor-pointer rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] px-4 py-3 text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
             >
               <option value="all">All Categories</option>
               {categories.map((category) => (
@@ -133,56 +133,57 @@ const ServiceSelectionModal: React.FC<ServiceSelectionModalProps> = ({
           {filteredServices.length === 0 ? (
             <div className="text-center py-12">
               <div className="text-6xl mb-4">🔍</div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-2">
+              <h3 className="mb-2 text-xl font-semibold text-white">
                 No services found
               </h3>
-              <p className="text-gray-600">
+              <p className="text-zinc-400">
                 Try adjusting your search or category filter
               </p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {filteredServices.map((service) => (
-                <div
+                <button
                   key={service.id}
+                  type="button"
                   onClick={() => handleServiceSelect(service)}
-                  className="group cursor-pointer bg-white border border-gray-200 rounded-xl p-6 hover:border-blue-300 hover:shadow-lg transition-all duration-200 hover:scale-105"
+                  className="group w-full cursor-pointer rounded-xl border border-[var(--kai-border-soft)] bg-[var(--kai-surface-control)] p-6 text-left transition-colors hover:border-[var(--kai-accent)]/65 hover:bg-[var(--kai-surface-hover-strong)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--kai-accent)]"
                 >
                   <div className="flex items-start justify-between mb-4">
                     {renderServiceIcon(service)}
-                    <ArrowRight className="w-5 h-5 text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all duration-200" />
+                    <ArrowRight className="h-5 w-5 text-zinc-500 transition-colors group-hover:text-[var(--kai-accent-text-soft)]" />
                   </div>
 
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2 group-hover:text-blue-600 transition-colors">
+                  <h3 className="mb-2 text-lg font-semibold text-white transition-colors group-hover:text-[var(--kai-accent-text-soft)]">
                     {service.name}
                   </h3>
 
-                  <p className="text-sm text-gray-600 mb-4 line-clamp-2">
+                  <p className="mb-4 line-clamp-2 text-sm text-zinc-400">
                     {service.description}
                   </p>
 
                   <div className="flex items-center justify-between">
-                    <span className="inline-flex px-2 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800">
+                        <span className="inline-flex rounded-full bg-[var(--kai-credential-badge-bg)] px-2 py-1 text-xs font-medium text-zinc-200">
                       {getCategoryLabel(service.category)}
                     </span>
 
-                    <div className="flex items-center gap-1 text-xs text-gray-500">
+                    <div className="flex items-center gap-1 text-xs text-zinc-400">
                       <Plus className="w-3 h-3" />
                       Connect
                     </div>
                   </div>
-                </div>
+                </button>
               ))}
             </div>
           )}
         </div>
 
         {/* Footer */}
-        <div className="p-6 border-t border-gray-200 bg-gray-50">
+        <div className="border-t border-[var(--kai-border-soft)] bg-[var(--kai-credential-footer-bg)] p-6">
           <div className="text-center">
-            <p className="text-sm text-gray-600">
+            <p className="text-sm text-zinc-400">
               Can't find the service you're looking for?{" "}
-              <button className="text-blue-600 hover:text-blue-700 font-medium">
+              <button className="font-medium text-[var(--kai-accent-text-soft)] transition-colors hover:text-white">
                 Request a new integration
               </button>
             </p>

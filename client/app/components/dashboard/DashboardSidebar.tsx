@@ -5,20 +5,18 @@ import {
   Database,
   LogOut,
   Store,
-  Zap,
   User,
-  Bell,
   Search,
   X,
-  Clock,
   Heart,
   LayoutDashboard,
+  LoaderCircle,
+  Settings,
+  ChevronUp,
 } from "lucide-react";
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router";
 import { useAuth } from "~/stores/auth";
-import { useThemeStore } from "~/stores/theme";
-import { ThemeToggle } from "../common/ThemeToggle";
 import { useSnackbar } from "notistack";
 import { useWorkflows } from "~/stores/workflows";
 import { useExecutionsStore } from "~/stores/executions";
@@ -33,7 +31,7 @@ import type {
 } from "~/types/api";
 
 import { useAuth as useOidcAuth } from "react-oidc-context";
-import { resolveIconPath } from "~/lib/iconUtils";
+import { BrandLogo } from "~/components/common/BrandLogo";
 import { config } from "~/lib/config";
 
 interface SearchResult {
@@ -50,61 +48,52 @@ interface SearchResult {
   };
 }
 
+const normalizeSearchValue = (value: unknown) =>
+  String(value ?? "").trim().toLowerCase();
+
 const Sidebar = () => {
   const { enqueueSnackbar } = useSnackbar();
   const { user, signOut } = useAuth();
   const oidcAuth = useOidcAuth(); // Keycloak auth hook
   const location = useLocation();
   const router = useNavigate();
-  const mode = useThemeStore((s) => s.mode);
 
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [showSearchResults, setShowSearchResults] = useState(false);
+  const [searchDataLoaded, setSearchDataLoaded] = useState(false);
+  const [searchDataLoading, setSearchDataLoading] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
+  const userMenuRef = useRef<HTMLDivElement>(null);
 
   // Store hooks
   const { workflows, fetchWorkflows } = useWorkflows();
-  const { executions, fetchExecutions } = useExecutionsStore();
+  const { executions, fetchAllExecutions } = useExecutionsStore();
   const { userCredentials: credentials, fetchCredentials } =
     useUserCredentialStore();
   const { variables, fetchVariables } = useVariableStore();
   const { getPinnedItems } = usePinnedItems();
 
-  // Fetch data on component mount
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        await Promise.all([
-          fetchWorkflows(),
-          fetchCredentials(),
-          fetchVariables(),
-        ]);
-      } catch (error) {
-        console.error("Failed to load data for search:", error);
-      }
-    };
-    loadData();
-  }, [fetchWorkflows, fetchCredentials, fetchVariables]);
-
   // Search results
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
 
-    const query = searchQuery.toLowerCase();
+    const query = normalizeSearchValue(searchQuery);
     const results: SearchResult[] = [];
 
     // Search workflows
     workflows.forEach((workflow: Workflow) => {
+      const name = String(workflow.name ?? "");
+      const description = String(workflow.description ?? "");
       if (
-        workflow.name.toLowerCase().includes(query) ||
-        workflow.description?.toLowerCase().includes(query)
+        normalizeSearchValue(name).includes(query) ||
+        normalizeSearchValue(description).includes(query)
       ) {
         results.push({
           id: workflow.id,
           type: "workflow",
-          title: workflow.name,
-          description: workflow.description,
+          title: name || "Untitled workflow",
+          description,
           path: `/workflows`,
           icon: <Play className="w-4 h-4" />,
           metadata: {
@@ -117,21 +106,23 @@ const Sidebar = () => {
 
     // Search executions
     executions.forEach((execution: WorkflowExecution) => {
+      const inputText = String(execution.input_text ?? "");
+      const status = String(execution.status ?? "");
       if (
-        execution.input_text.toLowerCase().includes(query) ||
-        execution.status.toLowerCase().includes(query)
+        normalizeSearchValue(inputText).includes(query) ||
+        normalizeSearchValue(status).includes(query)
       ) {
         results.push({
           id: execution.id,
           type: "execution",
           title: `Execution ${execution.id.slice(0, 8)}`,
           description:
-            execution.input_text.slice(0, 50) +
-            (execution.input_text.length > 50 ? "..." : ""),
+            inputText.slice(0, 50) +
+            (inputText.length > 50 ? "..." : ""),
           path: `/executions`,
           icon: <BarChart2 className="w-4 h-4" />,
           metadata: {
-            status: execution.status,
+            status,
             date: new Date(execution.started_at).toLocaleDateString(),
           },
         });
@@ -140,19 +131,21 @@ const Sidebar = () => {
 
     // Search credentials
     credentials.forEach((credential: UserCredential) => {
+      const name = String(credential.name ?? "");
+      const serviceType = String(credential.service_type ?? "");
       if (
-        credential.name.toLowerCase().includes(query) ||
-        credential.service_type.toLowerCase().includes(query)
+        normalizeSearchValue(name).includes(query) ||
+        normalizeSearchValue(serviceType).includes(query)
       ) {
         results.push({
           id: credential.id,
           type: "credential",
-          title: credential.name,
-          description: credential.service_type,
+          title: name || "Unnamed credential",
+          description: serviceType,
           path: `/credentials`,
           icon: <Key className="w-4 h-4" />,
           metadata: {
-            category: credential.service_type,
+            category: serviceType,
             date: new Date(credential.created_at).toLocaleDateString(),
           },
         });
@@ -161,21 +154,24 @@ const Sidebar = () => {
 
     // Search variables
     variables.forEach((variable: Variable) => {
+      const name = String(variable.name ?? "");
+      const value = String(variable.value ?? "");
+      const type = String(variable.type ?? "");
       if (
-        variable.name.toLowerCase().includes(query) ||
-        variable.value.toLowerCase().includes(query) ||
-        variable.type.toLowerCase().includes(query)
+        normalizeSearchValue(name).includes(query) ||
+        normalizeSearchValue(value).includes(query) ||
+        normalizeSearchValue(type).includes(query)
       ) {
         results.push({
           id: variable.id,
           type: "variable",
-          title: variable.name,
-          description: `${variable.type}: ${variable.value.slice(0, 30)}${variable.value.length > 30 ? "..." : ""
+          title: name || "Unnamed variable",
+          description: `${type}: ${value.slice(0, 30)}${value.length > 30 ? "..." : ""
             }`,
           path: `/variables`,
           icon: <Database className="w-4 h-4" />,
           metadata: {
-            category: variable.type,
+            category: type,
             date: new Date(variable.updated_at).toLocaleDateString(),
           },
         });
@@ -185,15 +181,27 @@ const Sidebar = () => {
     return results.slice(0, 8); // Limit to 8 results
   }, [searchQuery, workflows, executions, credentials, variables]);
 
-  const handleSearchFocus = () => {
-    setIsSearchFocused(true);
+  const handleSearchFocus = async () => {
     setShowSearchResults(true);
+    if (searchDataLoaded || searchDataLoading) return;
+
+    setSearchDataLoading(true);
+    try {
+      await Promise.allSettled([
+        fetchWorkflows(),
+        fetchAllExecutions(true),
+        fetchCredentials(),
+        fetchVariables(),
+      ]);
+      setSearchDataLoaded(true);
+    } finally {
+      setSearchDataLoading(false);
+    }
   };
 
   const handleSearchBlur = () => {
     // Delay hiding results to allow clicking on them
     setTimeout(() => {
-      setIsSearchFocused(false);
       setShowSearchResults(false);
     }, 200);
   };
@@ -208,6 +216,29 @@ const Sidebar = () => {
     setSearchQuery("");
     setShowSearchResults(false);
   };
+
+  useEffect(() => {
+    const closeUserMenu = (event: MouseEvent) => {
+      if (!userMenuRef.current?.contains(event.target as Node)) {
+        setShowUserMenu(false);
+      }
+    };
+
+    const closeUserMenuWithEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setShowUserMenu(false);
+    };
+
+    document.addEventListener("mousedown", closeUserMenu);
+    document.addEventListener("keydown", closeUserMenuWithEscape);
+    return () => {
+      document.removeEventListener("mousedown", closeUserMenu);
+      document.removeEventListener("keydown", closeUserMenuWithEscape);
+    };
+  }, []);
+
+  useEffect(() => {
+    setShowUserMenu(false);
+  }, [location.pathname]);
 
   const isKeycloakEnabled = !!window.VITE_KEYCLOAK_URL && !!window.VITE_KEYCLOAK_CLIENT_ID;
 
@@ -247,165 +278,140 @@ const Sidebar = () => {
   };
 
   return (
-    <aside className="w-72 h-screen p-4 flex flex-col justify-between bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 text-white border-r border-slate-700/50 transition-all duration-300 ease-in-out backdrop-blur-sm shadow-2xl">
-      {/* Header Section */}
-      <div className="space-y-6">
-        {/* Logo */}
-        <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center space-x-3 group">
-            <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl flex items-center justify-center shadow-lg group-hover:shadow-blue-500/25 transition-all duration-300">
-              <img src={resolveIconPath("logo.png")} alt="logo" className="w-6 h-6" />
-            </div>
-            <div>
-              <h1 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-blue-600 bg-clip-text text-transparent">
-                KAI Flow
-              </h1>
-              <p className="text-xs text-slate-400">AI Workflow Platform</p>
-            </div>
-          </Link>
-        </div>
+    <aside className="kai-sidebar relative z-30 flex h-screen w-[278px] shrink-0 flex-col border-r border-[var(--kai-border)] bg-[var(--kai-dashboard-sidebar-bg)] text-zinc-100">
+      <header className="flex h-16 shrink-0 items-center border-b border-[var(--kai-border)] px-5">
+        <Link to="/" className="flex items-center gap-3 rounded-md focus-visible:outline-none">
+          <BrandLogo className="h-8 w-8 shrink-0 object-contain" />
+          <span className="text-[15px] font-semibold tracking-[-0.025em] text-[var(--kai-text)]">
+            KAI Flow
+          </span>
+        </Link>
+      </header>
 
-        {/* Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400" />
+      <div className="relative mx-3 mb-3 mt-3">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--kai-text-disabled)]" />
           <input
             type="text"
-            placeholder="Search workflows, executions, credentials..."
+            placeholder="Search workspace"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             onFocus={handleSearchFocus}
             onBlur={handleSearchBlur}
-            className="w-full pl-10 pr-10 py-2 bg-slate-800/50 border border-slate-600/50 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500 transition-all duration-200"
+            className="h-9 w-full rounded-lg border border-[var(--kai-dashboard-search-border)] bg-[var(--kai-surface)] pl-9 pr-8 text-xs text-[var(--kai-sidebar-control-text)] outline-none placeholder:text-[var(--kai-placeholder)] focus:border-[var(--kai-accent)] focus:ring-2 focus:ring-[var(--kai-accent)]/15"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={clearSearch}
-              className="absolute right-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-slate-400 hover:text-slate-300 transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-200"
+              aria-label="Clear search"
             >
-              <X className="w-4 h-4" />
+              <X className="h-3.5 w-3.5" />
             </button>
           )}
 
-          {/* Search Results Dropdown */}
-          {showSearchResults && searchResults.length > 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-2xl z-50 max-h-80 overflow-y-auto">
-              <div className="p-2">
-                <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2 px-2">
-                  Search Results ({searchResults.length})
+          {showSearchResults && searchDataLoading && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 flex items-center gap-2 rounded-lg border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] px-3 py-3 text-xs text-zinc-300 shadow-2xl">
+              <LoaderCircle className="h-3.5 w-3.5 animate-spin" />
+              Loading workspace…
+            </div>
+          )}
+
+          {showSearchResults && !searchDataLoading && searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-lg border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] p-1.5 shadow-2xl">
+                <div className="px-2 pb-1.5 pt-1 text-[10px] font-semibold uppercase tracking-[0.12em] text-zinc-600">
+                  Results
                 </div>
                 {searchResults.map((result) => (
                   <button
+                    type="button"
                     key={`${result.type}-${result.id}`}
                     onClick={() => handleSearchResultClick(result)}
-                    className="w-full flex items-center space-x-3 p-3 rounded-lg hover:bg-slate-700/50 transition-all duration-200 text-left group"
+                    className="group flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left hover:bg-[var(--kai-border)]"
                   >
-                    <div className="flex items-center justify-center w-8 h-8 bg-slate-700/50 rounded-lg group-hover:bg-slate-600/50 transition-colors">
+                    <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[var(--kai-border-muted)] bg-[var(--kai-surface)] text-zinc-300">
                       {result.icon}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-medium text-white truncate">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-xs font-medium text-zinc-200">
                           {result.title}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 text-xs rounded-full ${result.type === "workflow"
-                              ? "bg-blue-500/20 text-blue-300"
-                              : result.type === "execution"
-                                ? "bg-green-500/20 text-green-300"
-                                : result.type === "credential"
-                                  ? "bg-orange-500/20 text-orange-300"
-                                  : "bg-sky-500/20 text-sky-300"
-                            }`}
-                        >
+                        <span className="text-[10px] capitalize text-zinc-600">
                           {result.type}
                         </span>
                       </div>
                       {result.description && (
-                        <p className="text-xs text-slate-400 truncate mt-1">
+                        <p className="mt-0.5 truncate text-[11px] text-zinc-500">
                           {result.description}
                         </p>
-                      )}
-                      {result.metadata && (
-                        <div className="flex items-center space-x-2 mt-1">
-                          {result.metadata.status && (
-                            <span className="text-xs text-slate-500">
-                              {result.metadata.status}
-                            </span>
-                          )}
-                          {result.metadata.date && (
-                            <span className="text-xs text-slate-500 flex items-center">
-                              <Clock className="w-3 h-3 mr-1" />
-                              {result.metadata.date}
-                            </span>
-                          )}
-                        </div>
                       )}
                     </div>
                   </button>
                 ))}
-              </div>
             </div>
           )}
 
-          {/* No Results */}
-          {showSearchResults && searchQuery && searchResults.length === 0 && (
-            <div className="absolute top-full left-0 right-0 mt-2 bg-slate-800/95 backdrop-blur-sm border border-slate-600/50 rounded-lg shadow-2xl z-50 p-4">
-              <div className="text-center">
-                <Search className="w-8 h-8 text-slate-500 mx-auto mb-2" />
-                <p className="text-sm text-slate-400">
-                  No results found for "{searchQuery}"
-                </p>
-                <p className="text-xs text-slate-500 mt-1">
-                  Try searching for workflows, executions, or credentials
-                </p>
-              </div>
+          {showSearchResults && !searchDataLoading && searchQuery && searchResults.length === 0 && (
+            <div className="absolute left-0 right-0 top-full z-50 mt-2 rounded-lg border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] px-3 py-4 text-center shadow-2xl">
+              <p className="text-xs text-zinc-400">No results for “{searchQuery}”</p>
             </div>
           )}
-        </div>
+      </div>
 
-        {/* Navigation */}
-        <nav className="flex-1">
-          <div className="space-y-2">
+      <nav className="min-h-0 flex-1 overflow-y-auto px-2">
+          <p className="sr-only">Workspace</p>
+          <div className="space-y-0.5">
             <SidebarLink
-              icon={<LayoutDashboard className="w-5 h-5" />}
+              icon={<LayoutDashboard className="h-[18px] w-[18px]" />}
               label="Dashboard"
               path="/"
               active={location.pathname === "/"}
             />
             <SidebarLink
-              icon={<Play className="w-5 h-5" />}
+              icon={<Play className="h-[18px] w-[18px]" />}
               label="Workflows"
               path="/workflows"
               active={location.pathname === "/workflows"}
             />
             <SidebarLink
-              icon={<BarChart2 className="w-5 h-5" />}
+              icon={<BarChart2 className="h-[18px] w-[18px]" />}
               label="Executions"
               path="/executions"
               active={location.pathname === "/executions"}
             />
+          </div>
+
+          <div className="my-3 border-t border-[var(--kai-border)]" />
+          <p className="sr-only">Manage</p>
+          <div className="space-y-0.5">
             <SidebarLink
-              icon={<Key className="w-5 h-5" />}
+              icon={<Key className="h-[18px] w-[18px]" />}
               label="Credentials"
               path="/credentials"
               active={location.pathname === "/credentials"}
             />
+            <SidebarLink
+              icon={<Database className="h-[18px] w-[18px]" />}
+              label="Variables"
+              path="/variables"
+              active={location.pathname === "/variables"}
+            />
             {!config.IS_ENTERPRISE && (
               <SidebarLink
-                icon={<Store className="w-5 h-5" />}
+                icon={<Store className="h-[18px] w-[18px]" />}
                 label="Marketplace"
                 path="/marketplace"
                 active={location.pathname === "/marketplace"}
               />
             )}
 
-            {/* Pinned Items Link */}
             {(() => {
               const pinnedItems = getPinnedItems();
               if (pinnedItems.length > 0) {
                 return (
                   <SidebarLink
-                    icon={<Heart className="w-5 h-5" />}
+                    icon={<Heart className="h-[18px] w-[18px]" />}
                     label="Pinned Items"
                     path="/pinned"
                     active={location.pathname === "/pinned"}
@@ -415,58 +421,59 @@ const Sidebar = () => {
               }
               return null;
             })()}
-
-            {/* Divider */}
-            <div className="h-px bg-gradient-to-r from-transparent via-slate-600/50 to-transparent my-4" />
-
-            {/* Quick Actions */}
-            <div className="space-y-2">
-              <h3 className="text-xs font-semibold text-slate-400 uppercase tracking-wider">
-                Quick Actions
-              </h3>
-              <SidebarLink
-                icon={<Zap className="w-5 h-5" />}
-                label="New Workflow"
-                path="/canvas"
-                active={false}
-                variant="action"
-              />
-            </div>
           </div>
-        </nav>
-      </div>
+      </nav>
 
-      {/* Footer Section */}
-      <div className="space-y-4">
-        {/* User Profile */}
-        <button
-          onClick={() => router("/settings")}
-          className="w-full p-3 bg-slate-800/30 rounded-lg border border-slate-600/30 hover:bg-slate-700/40 hover:border-slate-500/40 transition-all duration-200 group"
-        >
-          <div className="flex items-center space-x-3">
-            <div className="relative">
-              <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-700 rounded-full flex items-center justify-center shadow-lg group-hover:shadow-lg group-hover:shadow-blue-500/20 transition-all duration-200">
-                <User className="w-5 h-5 text-white" />
-              </div>
-              <div className="absolute -bottom-1 -right-1 w-3 h-3 bg-green-400 rounded-full border-2 border-slate-800" />
-            </div>
-
-            <div className="flex-1 min-w-0 text-left">
-              <p className="text-sm font-medium text-white truncate group-hover:text-blue-300 transition-colors duration-200">
-                {user?.full_name || "Kullanıcı"}
-              </p>
-              <p className="text-xs text-slate-400 truncate">{user?.email}</p>
-            </div>
+      <div ref={userMenuRef} className="relative mt-4 border-t border-[var(--kai-border)] p-3">
+        {showUserMenu && (
+          <div
+            id="sidebar-user-menu"
+            role="menu"
+            className="absolute bottom-[calc(100%+8px)] left-3 right-3 z-50 rounded-lg border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] p-1.5 shadow-2xl"
+          >
+            <button
+              type="button"
+              role="menuitem"
+              onClick={() => router("/settings")}
+              className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm text-[var(--kai-sidebar-menu-text)] hover:bg-[var(--kai-border)]"
+            >
+              <Settings className="h-4 w-4 text-[var(--kai-sidebar-menu-icon)]" />
+              Settings
+            </button>
+            <div className="my-1 border-t border-[var(--kai-input-border)]" />
+            <button
+              type="button"
+              role="menuitem"
+              onClick={handleLogOut}
+              className="flex h-10 w-full items-center gap-3 rounded-md px-3 text-sm font-medium text-[var(--kai-danger-menu-text)] transition-colors hover:bg-[var(--kai-danger-menu-bg)] hover:text-[var(--kai-danger-menu-text-hover)]"
+            >
+              <LogOut className="h-4 w-4" />
+              Log out
+            </button>
           </div>
-        </button>
+        )}
 
-        {/* Logout Button */}
         <button
-          onClick={handleLogOut}
-          className="w-full flex items-center space-x-3 px-3 py-2.5 rounded-lg text-red-400 hover:text-red-300 hover:bg-red-500/10 transition-all duration-200 group"
+          type="button"
+          aria-expanded={showUserMenu}
+          aria-controls="sidebar-user-menu"
+          onClick={() => setShowUserMenu((isOpen) => !isOpen)}
+          className="group flex min-h-14 w-full items-center gap-3 rounded-lg px-2.5 py-2 text-left hover:bg-[var(--kai-input-bg)]"
         >
-          <LogOut className="w-5 h-5 group-hover:scale-110 transition-transform duration-200" />
-          <span className="text-sm font-medium">Logout</span>
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--kai-surface-hover-deep)] text-[var(--kai-sidebar-user-icon)]">
+            <User className="h-[18px] w-[18px]" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium text-[var(--kai-sidebar-user-name)]">
+              {user?.full_name || "User"}
+            </span>
+            <span className="mt-0.5 block truncate text-[11px] text-[var(--kai-sidebar-user-meta)]">
+              {user?.email}
+            </span>
+          </span>
+          <ChevronUp
+            className={`h-4 w-4 text-[var(--kai-sidebar-chevron)] transition-transform ${showUserMenu ? "rotate-180" : ""}`}
+          />
         </button>
       </div>
     </aside>
@@ -481,58 +488,31 @@ function SidebarLink({
   path,
   active,
   badge,
-  variant = "default",
 }: {
   icon: React.ReactNode;
   label: string;
   path: string;
   active: boolean;
   badge?: string;
-  variant?: "default" | "action";
 }) {
-  const getVariantStyles = () => {
-    if (variant === "action") {
-      return active
-        ? "bg-gradient-to-r from-blue-500/20 to-blue-600/20 text-blue-300 border border-blue-500/30"
-        : "text-slate-300 hover:bg-gradient-to-r hover:from-blue-500/10 hover:to-blue-600/10 hover:text-blue-300";
-    }
-
-    return active
-      ? "bg-gradient-to-r from-slate-700/50 to-slate-600/50 text-white border border-slate-500/50"
-      : "text-slate-300 hover:bg-slate-700/50 hover:text-white";
-  };
-
   return (
     <Link
       to={path}
-      className={`
-        flex items-center space-x-3 px-3 py-2.5 rounded-lg 
-        transition-all duration-200 group relative
-        ${getVariantStyles()}
-      `}
+      aria-current={active ? "page" : undefined}
+      className={`group relative flex h-11 items-center gap-3 rounded-lg px-3 text-[15px] font-medium transition-colors ${
+        active
+          ? "bg-[var(--kai-surface-hover-subtle)] text-white before:absolute before:-left-0.5 before:h-[18px] before:w-[3px] before:rounded-full before:bg-[var(--kai-accent)]"
+                : "text-[var(--kai-sidebar-item-text)] hover:bg-[var(--kai-sidebar-item-hover-bg)] hover:text-white"
+      }`}
     >
-      <span className="flex items-center justify-center min-w-[20px] group-hover:scale-110 transition-transform duration-200">
+          <span className={active ? "text-white" : "text-[var(--kai-sidebar-icon-text)] group-hover:text-zinc-200"}>
         {icon}
       </span>
-
-      <span className="text-sm font-medium flex-1">{label}</span>
+      <span className="min-w-0 flex-1 truncate">{label}</span>
       {badge && (
-        <span
-          className={`
-            px-2 py-0.5 text-xs font-bold rounded-full
-            ${badge === "New"
-              ? "bg-green-500/20 text-green-300 border border-green-500/30"
-              : "bg-orange-500/20 text-orange-300 border border-orange-500/30"
-            }
-          `}
-        >
+          <span className="rounded-md bg-[var(--kai-sidebar-count-bg)] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
           {badge}
         </span>
-      )}
-
-      {/* Active indicator */}
-      {active && (
-        <div className="absolute left-0 top-1/2 transform -translate-y-1/2 w-1 h-6 bg-gradient-to-b from-blue-400 to-blue-600 rounded-r-full" />
       )}
     </Link>
   );

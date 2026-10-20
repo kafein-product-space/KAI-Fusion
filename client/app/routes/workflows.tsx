@@ -10,8 +10,6 @@ import {
   Play,
   Pause,
   Activity,
-  Power,
-  PowerOff,
   Clock,
   Calendar,
   Globe,
@@ -26,7 +24,6 @@ import { useState, useEffect, useRef, useMemo } from "react";
 
 import DashboardSidebar from "~/components/dashboard/DashboardSidebar";
 import { useWorkflows } from "~/stores/workflows";
-import CompactToggleSwitch from "~/components/common/ToggleSwitch";
 
 import type {
   Workflow,
@@ -219,7 +216,7 @@ function WorkflowsLayout() {
       category: (workflow.flow_data as any)?.category || (workflow as any).category || "automation",
       created_at: workflow.created_at || new Date().toISOString(),
       colorFrom: (workflow.flow_data as any)?.colorFrom || (workflow as any).colorFrom || "from-blue-500",
-      colorTo: (workflow.flow_data as any)?.colorTo || (workflow as any).colorTo || "to-indigo-600",
+      colorTo: (workflow.flow_data as any)?.colorTo || (workflow as any).colorTo || "to-sky-600",
       icon: (workflow.flow_data as any)?.icon || (workflow as any).icon || {
         name: "workflow",
         path: null,
@@ -544,14 +541,14 @@ function WorkflowsLayout() {
         <div className="h-full overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {/* Header Section */}
-            <div className="mb-8">
+            <div className="mb-8 border-b border-[var(--kai-border)] pb-6">
               <div className="flex flex-col gap-6">
                 {/* Title and Description */}
                 <div className="flex flex-col gap-2">
-                  <h1 className="text-4xl font-bold text-blue-600">
+                  <h1 className="text-[28px] font-semibold tracking-[-0.035em] text-white">
                     Workflows
                   </h1>
-                  <p className="text-gray-600 text-lg">
+                  <p className="text-sm text-[var(--kai-text-secondary)]">
                     Create, edit, and manage your automated workflows visually
                     and intuitively.
                   </p>
@@ -639,7 +636,7 @@ function WorkflowsLayout() {
                       <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                       <input
                         type="search"
-                        className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 bg-white text-gray-900 placeholder-gray-500"
+                        className="h-9 w-72 rounded-lg border border-[var(--kai-input-border)] bg-[var(--kai-surface)] py-2 pl-10 pr-4 text-sm text-white placeholder:text-[var(--kai-placeholder)] focus:border-[var(--kai-accent)] focus:ring-2 focus:ring-[var(--kai-accent)]/15"
                         placeholder="Search workflows..."
                         value={searchQuery}
                         onChange={(e) => {
@@ -652,7 +649,7 @@ function WorkflowsLayout() {
                     {/* Create Workflow Button */}
                     <Link
                       to="/canvas"
-                      className="flex items-center justify-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl whitespace-nowrap w-auto"
+                      className="flex h-9 w-auto items-center justify-center gap-2 whitespace-nowrap rounded-lg bg-[var(--kai-accent)] px-5 text-sm font-medium text-white hover:bg-[var(--kai-accent-hover)]"
                     >
                       <Plus className="w-5 h-5" />
                       Create Workflow
@@ -723,44 +720,34 @@ function WorkflowsLayout() {
                 ) : filteredWorkflows.length === 0 ? (
                   <EmptyState />
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
                     {pagedWorkflows.map((workflow) => (
                         <div
                           key={workflow.id}
-                          className="bg-white border border-gray-200 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 hover:border-blue-200 group relative overflow-hidden flex flex-col h-[320px]"
+                className="group relative flex min-h-[230px] flex-col overflow-hidden rounded-xl border border-[var(--kai-border)] bg-[var(--kai-surface)] p-5 transition-colors hover:border-[var(--kai-workflow-card-hover-border)]"
                         >
-                          {/* Status Indicator Bar */}
-                          <div
-                            className={`absolute top-0 left-0 right-0 h-1 ${workflow.is_public
-                              ? "bg-gradient-to-r from-green-500 to-emerald-500"
-                              : "bg-gradient-to-r from-gray-400 to-gray-500"
-                              }`}
-                          />
-
-                          {/* Header */}
-                          <div className="flex items-start justify-between mb-4">
+                          {workflow.is_public && (
+                            <span
+                              aria-hidden="true"
+                              className="absolute inset-x-0 top-0 h-0.5 bg-[var(--kai-success)]"
+                            />
+                          )}
+                          <div className="mb-4 flex items-start justify-between gap-3">
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-2 min-w-0">
-                                <div
-                                  className={`w-2 h-2 rounded-full shrink-0 ${workflow.is_public
-                                    ? "bg-green-500 animate-pulse"
-                                    : "bg-gray-400"
-                                    }`}
-                                />
+                              <div className="mb-2 flex min-w-0 items-center gap-2">
                                 <Link
                                   to={`/canvas?workflow=${workflow.id}`}
-                                  className="text-lg font-semibold text-gray-900 hover:text-blue-600 transition-colors group-hover:text-blue-600 block truncate"
+                                  className="block truncate text-sm font-semibold text-zinc-100 transition-colors hover:text-[var(--kai-accent-text)]"
                                 >
                                   {workflow.name}
                                 </Link>
                               </div>
-                              <p className="text-sm text-gray-600 line-clamp-2 h-10">
+                              <p className="line-clamp-2 min-h-10 text-xs leading-5 text-zinc-500">
                                 {workflow.description || "No description"}
                               </p>
                             </div>
 
-                            {/* Pin Button */}
-                            <div className="flex items-center gap-2">
+                            <div className="shrink-0">
                               <PinButton
                                 id={workflow.id}
                                 type="workflow"
@@ -778,104 +765,88 @@ function WorkflowsLayout() {
                             </div>
                           </div>
 
-                          {/* Status and Visibility Badges */}
-                          <div className="flex items-end justify-between mb-4">
-                            <div className="flex items-center gap-2">
+                          <div className="mb-4 flex h-11 items-center justify-between border-y border-[var(--kai-border)] px-1">
+                            <span
+                              className={`inline-flex h-7 items-center gap-2 rounded-md border px-2.5 text-xs font-medium ${workflow.is_public
+                                ? "border-[var(--kai-success)]/30 bg-[var(--kai-success)]/10 text-[var(--kai-success-text)]"
+                            : "border-[var(--kai-workflow-inactive-border)] bg-[var(--kai-workflow-inactive-bg)] text-[var(--kai-workflow-inactive-text)]"
+                                }`}
+                            >
                               <span
-                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_public
-                                  ? "bg-green-100 text-green-800 border border-green-200"
-                                  : "bg-gray-100 text-gray-800 border border-gray-200"
+                                aria-hidden="true"
+                                className={`h-1.5 w-1.5 rounded-full ${workflow.is_public
+                                  ? "bg-[var(--kai-success)]"
+                            : "bg-[var(--kai-workflow-inactive-control)]"
                                   }`}
-                              >
-                                {workflow.is_public ? "Active" : "Inactive"}
-                              </span>
-                              {/* 
-                              <span
-                                className={`inline-flex items-center gap-1 px-2 py-1 text-xs font-semibold rounded-full ${workflow.is_active
-                                  ? "bg-green-100 text-green-800 border border-green-200"
-                                  : "bg-gray-100 text-gray-600 border border-gray-200"
-                                  }`}
-                              >
-                                {workflow.is_active ? (
-                                  <>
-                                    <Activity className="w-3 h-3" />
-                                    Active
-                                  </>
-                                ) : (
-                                  <>
-                                    <Pause className="w-3 h-3" />
-                                    Inactive
-                                  </>
-                                )}
-                              </span>
-                              */}
-
-                            </div>
-                            {/* Activity Toggle */}
-                            <div className="flex flex-col items-end">
-                              <span className="text-[12px] font-medium text-gray-500">
-                                Activity
-                              </span>
-                              <CompactToggleSwitch
-                                isActive={workflow.is_public || false}
-                                disabled={updatingVisibilityId === workflow.id}
-                                onToggle={(isPublic) =>
-                                  handleToggleWorkflowVisibility(
-                                    workflow.id,
-                                    isPublic
-                                  )
-                                }
-                                activeIcon={<Power className="w-3 h-3 text-green-600" />}
-                                inactiveIcon={<PowerOff className="w-3 h-3 text-gray-500" />}
                               />
-                            </div>
+                              {workflow.is_public ? "Active" : "Inactive"}
+                            </span>
+                            <button
+                              type="button"
+                              role="switch"
+                              aria-checked={workflow.is_public || false}
+                              aria-label={`${workflow.name}: ${workflow.is_public ? "deactivate" : "activate"} workflow`}
+                              disabled={updatingVisibilityId === workflow.id}
+                              onClick={() =>
+                                handleToggleWorkflowVisibility(
+                                  workflow.id,
+                                  !workflow.is_public
+                                )
+                              }
+                              className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kai-success)]/40 disabled:cursor-not-allowed disabled:opacity-50 ${workflow.is_public
+                                ? "border-[var(--kai-success)] bg-[var(--kai-success-control)]"
+                            : "border-[var(--kai-workflow-control-border)] bg-[var(--kai-border)]"
+                                }`}
+                            >
+                              <span
+                                className={`absolute left-0.5 top-0.5 h-[18px] w-[18px] rounded-full bg-[var(--kai-text)] shadow-sm transition-transform ${workflow.is_public ? "translate-x-5" : "translate-x-0"}`}
+                              />
+                            </button>
                           </div>
 
-                          {/* Metadata */}
-                          <div className="grid grid-cols-2 gap-4 mt-auto mb-4 p-3 bg-gray-50 rounded-lg">
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <Calendar className="w-3 h-3" />
-                              <span className="font-medium">Created:</span>
+                          <div className="mb-4 mt-auto grid grid-cols-2 gap-3 text-[11px] text-zinc-600">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                              <Calendar className="h-3 w-3 shrink-0" />
+                              <span className="sr-only">Created:</span>
                               <span>{timeAgo(workflow.created_at)}</span>
                             </div>
-                            <div className="flex items-center gap-2 text-xs text-gray-600">
-                              <Clock className="w-3 h-3" />
-                              <span className="font-medium">Updated:</span>
-                              <span>{timeAgo(workflow.updated_at)}</span>
+                            <div className="flex min-w-0 items-center justify-end gap-1.5">
+                              <Clock className="h-3 w-3 shrink-0" />
+                              <span className="sr-only">Updated:</span>
+                              <span>Updated {timeAgo(workflow.updated_at)}</span>
                             </div>
                           </div>
 
-                          {/* Actions */}
-                          <div className="flex items-center justify-between pt-4 border-t border-gray-100">
+                          <div className="flex items-center justify-between border-t border-[var(--kai-border)] pt-3">
                             <Link
                               to={`/canvas?workflow=${workflow.id}`}
-                              className="flex items-center gap-2 text-sm text-blue-600 hover:text-blue-700 font-medium hover:bg-blue-50 px-3 py-2 rounded-lg transition-all duration-200"
+                    className="flex h-9 items-center gap-2 rounded-lg border border-[var(--kai-workflow-open-border)] bg-[var(--kai-workflow-open-bg)] px-3.5 text-xs font-semibold text-[var(--kai-workflow-open-text)] transition-colors hover:border-[var(--kai-accent)]/70 hover:bg-[var(--kai-surface-hover-deep)]"
                             >
-                              <Play className="w-4 h-4" />
-                              Open Workflow
+                              <Play className="h-3.5 w-3.5" />
+                              Open workflow
                             </Link>
 
                             <div className="flex items-center gap-1">
                               <button
                                 onClick={() => handleDownload(workflow)}
-                                className="p-2 text-gray-400 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                                className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-[var(--kai-surface-hover-subtle)] hover:text-zinc-200"
                                 title="Download workflow"
                               >
-                                <Download className="w-4 h-4" />
+                                <Download className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 onClick={() => handleEditClick(workflow)}
-                                className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
+                                className="flex h-9 w-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-[var(--kai-surface-hover-subtle)] hover:text-zinc-200"
                                 title="Edit workflow"
                               >
-                                <Pencil className="w-4 h-4" />
+                                <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDelete(workflow)}
-                                className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                                className="kai-delete-trigger flex h-9 w-9 items-center justify-center rounded-lg"
                                 title="Delete workflow"
                               >
-                                <Trash className="w-4 h-4" />
+                                <Trash className="h-3.5 w-3.5" />
                               </button>
                             </div>
                           </div>
@@ -887,7 +858,7 @@ function WorkflowsLayout() {
                 {/* Pagination */}
                 {!error && !isLoading && filteredWorkflows.length > 0 && (
                   <div className="mt-8">
-                    <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 p-6 bg-white rounded-2xl">
+                    <div className="flex flex-col gap-4 border-t border-[var(--kai-border)] py-4 md:flex-row md:items-center md:justify-between">
                       <div></div>
                       <div className="flex items-center gap-2 justify-center">
                         <button
@@ -1182,7 +1153,7 @@ function WorkflowsLayout() {
                       <div className="modal-action">
                         <button
                           type="button"
-                          className="btn"
+                          className="btn kai-secondary-action"
                           onClick={() => {
                             (
                               document.getElementById(
@@ -1216,16 +1187,16 @@ function WorkflowsLayout() {
         className={`modal modal-bottom sm:modal-middle ${showDeleteConfirm ? "!pointer-events-auto !visible !opacity-100 !bg-black/40" : ""}`}
       >
         <div className={`modal-box ${showDeleteConfirm ? "!opacity-100 !translate-y-0 !scale-100" : ""}`}>
-          <h3 className="font-bold text-lg">Delete Workflow</h3>
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-white"><Trash className="h-5 w-5 text-red-300" />Delete Workflow</h3>
           <p className="py-4">
             Are you sure you want to delete "{workflowToDelete?.name}"?
           </p>
           <div className="modal-action">
-            <button className="btn btn-outline" onClick={handleCancelDelete}>
+            <button className="btn kai-secondary-action" onClick={handleCancelDelete}>
               Cancel
             </button>
             <button
-              className="btn btn-error"
+              className="btn kai-delete-confirm"
               onClick={handleFinalDeleteConfirm}
             >
               Delete

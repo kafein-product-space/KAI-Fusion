@@ -297,14 +297,14 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
     const VersionBadge = () => {
         if (language === "python") {
             return (
-                <span className="text-xs text-gray-300 bg-[#3c3c3c] px-2 py-0.5 rounded">
+                <span className="rounded bg-[var(--kai-surface-hover)] px-2 py-0.5 text-xs text-[var(--kai-text-secondary)]">
                     Python {pythonVersion}
                 </span>
             );
         }
         if (language === "javascript") {
             return (
-                <span className="text-xs text-gray-300 bg-[#3c3c3c] px-2 py-0.5 rounded">
+                <span className="rounded bg-[var(--kai-surface-hover)] px-2 py-0.5 text-xs text-[var(--kai-text-secondary)]">
                     JavaScript {javascriptVersion}
                 </span>
             );
@@ -364,14 +364,14 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 <FieldLabel
                     label={property.displayName}
                     helpText={getFieldHelpText(property)}
-                    className="text-white text-sm font-medium"
+                    className="mb-0 text-sm font-medium text-[var(--kai-text-soft)]"
                 />
                 <VersionBadge />
             </div>
 
             {/* Inline Editor */}
             <div
-                className="relative rounded-lg border border-gray-600 overflow-hidden focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500"
+                className="relative overflow-hidden rounded-lg border border-[var(--kai-field-border)] transition-colors focus-within:border-[var(--kai-accent)] focus-within:ring-2 focus-within:ring-[var(--kai-accent-soft)]"
                 onMouseDown={(e: any) => e.stopPropagation()}
                 onTouchStart={(e: any) => e.stopPropagation()}
                 onKeyDown={(e: any) => e.stopPropagation()}
@@ -379,7 +379,7 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
                 <button
                     type="button"
                     onClick={() => setExpanded(true)}
-                    className="absolute top-1 right-2 z-10 p-1 rounded hover:bg-gray-700/80 text-gray-400 hover:text-white transition-colors"
+                    className="absolute right-2 top-1 z-10 rounded p-1 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                     title="Expand editor"
                 >
                     <Maximize2 size={14} />
@@ -398,11 +398,11 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
             <ErrorMessage
                 name={property.name}
                 component="div"
-                className="text-red-400 text-sm mt-1"
+                className="kai-node-field-error mt-1"
             />
 
             {property.maxLength && (
-                <div className="text-gray-400 text-xs mt-1">
+                <div className="kai-node-field-hint mt-1">
                     Characters: {(values[property.name]?.length || 0).toLocaleString()} /{" "}
                     {property.maxLength.toLocaleString()}
                 </div>
@@ -412,30 +412,30 @@ export const NodeCodeEditor = ({ property, values }: NodeCodeEditorProps) => {
             {expanded &&
                 createPortal(
                     <div
-                        className="fixed inset-0 z-[9999] flex flex-col bg-[#1e1e1e]"
+                        className="fixed inset-0 z-[9999] flex flex-col bg-[var(--kai-node-modal-bg)]"
                         onMouseDown={(e: any) => e.stopPropagation()}
                         onTouchStart={(e: any) => e.stopPropagation()}
                         onKeyDown={(e: any) => e.stopPropagation()}
                     >
                         {/* Header */}
-                        <div className="flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-[#3c3c3c]">
+                        <div className="flex items-center justify-between border-b border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)] px-4 py-2">
                             <div className="flex items-center gap-3">
-                                <span className="text-white text-sm font-medium">
+                                <span className="text-sm font-medium text-[var(--kai-text)]">
                                     {property.displayName}
                                 </span>
-                                <span className="text-xs text-gray-400 bg-[#3c3c3c] px-2 py-0.5 rounded">
+                                <span className="rounded bg-[var(--kai-surface-hover)] px-2 py-0.5 text-xs text-[var(--kai-text-muted)]">
                                     {language}
                                 </span>
                                 <VersionBadge />
                             </div>
                             <div className="flex items-center gap-2">
-                                <span className="text-xs text-gray-500">
+                                <span className="text-xs text-[var(--kai-text-muted)]">
                                     Esc to close
                                 </span>
                                 <button
                                     type="button"
                                     onClick={() => setExpanded(false)}
-                                    className="p-1.5 rounded hover:bg-[#3c3c3c] text-gray-400 hover:text-white transition-colors"
+                                    className="rounded p-1.5 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                                     title="Close fullscreen"
                                 >
                                     <X size={18} />

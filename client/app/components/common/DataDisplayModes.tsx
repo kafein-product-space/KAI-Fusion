@@ -57,7 +57,7 @@ function RenderPrimitiveValue({ val }: { val: any }) {
   }
   
   if (typeof val === 'boolean') {
-    return <span className="text-purple-400 font-semibold font-mono select-all">{val ? 'true' : 'false'}</span>;
+    return <span className="text-sky-400 font-semibold font-mono select-all">{val ? 'true' : 'false'}</span>;
   }
   
   const stringVal = String(val);

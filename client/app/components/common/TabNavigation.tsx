@@ -23,7 +23,7 @@ export default function TabNavigation({
 }: TabNavigationProps) {
   return (
     <div
-      className={`flex space-x-1 p-1 bg-slate-700/30 rounded-lg ${className}`}
+      className={`flex gap-1 rounded-lg border border-[var(--kai-navigation-border)] bg-[var(--kai-surface-selected)] p-1 ${className}`}
     >
       {tabs.map((tab) => {
         const Icon = tab.icon;
@@ -39,22 +39,22 @@ export default function TabNavigation({
               onTabChange(tab.id);
             }}
             className={`
-            flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium
+            flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-2 text-sm font-medium
             transition-all duration-200 relative
             ${
               isActive
-                ? "bg-blue-600/20 text-blue-300 border border-blue-500/30"
-                : "text-slate-400 hover:text-slate-300 hover:bg-slate-600/30"
+              ? "border border-[var(--kai-tab-active-border)] bg-[var(--kai-tab-active-bg)] text-white"
+                : "border border-transparent text-zinc-400 hover:bg-[var(--kai-border-dialog)] hover:text-zinc-100"
             }
           `}
             title={tab.description}
           >
-            <Icon className="w-3 h-3" />
+            <Icon className="h-3.5 w-3.5" />
             <span>{tab.label}</span>
 
             {/* Active indicator */}
             {isActive && (
-              <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-1 h-0.5 bg-blue-400 rounded-full" />
+              <div className="absolute inset-x-0 bottom-0 h-0.5 rounded-b-md bg-[var(--kai-accent-text-soft)]" />
             )}
           </button>
         );

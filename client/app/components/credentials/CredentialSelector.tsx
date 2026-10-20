@@ -8,6 +8,7 @@ import {
 } from "~/services/userCredentialService";
 import ServiceSelectionModal from "~/components/credentials/ServiceSelectionModal";
 import DynamicCredentialForm from "~/components/credentials/DynamicCredentialForm";
+import DeleteConfirmationModal from "~/components/modals/DeleteConfirmationModal";
 import { getCredentialData } from "~/components/credentials/credentialPayload";
 import type { ServiceDefinition } from "~/types/credentials";
 import { getServiceDefinition } from "~/types/credentials";
@@ -23,6 +24,7 @@ interface CredentialSelectorProps {
   className?: string;
   showCreateNew?: boolean; // Whether to show create new credentials option
   includeGenericFallback?: boolean; // Whether to include generic_api creds alongside serviceType
+  appearance?: "default" | "dark";
 }
 
 const CredentialSelector: React.FC<CredentialSelectorProps> = ({
@@ -36,6 +38,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   className = "",
   showCreateNew = true,
   includeGenericFallback = true,
+  appearance = "default",
 }) => {
   const { userCredentials, addCredential, updateCredential, removeCredential, fetchCredentials, isLoading } =
     useUserCredentialStore();
@@ -47,7 +50,9 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [editingCredential, setEditingCredential] = useState<any | null>(null);
   const [editingInitialValues, setEditingInitialValues] = useState<Record<string, any>>({});
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const isDarkAppearance = appearance === "dark";
 
   const predefinedService: ServiceDefinition | null = serviceType
     ? getServiceDefinition(serviceType) || null
@@ -204,19 +209,21 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
     }
   };
 
-  const handleDeleteClick = async () => {
+  const handleDeleteClick = () => {
     if (!value) return;
     const cred = userCredentials.find(c => c.id === value);
     if (!cred) return;
-    
-    const confirmDelete = window.confirm(`Are you sure you want to delete the credential "${cred.name}"?`);
-    if (!confirmDelete) return;
+    setShowDeleteConfirm(true);
+  };
 
+  const handleDeleteConfirm = async () => {
+    if (!value) return;
     setLoadingCredential(true);
     try {
       await removeCredential(value);
       await fetchCredentials();
       onChange(""); // Clear selection
+      setShowDeleteConfirm(false);
       if (onCredentialLoad) {
         onCredentialLoad(null);
       }
@@ -242,11 +249,13 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
             type="button"
             onClick={() => !disabled && setDropdownOpen(!dropdownOpen)}
             disabled={disabled || loadingCredential}
-            className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 ${
-              disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-slate-500"
-            } ${dropdownOpen ? "border-blue-500" : ""} ${className}`}
+            className={`w-full flex items-center justify-between rounded-lg px-4 py-3 text-left transition-all duration-200 ${
+              isDarkAppearance
+            ? `border bg-[var(--kai-surface-control)] text-zinc-100 ${dropdownOpen ? "border-[var(--kai-accent)] ring-1 ring-[var(--kai-accent)]/30" : "border-[var(--kai-field-border)] hover:border-[var(--kai-selector-hover-border)] hover:bg-[var(--kai-selector-hover-bg)]"}`
+                : `bg-[var(--kai-node-field-bg)] border border-slate-600 ${dropdownOpen ? "border-blue-500" : ""} hover:border-slate-500`
+            } ${disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"} ${className}`}
           >
-            <span className={`text-sm ${value ? "text-white" : "text-slate-400"}`}>
+            <span className={`text-sm ${value ? "text-white" : isDarkAppearance ? "text-zinc-400" : "text-slate-400"}`}>
               {displayText}
             </span>
             <div className="flex items-center gap-2">
@@ -262,7 +271,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
 
           {/* Dropdown Menu */}
           {dropdownOpen && (
-            <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
+            <div className={`absolute z-50 mt-1 left-0 right-0 rounded-lg border shadow-lg shadow-black/40 overflow-hidden ${isDarkAppearance ? "bg-[var(--kai-surface-control)] border-[var(--kai-control-border)]" : "bg-slate-900 border-slate-700"}`}>
               {/* Credential options */}
               {filteredCredentials.map((cred) => (
                 <button
@@ -270,7 +279,9 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
                   type="button"
                   onClick={() => handleCredentialSelect(cred.id)}
                   className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
-                    value === cred.id ? "bg-blue-500/20 text-blue-300" : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
+                    isDarkAppearance
+                      ? value === cred.id ? "bg-[var(--kai-accent)]/15 text-[var(--kai-accent-text-soft)]" : "text-zinc-200 hover:bg-[var(--kai-surface-hover)] hover:text-white"
+                      : value === cred.id ? "bg-blue-500/20 text-blue-300" : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
                   }`}
                 >
                   {cred.name} ({cred.service_type})
@@ -282,7 +293,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
                 <button
                   type="button"
                   onClick={handleCreateNewClick}
-                  className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left border-t border-slate-700"
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm transition-colors duration-150 text-left border-t ${isDarkAppearance ? "border-[var(--kai-control-border)] text-zinc-200 hover:bg-[var(--kai-surface-hover)] hover:text-white" : "border-slate-700 text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"}`}
                 >
                   <Plus size={14} className="text-slate-500" />
                   {predefinedService
@@ -299,7 +310,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
             <button
               type="button"
               onClick={handleEditClick}
-              className="p-3 bg-slate-800 border border-slate-600 hover:border-slate-500 rounded-lg text-slate-300 hover:text-white transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center h-[46px] w-[46px]"
+              className={`p-3 border rounded-lg transition-all duration-200 flex items-center justify-center h-[46px] w-[46px] ${isDarkAppearance ? "bg-[var(--kai-surface-control)] border-[var(--kai-field-border)] text-[var(--kai-control-accent-text)] hover:border-[var(--kai-accent)]/60 hover:bg-[var(--kai-accent)]/15 hover:text-white" : "bg-slate-800 border-slate-600 hover:border-slate-500 text-slate-300 hover:text-white shadow-md hover:shadow-lg"}`}
               title="Edit selected credential"
             >
               <Edit size={16} />
@@ -307,7 +318,7 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
             <button
               type="button"
               onClick={handleDeleteClick}
-              className="p-3 bg-red-950/40 border border-red-900/60 hover:border-red-800 rounded-lg text-red-400 hover:text-red-300 transition-all duration-200 shadow-md hover:shadow-lg flex items-center justify-center h-[46px] w-[46px]"
+              className="kai-delete-trigger rounded-lg flex items-center justify-center h-[46px] w-[46px]"
               title="Delete selected credential"
             >
               <Trash2 size={16} />
@@ -316,10 +327,22 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
         )}
       </div>
 
+      {showDeleteConfirm && selectedCredential &&
+        createPortal(
+          <DeleteConfirmationModal
+            isOpen={showDeleteConfirm}
+            title="Delete Credential"
+            message={`Are you sure you want to delete the credential \"${selectedCredential.name}\"?`}
+            onClose={() => setShowDeleteConfirm(false)}
+            onConfirm={handleDeleteConfirm}
+          />,
+          document.body
+        )}
+
       {/* Service Selection Modal */}
       {showServiceSelection &&
         createPortal(
-          <div className="z-[9999]">
+          <div className="kai-product-surface kai-portal-surface">
             <ServiceSelectionModal
               allowedServiceTypes={allowedServiceTypes}
               onSelectService={handleServiceSelect}
@@ -332,60 +355,64 @@ const CredentialSelector: React.FC<CredentialSelectorProps> = ({
       {/* Dynamic Credential Form Modal */}
       {selectedService &&
         createPortal(
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[9999] p-4">
-            <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-              <div className="p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900">
-                    {editingCredential
-                      ? `Edit ${editingCredential.name}`
-                      : `Create New ${selectedService.name} Credentials`}
-                  </h2>
-                  <button
-                    onClick={() => {
+          <div className="kai-product-surface kai-portal-surface">
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]">
+              <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--kai-border-soft)] bg-[var(--kai-surface-dialog)] text-zinc-100 shadow-2xl shadow-black/50">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-semibold text-white">
+                      {editingCredential
+                        ? `Edit ${editingCredential.name}`
+                        : `Create New ${selectedService.name} Credentials`}
+                    </h2>
+                    <button
+                      type="button"
+                      aria-label="Close credential form"
+                      onClick={() => {
+                        setSelectedService(null);
+                        setEditingCredential(null);
+                        setEditingInitialValues({});
+                      }}
+                      className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
+                    >
+                      <svg
+                        className="w-6 h-6"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M6 18L18 6M6 6l12 12"
+                        />
+                      </svg>
+                    </button>
+                  </div>
+
+                  <DynamicCredentialForm
+                    service={selectedService}
+                    onSubmit={editingCredential ? handleUpdateCredential : handleCreateCredential}
+                    onCancel={() => {
                       setSelectedService(null);
                       setEditingCredential(null);
                       setEditingInitialValues({});
                     }}
-                    className="text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    <svg
-                      className="w-6 h-6"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M6 18L18 6M6 6l12 12"
-                      />
-                    </svg>
-                  </button>
+                    onTest={(values) =>
+                      testCredentialRaw(
+                        selectedService.id,
+                        getCredentialData(values)
+                      )
+                    }
+                    initialValues={
+                      editingCredential
+                        ? { name: editingCredential.name, ...editingInitialValues }
+                        : { name: `${selectedService.name} Credential` }
+                    }
+                    isSubmitting={isSubmitting}
+                  />
                 </div>
-
-                <DynamicCredentialForm
-                  service={selectedService}
-                  onSubmit={editingCredential ? handleUpdateCredential : handleCreateCredential}
-                  onCancel={() => {
-                    setSelectedService(null);
-                    setEditingCredential(null);
-                    setEditingInitialValues({});
-                  }}
-                  onTest={(values) =>
-                    testCredentialRaw(
-                      selectedService.id,
-                      getCredentialData(values)
-                    )
-                  }
-                  initialValues={
-                    editingCredential
-                      ? { name: editingCredential.name, ...editingInitialValues }
-                      : { name: `${selectedService.name} Credential` }
-                  }
-                  isSubmitting={isSubmitting}
-                />
               </div>
             </div>
           </div>,

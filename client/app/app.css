@@ -1,4 +1,5 @@
 @import url("https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap");
+@import "./styles/theme.css";
 @import "tailwindcss";
 @plugin "daisyui";
 @plugin "@tailwindcss/typography";
@@ -6,8 +7,896 @@
 @import "katex/dist/katex.min.css";
 
 html {
-  color-scheme: light;
+  color-scheme: dark;
   font-family: "Inter", sans-serif;
+}
+
+/* Product workspace -------------------------------------------------------
+   The canvas and authentication screens intentionally live outside this
+   scope. This keeps their interaction-heavy layouts isolated while every
+   management page shares one restrained, dark visual system. */
+.kai-product-surface {
+  min-height: 100vh;
+  background: var(--kai-bg);
+  color: var(--kai-text);
+  color-scheme: dark;
+  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+}
+
+.kai-product-surface > * {
+  min-height: 100vh;
+}
+
+/* Portaled dialogs render outside the product shell. Re-apply the product
+   tokens without turning the portal host itself into a full page. */
+.kai-product-surface.kai-portal-surface {
+  min-height: 0;
+  background: transparent;
+}
+
+.kai-product-surface.kai-portal-surface > * {
+  min-height: 0;
+}
+
+/* Only the canvas node form gets the calmer control surface. Status colours,
+   specialised editors and the primary Save action retain their own meaning. */
+.kai-node-modal {
+  color-scheme: dark;
+}
+
+.kai-node-config [class~="bg-[var(--kai-node-field-bg)]"],
+.kai-node-config [class~="bg-slate-900/80"] {
+  background-color: var(--kai-node-config-bg);
+}
+
+.kai-node-config [class~="bg-slate-900"] {
+  background-color: var(--kai-node-surface);
+}
+
+.kai-node-config [class~="border-slate-600"] {
+  border-color: var(--kai-border-strong);
+}
+
+/*
+ * Shared node field controls.
+ *
+ * Node metadata decides which React field is rendered; these semantic classes
+ * keep every field family on the same visual contract. New field components
+ * should compose these classes instead of owning palette-specific utilities.
+ */
+.kai-node-field-label {
+  margin-bottom: 0.5rem;
+  color: var(--kai-text-soft);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.kai-node-field-help {
+  display: inline-flex;
+  width: 1rem;
+  height: 1rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.25rem;
+  color: var(--kai-text-muted);
+  transition: color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.kai-node-field-help:hover {
+  color: var(--kai-accent-text);
+}
+
+.kai-node-field-help:focus-visible {
+  outline: none;
+  color: var(--kai-accent-text);
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-node-field-tooltip {
+  border: 1px solid var(--kai-border-strong);
+  background: var(--kai-node-surface);
+  color: var(--kai-text-secondary);
+  box-shadow: 0 16px 36px rgb(var(--kai-shadow-rgb) / 38%);
+}
+
+.kai-node-field-control {
+  width: 100%;
+  min-height: 2.75rem;
+  border: 1px solid var(--kai-field-border);
+  border-radius: 0.5rem;
+  background: var(--kai-node-field-bg);
+  color: var(--kai-text);
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+  outline: none;
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.kai-node-field-control:hover:not(:disabled):not([readonly]) {
+  border-color: var(--kai-border-hover);
+}
+
+.kai-node-field-control:focus,
+.kai-node-field-control:focus-visible,
+.kai-node-field-control[aria-expanded="true"] {
+  border-color: var(--kai-accent);
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-node-field-control::placeholder {
+  color: var(--kai-placeholder);
+}
+
+.kai-node-field-control:disabled,
+.kai-node-field-control[readonly] {
+  border-color: var(--kai-border);
+  background: var(--kai-node-config-bg);
+  color: var(--kai-text-muted);
+}
+
+.kai-node-field-control:disabled {
+  cursor: not-allowed;
+}
+
+.kai-node-field-control--joined-left {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: 0;
+}
+
+.kai-node-field-shell {
+  display: flex;
+  width: 100%;
+  min-height: 2.75rem;
+  overflow: hidden;
+  border: 1px solid var(--kai-field-border);
+  border-radius: 0.5rem;
+  background: var(--kai-node-field-bg);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.kai-node-field-shell:hover:not(.is-disabled) {
+  border-color: var(--kai-border-hover);
+}
+
+.kai-node-field-shell:focus-within {
+  border-color: var(--kai-accent);
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-node-field-shell.is-disabled {
+  border-color: var(--kai-border);
+  background: var(--kai-node-config-bg);
+}
+
+.kai-node-field-input {
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  color: var(--kai-text);
+  font-size: 0.875rem;
+  outline: none;
+}
+
+.kai-node-field-input::placeholder {
+  color: var(--kai-placeholder);
+}
+
+.kai-node-field-input:disabled {
+  cursor: not-allowed;
+  color: var(--kai-text-muted);
+}
+
+.kai-node-field-stepper {
+  display: flex;
+  width: 2rem;
+  flex-shrink: 0;
+  flex-direction: column;
+  border-left: 1px solid var(--kai-border-strong);
+  background: color-mix(in srgb, var(--kai-surface-control) 68%, transparent);
+}
+
+.kai-node-field-step {
+  display: flex;
+  min-height: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  color: var(--kai-text-muted);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.kai-node-field-step + .kai-node-field-step {
+  border-top: 1px solid var(--kai-border-strong);
+}
+
+.kai-node-field-step:hover:not(:disabled) {
+  background: var(--kai-accent-subtle);
+  color: var(--kai-accent-text);
+}
+
+.kai-node-field-step:focus-visible {
+  outline: none;
+  background: var(--kai-accent-subtle);
+  color: var(--kai-accent-text);
+  box-shadow: inset 0 0 0 1px var(--kai-accent);
+}
+
+.kai-node-field-step:disabled {
+  cursor: not-allowed;
+  color: var(--kai-text-disabled);
+  opacity: 0.45;
+}
+
+.kai-node-field-menu {
+  overflow: hidden;
+  border: 1px solid var(--kai-border-strong);
+  border-radius: 0.5rem;
+  background: var(--kai-node-surface);
+  box-shadow: 0 18px 42px rgb(var(--kai-shadow-rgb) / 42%);
+}
+
+.kai-node-field-option {
+  color: var(--kai-text-secondary);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.kai-node-field-option:hover,
+.kai-node-field-option.is-selected {
+  background: var(--kai-accent-subtle);
+  color: var(--kai-accent-text);
+}
+
+.kai-node-field-action {
+  border: 1px solid var(--kai-control-border);
+  border-radius: 0.5rem;
+  background: var(--kai-surface-control);
+  color: var(--kai-accent-text-soft);
+  transition: border-color 150ms ease, background-color 150ms ease, color 150ms ease;
+}
+
+.kai-node-field-action:hover:not(:disabled) {
+  border-color: var(--kai-border-hover);
+  background: var(--kai-surface-hover);
+  color: var(--kai-text);
+}
+
+.kai-node-field-action:focus-visible {
+  outline: none;
+  border-color: var(--kai-accent);
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-node-field-action:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.kai-node-optional-card {
+  grid-column: span 2 / span 2;
+  min-width: 0;
+  border: 1px solid var(--kai-navigation-border);
+  border-radius: 0.5rem;
+  background: var(--kai-overlay-surface);
+}
+
+.kai-node-optional-card--compact {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+}
+
+.kai-node-optional-card--with-action-rail {
+  position: relative;
+  padding: 0.75rem 3.5rem 0.75rem 1rem;
+}
+
+.kai-node-optional-actions {
+  display: flex;
+  min-width: 0;
+  flex-shrink: 0;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.kai-node-optional-remove {
+  display: inline-flex;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.375rem;
+  color: var(--kai-text-muted);
+  transition: color 150ms ease, background-color 150ms ease;
+}
+
+.kai-node-optional-remove:hover {
+  background: var(--kai-danger-subtle);
+  color: var(--kai-danger-text-soft);
+}
+
+.kai-node-optional-remove:focus-visible {
+  outline: 2px solid var(--kai-danger-text);
+  outline-offset: 2px;
+}
+
+.kai-node-optional-remove--rail {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.75rem;
+}
+
+.kai-node-toggle {
+  position: relative;
+  width: 2.75rem;
+  height: 1.5rem;
+  flex-shrink: 0;
+  border: 1px solid var(--kai-control-border);
+  border-radius: 9999px;
+  background: var(--kai-control-muted);
+  transition: border-color 150ms ease, background-color 150ms ease, box-shadow 150ms ease;
+}
+
+.kai-node-toggle.is-active {
+  border-color: var(--kai-accent);
+  background: var(--kai-accent);
+}
+
+.kai-node-toggle:hover:not(:disabled) {
+  border-color: var(--kai-border-hover);
+}
+
+.kai-node-toggle:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-node-toggle:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.kai-node-toggle-thumb {
+  position: absolute;
+  top: 0.1875rem;
+  left: 0.1875rem;
+  width: 1rem;
+  height: 1rem;
+  border-radius: 9999px;
+  background: var(--kai-text-on-accent);
+  box-shadow: 0 1px 3px rgb(var(--kai-shadow-rgb) / 35%);
+  transition: transform 180ms ease;
+}
+
+.kai-node-toggle.is-active .kai-node-toggle-thumb {
+  transform: translateX(1.25rem);
+}
+
+.kai-node-field-hint {
+  color: var(--kai-text-muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+.kai-node-field-error {
+  color: var(--kai-danger-text-soft);
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+
+/* Shared range control for every node property declared with type="range". */
+.kai-node-range {
+  display: block;
+  width: 100%;
+  height: 24px;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  appearance: none;
+  background: linear-gradient(
+    to right,
+    var(--kai-accent) 0%,
+    var(--kai-accent) var(--kai-range-progress, 0%),
+    var(--kai-border-strong) var(--kai-range-progress, 0%),
+    var(--kai-border-strong) 100%
+  );
+  background-size: 100% 8px;
+  background-position: center;
+  background-repeat: no-repeat;
+  cursor: pointer;
+}
+
+.kai-node-range::-moz-range-track {
+  border: 0;
+  background: transparent;
+}
+
+.kai-node-range::-webkit-slider-thumb {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--kai-accent-pale);
+  border-radius: 50%;
+  appearance: none;
+  background: var(--kai-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kai-accent) 20%, transparent);
+  transition: box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.kai-node-range::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border: 2px solid var(--kai-accent-pale);
+  border-radius: 50%;
+  background: var(--kai-accent);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--kai-accent) 20%, transparent);
+  transition: box-shadow 150ms ease, background-color 150ms ease, border-color 150ms ease;
+}
+
+.kai-node-range:hover::-webkit-slider-thumb,
+.kai-node-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--kai-accent-pale-strong);
+  background: var(--kai-accent-hover);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--kai-accent) 20%, transparent);
+}
+
+.kai-node-range:hover::-moz-range-thumb,
+.kai-node-range:focus-visible::-moz-range-thumb {
+  border-color: var(--kai-accent-pale-strong);
+  background: var(--kai-accent-hover);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--kai-accent) 20%, transparent);
+}
+
+.kai-node-range:focus-visible {
+  outline: 2px solid var(--kai-accent-text-soft);
+  outline-offset: 7px;
+}
+
+.kai-node-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.kai-node-range-value {
+  min-width: 3.25rem;
+  padding: 4px 9px;
+  border: 1px solid var(--kai-range-border);
+  border-radius: 6px;
+  background: var(--kai-range-bg);
+  color: var(--kai-range-text);
+  font: 600 12px/1.25 ui-monospace, SFMono-Regular, Consolas, monospace;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.kai-tutorial-layout {
+  display: flex;
+  flex-direction: row;
+}
+
+.kai-tutorial-sidebar {
+  width: 18rem;
+  border-right: 1px solid var(--kai-border-dialog);
+}
+
+.kai-delete-trigger {
+  border: 1px solid color-mix(in srgb, var(--kai-danger) 28%, transparent);
+  background: color-mix(in srgb, var(--kai-danger) 8%, transparent);
+  color: var(--kai-danger-text);
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.kai-delete-trigger:hover {
+  border-color: color-mix(in srgb, var(--kai-danger) 55%, transparent);
+  background: color-mix(in srgb, var(--kai-danger) 16%, transparent);
+  color: var(--kai-danger-text-hover);
+}
+
+.kai-delete-trigger:focus-visible {
+  outline: 2px solid var(--kai-danger-text);
+  outline-offset: 2px;
+}
+
+.kai-delete-confirm {
+  border: 1px solid var(--kai-danger-action);
+  background: var(--kai-danger-action);
+  color: var(--kai-text-on-accent);
+}
+
+.kai-delete-confirm:hover {
+  border-color: var(--kai-danger-action-hover);
+  background: var(--kai-danger-action-hover);
+}
+
+@media (max-width: 767px) {
+  .kai-tutorial-layout {
+    flex-direction: column;
+  }
+
+  .kai-tutorial-sidebar {
+    width: 100%;
+    max-height: 13rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--kai-border-dialog);
+  }
+}
+
+.kai-product-surface > div.flex.h-screen,
+.kai-product-surface main {
+  background: var(--kai-bg) !important;
+}
+
+.kai-product-surface .bg-background,
+.kai-product-surface .bg-gray-50 {
+  background-color: var(--kai-bg) !important;
+}
+
+.kai-product-surface .bg-white {
+  background-color: var(--kai-surface) !important;
+}
+
+.kai-product-surface .bg-gray-100,
+.kai-product-surface .bg-gray-200 {
+  background-color: var(--kai-surface-raised) !important;
+}
+
+.kai-product-surface .bg-gray-300 {
+  background-color: var(--kai-border-strong) !important;
+}
+
+.kai-product-surface .bg-blue-50,
+.kai-product-surface .bg-blue-100,
+.kai-product-surface .bg-purple-100 {
+  background-color: var(--kai-accent-subtle) !important;
+}
+
+.kai-product-surface .bg-green-50,
+.kai-product-surface .bg-green-100,
+.kai-product-surface .bg-emerald-100 {
+  background-color: var(--kai-success-subtle) !important;
+}
+
+.kai-product-surface .bg-red-50,
+.kai-product-surface .bg-red-100 {
+  background-color: var(--kai-danger-subtle) !important;
+}
+
+.kai-product-surface .bg-yellow-50,
+.kai-product-surface .bg-yellow-100,
+.kai-product-surface .bg-orange-50,
+.kai-product-surface .bg-orange-100 {
+  background-color: var(--kai-warning-subtle) !important;
+}
+
+.kai-product-surface .text-blue-700,
+.kai-product-surface .text-blue-800,
+.kai-product-surface .text-purple-700,
+.kai-product-surface .text-purple-800 {
+  color: var(--kai-accent-text) !important;
+}
+
+.kai-product-surface .text-green-700,
+.kai-product-surface .text-green-800,
+.kai-product-surface .text-emerald-700,
+.kai-product-surface .text-emerald-800 {
+  color: var(--kai-success-text-strong) !important;
+}
+
+.kai-product-surface .text-red-700,
+.kai-product-surface .text-red-800 {
+  color: var(--kai-danger-text-soft) !important;
+}
+
+.kai-product-surface .text-yellow-700,
+.kai-product-surface .text-yellow-800,
+.kai-product-surface .text-orange-700,
+.kai-product-surface .text-orange-800 {
+  color: var(--kai-warning) !important;
+}
+
+.kai-product-surface .border-blue-200,
+.kai-product-surface .border-purple-200 {
+  border-color: color-mix(in srgb, var(--kai-accent) 28%, transparent) !important;
+}
+
+.kai-product-surface .border-green-200,
+.kai-product-surface .border-emerald-200 {
+  border-color: color-mix(in srgb, var(--kai-success) 28%, transparent) !important;
+}
+
+.kai-product-surface .border-red-200 {
+  border-color: color-mix(in srgb, var(--kai-danger) 28%, transparent) !important;
+}
+
+.kai-product-surface .text-foreground,
+.kai-product-surface .text-gray-950,
+.kai-product-surface .text-gray-900,
+.kai-product-surface .text-gray-800,
+.kai-product-surface .text-gray-700 {
+  color: var(--kai-text) !important;
+}
+
+.kai-product-surface .text-gray-600,
+.kai-product-surface .text-gray-500,
+.kai-product-surface .text-muted-foreground {
+  color: var(--kai-text-secondary) !important;
+}
+
+.kai-product-surface .text-gray-400,
+.kai-product-surface .text-gray-300 {
+  color: var(--kai-text-muted) !important;
+}
+
+.kai-product-surface .text-zinc-500,
+.kai-product-surface .text-zinc-600 {
+  color: var(--kai-text-muted) !important;
+}
+
+.kai-product-surface .text-zinc-700 {
+  color: var(--kai-text-disabled) !important;
+}
+
+.kai-product-surface .border-gray-100,
+.kai-product-surface .border-gray-200,
+.kai-product-surface .border-gray-300,
+.kai-product-surface .border-gray-400 {
+  border-color: var(--kai-border) !important;
+}
+
+.kai-product-surface .divide-gray-200 > :not(:last-child) {
+  border-color: var(--kai-border) !important;
+}
+
+.kai-product-surface h1.text-4xl,
+.kai-product-surface h1.text-3xl {
+  color: var(--kai-text) !important;
+  font-size: 1.75rem !important;
+  line-height: 1.15 !important;
+  letter-spacing: -0.035em;
+}
+
+.kai-product-surface .kai-secondary-action {
+  border: 1px solid var(--kai-border-strong) !important;
+  background: var(--kai-surface-raised) !important;
+  color: var(--kai-text) !important;
+  box-shadow: none !important;
+}
+
+.kai-product-surface .kai-secondary-action:hover {
+  border-color: color-mix(in srgb, var(--kai-accent) 65%, transparent) !important;
+  background: var(--kai-surface-hover) !important;
+  color: var(--kai-text-on-accent) !important;
+}
+
+.kai-product-surface h1.text-blue-600,
+.kai-product-surface h1.text-purple-600 {
+  color: var(--kai-text) !important;
+}
+
+.kai-product-surface h1 + p.text-lg {
+  margin-top: 0.5rem;
+  max-width: 48rem;
+  color: var(--kai-text-secondary) !important;
+  font-size: 0.875rem !important;
+  line-height: 1.5rem;
+}
+
+.kai-product-surface .bg-clip-text.text-transparent {
+  background-image: none !important;
+  color: var(--kai-text) !important;
+}
+
+.kai-product-surface main > div.h-full.overflow-y-auto,
+.kai-product-surface > div > div.flex-1.overflow-auto {
+  scrollbar-color: var(--kai-border-strong) transparent;
+}
+
+.kai-product-surface main > div.h-full.overflow-y-auto {
+  padding: 1.75rem 2rem 3rem !important;
+}
+
+.kai-product-surface .max-w-7xl {
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  max-width: none;
+  width: 100%;
+}
+
+.kai-product-surface input:not([type="checkbox"]):not([type="radio"]),
+.kai-product-surface select,
+.kai-product-surface textarea {
+  border-color: var(--kai-border) !important;
+  background-color: var(--kai-surface-raised) !important;
+  color: var(--kai-text) !important;
+  box-shadow: none !important;
+}
+
+.kai-product-surface input::placeholder,
+.kai-product-surface textarea::placeholder {
+  color: var(--kai-text-muted) !important;
+}
+
+.kai-product-surface input:not([type="checkbox"]):not([type="radio"]):focus,
+.kai-product-surface select:focus,
+.kai-product-surface textarea:focus {
+  border-color: var(--kai-accent) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px var(--kai-accent-soft) !important;
+}
+
+.kai-product-surface input:disabled,
+.kai-product-surface select:disabled,
+.kai-product-surface textarea:disabled {
+  background-color: var(--kai-surface-disabled) !important;
+  color: var(--kai-text-muted) !important;
+  opacity: 1;
+}
+
+.kai-product-surface option {
+  background: var(--kai-surface-raised);
+  color: var(--kai-text);
+}
+
+.kai-product-surface .shadow-sm,
+.kai-product-surface .shadow-md,
+.kai-product-surface .shadow-lg,
+.kai-product-surface .shadow-xl,
+.kai-product-surface .shadow-2xl {
+  box-shadow: 0 1px 2px rgb(var(--kai-shadow-rgb) / 18%), 0 14px 32px rgb(var(--kai-shadow-rgb) / 18%) !important;
+}
+
+.kai-product-surface .transition-all {
+  transition-property: color, background-color, border-color, opacity, box-shadow !important;
+}
+
+.kai-product-surface .duration-200,
+.kai-product-surface .duration-300 {
+  transition-duration: 120ms !important;
+}
+
+.kai-product-surface .animate-pulse {
+  animation: none !important;
+}
+
+.kai-product-surface .rounded-2xl,
+.kai-product-surface .rounded-xl {
+  border-radius: 0.625rem !important;
+}
+
+.kai-product-surface table {
+  color: var(--kai-text-secondary);
+}
+
+.kai-product-surface thead,
+.kai-product-surface thead.bg-gray-50 {
+  background-color: var(--kai-surface) !important;
+}
+
+.kai-product-surface tbody,
+.kai-product-surface tbody.bg-white {
+  background-color: var(--kai-surface) !important;
+}
+
+.kai-product-surface tbody tr:hover {
+  background-color: var(--kai-surface-hover) !important;
+}
+
+.kai-product-surface .modal-box {
+  border: 1px solid var(--kai-border);
+  background: var(--kai-surface-raised) !important;
+  color: var(--kai-text);
+}
+
+.kai-product-surface .modal-box .btn-primary {
+  border-color: var(--kai-accent) !important;
+  background: var(--kai-accent) !important;
+  color: var(--kai-text-on-accent) !important;
+}
+
+.kai-product-surface .modal-box .btn-primary:hover {
+  border-color: var(--kai-accent-hover) !important;
+  background: var(--kai-accent-hover) !important;
+}
+
+.kai-product-surface .modal-box .btn-ghost {
+  border-color: transparent !important;
+  background: transparent !important;
+  color: var(--kai-text-secondary) !important;
+}
+
+.kai-product-surface .modal-box .btn-ghost:hover {
+  background: var(--kai-surface-hover) !important;
+  color: var(--kai-text) !important;
+}
+
+.kai-product-surface .bg-blue-600,
+.kai-product-surface .bg-purple-600,
+.kai-product-surface .from-purple-600,
+.kai-product-surface .to-blue-600 {
+  background-color: var(--kai-accent) !important;
+  background-image: none !important;
+}
+
+.kai-product-surface button.bg-gradient-to-r,
+.kai-product-surface a.bg-gradient-to-r {
+  background-color: var(--kai-accent) !important;
+  background-image: none !important;
+}
+
+.kai-product-surface .hover\:bg-blue-700:hover,
+.kai-product-surface .hover\:bg-purple-700:hover {
+  background-color: var(--kai-accent-hover) !important;
+}
+
+/* Legacy hover utilities must win over the dark base-color remapping above. */
+.kai-product-surface .hover\:bg-gray-50:hover,
+.kai-product-surface .hover\:bg-gray-100:hover,
+.kai-product-surface .hover\:bg-gray-200:hover,
+.kai-product-surface .hover\:bg-white:hover {
+  background-color: var(--kai-surface-hover) !important;
+}
+
+.kai-product-surface .hover\:bg-blue-50:hover,
+.kai-product-surface .hover\:bg-blue-100:hover,
+.kai-product-surface .hover\:bg-purple-50:hover {
+  background-color: color-mix(in srgb, var(--kai-accent) 16%, transparent) !important;
+}
+
+.kai-product-surface .group:hover .group-hover\:bg-blue-200 {
+  background-color: color-mix(in srgb, var(--kai-accent) 22%, transparent) !important;
+}
+
+.kai-product-surface .hover\:border-gray-400:hover,
+.kai-product-surface .hover\:border-blue-300:hover {
+  border-color: var(--kai-accent-strong) !important;
+}
+
+.kai-product-surface .hover\:text-gray-600:hover,
+.kai-product-surface .hover\:text-gray-700:hover,
+.kai-product-surface .hover\:text-gray-800:hover,
+.kai-product-surface .hover\:text-gray-900:hover {
+  color: var(--kai-text) !important;
+}
+
+.kai-product-surface .kai-credential-card:hover {
+  border-color: var(--kai-border-strong) !important;
+  background-color: var(--kai-surface-raised) !important;
+}
+
+.kai-product-surface button,
+.kai-product-surface a {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kai-product-surface button:focus-visible,
+.kai-product-surface a:focus-visible {
+  outline: 2px solid var(--kai-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .kai-product-surface main > div.h-full.overflow-y-auto {
+    padding: 1.25rem !important;
+  }
+
+  .kai-product-surface .flex-row.items-center.gap-4 {
+    flex-wrap: wrap;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kai-product-surface *,
+  .kai-product-surface *::before,
+  .kai-product-surface *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
 }
 
 @layer utilities {
@@ -72,13 +961,13 @@ body[data-node-settings-open="true"] .notistack-SnackbarContainer {
   align-items: center;
   justify-content: center;
   border-radius: 8px;
-  color: #9ca3af;
+  color: var(--kai-action-muted);
   transition: background-color 150ms ease, color 150ms ease;
 }
 
 .chat-message-action:hover {
-  background-color: #374151;
-  color: #f3f4f6;
+  background-color: var(--kai-action-hover-bg);
+  color: var(--kai-action-hover-text);
 }
 
 .chat-message-action:active {
@@ -86,7 +975,7 @@ body[data-node-settings-open="true"] .notistack-SnackbarContainer {
 }
 
 .chat-message-action:focus-visible {
-  outline: 2px solid #60a5fa;
+  outline: 2px solid var(--kai-accent-text);
   outline-offset: 2px;
 }
 

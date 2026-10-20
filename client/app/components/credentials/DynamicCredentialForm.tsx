@@ -114,7 +114,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
       name: field.name,
       placeholder: field.placeholder,
       className:
-        "input w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200",
+        "input w-full rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] px-4 py-3 text-zinc-100 placeholder:text-zinc-500 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20",
     };
 
     switch (field.type) {
@@ -143,7 +143,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Field
             as="select"
             name={field.name}
-            className="select select-bordered w-full bg-white text-gray-900 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 cursor-pointer"
+            className="select select-bordered w-full cursor-pointer rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
             <option value="">Select {field.label}</option>
             {field.options?.map((option) => (
@@ -169,9 +169,9 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             <Field
               type="checkbox"
               name={field.name}
-              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 cursor-pointer"
+              className="h-4 w-4 cursor-pointer rounded border-[var(--kai-control-muted)] accent-[var(--kai-accent)] focus:ring-[var(--kai-accent)]"
             />
-            <span className="text-sm text-gray-700">{field.label}</span>
+            <span className="text-sm text-zinc-200">{field.label}</span>
           </label>
         );
 
@@ -183,7 +183,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
   return (
     <div className="space-y-6">
       {/* Service Header */}
-      <div className="text-center pb-6 border-b border-gray-200">
+      <div className="border-b border-[var(--kai-border-soft)] pb-6 text-center">
         {/* Service Icon (SVG with fallback) */}
         {(() => {
           const [failed, setFailed] = [iconFailed, setIconFailed];
@@ -205,10 +205,10 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             </div>
           );
         })()}
-        <h3 className="text-xl font-semibold text-gray-900 mb-2">
+        <h3 className="mb-2 text-xl font-semibold text-white">
           Connect to {service.name}
         </h3>
-        <p className="text-gray-600 text-sm max-w-md mx-auto">
+        <p className="mx-auto max-w-md text-sm text-zinc-400">
           {service.description}
         </p>
       </div>
@@ -223,14 +223,14 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
           <Form className="space-y-6">
             {/* Credential Name */}
             <div className="space-y-2">
-              <label className="block text-sm font-medium text-gray-700">
+              <label className="block text-sm font-medium text-zinc-200">
                 Name <span className="text-red-500">*</span>
               </label>
               <Field
                 name="name"
                 type="text"
                 placeholder={`${service.name} Credential`}
-                className="input w-full border border-gray-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+                className="input w-full rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] px-4 py-3 text-zinc-100 placeholder:text-zinc-500 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
               />
               <ErrorMessage
                 name="name"
@@ -245,7 +245,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               return (
                 <div key={field.name} className="space-y-2">
                   {field.type !== "checkbox" && (
-                    <label className="block text-sm font-medium text-gray-700">
+                    <label className="block text-sm font-medium text-zinc-200">
                       {field.label}
                       {field.required && (
                         <span className="text-red-500 ml-1">*</span>
@@ -256,7 +256,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                   {renderField(field, values)}
 
                   {field.description && (
-                    <p className="text-xs text-gray-500 mt-1">
+                    <p className="mt-1 text-xs text-zinc-400">
                       {field.description}
                     </p>
                   )}
@@ -278,11 +278,11 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
             )}
 
             {/* Form Actions */}
-            <div className="flex items-center justify-end gap-3 pt-6 border-t border-gray-200">
+            <div className="flex items-center justify-end gap-3 border-t border-[var(--kai-border-soft)] pt-6">
               <button
                 type="button"
                 onClick={onCancel}
-                className="px-6 py-2.5 text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 transition-all duration-200"
+                className="rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] px-6 py-2.5 text-zinc-100 transition-colors hover:border-[var(--kai-control-muted)] hover:bg-[var(--kai-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--kai-accent)]"
               >
                 Cancel
               </button>
@@ -313,10 +313,10 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
                   }}
                   className={`flex items-center gap-1.5 px-5 py-2.5 rounded-lg border transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed
                     ${testState === "success"
-                      ? "text-green-600 border-green-300 bg-green-50"
+                      ? "border-emerald-400/35 bg-emerald-400/10 text-emerald-300"
                       : testState === "error"
-                        ? "text-red-500 border-red-300 bg-red-50"
-                        : "text-gray-700 border-gray-300 bg-white hover:bg-gray-50"
+                        ? "border-red-400/35 bg-red-400/10 text-red-300"
+                        : "border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] text-zinc-100 hover:border-[var(--kai-accent)]/60 hover:bg-[var(--kai-accent)]/10"
                     }`}
                 >
                   {testState === "loading" && <Loader2 className="w-4 h-4 animate-spin" />}
@@ -329,7 +329,7 @@ const DynamicCredentialForm: React.FC<DynamicCredentialFormProps> = ({
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-6 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200"
+                className="rounded-lg border border-[var(--kai-accent)] bg-[var(--kai-accent)] px-6 py-2.5 text-white transition-colors hover:border-[var(--kai-accent-hover)] hover:bg-[var(--kai-accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent)] disabled:cursor-not-allowed disabled:opacity-50"
               >
                 {isSubmitting ? "Connecting..." : "Connect Service"}
               </button>

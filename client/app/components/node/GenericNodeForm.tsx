@@ -235,7 +235,7 @@ export default function GenericNodeForm({
         {({ values, errors, touched, isSubmitting, setFieldValue }) => (
           <>
             <FormValuesObserver values={values} initialValues={initialValues} onChange={onChange} />
-            <Form className="grid grid-cols-2 gap-3 w-full p-6">
+            <Form className="grid w-full grid-cols-2 gap-3 p-3">
               {getVisibleProperties(activeTab).map((property: NodeProperty) => {
                 // Check display options
                 if (property.displayOptions?.show) {
@@ -372,23 +372,23 @@ export default function GenericNodeForm({
                   // Checkbox için kompakt görünüm
                   if (property.type === "checkbox") {
                     return (
-                      <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                      <div key={property.name} className="kai-node-optional-card kai-node-optional-card--compact">
                         <FieldLabel
                           label={property.displayName}
                           helpText={getFieldHelpText(property)}
-                          className="text-sm text-slate-200"
+                          className="mb-0 min-w-0 text-sm text-[var(--kai-text-soft)]"
                         />
-                        <div className="flex items-center gap-3">
+                        <div className="kai-node-optional-actions">
                           {/* Toggle Switch */}
                           <button
                             type="button"
                             onClick={() => setFieldValue(property.name, !values[property.name])}
-                            className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${values[property.name] ? "bg-blue-500" : "bg-slate-600"
-                              }`}
+                            className={`kai-node-toggle ${values[property.name] ? "is-active" : ""}`}
+                            role="switch"
+                            aria-checked={Boolean(values[property.name])}
                           >
                             <span
-                              className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${values[property.name] ? "translate-x-5" : "translate-x-0"
-                                }`}
+                              className="kai-node-toggle-thumb"
                             />
                           </button>
                           {/* Remove Button */}
@@ -398,7 +398,8 @@ export default function GenericNodeForm({
                               removeOptionalField(property.name);
                               setFieldValue(property.name, false);
                             }}
-                            className="text-slate-400 hover:text-red-400 transition-colors"
+                            className="kai-node-optional-remove"
+                            aria-label={`Remove ${property.displayName}`}
                             title={`Remove ${property.displayName}`}
                           >
                             <X size={16} />
@@ -411,13 +412,13 @@ export default function GenericNodeForm({
                   // Compact view for Numbers (like a checkbox)
                   if (property.type === "number" && !property.unit) {
                     return (
-                      <div key={property.name} className="col-span-2 flex items-center justify-between bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                      <div key={property.name} className="kai-node-optional-card kai-node-optional-card--compact">
                         <FieldLabel
                           label={property.displayName}
                           helpText={getFieldHelpText(property)}
-                          className="text-sm text-slate-200"
+                          className="mb-0 min-w-0 text-sm text-[var(--kai-text-soft)]"
                         />
-                        <div className="flex items-center gap-3">
+                        <div className="kai-node-optional-actions">
                           <ThemedNumberInput
                             value={values[property.name] ?? property.default ?? ""}
                             onChange={(nextValue) =>
@@ -439,7 +440,8 @@ export default function GenericNodeForm({
                               removeOptionalField(property.name);
                               setFieldValue(property.name, property.default ?? "");
                             }}
-                            className="text-slate-400 hover:text-red-400 transition-colors"
+                            className="kai-node-optional-remove"
+                            aria-label={`Remove ${property.displayName}`}
                             title={`Remove ${property.displayName}`}
                           >
                             <X size={16} />
@@ -451,12 +453,13 @@ export default function GenericNodeForm({
 
                   // Diğer field türleri için container stili
                   return (
-                    <div key={property.name} className="col-span-2 relative bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3">
+                    <div key={property.name} className="kai-node-optional-card kai-node-optional-card--with-action-rail">
                       {fieldComponent}
                       <button
                         type="button"
                         onClick={() => removeOptionalField(property.name)}
-                        className="absolute top-3 right-4 text-slate-400 hover:text-red-400 transition-colors"
+                        className="kai-node-optional-remove kai-node-optional-remove--rail"
+                        aria-label={`Remove ${property.displayName}`}
                         title={`Remove ${property.displayName}`}
                       >
                         <X size={16} />
@@ -471,7 +474,7 @@ export default function GenericNodeForm({
                     className={
                       property.type === "title"
                         ? "col-span-2 pt-3 pb-1"
-                        : "col-span-2 bg-slate-800/50 border border-slate-600 rounded-lg px-4 py-3"
+                        : "col-span-2 rounded-lg border border-[var(--kai-navigation-border)] bg-[var(--kai-overlay-surface)] px-4 py-3"
                     }
                   >
                     {fieldComponent}
@@ -481,25 +484,25 @@ export default function GenericNodeForm({
 
               {/* Add Option Dropdown */}
               {getHiddenOptionalProperties(activeTab).length > 0 && (
-                <div className="col-span-2 mt-4 border-t border-slate-600 pt-4">
+                <div className="col-span-2 mt-3 border-t border-[var(--kai-navigation-border)] pt-4">
                   <div className="relative" ref={dropdownRef}>
                     <button
                       type="button"
                       onClick={() => setOptionDropdownOpen(!optionDropdownOpen)}
-                      className="w-full flex items-center justify-between bg-slate-700/50 border border-dashed border-slate-500 rounded-lg px-4 py-2.5 text-slate-300 cursor-pointer hover:bg-slate-600/50 hover:border-slate-400 hover:text-white transition-all duration-200 group"
+                      className="group flex w-full cursor-pointer items-center justify-between rounded-lg border border-dashed border-[var(--kai-config-dashed-border)] bg-[var(--kai-surface-selected)] px-4 py-2.5 text-[var(--kai-text-secondary)] transition-colors hover:border-[var(--kai-config-dashed-border-hover)] hover:bg-[var(--kai-border-dialog)] hover:text-[var(--kai-text)]"
                     >
                       <span className="flex items-center gap-2 text-sm font-medium">
-                        <Plus size={16} className="text-slate-400 group-hover:text-blue-400 transition-colors duration-200" />
+                        <Plus size={16} className="text-[var(--kai-text-muted)] transition-colors group-hover:text-[var(--kai-text)]" />
                         Add Option
                       </span>
                       <ChevronDown
                         size={16}
-                        className={`text-slate-400 group-hover:text-white transition-all duration-200 ${optionDropdownOpen ? "rotate-180" : ""}`}
+                        className={`text-[var(--kai-text-muted)] transition-all duration-200 group-hover:text-[var(--kai-text)] ${optionDropdownOpen ? "rotate-180" : ""}`}
                       />
                     </button>
 
                     {optionDropdownOpen && (
-                      <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
+                      <div className="kai-node-field-menu absolute left-0 right-0 z-50 mt-1">
                         {getHiddenOptionalProperties(activeTab).map((property: NodeProperty) => (
                           <button
                             key={property.name}
@@ -508,9 +511,9 @@ export default function GenericNodeForm({
                               addOptionalField(property.name);
                               setOptionDropdownOpen(false);
                             }}
-                            className="w-full flex items-center gap-3 px-3 py-2.5 text-sm text-slate-300 hover:bg-blue-500/20 hover:text-blue-300 transition-colors duration-150 text-left group"
+                            className="group flex w-full items-center gap-3 px-3 py-2.5 text-left text-sm text-[var(--kai-text-secondary)] transition-colors duration-150 hover:bg-[var(--kai-config-menu-hover-bg)] hover:text-[var(--kai-text)]"
                           >
-                            <Plus size={14} className="text-slate-500 group-hover:text-blue-300 flex-shrink-0" />
+                            <Plus size={14} className="flex-shrink-0 text-[var(--kai-text-muted)] group-hover:text-[var(--kai-text-secondary)]" />
                             {property.displayName}
                           </button>
                         ))}

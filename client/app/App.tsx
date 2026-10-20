@@ -1,5 +1,5 @@
 import { Routes, Route, useLocation } from "react-router";
-import { useEffect } from "react";
+import { lazy, Suspense, type ReactNode, useEffect } from "react";
 import { config } from "./lib/config";
 import "./app.css";
 import { SnackbarProvider } from "notistack";
@@ -8,18 +8,17 @@ import { AuthProvider, useAuth as useOidcAuth } from "react-oidc-context";
 import useAuthStore from "./stores/auth";
 import ErrorBoundary from "./components/common/ErrorBoundary";
 
-// Route imports
-import Home from "./routes/home";
-import Signin from "./routes/signin";
-import Register from "./routes/register";
-import Workflows from "./routes/workflows";
-import Pinned from "./routes/pinned";
-import Settings from "./routes/settings";
-import Canvas from "./routes/canvas";
-import Executions from "./routes/executions";
-import Credentials from "./routes/credentials";
-import Variables from "./routes/variables";
-import Marketplace from "./routes/marketplace";
+const Home = lazy(() => import("./routes/home"));
+const Signin = lazy(() => import("./routes/signin"));
+const Register = lazy(() => import("./routes/register"));
+const Workflows = lazy(() => import("./routes/workflows"));
+const Pinned = lazy(() => import("./routes/pinned"));
+const Settings = lazy(() => import("./routes/settings"));
+const Canvas = lazy(() => import("./routes/canvas"));
+const Executions = lazy(() => import("./routes/executions"));
+const Credentials = lazy(() => import("./routes/credentials"));
+const Variables = lazy(() => import("./routes/variables"));
+const Marketplace = lazy(() => import("./routes/marketplace"));
 
 const oidcConfig = {
   authority: window.VITE_KEYCLOAK_URL
@@ -86,6 +85,32 @@ function ScrollToTop() {
   return null;
 }
 
+function ProductSurface({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+  const excludedRoutes = ["/canvas", "/signin", "/register"];
+  const isProductPage = !excludedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
+  return (
+    <div className={isProductPage ? "kai-product-surface" : undefined}>
+      {children}
+    </div>
+  );
+}
+
+function RouteFallback() {
+  return (
+    <div
+      className="flex min-h-screen items-center justify-center bg-[var(--kai-bg-deep)]"
+      role="status"
+      aria-label="Loading page"
+    >
+      <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-blue-500" />
+    </div>
+  );
+}
+
 export default function App() {
   const { mode } = useThemeStore();
   const isKeycloakEnabled = !!oidcConfig.authority && !!oidcConfig.client_id;
@@ -103,28 +128,32 @@ export default function App() {
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
       >
         <ScrollToTop />
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/signin" element={<Signin />} />
-          {!config.IS_ENTERPRISE && <Route path="/register" element={<Register />} />}
-          <Route path="/workflows" element={<Workflows />} />
-          <Route path="/pinned" element={<Pinned />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/canvas" element={<Canvas />} />
-          <Route path="/executions" element={<Executions />} />
-          <Route path="/credentials" element={<Credentials />} />
-          <Route path="/variables" element={<Variables />} />
-          {!config.IS_ENTERPRISE && <Route path="/marketplace" element={<Marketplace />} />}
-          <Route
-            path="*"
-            element={
-              <main className="pt-16 p-4 container mx-auto">
-                <h1>404</h1>
-                <p>The requested page could not be found.</p>
-              </main>
-            }
-          />
-        </Routes>
+        <ProductSurface>
+          <Suspense fallback={<RouteFallback />}>
+            <Routes>
+              <Route path="/" element={<Home />} />
+              <Route path="/signin" element={<Signin />} />
+              {!config.IS_ENTERPRISE && <Route path="/register" element={<Register />} />}
+              <Route path="/workflows" element={<Workflows />} />
+              <Route path="/pinned" element={<Pinned />} />
+              <Route path="/settings" element={<Settings />} />
+              <Route path="/canvas" element={<Canvas />} />
+              <Route path="/executions" element={<Executions />} />
+              <Route path="/credentials" element={<Credentials />} />
+              <Route path="/variables" element={<Variables />} />
+              {!config.IS_ENTERPRISE && <Route path="/marketplace" element={<Marketplace />} />}
+              <Route
+                path="*"
+                element={
+                  <main className="pt-16 p-4 container mx-auto">
+                    <h1>404</h1>
+                    <p>The requested page could not be found.</p>
+                  </main>
+                }
+              />
+            </Routes>
+          </Suspense>
+        </ProductSurface>
         {isKeycloakEnabled && <AuthSynchronizer />}
       </SnackbarProvider>
     </ErrorBoundary>

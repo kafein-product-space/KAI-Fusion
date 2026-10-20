@@ -1,0 +1,177 @@
+/*
+ * KAI Flow design tokens
+ *
+ * Components consume semantic variables from this file instead of owning
+ * palette values. A future theme can override this token set without changing
+ * component markup or interaction styles.
+ */
+:root {
+  /* Foundations */
+  --kai-bg-deep: #0a0a0b;
+  --kai-bg: #181818;
+  --kai-sidebar: #18181b;
+  --kai-surface: #202020;
+  --kai-surface-dialog: #202024;
+  --kai-surface-raised: #252525;
+  --kai-surface-control: #25252a;
+  --kai-surface-hover: #303036;
+  --kai-surface-hover-subtle: #2a2a2a;
+  --kai-surface-hover-deep: #2b2b2b;
+  --kai-surface-hover-strong: #2d2d33;
+  --kai-surface-selected: #29292e;
+  --kai-overlay-surface: #2a2a30;
+  --kai-panel-raised: #242428;
+  --kai-node-surface: #24242a;
+  --kai-input-bg: #242424;
+  --kai-node-field-bg: #20242a;
+  --kai-node-config-bg: #1a1a1f;
+  --kai-surface-disabled: #1d1d1d;
+  --kai-log-control-bg: #080809;
+  --kai-surface-neutral-strong: #333333;
+
+  /* Canvas and overlay surfaces */
+  --kai-chat-shell-bg: #18181a;
+  --kai-chat-body-bg: #141416;
+  --kai-log-panel-bg: #0c0c0e;
+  --kai-log-header-bg: #121215;
+  --kai-log-body-bg: #09090b;
+  --kai-error-surface: #121214;
+  --kai-node-modal-bg: #1c1c20;
+  --kai-node-modal-field-bg: #111113;
+  --kai-credential-footer-bg: #1b1b1f;
+  --kai-dashboard-sidebar-bg: #171717;
+
+  /* Borders */
+  --kai-border: #303030;
+  --kai-border-dialog: #34343a;
+  --kai-border-soft: #38383e;
+  --kai-border-strong: #45454e;
+  --kai-border-muted: #3a3a3a;
+  --kai-navigation-border: #3d3d46;
+  --kai-panel-border: #3f3f46;
+  --kai-card-border: #414147;
+  --kai-control-border: #45454d;
+  --kai-field-border: #494951;
+  --kai-input-border: #383838;
+  --kai-border-hover: #505050;
+  --kai-range-border: #414b57;
+  --kai-border-emphasis: #454545;
+  --kai-error-action-border: #38383f;
+  --kai-node-modal-divider: #36363d;
+  --kai-tab-active-border: #55555f;
+  --kai-selector-hover-border: #73737d;
+  --kai-dashboard-search-border: #353535;
+  --kai-workflow-card-hover-border: var(--kai-border-emphasis);
+  --kai-config-dashed-border: #50505a;
+  --kai-config-dashed-border-hover: #696975;
+
+  /* Typography */
+  --kai-text: #f5f5f5;
+  --kai-text-secondary: #b6b6b6;
+  --kai-text-muted: #969696;
+  --kai-text-soft: #d4d4d4;
+  --kai-text-disabled: #858585;
+  --kai-placeholder: #777777;
+  --kai-icon-muted: #8c8c8c;
+  --kai-action-muted: #9ca3af;
+  --kai-action-hover-bg: #374151;
+  --kai-action-hover-text: #f3f4f6;
+  --kai-text-on-accent: #ffffff;
+
+  /* Dashboard navigation */
+  --kai-sidebar-item-text: #c1c1c1;
+  --kai-sidebar-icon-text: #a0a0a0;
+  --kai-sidebar-control-text: #e5e5e5;
+  --kai-sidebar-menu-text: #e7e7e7;
+  --kai-sidebar-menu-icon: #a6a6a6;
+  --kai-sidebar-user-icon: #dedede;
+  --kai-sidebar-user-name: #f0f0f0;
+  --kai-sidebar-user-meta: #9a9a9a;
+  --kai-sidebar-chevron: #8f8f8f;
+  --kai-sidebar-item-hover-bg: #222222;
+  --kai-sidebar-count-bg: var(--kai-surface-neutral-strong);
+
+  /* Brand and interaction */
+  --kai-accent: #1688f8;
+  --kai-accent-hover: #3199ff;
+  --kai-accent-text: #74bdff;
+  --kai-accent-text-soft: #8bc8ff;
+  --kai-accent-pale: #c4e4ff;
+  --kai-accent-pale-strong: #e0f2ff;
+  --kai-control-accent-text: #a9cef1;
+  --kai-neutral-focus: #71717a;
+  --kai-control-muted: #606069;
+  --kai-range-bg: #252c35;
+  --kai-range-text: #b8ddff;
+  --kai-focus: var(--kai-accent-text-soft);
+  --kai-accent-subtle: color-mix(in srgb, var(--kai-accent) 10%, transparent);
+  --kai-accent-soft: color-mix(in srgb, var(--kai-accent) 18%, transparent);
+  --kai-accent-strong: color-mix(in srgb, var(--kai-accent) 55%, transparent);
+
+  /* Status */
+  --kai-success: #3ecf8e;
+  --kai-danger: #fb7185;
+  --kai-warning: #fcd34d;
+  --kai-success-strong: #10b981;
+  --kai-success-control: #2fbf71;
+  --kai-success-text: #72dca3;
+  --kai-success-text-strong: #6ee7b7;
+  --kai-danger-strong: #ef4444;
+  --kai-danger-action: #b84f55;
+  --kai-danger-action-hover: #ca5a60;
+  --kai-danger-text: #fda4a4;
+  --kai-danger-text-soft: #fda4af;
+  --kai-danger-text-hover: #fecaca;
+  --kai-danger-menu-text: #f3a2a7;
+  --kai-danger-menu-bg: #482729;
+  --kai-danger-menu-text-hover: #ffd7d9;
+  --kai-success-subtle: color-mix(in srgb, var(--kai-success) 12%, transparent);
+  --kai-danger-subtle: color-mix(in srgb, var(--kai-danger) 12%, transparent);
+  --kai-warning-subtle: color-mix(in srgb, var(--kai-warning) 12%, transparent);
+  --kai-shadow-rgb: 0 0 0;
+  --kai-shadow-overlay: rgb(var(--kai-shadow-rgb) / 50%);
+
+  /* Reusable component states */
+  --kai-tab-active-bg: #3a3a42;
+  --kai-selector-hover-bg: #2c2c32;
+  --kai-credential-badge-bg: #35353c;
+  --kai-config-menu-hover-bg: #35353d;
+  --kai-chart-grid: #343434;
+  --kai-workflow-inactive-bg: #292929;
+  --kai-workflow-inactive-border: #3b3b3b;
+  --kai-workflow-inactive-text: #a2a2a2;
+  --kai-workflow-inactive-control: #686868;
+  --kai-workflow-control-border: #4a4a4a;
+  --kai-workflow-open-border: #414141;
+  --kai-workflow-open-bg: #262626;
+  --kai-workflow-open-text: #f2f2f2;
+
+  /* Authentication component aliases */
+  --kai-auth-story-bg: #1b1e22;
+  --kai-auth-panel-bg: var(--kai-surface);
+  --kai-auth-field-bg: #282828;
+  --kai-auth-field-border: var(--kai-border-emphasis);
+  --kai-auth-field-border-hover: #626262;
+  --kai-auth-divider: #424242;
+  --kai-auth-secondary-border: #515151;
+  --kai-auth-secondary-hover-border: #727272;
+  --kai-auth-secondary-hover-bg: var(--kai-surface-neutral-strong);
+  --kai-auth-heading: #f7f8fa;
+  --kai-auth-label: #e0e0e0;
+  --kai-auth-copy: #b5bac2;
+  --kai-auth-muted: #a7a7a7;
+  --kai-auth-placeholder: #898989;
+  --kai-auth-secondary-text: #e8e8e8;
+  --kai-auth-toggle: #aeb9c5;
+  --kai-auth-toggle-hover: #e1efff;
+  --kai-auth-primary-bg: #e7edf3;
+  --kai-auth-primary-hover-bg: #d6e0e9;
+  --kai-auth-primary-text: #17212b;
+  --kai-auth-error: #f69a9a;
+  --kai-auth-error-border: #835151;
+  --kai-auth-error-bg: #392929;
+  --kai-auth-error-text: #ffd4d4;
+  --kai-auth-success-border: #3e705d;
+  --kai-auth-success-bg: #25392f;
+  --kai-auth-success-text: #b8ebcd;
+}

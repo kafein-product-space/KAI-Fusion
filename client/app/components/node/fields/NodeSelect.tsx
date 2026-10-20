@@ -70,28 +70,28 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
           onClick={() => setDropdownOpen(!dropdownOpen)}
           onMouseDown={(e: any) => e.stopPropagation()}
           onTouchStart={(e: any) => e.stopPropagation()}
-          className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 cursor-pointer hover:border-slate-500 ${dropdownOpen ? "border-blue-500" : ""
-            }`}
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen}
+          className="kai-node-field-control flex cursor-pointer items-center justify-between px-4 py-3 text-left"
         >
-          <span className="text-sm text-white">{displayText}</span>
+          <span className="text-sm text-[var(--kai-text)]">{displayText}</span>
           <ChevronDown
             size={16}
-            className={`text-slate-400 transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
+            className={`text-[var(--kai-text-muted)] transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
           />
         </button>
 
         {/* Dropdown Menu */}
         {dropdownOpen && (
-          <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
+          <div className="kai-node-field-menu absolute left-0 right-0 z-50 mt-1" role="listbox">
             {property.options?.map((option: { label: string; value: string; hint: string }) => (
               <button
                 key={option.value}
                 type="button"
                 onClick={() => handleSelect(option.value)}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${currentValue === option.value
-                    ? "bg-blue-500/20 text-blue-300"
-                    : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
-                  }`}
+                role="option"
+                aria-selected={currentValue === option.value}
+                className={`kai-node-field-option flex w-full items-center gap-3 px-4 py-2.5 text-left text-sm ${currentValue === option.value ? "is-selected" : ""}`}
               >
                 {option.label}
               </button>
@@ -101,7 +101,7 @@ export const NodeSelect = ({ property, values }: NodeSelectProps) => {
       </div>
 
       {selectedOption?.hint && (
-        <p className="text-slate-400 text-xs bg-slate-900/30 mt-1">{selectedOption.hint}</p>
+        <p className="kai-node-field-hint mt-1">{selectedOption.hint}</p>
       )}
     </div>
   );

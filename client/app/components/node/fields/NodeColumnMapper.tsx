@@ -175,9 +175,7 @@ export const NodeColumnMapper = ({
     helpers.setValue(matchValues);
   };
 
-  const inputClass =
-    "w-full bg-[#10182c] border border-slate-600 rounded-lg px-3 py-2 text-sm text-white " +
-    "placeholder:text-slate-500 focus:border-blue-500 focus:outline-none transition-colors";
+  const inputClass = "kai-node-field-control min-h-0 px-3 py-2";
 
   const hasMappedValue = (name: string) =>
     Object.prototype.hasOwnProperty.call(currentData, name);
@@ -275,7 +273,7 @@ export const NodeColumnMapper = ({
               type="button"
               title="Clear mapped values except match columns"
               onClick={clearMappedValues}
-              className="text-slate-400 hover:text-amber-300 p-1"
+              className="p-1 text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-warning)]"
             >
               <RotateCcw size={14} />
             </button>
@@ -285,7 +283,7 @@ export const NodeColumnMapper = ({
             title="Reload the columns"
             onClick={fetchColumns}
             disabled={loading || !!missingDependency}
-            className="text-slate-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed p-1"
+            className="p-1 text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-accent-text)] disabled:cursor-not-allowed disabled:text-[var(--kai-text-disabled)]"
           >
             <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
           </button>
@@ -293,7 +291,7 @@ export const NodeColumnMapper = ({
       </div>
 
       {!missingDependency && columns.length > 0 && (
-        <div className="mb-3 rounded-md border border-blue-500/20 bg-blue-500/5 px-3 py-2 text-xs text-slate-400">
+        <div className="mb-3 rounded-md border border-[var(--kai-accent-soft)] bg-[var(--kai-accent-subtle)] px-3 py-2 text-xs text-[var(--kai-text-muted)]">
           {operation === "update"
             ? "Only included columns are updated. An included empty value overwrites the existing value; remove the column to leave it unchanged."
             : "Only included columns are sent. Remove optional/defaulted columns when PostgreSQL should supply their value."}
@@ -301,22 +299,22 @@ export const NodeColumnMapper = ({
       )}
 
       {missingDependency && (
-        <div className="text-sm text-slate-400 py-3">
+        <div className="py-3 text-sm text-[var(--kai-text-muted)]">
           Select {missingDependency.replace(/_/g, " ")} first.
         </div>
       )}
 
-      {loading && <div className="text-sm text-slate-400 py-3">Loading the columns...</div>}
+      {loading && <div className="py-3 text-sm text-[var(--kai-text-muted)]">Loading the columns...</div>}
 
       {error && (
-        <div className="flex items-start gap-1.5 py-2 text-xs text-amber-400">
+        <div className="flex items-start gap-1.5 py-2 text-xs text-[var(--kai-warning)]">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {!loading && !missingDependency && !error && columns.length === 0 && (
-        <div className="text-sm text-slate-400 py-3">This table has no columns to show.</div>
+        <div className="py-3 text-sm text-[var(--kai-text-muted)]">This table has no columns to show.</div>
       )}
 
       <div className="space-y-3 mt-1">
@@ -328,39 +326,39 @@ export const NodeColumnMapper = ({
             isExplicitlyMapped &&
             (currentData[column.name] === "" || currentData[column.name] === null);
           return (
-            <div key={column.name} className="pl-3 border-l-2 border-blue-500/50">
+            <div key={column.name} className="border-l-2 border-[var(--kai-accent-strong)] pl-3">
               <div className="flex items-center gap-2 mb-1.5">
                 {!isMatch && !isLockedRequired && (
                   <button
                     type="button"
                     title="Do not send this column"
                     onClick={() => removeColumn(column.name)}
-                    className="text-slate-500 hover:text-red-400 transition-colors"
+                    className="text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-danger-text-soft)]"
                   >
                     <Trash2 size={13} />
                   </button>
                 )}
-                <span className="text-sm text-slate-200">{column.name}</span>
+                <span className="text-sm text-[var(--kai-text-soft)]">{column.name}</span>
                 {isMatch && (
-                  <span className="text-xs text-blue-300">(using to match)</span>
+                  <span className="text-xs text-[var(--kai-accent-text)]">(using to match)</span>
                 )}
                 {column.required && isInsertLike && !isMatch && (
-                  <span className="text-xs text-amber-400">required</span>
+                  <span className="text-xs text-[var(--kai-warning)]">required</span>
                 )}
                 {isExplicitlyMapped ? (
-                  <span className="text-[10px] uppercase tracking-wide text-emerald-400">
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--kai-success-text)]">
                     included
                   </span>
                 ) : (
-                  <span className="text-[10px] uppercase tracking-wide text-amber-400">
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--kai-warning)]">
                     value required
                   </span>
                 )}
-                <span className="text-xs text-slate-500 ml-auto">{column.type}</span>
+                <span className="ml-auto text-xs text-[var(--kai-text-muted)]">{column.type}</span>
               </div>
               {renderInput(column)}
               {sendsBlankValue && (
-                <div className="mt-1 text-xs text-amber-400">
+                <div className="mt-1 text-xs text-[var(--kai-warning)]">
                   This empty value will be sent. Remove the column to leave it unchanged.
                 </div>
               )}
@@ -370,8 +368,8 @@ export const NodeColumnMapper = ({
       </div>
 
       {availableColumns.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-slate-700">
-          <div className="text-xs text-slate-500 mb-2">
+        <div className="mt-3 border-t border-[var(--kai-border-strong)] pt-3">
+          <div className="mb-2 text-xs text-[var(--kai-text-muted)]">
             Available columns — not sent until included
           </div>
           <div className="flex flex-wrap gap-2">
@@ -380,7 +378,7 @@ export const NodeColumnMapper = ({
                 key={column.name}
                 type="button"
                 onClick={() => includeColumn(column.name)}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded hover:text-blue-300 hover:border-blue-500 transition-colors"
+                className="kai-node-field-action flex items-center gap-1 rounded px-2 py-1 text-xs"
               >
                 <Plus size={11} />
                 {column.name}
@@ -390,12 +388,12 @@ export const NodeColumnMapper = ({
         </div>
       )}
 
-      <details className="mt-3 border-t border-slate-700 pt-3">
-        <summary className="cursor-pointer text-xs text-slate-400 hover:text-slate-200">
+      <details className="mt-3 border-t border-[var(--kai-border-strong)] pt-3">
+        <summary className="cursor-pointer text-xs text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-text)]">
           Payload preview ({Object.keys(currentData).length} mapped column
           {Object.keys(currentData).length === 1 ? "" : "s"})
         </summary>
-        <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-[#0b1220] p-3 text-xs text-slate-300">
+        <pre className="mt-2 max-h-48 overflow-auto rounded-md bg-[var(--kai-bg-deep)] p-3 text-xs text-[var(--kai-text-secondary)]">
           {JSON.stringify(currentData, null, 2)}
         </pre>
       </details>

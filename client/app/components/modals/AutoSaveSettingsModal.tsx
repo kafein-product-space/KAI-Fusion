@@ -63,10 +63,10 @@ const AutoSaveSettingsModal = forwardRef<
         }}
         className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
+        <div className="rounded-xl border border-gray-700 bg-[var(--kai-sidebar)] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
-              <Save className="w-5 h-5 text-blue-500" />
+            <div className="w-10 h-10 bg-[var(--kai-accent)]/20 rounded-full flex items-center justify-center">
+              <Save className="w-5 h-5 text-[var(--kai-accent-text)]" />
             </div>
             <div>
               <h3 id="auto-save-settings-title" className="font-bold text-lg text-white">
@@ -82,9 +82,9 @@ const AutoSaveSettingsModal = forwardRef<
             {/* Auto-save toggle */}
             <div className="flex items-center justify-between p-3 bg-gray-800/50 rounded-lg">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 bg-blue-500/20 rounded-full flex items-center justify-center">
+                <div className="w-8 h-8 bg-[var(--kai-accent)]/20 rounded-full flex items-center justify-center">
                   {localAutoSaveEnabled ? (
-                    <ToggleRight className="w-4 h-4 text-blue-500" />
+                    <ToggleRight className="w-4 h-4 text-[var(--kai-accent-text)]" />
                   ) : (
                     <ToggleLeft className="w-4 h-4 text-gray-500" />
                   )}
@@ -100,7 +100,7 @@ const AutoSaveSettingsModal = forwardRef<
                 type="button"
                 onClick={() => setLocalAutoSaveEnabled(!localAutoSaveEnabled)}
                 className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                  localAutoSaveEnabled ? "bg-blue-500" : "bg-gray-600"
+                  localAutoSaveEnabled ? "bg-[var(--kai-accent)]" : "bg-gray-600"
                 }`}
               >
                 <span
@@ -129,7 +129,7 @@ const AutoSaveSettingsModal = forwardRef<
                 onChange={(e) =>
                   setLocalAutoSaveInterval(Number(e.target.value))
                 }
-                className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1 border border-gray-600 focus:border-blue-500 focus:outline-none"
+                className="bg-gray-700 text-white text-sm rounded-lg px-3 py-1 border border-gray-600 focus:border-[var(--kai-accent)] focus:outline-none"
               >
                 <option value={10000}>10 seconds</option>
                 <option value={30000}>30 seconds</option>
@@ -152,8 +152,8 @@ const AutoSaveSettingsModal = forwardRef<
             )}
 
             {/* Info */}
-            <div className="p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg">
-              <p className="text-xs text-blue-300">
+            <div className="p-3 bg-[var(--kai-accent)]/10 border border-[var(--kai-accent)]/25 rounded-lg">
+              <p className="text-xs text-[var(--kai-accent-text)]">
                 💡 Auto-save feature only works for current workflows. Manual
                 saving is required for new workflows.
               </p>
@@ -170,7 +170,7 @@ const AutoSaveSettingsModal = forwardRef<
             </button>
             <button
               type="button"
-              className="rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:border-blue-700 hover:bg-blue-700"
+              className="rounded-lg border border-[var(--kai-accent)] bg-[var(--kai-accent)] px-3 py-2 text-sm font-medium text-white transition-colors hover:border-[var(--kai-accent-hover)] hover:bg-[var(--kai-accent-hover)]"
               onClick={handleSave}
             >
               Save

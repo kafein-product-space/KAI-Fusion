@@ -49,18 +49,18 @@ const NodeContextMenu: React.FC<NodeContextMenuProps> = ({
                         onDuplicate(nodeId);
                         onClose();
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-cyan-50 hover:bg-white/10 transition-colors bg-transparent border-none cursor-pointer text-left focus:outline-none"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-100 hover:bg-white/10 transition-colors bg-transparent border-none cursor-pointer text-left focus:outline-none"
                 >
-                    <Copy size={16} className="text-cyan-400" />
+                    <Copy size={16} className="text-[var(--kai-accent-text)]" />
                     <span className="font-medium">Clone Node</span>
                 </button>
                 <button
                     onClick={() => {
                         onRemoveConnections(nodeId);
                     }}
-                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-cyan-50 hover:bg-white/10 transition-colors bg-transparent border-none cursor-pointer text-left focus:outline-none"
+                    className="w-full flex items-center gap-3 px-4 py-2.5 text-sm text-gray-100 hover:bg-white/10 transition-colors bg-transparent border-none cursor-pointer text-left focus:outline-none"
                 >
-                    <Unlink size={16} className="text-cyan-400" />
+                    <Unlink size={16} className="text-[var(--kai-accent-text)]" />
                     <span className="font-medium">Remove Connections</span>
                 </button>
             </div>

@@ -233,8 +233,8 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
           key={`match-${idx}`}
           className={`rounded-none font-mono ${
             isFocused
-              ? 'bg-blue-600 text-white'
-              : 'bg-blue-600/30 text-slate-100'
+              ? 'bg-[var(--kai-accent)] text-white'
+              : 'bg-[var(--kai-accent)]/30 text-slate-100'
           }`}
         >
           {matchText}
@@ -258,21 +258,21 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
   return (
     <div
       style={{ height: `${height}px`, display: isOpen ? 'flex' : 'none' }}
-      className="fixed bottom-0 left-16 right-0 z-40 bg-[#0C0C0E]/95 border-t border-gray-800/80 backdrop-blur-md shadow-2xl flex flex-col font-mono select-none"
+      className="fixed bottom-0 left-16 right-0 z-40 bg-[var(--kai-log-panel-bg)]/95 border-t border-gray-800/80 backdrop-blur-md shadow-2xl flex flex-col font-mono select-none"
     >
       {/* Resizer Handle */}
       <div
         onMouseDown={handleMouseDown}
-        className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-blue-600/50 active:bg-blue-600/70 transition-colors z-50"
+        className="absolute top-0 left-0 right-0 h-1.5 cursor-ns-resize hover:bg-[var(--kai-accent)]/50 active:bg-[var(--kai-accent)]/70 transition-colors z-50"
         title="Drag to resize panel"
       />
 
       {/* Control Header */}
-      <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800/60 bg-[#121215]/90 text-sm font-mono">
+        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800/60 bg-[var(--kai-log-header-bg)]/90 text-sm font-mono">
         {/* Left Side: Status Info */}
         <div className="flex items-center gap-3 font-mono">
           <div className="flex items-center gap-1.5 text-slate-100 font-semibold font-mono">
-            <Terminal className="w-4 h-4 text-blue-400" />
+            <Terminal className="w-4 h-4 text-[var(--kai-accent-text)]" />
             <span className="font-mono">Backend Logs</span>
           </div>
 
@@ -291,7 +291,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
 
         {/* Middle: Modern IDE Search Bar & Options */}
         <div className="flex items-center gap-4 flex-1 max-w-xl mx-8 font-mono">
-          <div className="flex items-center gap-2 bg-[#080809] border border-gray-800 rounded-lg px-2.5 py-1.5 max-w-md w-full relative font-mono">
+          <div className="flex items-center gap-2 bg-[var(--kai-log-control-bg)] border border-gray-800 rounded-lg px-2.5 py-1.5 max-w-md w-full relative font-mono">
             <Search className="w-3.5 h-3.5 text-slate-400 flex-shrink-0 mr-1" />
             <input
               type="text"
@@ -309,7 +309,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
                 onClick={() => setMatchCase(!matchCase)}
                 className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
                   matchCase
-                    ? 'bg-blue-600/30 text-blue-400 border-blue-500/40'
+                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
                     : 'text-slate-500 border-transparent hover:text-slate-300'
                 }`}
                 title="Match Case (Aa)"
@@ -320,7 +320,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
                 onClick={() => setWholeWords(!wholeWords)}
                 className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
                   wholeWords
-                    ? 'bg-blue-600/30 text-blue-400 border-blue-500/40'
+                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
                     : 'text-slate-500 border-transparent hover:text-slate-300'
                 }`}
                 title="Match Whole Word (\\b)"
@@ -331,7 +331,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
                 onClick={() => setUseRegex(!useRegex)}
                 className={`px-1 py-0.5 text-[9px] rounded font-bold font-mono border transition-all ${
                   useRegex
-                    ? 'bg-blue-600/30 text-blue-400 border-blue-500/40'
+                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
                     : 'text-slate-500 border-transparent hover:text-slate-300'
                 }`}
                 title="Use Regular Expression (.*)"
@@ -380,14 +380,14 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
         {/* Right Side: Actions & Level Filter */}
         <div className="flex items-center gap-1.5 font-mono">
           {/* Level Filter Pills */}
-          <div className="flex items-center gap-1 bg-[#080809] border border-gray-800 rounded-lg p-0.5 font-mono mr-2">
+          <div className="flex items-center gap-1 bg-[var(--kai-log-control-bg)] border border-gray-800 rounded-lg p-0.5 font-mono mr-2">
             {['ALL', 'INFO', 'WARNING', 'ERROR', 'DEBUG'].map((level) => (
               <button
                 key={level}
                 onClick={() => setLevelFilter(level)}
                 className={`px-2 py-0.5 text-[10px] rounded-md font-medium transition-all font-mono ${
                   levelFilter === level
-                    ? 'bg-blue-600/20 text-blue-400 border border-blue-500/30'
+                    ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border border-[var(--kai-accent)]/55'
                     : 'text-slate-400 hover:text-slate-200 border border-transparent'
                 }`}
               >
@@ -437,7 +437,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
           {/* Clear Logs */}
           <button
             onClick={clearLogs}
-            className="p-1.5 text-slate-400 hover:text-slate-100 rounded-lg hover:bg-gray-800 transition-colors font-mono"
+            className="kai-delete-trigger rounded-lg p-1.5 font-mono"
             title="Clear Console"
           >
             <Trash2 className="w-4 h-4" />
@@ -455,7 +455,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
             }}
             className={`px-2 py-1 text-xs rounded-lg font-medium transition-colors border font-mono ${
               autoScroll
-                ? 'bg-blue-600/10 text-blue-400 border-blue-500/20'
+                ? 'bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55'
                 : 'text-slate-400 border-gray-800 hover:bg-gray-800'
             }`}
             title="Auto-scroll to bottom on new logs"
@@ -478,11 +478,11 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
       </div>
 
       {/* Terminal Output Area */}
-      <div className="relative flex-1 min-h-0 bg-[#09090B]">
+        <div className="relative flex-1 min-h-0 bg-[var(--kai-log-body-bg)]">
         <div
           ref={containerRef}
           onScroll={handleScroll}
-          className="w-full h-full overflow-y-auto px-4 py-3 font-mono text-sm leading-relaxed text-slate-100 selection:bg-blue-600/30 whitespace-pre-wrap select-text scrollbar-thin"
+          className="w-full h-full overflow-y-auto px-4 py-3 font-mono text-sm leading-relaxed text-slate-100 selection:bg-[var(--kai-accent)]/30 whitespace-pre-wrap select-text scrollbar-thin"
         >
           {filteredLogs.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-full text-slate-500 italic select-none font-mono">
@@ -505,7 +505,7 @@ export default function LogPanel({ isOpen, onClose, height, onHeightChange }: Lo
         {userScrolledUp && autoScroll && filteredLogs.length > 0 && (
           <button
             onClick={handleResumeAutoScroll}
-            className="absolute bottom-4 right-6 flex items-center gap-1.5 px-3 py-1.5 text-xs bg-blue-600/90 text-white rounded-lg shadow-lg hover:bg-blue-500 active:scale-95 transition-all z-10 backdrop-blur-sm border border-blue-400/20 font-mono"
+            className="absolute bottom-4 right-6 flex items-center gap-1.5 px-3 py-1.5 text-xs bg-[var(--kai-accent)] text-white rounded-lg shadow-lg hover:bg-[var(--kai-accent-hover)] active:scale-95 transition-all z-10 border border-[var(--kai-accent)] font-mono"
           >
             <ChevronDown className="w-3.5 h-3.5" />
             <span className="font-mono">Resume Auto-scroll</span>

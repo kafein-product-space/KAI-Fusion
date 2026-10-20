@@ -121,7 +121,7 @@ function App() {
         }}
         className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-[80rem] overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="flex h-[80vh] w-full flex-col rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
+        <div className="flex h-[80vh] w-full flex-col rounded-xl border border-gray-700 bg-[var(--kai-sidebar)] p-6 shadow-2xl shadow-black/50">
           <div className="flex items-center gap-3 mb-6 flex-shrink-0">
             <div className="w-10 h-10 bg-blue-500/20 rounded-full flex items-center justify-center">
               <MessageSquare className="w-5 h-5 text-blue-500" />
@@ -255,7 +255,7 @@ function App() {
                         type="checkbox"
                         checked={config.showCustomIcon}
                         onChange={(e) => setConfig({ ...config, showCustomIcon: e.target.checked })}
-                        className="checkbox checkbox-xs checkbox-primary rounded-sm"
+                        className="checkbox checkbox-xs rounded-sm border-blue-500 text-white checked:border-blue-500 checked:bg-blue-500"
                       />
                       <span className="text-sm text-gray-300 group-hover:text-white transition-colors">Show Custom Icon Example</span>
                     </label>

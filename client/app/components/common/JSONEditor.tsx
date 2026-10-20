@@ -83,13 +83,13 @@ export default function JSONEditor({
   return (
     <div className={`space-y-2 ${className}`}>
       {label && (
-        <label className="text-white text-xs font-medium block">
+        <label className="block text-xs font-medium text-[var(--kai-text-soft)]">
           {label}
-          {required && <span className="text-red-400 ml-1">*</span>}
+          {required && <span className="ml-1 text-[var(--kai-danger-text-soft)]">*</span>}
         </label>
       )}
 
-      {description && <p className="text-xs text-slate-400">{description}</p>}
+      {description && <p className="kai-node-field-hint">{description}</p>}
 
       <div className="relative">
         <textarea
@@ -98,14 +98,8 @@ export default function JSONEditor({
           placeholder={placeholder}
           style={{ height: `${height}px` }}
           className={`
-            w-full px-3 py-2 text-xs font-mono
-            bg-slate-900/80 border rounded-lg
-            text-white placeholder-slate-500
-            focus:outline-none focus:ring-2 focus:ring-blue-500/50 focus:border-blue-500
-            transition-all duration-200
-            resize-none
-            ${displayError ? "border-red-500" : "border-slate-600/50"}
-            ${isValid ? "" : "border-red-500"}
+            kai-node-field-control w-full resize-none px-3 py-2 text-xs font-mono
+            ${displayError || !isValid ? "!border-[var(--kai-danger)] focus:!border-[var(--kai-danger)] focus:!shadow-[0_0_0_3px_var(--kai-danger-subtle)]" : ""}
           `}
         />
 
@@ -113,25 +107,25 @@ export default function JSONEditor({
         <button
           type="button"
           onClick={handleFormat}
-          className="absolute top-2 right-2 p-1 rounded bg-slate-700/50 hover:bg-slate-600/50 transition-colors"
+          className="absolute right-2 top-2 rounded border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] p-1 transition-colors hover:bg-[var(--kai-surface-hover)]"
           title="Format JSON"
         >
-          <Code className="w-3 h-3 text-slate-400" />
+          <Code className="h-3 w-3 text-[var(--kai-text-muted)]" />
         </button>
 
         {/* Validation indicator */}
         <div className="absolute top-2 right-8 flex items-center">
           {isValid && value.trim() ? (
-            <CheckCircle className="w-3 h-3 text-green-400" />
+            <CheckCircle className="h-3 w-3 text-[var(--kai-success-text)]" />
           ) : !isValid ? (
-            <AlertCircle className="w-3 h-3 text-red-400" />
+            <AlertCircle className="h-3 w-3 text-[var(--kai-danger-text-soft)]" />
           ) : null}
         </div>
       </div>
 
       {/* Error message */}
       {displayError && (
-        <div className="flex items-center space-x-1 text-xs text-red-400">
+        <div className="kai-node-field-error flex items-center space-x-1">
           <AlertCircle className="w-3 h-3" />
           <span>{displayError}</span>
         </div>
@@ -139,7 +133,7 @@ export default function JSONEditor({
 
       {/* Help text */}
       {!displayError && value.trim() && isValid && (
-        <div className="flex items-center space-x-1 text-xs text-green-400">
+        <div className="flex items-center space-x-1 text-xs text-[var(--kai-success-text)]">
           <CheckCircle className="w-3 h-3" />
           <span>Valid JSON</span>
         </div>

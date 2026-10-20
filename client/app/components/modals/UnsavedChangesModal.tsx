@@ -1,4 +1,5 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
+import { AlertTriangle } from "lucide-react";
 
 interface UnsavedChangesModalProps {
   onSave: () => void;
@@ -27,50 +28,38 @@ const UnsavedChangesModal = forwardRef<
         event.preventDefault();
         closeAsCancel();
       }}
-      className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
+      className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-lg overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/65 backdrop:backdrop-blur-[2px]"
     >
-      <div className="rounded-xl border border-gray-700 bg-gray-900 p-6 shadow-2xl shadow-black/50">
-        <div className="flex items-center gap-3 mb-4">
-          <div className="w-10 h-10 bg-yellow-500/20 rounded-full flex items-center justify-center">
-            <svg
-              className="w-5 h-5 text-yellow-500"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              viewBox="0 0 24 24"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"
-              />
-            </svg>
+      <div className="overflow-hidden rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] shadow-2xl shadow-black/50">
+        <div className="flex items-start gap-3 px-6 pt-6">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-amber-400/25 bg-amber-400/10">
+            <AlertTriangle className="h-5 w-5 text-amber-300" aria-hidden="true" />
           </div>
           <div>
-            <h3 id="unsaved-changes-title" className="font-bold text-lg text-white">
+            <h3 id="unsaved-changes-title" className="text-lg font-semibold text-white">
               Unsaved Changes
             </h3>
-            <p className="text-sm text-gray-400">
-              Your changes have not been saved
+            <p className="mt-1 text-sm text-zinc-400">
+              Your latest workflow changes have not been saved.
             </p>
           </div>
         </div>
 
-        <p id="unsaved-changes-description" className="text-gray-300 mb-6">
+        <p id="unsaved-changes-description" className="px-6 pb-6 pt-4 text-sm leading-6 text-zinc-300">
           Do you want to save your changes before leaving this page?
         </p>
 
-        <div className="flex flex-wrap justify-end gap-2">
+        <div className="flex flex-wrap justify-end gap-2 border-t border-[var(--kai-border-dialog)] bg-[var(--kai-sidebar)] px-6 py-4">
           <button
             type="button"
-            className="rounded-lg border border-gray-600 px-3 py-2 text-sm font-medium text-gray-400 transition-colors hover:bg-gray-800 hover:text-white"
+            className="rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)] px-4 py-2 text-sm font-medium text-zinc-100 transition-colors hover:bg-[var(--kai-surface-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent-text)]"
             onClick={closeAsCancel}
           >
             Cancel
           </button>
           <button
             type="button"
-            className="rounded-lg border border-red-600 px-3 py-2 text-sm font-medium text-red-400 transition-colors hover:bg-red-900/20 hover:text-red-300"
+            className="rounded-lg border border-red-400/35 px-4 py-2 text-sm font-medium text-red-300 transition-colors hover:border-red-400/60 hover:bg-red-500/10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-400"
             onClick={() => {
               onDiscard();
               dialogRef.current?.close();
@@ -80,7 +69,7 @@ const UnsavedChangesModal = forwardRef<
           </button>
           <button
             type="button"
-            className="rounded-lg border border-blue-600 bg-blue-600 px-3 py-2 text-sm font-medium text-white transition-colors hover:border-blue-700 hover:bg-blue-700"
+            className="rounded-lg border border-[var(--kai-accent)] bg-[var(--kai-accent)] px-4 py-2 text-sm font-medium text-white transition-colors hover:border-[var(--kai-accent-hover)] hover:bg-[var(--kai-accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent-text)]"
             onClick={() => {
               onSave();
               dialogRef.current?.close();

@@ -52,7 +52,7 @@ function PinnedItemsLayout() {
             <div className="space-x-4">
               <Link
                 to="/workflows"
-                className="inline-flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
               >
                 <Play className="w-4 h-4" />
                 Browse Workflows
@@ -94,11 +94,11 @@ function PinnedItemsLayout() {
           {pinnedWorkflows.length > 0 && (
             <div className="mb-8">
               <div className="flex items-center gap-2 mb-4">
-                <Play className="w-5 h-5 text-purple-600" />
+                <Play className="w-5 h-5 text-blue-500" />
                 <h2 className="text-xl font-semibold text-gray-900">
                   Pinned Workflows
                 </h2>
-                <span className="px-2 py-1 text-xs font-medium bg-purple-100 text-purple-700 rounded-full">
+                <span className="px-2 py-1 text-xs font-medium bg-blue-100 text-blue-700 rounded-full">
                   {pinnedWorkflows.length}
                 </span>
               </div>
@@ -110,11 +110,11 @@ function PinnedItemsLayout() {
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-3">
-                        <div className="flex items-center justify-center w-8 h-8 bg-purple-100 rounded-lg group-hover:bg-purple-200 transition-colors">
+                        <div className="flex items-center justify-center w-8 h-8 bg-blue-100 rounded-lg group-hover:bg-blue-200 transition-colors">
                           {getItemIcon(item.type)}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-purple-600 transition-colors">
+                          <h3 className="font-semibold text-gray-900 truncate group-hover:text-blue-500 transition-colors">
                             {item.title}
                           </h3>
                           {item.description && (
@@ -155,7 +155,7 @@ function PinnedItemsLayout() {
                     <div className="flex items-center justify-between pt-3 border-t border-gray-100">
                       <Link
                         to={getItemPath(item)}
-                        className="flex items-center gap-2 text-sm text-purple-600 hover:text-purple-700 font-medium"
+                        className="flex items-center gap-2 text-sm text-blue-500 hover:text-blue-400 font-medium"
                       >
                         Open Workflow
                         <ChevronRight className="w-4 h-4" />

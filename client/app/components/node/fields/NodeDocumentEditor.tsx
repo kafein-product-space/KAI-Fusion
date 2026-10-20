@@ -199,9 +199,7 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
     closeAddField();
   };
 
-  const inputClass =
-    "w-full bg-[#10182c] border border-slate-600 rounded-lg px-3 py-2 text-sm text-white " +
-    "placeholder:text-slate-500 focus:border-blue-500 focus:outline-none transition-colors";
+  const inputClass = "kai-node-field-control min-h-0 px-3 py-2";
 
   /**
    * Draw the input a value of this kind is entered through.
@@ -222,14 +220,12 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
             type="button"
             onClick={() => onChange(!value)}
             onMouseDown={(event) => event.stopPropagation()}
-            className={`relative w-11 h-6 rounded-full transition-colors ${
-              value ? "bg-blue-500" : "bg-slate-600"
-            }`}
+            className={`kai-node-toggle ${value ? "is-active" : ""}`}
+            role="switch"
+            aria-checked={Boolean(value)}
           >
             <span
-              className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full transition-transform ${
-                value ? "translate-x-5" : ""
-              }`}
+              className="kai-node-toggle-thumb"
             />
           </button>
         );
@@ -292,19 +288,19 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
   const dropped = fields.filter((entry) => removed.has(entry.name));
 
   const renderRow = (name: string, widget: FieldInfo["widget"], note?: string) => (
-    <div key={name} className="pl-3 border-l-2 border-slate-700">
+    <div key={name} className="border-l-2 border-[var(--kai-border-strong)] pl-3">
       <div className="flex items-center gap-2 mb-1.5">
         <button
           type="button"
           title="Leave this field out"
           onClick={() => dropField(name)}
-          className="text-slate-500 hover:text-red-400 transition-colors"
+          className="text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-danger-text-soft)]"
         >
           <Trash2 size={13} />
         </button>
-        <span className="text-sm text-slate-200">{name}</span>
-        {note && <span className="text-xs text-blue-300">{note}</span>}
-        <span className="text-xs text-slate-500 ml-auto">{widget}</span>
+        <span className="text-sm text-[var(--kai-text-soft)]">{name}</span>
+        {note && <span className="text-xs text-[var(--kai-accent-text)]">{note}</span>}
+        <span className="ml-auto text-xs text-[var(--kai-text-muted)]">{widget}</span>
       </div>
       {renderInput(name, widget)}
     </div>
@@ -319,29 +315,29 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
           title="Reload the fields"
           onClick={fetchFields}
           disabled={loading || !!missingDependency}
-          className="text-slate-400 hover:text-blue-300 disabled:text-slate-600 disabled:cursor-not-allowed p-1"
+          className="p-1 text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-accent-text)] disabled:cursor-not-allowed disabled:text-[var(--kai-text-disabled)]"
         >
           <RefreshCw size={14} className={loading ? "animate-spin" : ""} />
         </button>
       </div>
 
       {missingDependency && (
-        <div className="text-sm text-slate-400 py-3">
+        <div className="py-3 text-sm text-[var(--kai-text-muted)]">
           Select {missingDependency.replace(/_/g, " ")} first.
         </div>
       )}
 
-      {loading && <div className="text-sm text-slate-400 py-3">Loading the fields...</div>}
+      {loading && <div className="py-3 text-sm text-[var(--kai-text-muted)]">Loading the fields...</div>}
 
       {error && (
-        <div className="flex items-start gap-1.5 py-2 text-xs text-amber-400">
+        <div className="flex items-start gap-1.5 py-2 text-xs text-[var(--kai-warning)]">
           <AlertCircle size={13} className="mt-0.5 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {!loading && !missingDependency && !error && fields.length === 0 && (
-        <div className="text-sm text-slate-400 py-3">
+        <div className="py-3 text-sm text-[var(--kai-text-muted)]">
           The collection is empty, so there are no field names to suggest. Add them below.
         </div>
       )}
@@ -356,7 +352,7 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
           type="button"
           onClick={() => setAddingField(true)}
           onMouseDown={(event) => event.stopPropagation()}
-          className="flex items-center gap-1.5 mt-3 px-3 py-2 text-sm rounded-lg border border-dashed border-slate-600 text-slate-400 hover:text-blue-300 hover:border-blue-500 transition-colors"
+          className="mt-3 flex items-center gap-1.5 rounded-lg border border-dashed border-[var(--kai-config-dashed-border)] px-3 py-2 text-sm text-[var(--kai-text-muted)] transition-colors hover:border-[var(--kai-accent)] hover:text-[var(--kai-accent-text)]"
         >
           <Plus size={14} />
           Add field
@@ -364,15 +360,15 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
       )}
 
       {!missingDependency && addingField && (
-        <div className="mt-3 p-3 rounded-lg border border-slate-700 bg-slate-800/40">
+        <div className="mt-3 rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)]/40 p-3">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm text-slate-300">New field</span>
+            <span className="text-sm text-[var(--kai-text-secondary)]">New field</span>
             <button
               type="button"
               title="Cancel"
               onClick={closeAddField}
               onMouseDown={(event) => event.stopPropagation()}
-              className="text-slate-500 hover:text-red-400 transition-colors"
+              className="text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-danger-text-soft)]"
             >
               <X size={14} />
             </button>
@@ -380,7 +376,7 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
 
           <div className="space-y-2">
             <div>
-              <div className="text-xs text-slate-400 mb-1">Field name</div>
+              <div className="mb-1 text-xs text-[var(--kai-text-muted)]">Field name</div>
               <input
                 type="text"
                 autoFocus
@@ -396,9 +392,9 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
             </div>
 
             <div>
-              <div className="text-xs text-slate-400 mb-1">Value type</div>
+              <div className="mb-1 text-xs text-[var(--kai-text-muted)]">Value type</div>
               <select
-                className={`${inputClass} ${newFieldWidget ? "" : "text-slate-500"}`}
+                className={`${inputClass} ${newFieldWidget ? "" : "text-[var(--kai-placeholder)]"}`}
                 value={newFieldWidget}
                 onChange={(e) => {
                   const kind = e.target.value as FieldInfo["widget"];
@@ -420,7 +416,7 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
 
             {newFieldWidget && (
               <div>
-                <div className="text-xs text-slate-400 mb-1">Value</div>
+                <div className="mb-1 text-xs text-[var(--kai-text-muted)]">Value</div>
                 {renderWidget(
                   newFieldWidget as FieldInfo["widget"],
                   newFieldValue,
@@ -437,8 +433,8 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
                 onMouseDown={(event) => event.stopPropagation()}
                 className={`px-4 py-2 rounded-lg border transition-colors text-sm ${
                   isValidFieldName(newFieldName.trim()) && newFieldWidget
-                    ? "border-blue-500 text-blue-300 hover:bg-blue-500/20"
-                    : "border-slate-700 text-slate-600 cursor-not-allowed"
+                    ? "border-[var(--kai-accent)] text-[var(--kai-accent-text)] hover:bg-[var(--kai-accent-subtle)]"
+                    : "cursor-not-allowed border-[var(--kai-border-strong)] text-[var(--kai-text-disabled)]"
                 }`}
               >
                 Add
@@ -447,14 +443,14 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
                 type="button"
                 onClick={closeAddField}
                 onMouseDown={(event) => event.stopPropagation()}
-                className="px-4 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-200 transition-colors text-sm"
+                className="kai-node-field-action px-4 py-2 text-sm"
               >
                 Cancel
               </button>
             </div>
           </div>
 
-          <div className="text-xs text-slate-500 mt-2">
+          <div className="mt-2 text-xs text-[var(--kai-text-muted)]">
             The kind decides how the value is stored, so a number stays a number and a code
             keeps its leading zero.
           </div>
@@ -462,15 +458,15 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
       )}
 
       {dropped.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-slate-700">
-          <div className="text-xs text-slate-500 mb-2">Fields left out</div>
+        <div className="mt-3 border-t border-[var(--kai-border-strong)] pt-3">
+          <div className="mb-2 text-xs text-[var(--kai-text-muted)]">Fields left out</div>
           <div className="flex flex-wrap gap-2">
             {dropped.map((entry) => (
               <button
                 key={entry.name}
                 type="button"
                 onClick={() => restoreField(entry.name)}
-                className="flex items-center gap-1 px-2 py-1 text-xs text-slate-400 border border-slate-700 rounded hover:text-blue-300 hover:border-blue-500 transition-colors"
+                className="kai-node-field-action flex items-center gap-1 rounded px-2 py-1 text-xs"
               >
                 <Plus size={11} />
                 {entry.name}
@@ -481,7 +477,7 @@ export const NodeDocumentEditor = ({ property, values, nodeType }: NodeDocumentE
       )}
 
       {!missingDependency && fields.length > 0 && (
-        <div className="text-xs text-slate-500 mt-2">
+        <div className="mt-2 text-xs text-[var(--kai-text-muted)]">
           Fields left empty are not written.
         </div>
       )}

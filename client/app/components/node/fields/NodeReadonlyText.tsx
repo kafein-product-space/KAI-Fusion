@@ -87,7 +87,7 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
           type="text"
           readOnly
           value={value}
-          className="input input-bordered w-full bg-slate-900/80 text-white text-sm rounded px-4 py-3 border border-gray-600 focus:ring-1 focus:ring-blue-500/20 cursor-default"
+          className="kai-node-field-control cursor-default px-4 py-3"
           placeholder={property.placeholder}
         />
         <button
@@ -95,7 +95,7 @@ export const NodeReadonlyText = ({ property, values, setFieldValue }: NodeReadon
           onClick={handleCopy}
           disabled={!value}
           aria-label={`Copy ${property.displayName || "value"} to clipboard`}
-          className="px-3 py-2 text-xs rounded bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 disabled:cursor-not-allowed disabled:opacity-50"
+          className="kai-node-field-action shrink-0 px-3 py-2 text-xs font-medium"
         >
           Copy
         </button>

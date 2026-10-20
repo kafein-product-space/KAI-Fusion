@@ -40,7 +40,7 @@ const CredentialPasswordField: React.FC<CredentialPasswordFieldProps> = ({
       <button
         type="button"
         onClick={toggleVisibility}
-        className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700 transition-colors duration-200 cursor-pointer focus:outline-none focus:text-blue-600"
+        className="absolute inset-y-0 right-0 z-10 flex w-11 cursor-pointer items-center justify-center rounded-r-lg text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--kai-accent)]"
         aria-label={visible ? "Hide password" : "Show password"}
       >
         {visible ? (

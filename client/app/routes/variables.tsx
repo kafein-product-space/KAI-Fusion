@@ -143,28 +143,28 @@ function VariablesLayout() {
         <div className="h-full overflow-y-auto p-6">
           <div className="max-w-7xl mx-auto">
             {/* Header */}
-            <div className="mb-8 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+            <div className="mb-8">
               <div>
-                <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+                <h1 className="text-4xl font-bold text-zinc-100">
                   Variables
                 </h1>
                 <p className="text-gray-600 text-lg">
                   Manage your application variables and configuration values
                 </p>
               </div>
-              <div className="flex items-center gap-4">
+              <div className="mt-6 flex flex-wrap items-center gap-4">
                 <div className="relative">
                   <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
                   <input
                     type="search"
-                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                    className="pl-10 pr-4 py-2 w-64 border border-gray-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                     placeholder="Search variables..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                   />
                 </div>
                 <button
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 transition-all duration-200 shadow-lg hover:shadow-xl"
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-2 text-white transition-colors hover:bg-blue-700"
                   onClick={() =>
                     (
                       document.getElementById(
@@ -239,7 +239,7 @@ function VariablesLayout() {
                           </button>
                           <button
                             title="Delete variable"
-                            className="p-2 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all duration-200"
+                            className="kai-delete-trigger rounded-lg p-2"
                             onClick={() => handleDelete(variable.id)}
                           >
                             <Trash className="w-4 h-4" />
@@ -269,7 +269,7 @@ function VariablesLayout() {
               <div className="flex items-center gap-2">
                 <span className="text-sm text-gray-600">Items per page:</span>
                 <select
-                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200"
+                  className="border border-gray-300 rounded-lg px-3 py-2 text-sm bg-white text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
                   value={itemsPerPage}
                   onChange={(e) => {
                     setItemsPerPage(Number(e.target.value));
@@ -305,7 +305,7 @@ function VariablesLayout() {
                       onClick={() => setPage(p)}
                       className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all duration-200 ${
                         p === page
-                          ? "bg-gradient-to-r from-purple-600 to-blue-600 text-white border-transparent shadow-lg"
+                          ? "bg-blue-600 text-white border-transparent shadow-lg"
                           : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-gray-400"
                       }`}
                     >
@@ -342,6 +342,7 @@ function VariablesLayout() {
               <h3 className="text-lg font-semibold">Create Variable</h3>
               <button
                 className="btn btn-sm btn-circle btn-ghost"
+                aria-label="Close create variable dialog"
                 onClick={() => {
                   const modal = document.getElementById(
                     "modalCreateVariable"
@@ -419,7 +420,7 @@ function VariablesLayout() {
                   <div className="flex justify-end gap-2 pt-4">
                     <button
                       type="button"
-                      className="btn btn-outline"
+                      className="btn kai-secondary-action"
                       onClick={() => {
                         const modal = document.getElementById(
                           "modalCreateVariable"
@@ -460,6 +461,7 @@ function VariablesLayout() {
               <h3 className="text-lg font-semibold">Update Variable</h3>
               <button
                 className="btn btn-sm btn-circle btn-ghost"
+                aria-label="Close update variable dialog"
                 onClick={() => {
                   const modal = document.getElementById(
                     "modalUpdateVariable"
@@ -540,7 +542,7 @@ function VariablesLayout() {
                     <div className="flex justify-end gap-2 pt-4">
                       <button
                         type="button"
-                        className="btn btn-outline"
+                        className="btn kai-secondary-action"
                         onClick={() => {
                           const modal = document.getElementById(
                             "modalUpdateVariable"

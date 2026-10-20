@@ -378,18 +378,18 @@ function CredentialsLayout() {
 
       {/* Dynamic Credential Form Modal */}
       {selectedService && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]">
+          <div className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-xl border border-[var(--kai-border-soft)] bg-[var(--kai-surface-dialog)] text-zinc-100 shadow-2xl shadow-black/50">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-gray-900">
+                <h2 className="text-xl font-semibold text-white">
                   {editingCredential
                     ? "Edit Credential"
                     : "Connect to " + selectedService.name}
                 </h2>
                 <button
                   onClick={resetCredentialModal}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+                  className="rounded-md p-1 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
                 >
                   <svg
                     className="w-6 h-6"

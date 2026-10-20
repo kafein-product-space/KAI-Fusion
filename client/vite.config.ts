@@ -20,7 +20,7 @@ const readConfig = () => {
 const { API_START, API_VERSION } = readConfig();
 
 const isDev = process.env.NODE_ENV !== 'production';
-const basePath = process.env.VITE_BASE_PATH || '/kai';
+const basePath = (process.env.VITE_BASE_PATH || '/kai').replace(/\/?$/, '/');
 
 // Resolve SSL certs
 const sslKeyPath = path.resolve(import.meta.dirname, '../backend/cert/key.pem');
