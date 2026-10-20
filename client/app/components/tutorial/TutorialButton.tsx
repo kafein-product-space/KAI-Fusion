@@ -55,7 +55,7 @@ export default function TutorialButton({
       {showTriggerButton && (
         <button
           onClick={handleTutorialButtonClick}
-          className="fixed bottom-6 left-6 bg-blue-600 text-white p-4 rounded-full shadow-lg hover:bg-blue-700 transition-all duration-200 hover:scale-110 z-40"
+          className="fixed bottom-6 left-6 z-40 rounded-full bg-[var(--kai-accent)] p-4 text-white shadow-lg transition-colors hover:bg-[var(--kai-accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent-text)]"
           title="Open Tutorials"
         >
           <BookOpen className="w-6 h-6" />
@@ -64,23 +64,24 @@ export default function TutorialButton({
 
       {/* Tutorial Launcher Modal */}
       {showLauncher && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl shadow-2xl w-full max-w-7xl max-h-[90vh] overflow-hidden">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="tutorial-launcher-title">
+          <div className="flex w-full max-w-7xl flex-col overflow-hidden rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] text-zinc-100 shadow-2xl shadow-black/50 max-h-[90vh]">
             {/* Header */}
-            <div className="flex items-center justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-bold text-gray-900">
+            <div className="flex items-center justify-between border-b border-[var(--kai-border-dialog)] px-6 py-5">
+              <h2 id="tutorial-launcher-title" className="text-xl font-semibold text-white">
                 Tutorial Workflows
               </h2>
               <button
                 onClick={() => setShowLauncher(false)}
-                className="text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100"
+                aria-label="Close tutorials"
+                className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--kai-accent-text)]"
               >
                 <X className="w-6 h-6" />
               </button>
             </div>
 
             {/* Content */}
-            <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="min-h-0 overflow-y-auto">
               <TutorialLauncher onLaunchTutorial={handleLaunchTutorial} />
             </div>
           </div>

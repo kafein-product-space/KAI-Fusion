@@ -69,14 +69,14 @@ const CredentialWorkflowUsage: React.FC<CredentialWorkflowUsageProps> = ({
                 return (
                   <li
                     key={workflow.id}
-                    className="flex items-start justify-between gap-2 text-xs py-1 hover:bg-gray-50 rounded px-1.5 transition-colors"
+                    className="flex items-start justify-between gap-2 rounded px-1.5 py-1 text-xs transition-colors hover:bg-[var(--kai-surface-hover)]"
                   >
                     <div className="min-w-0 flex-1">
                       <Link
                         to={`/canvas?workflow=${workflow.id}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="font-medium text-blue-600 hover:text-blue-800 hover:underline truncate block"
+                        className="block truncate font-medium text-[var(--kai-accent-text-soft)] hover:text-white hover:underline"
                       >
                         {workflow.name}
                       </Link>
@@ -91,7 +91,7 @@ const CredentialWorkflowUsage: React.FC<CredentialWorkflowUsageProps> = ({
                       to={`/canvas?workflow=${workflow.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="shrink-0 p-0.5 text-gray-400 hover:text-blue-600 transition-colors"
+                      className="shrink-0 rounded p-0.5 text-zinc-400 transition-colors hover:bg-[var(--kai-accent)]/15 hover:text-[var(--kai-accent-text-soft)]"
                       title="Open workflow"
                     >
                       <ExternalLink className="h-3 w-3" />

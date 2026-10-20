@@ -264,7 +264,7 @@ const CredentialModelCombobox = ({
             }
             setOpen((prev) => !prev);
           }}
-          className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center text-gray-500 hover:text-gray-700"
+          className="absolute inset-y-0 right-0 z-10 flex w-11 items-center justify-center rounded-r-lg text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
           aria-label="Toggle model list"
         >
           {loading ? (
@@ -279,17 +279,17 @@ const CredentialModelCombobox = ({
         <div
           id={`${field.name}-model-list`}
           role="listbox"
-          className="absolute z-50 mt-1 left-0 right-0 max-h-60 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg"
+          className="absolute z-50 mt-1 left-0 right-0 max-h-60 overflow-y-auto rounded-lg border border-[var(--kai-control-border)] bg-[var(--kai-surface-control)] shadow-xl shadow-black/40"
         >
           {loading && filteredOptions.length === 0 && (
-            <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
+            <div className="flex items-center gap-2 px-4 py-3 text-sm text-zinc-400">
               <Loader2 className="w-4 h-4 animate-spin" />
               Loading models...
             </div>
           )}
 
           {!loading && filteredOptions.length === 0 && (
-            <div className="px-4 py-3 text-sm text-gray-500">
+            <div className="px-4 py-3 text-sm text-zinc-400">
               {currentValue.trim()
                 ? "No matches. Keep typing to use a custom model name."
                 : statusMessage || idleMessage}
@@ -313,14 +313,14 @@ const CredentialModelCombobox = ({
                 onClick={() => selectOption(option.value)}
                 className={`w-full flex flex-col items-start gap-0.5 px-4 py-2.5 text-sm text-left ${
                   highlighted
-                    ? "bg-blue-50 text-blue-700"
+                    ? "bg-[var(--kai-accent)]/15 text-[var(--kai-accent-text-soft)]"
                     : selected
-                      ? "bg-blue-50/60 text-blue-700"
-                      : "text-gray-700 hover:bg-blue-50 hover:text-blue-700"
+                      ? "bg-[var(--kai-accent)]/10 text-[var(--kai-accent-text-soft)]"
+                      : "text-zinc-200 hover:bg-[var(--kai-surface-hover)] hover:text-white"
                 }`}
               >
                 <span>{option.label}</span>
-                {option.hint && <span className="text-xs text-gray-400">{option.hint}</span>}
+                {option.hint && <span className="text-xs text-zinc-400">{option.hint}</span>}
               </button>
             );
           })}
@@ -328,7 +328,7 @@ const CredentialModelCombobox = ({
       )}
 
       {statusMessage && (
-        <p className="text-xs text-gray-500 mt-1">{statusMessage}</p>
+        <p className="mt-1 text-xs text-zinc-400">{statusMessage}</p>
       )}
     </div>
   );

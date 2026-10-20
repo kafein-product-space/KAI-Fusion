@@ -54,8 +54,8 @@ const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
   };
 
   return (
-    <div className="rounded-xl border border-gray-200 bg-white shadow-2xl px-4 py-3 min-w-[180px] z-[9999] relative">
-      <div className="text-xs font-semibold text-gray-900 mb-2">{label}</div>
+    <div className="relative z-[9999] min-w-[180px] rounded-lg border border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] px-4 py-3 shadow-2xl">
+      <div className="mb-2 text-xs font-semibold text-zinc-200">{label}</div>
       <div className="flex flex-col gap-1">
         {dataKeys.map((key: string) => {
           const entry = payload.find((p: any) => p.dataKey === key);
@@ -64,12 +64,12 @@ const CustomTooltip = ({ active, payload, label, dataKeys, config }: any) => {
             <div key={key} className="flex items-center gap-2">
               <span
                 className="inline-block w-3 h-3 rounded-full"
-                style={{ backgroundColor: config[key]?.color || "#2563eb" }}
+                style={{ backgroundColor: config[key]?.color || "var(--kai-accent)" }}
               />
-              <span className="text-xs text-gray-600">
+              <span className="text-xs text-zinc-500">
                 {config[key]?.tooltipLabel || config[key]?.label || key}
               </span>
-              <span className="ml-auto font-bold text-gray-900 text-sm">
+              <span className="ml-auto text-sm font-semibold text-zinc-200">
                 {formatValue(key, entry.value)}
               </span>
             </div>
@@ -127,35 +127,34 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
 
   return (
     <div
-      className={`rounded-xl border border-gray-200  bg-background shadow-sm ${className}`}
+      className={`rounded-xl border border-[var(--kai-border)] bg-[var(--kai-surface)] ${className}`}
     >
-      <div className="flex flex-row items-center justify-between gap-2 border-b border-gray-200  px-6 py-4">
-        <div>
-          <h2 className="text-lg font-semibold text-foreground">{title}</h2>
+      <div className="flex flex-col gap-4 border-b border-[var(--kai-border)] px-5 py-4 lg:flex-row lg:items-center lg:justify-between">
+        <div className="min-w-0 shrink-0">
+          <h2 className="text-sm font-semibold text-zinc-200">{title}</h2>
           {description && (
-            <p className="text-sm text-muted-foreground mt-1">{description}</p>
+            <p className="mt-1 text-xs text-zinc-600">{description}</p>
           )}
         </div>
-        <div className="flex">
+        <div className="flex w-fit max-w-full flex-wrap gap-1 rounded-lg bg-[var(--kai-bg)] p-1 lg:ml-auto">
           {dataKeys.map((key) => (
             <button
               key={key}
               onClick={() => setActiveDataKey(key)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors border border-transparent focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 ${activeDataKey === key
-                ? "bg-blue-600 text-white shadow-sm"
-                : "hover:bg-gray-100 dark:hover:bg-gray-500 text-foreground"
+              className={`min-w-[132px] rounded-md border border-transparent px-3 py-2 text-left text-xs font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/40 ${activeDataKey === key
+                ? "bg-[var(--kai-border)] text-zinc-100"
+                : "text-zinc-500 hover:bg-[var(--kai-surface-raised)] hover:text-zinc-200"
                 }`}
-              style={{ marginLeft: key !== dataKeys[0] ? 8 : 0 }}
             >
               <span>{config[key]?.label || key}</span>
-              <span className={`block text-xs font-normal ${activeDataKey === key ? "text-blue-100" : "text-muted-foreground"}`}>
+              <span className={`mt-0.5 block text-[10px] font-normal ${activeDataKey === key ? "text-zinc-400" : "text-zinc-700"}`}>
                 {formatTotalValue(key, totals[key])}
               </span>
             </button>
           ))}
         </div>
       </div>
-      <div className="p-6">
+      <div className="p-5">
         <div className="h-72 w-full relative">
           <ResponsiveContainer width="100%" height="100%">
             <AreaChart
@@ -174,12 +173,12 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                   >
                     <stop
                       offset="5%"
-                      stopColor={config[key]?.color || "#2563eb"}
+                      stopColor={config[key]?.color || "var(--kai-accent)"}
                       stopOpacity={0.8}
                     />
                     <stop
                       offset="95%"
-                      stopColor={config[key]?.color || "#2563eb"}
+                      stopColor={config[key]?.color || "var(--kai-accent)"}
                       stopOpacity={0.1}
                     />
                   </linearGradient>
@@ -188,15 +187,15 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
               <CartesianGrid
                 strokeDasharray="3 3"
                 vertical={false}
-                stroke="#e5e7eb"
-                opacity={0.4}
+            stroke="var(--kai-chart-grid)"
+                opacity={0.75}
               />
               <XAxis
                 dataKey="name"
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                tick={{ fill: "#6b7280" }}
+                tick={{ fill: "var(--kai-neutral-focus)", fontSize: 11 }}
                 tickFormatter={(value) => {
                   const date = new Date(value);
                   return date.toLocaleDateString("tr-TR", {
@@ -210,7 +209,7 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                tick={{ fill: "#6b7280" }}
+                tick={{ fill: "var(--kai-neutral-focus)", fontSize: 11 }}
                 orientation="left"
               />
               <YAxis
@@ -218,13 +217,13 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                 tickLine={false}
                 axisLine={false}
                 tickMargin={10}
-                tick={{ fill: "#6b7280" }}
+                tick={{ fill: "var(--kai-neutral-focus)", fontSize: 11 }}
                 orientation="right"
               />
               <Tooltip
                 content={<CustomTooltip dataKeys={dataKeys} config={config} />}
                 wrapperStyle={{ zIndex: 9999 }}
-                cursor={{ fill: "#2563eb", opacity: 0.08 }}
+                cursor={{ fill: "var(--kai-accent)", opacity: 0.08 }}
                 labelFormatter={(label) => {
                   const labelText = String(label ?? "");
                   const date = new Date(labelText);
@@ -244,14 +243,14 @@ const DashboardChart: React.FC<DashboardChartProps> = ({
                     type="monotone"
                     dataKey={key}
                     yAxisId={isRuntime ? "right" : "left"}
-                    stroke={config[key]?.color || "#2563eb"}
+                    stroke={config[key]?.color || "var(--kai-accent)"}
                     fill={`url(#gradient-${key})`}
                     fillOpacity={activeDataKey === key ? 0.3 : 0.05}
                     strokeWidth={activeDataKey === key ? 3 : 1.5}
-                    dot={{ r: 4, strokeWidth: 1, fill: config[key]?.color || "#2563eb", fillOpacity: activeDataKey === key ? 1 : 0.4 }}
+                    dot={{ r: 4, strokeWidth: 1, fill: config[key]?.color || "var(--kai-accent)", fillOpacity: activeDataKey === key ? 1 : 0.4 }}
                     activeDot={{ r: 6, strokeWidth: 0 }}
                     opacity={activeDataKey === key ? 1 : 0.4}
-                    isAnimationActive={true}
+                    isAnimationActive={false}
                   />
                 );
               })}

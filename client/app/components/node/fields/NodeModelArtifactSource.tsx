@@ -49,8 +49,7 @@ const emptyMinioSource = () => ({
 });
 
 const inputClass =
-  "min-w-0 flex-1 rounded-l-lg border border-r-0 border-slate-600 bg-[#10182c] " +
-  "px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none";
+  "kai-node-field-control kai-node-field-control--joined-left min-w-0 flex-1 px-4 py-3";
 
 function formatBytes(value: number | undefined): string {
   if (!value || value < 1) return "0 B";
@@ -425,15 +424,15 @@ export function NodeModelArtifactSource({
     <div className="col-span-2 space-y-4">
       <FieldLabel label={property.displayName} helpText={getFieldHelpText(property)} />
 
-      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-slate-700 bg-slate-900/70 p-1">
+      <div className="grid grid-cols-2 overflow-hidden rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-node-config-bg)] p-1">
         <button
           type="button"
           disabled={uploading}
           onClick={() => changeMode("local")}
           className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-xs font-semibold transition-colors ${
             sourceMode === "local"
-              ? "bg-blue-500 text-white shadow"
-              : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              ? "bg-[var(--kai-accent)] text-[var(--kai-text-on-accent)] shadow"
+              : "text-[var(--kai-text-muted)] hover:bg-[var(--kai-surface-control)] hover:text-[var(--kai-text)]"
           }`}
         >
           <FolderOpen size={15} />
@@ -445,8 +444,8 @@ export function NodeModelArtifactSource({
           onClick={() => changeMode("minio")}
           className={`flex items-center justify-center gap-2 rounded-md px-3 py-2.5 text-xs font-semibold transition-colors ${
             sourceMode === "minio"
-              ? "bg-blue-500 text-white shadow"
-              : "text-slate-400 hover:bg-slate-800 hover:text-white"
+              ? "bg-[var(--kai-accent)] text-[var(--kai-text-on-accent)] shadow"
+              : "text-[var(--kai-text-muted)] hover:bg-[var(--kai-surface-control)] hover:text-[var(--kai-text)]"
           }`}
         >
           <Database size={15} />
@@ -479,30 +478,30 @@ export function NodeModelArtifactSource({
                 disabled={uploading}
                 onMouseDown={(event) => event.preventDefault()}
                 onClick={() => setBrowserMenuOpen((open) => !open)}
-                className="flex h-full items-center gap-2 rounded-r-lg border border-blue-500 bg-blue-500 px-4 text-xs font-semibold text-white hover:bg-blue-400 disabled:cursor-wait disabled:opacity-60"
+                className="flex h-full items-center gap-2 rounded-r-lg border border-[var(--kai-accent)] bg-[var(--kai-accent)] px-4 text-xs font-semibold text-[var(--kai-text-on-accent)] transition-colors hover:bg-[var(--kai-accent-hover)] disabled:cursor-wait disabled:opacity-60"
               >
                 {uploading ? <Loader2 className="animate-spin" size={16} /> : <FolderOpen size={16} />}
                 Select
                 <ChevronDown size={14} />
               </button>
               {browserMenuOpen && (
-                <div className="absolute right-0 top-full z-50 mt-1 w-56 overflow-hidden rounded-lg border border-slate-700 bg-slate-950 shadow-xl shadow-black/40">
+                <div className="kai-node-field-menu absolute right-0 top-full z-50 mt-1 w-56">
                   <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => fileInputRef.current?.click()}
-                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    className="kai-node-field-option flex w-full items-center gap-3 px-3 py-3 text-left text-xs"
                   >
-                    <FileArchive size={16} className="text-blue-400" />
+                    <FileArchive size={16} className="text-[var(--kai-accent-text)]" />
                     Upload model file or ZIP
                   </button>
                   <button
                     type="button"
                     onMouseDown={(event) => event.preventDefault()}
                     onClick={() => directoryInputRef.current?.click()}
-                    className="flex w-full items-center gap-3 px-3 py-3 text-left text-xs text-slate-200 hover:bg-slate-800"
+                    className="kai-node-field-option flex w-full items-center gap-3 px-3 py-3 text-left text-xs"
                   >
-                    <FolderOpen size={16} className="text-blue-400" />
+                    <FolderOpen size={16} className="text-[var(--kai-accent-text)]" />
                     Upload folder
                   </button>
                   {(value.artifact_id || value.path) && (
@@ -514,7 +513,7 @@ export function NodeModelArtifactSource({
                         setPathDraft("");
                         replaceSource({ source_type: "path", storage: "local_path", path: "" });
                       }}
-                      className="flex w-full items-center gap-3 border-t border-slate-800 px-3 py-3 text-left text-xs text-red-300 hover:bg-red-950/40"
+                      className="flex w-full items-center gap-3 border-t border-[var(--kai-border)] px-3 py-3 text-left text-xs text-[var(--kai-danger-text-soft)] transition-colors hover:bg-[var(--kai-danger-subtle)]"
                     >
                       <Trash2 size={16} />
                       Clear selection
@@ -542,26 +541,26 @@ export function NodeModelArtifactSource({
           />
 
           {uploading && (
-            <div className="rounded-lg border border-blue-700/60 bg-blue-950/30 p-3">
+            <div className="rounded-lg border border-[var(--kai-accent-strong)] bg-[var(--kai-accent-subtle)] p-3">
               <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-                <span className="text-blue-200">{uploadStatus}</span>
-                <span className="font-semibold text-blue-300">{uploadProgress}%</span>
+                <span className="text-[var(--kai-accent-pale)]">{uploadStatus}</span>
+                <span className="font-semibold text-[var(--kai-accent-text)]">{uploadProgress}%</span>
               </div>
-              <div className="h-2 overflow-hidden rounded-full bg-slate-800">
+              <div className="h-2 overflow-hidden rounded-full bg-[var(--kai-surface-control)]">
                 <div
-                  className="h-full rounded-full bg-blue-500 transition-[width] duration-200"
+                  className="h-full rounded-full bg-[var(--kai-accent)] transition-[width] duration-200"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
             </div>
           )}
-          {uploadError && <p className="text-xs text-red-400">{uploadError}</p>}
+          {uploadError && <p className="kai-node-field-error">{uploadError}</p>}
           {value.storage === "managed" && value.artifact_id && (
             <div
               className={`flex items-start gap-2 rounded-lg border p-3 text-xs leading-relaxed ${
                 artifactExpired || artifactUnavailable
-                  ? "border-red-800/70 bg-red-950/30 text-red-300"
-                  : "border-amber-700/60 bg-amber-950/20 text-amber-200"
+                  ? "border-[var(--kai-danger-strong)]/70 bg-[var(--kai-danger-subtle)] text-[var(--kai-danger-text-soft)]"
+                  : "border-[var(--kai-warning)]/60 bg-[var(--kai-warning-subtle)] text-[var(--kai-warning)]"
               }`}
             >
               <Clock3 className="mt-0.5 shrink-0" size={15} />
@@ -581,7 +580,7 @@ export function NodeModelArtifactSource({
               </span>
             </div>
           )}
-          <p className="text-xs leading-relaxed text-slate-500">
+          <p className="text-xs leading-relaxed text-[var(--kai-text-muted)]">
             An absolute service-visible path is scanned in place without copying; files, ZIPs, and
             directories are supported. Paths must be under an administrator-approved model root.
             Browser security does not expose a usable operating-system path, so Select is an ad-hoc
@@ -591,22 +590,23 @@ export function NodeModelArtifactSource({
           </p>
         </div>
       ) : (
-        <div className="space-y-3 rounded-xl border border-slate-700 bg-slate-900/40 p-4">
+        <div className="space-y-3 rounded-xl border border-[var(--kai-border-strong)] bg-[var(--kai-node-config-bg)] p-4">
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-300">MinIO credential</label>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--kai-text-secondary)]">MinIO credential</label>
             <CredentialSelector
               value={value.credential_id || ""}
               onChange={(credentialId) => setSource({ ...value, credential_id: credentialId })}
               serviceType="minio"
               placeholder="Select a MinIO credential"
               showCreateNew
+              appearance="dark"
               includeGenericFallback={false}
             />
           </div>
           <div>
-            <label className="mb-1.5 block text-xs font-medium text-slate-300">Object path</label>
+            <label className="mb-1.5 block text-xs font-medium text-[var(--kai-text-secondary)]">Object path</label>
             <input
-              className="w-full rounded-lg border border-slate-600 bg-[#10182c] px-4 py-3 text-sm text-white placeholder:text-slate-500 focus:border-blue-500 focus:outline-none"
+              className="kai-node-field-control px-4 py-3"
               value={pathDraft}
               onChange={(event) => updateMinioPath(event.target.value)}
               placeholder="bucket-name/models/model.zip"
@@ -614,7 +614,7 @@ export function NodeModelArtifactSource({
               spellCheck={false}
             />
           </div>
-          <p className="text-xs leading-relaxed text-slate-500">
+          <p className="text-xs leading-relaxed text-[var(--kai-text-muted)]">
             Enter one path as bucket/object-key. Only the credential ID is stored in the workflow;
             the model is streamed from MinIO to bounded temporary disk during the scan.
           </p>

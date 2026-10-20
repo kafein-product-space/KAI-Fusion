@@ -225,7 +225,7 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
             type="button"
             onClick={() => loadModels(credentialId)}
             disabled={loading}
-            className="inline-flex items-center gap-1 text-xs text-slate-400 hover:text-slate-200 disabled:opacity-50"
+            className="inline-flex items-center gap-1 text-xs text-[var(--kai-text-muted)] transition-colors hover:text-[var(--kai-text)] disabled:opacity-50"
             title="Refresh models"
           >
             {loading ? <Loader2 size={12} className="animate-spin" /> : <RefreshCw size={12} />}
@@ -241,28 +241,26 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
           onClick={() => !disabled && setDropdownOpen(!dropdownOpen)}
           onMouseDown={(e: any) => e.stopPropagation()}
           onTouchStart={(e: any) => e.stopPropagation()}
-          className={`w-full flex items-center justify-between bg-[#10182c] border border-slate-600 rounded-lg px-4 py-3 text-left transition-all duration-200 ${
-            disabled
-              ? "opacity-60 cursor-not-allowed"
-              : `cursor-pointer hover:border-slate-500 ${dropdownOpen ? "border-blue-500" : ""}`
-          }`}
+          aria-haspopup="listbox"
+          aria-expanded={dropdownOpen}
+          className={`kai-node-field-control flex items-center justify-between px-4 py-3 text-left ${disabled ? "cursor-not-allowed opacity-60" : "cursor-pointer"}`}
         >
-          <span className={`text-sm truncate ${currentValue ? "text-white" : "text-slate-400"}`}>
+          <span className={`truncate text-sm ${currentValue ? "text-[var(--kai-text)]" : "text-[var(--kai-placeholder)]"}`}>
             {loading && !currentValue ? "Loading models..." : displayText}
           </span>
           {loading ? (
-            <Loader2 size={16} className="text-slate-400 animate-spin shrink-0" />
+            <Loader2 size={16} className="shrink-0 animate-spin text-[var(--kai-text-muted)]" />
           ) : (
             <ChevronDown
               size={16}
-              className={`text-slate-400 transition-transform duration-200 shrink-0 ${dropdownOpen ? "rotate-180" : ""}`}
+              className={`shrink-0 text-[var(--kai-text-muted)] transition-transform duration-200 ${dropdownOpen ? "rotate-180" : ""}`}
             />
           )}
         </button>
 
         {dropdownOpen && !disabled && (
-          <div className="absolute z-50 mt-1 left-0 right-0 bg-slate-900 border border-slate-700 rounded-lg shadow-lg shadow-black/40 overflow-hidden">
-            <div className="p-2 border-b border-slate-700">
+          <div className="kai-node-field-menu absolute left-0 right-0 z-50 mt-1">
+            <div className="border-b border-[var(--kai-border-strong)] p-2">
               <input
                 ref={searchInputRef}
                 type="text"
@@ -274,21 +272,21 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
                     ? "Search or type a model name..."
                     : "Search models..."
                 }
-                className="w-full bg-slate-800 border border-slate-600 rounded-md px-3 py-2 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500"
+                className="kai-node-field-control min-h-0 rounded-md px-3 py-2"
                 onMouseDown={(e) => e.stopPropagation()}
               />
             </div>
 
             <div className="max-h-56 overflow-y-auto">
               {loading && (
-                <div className="px-4 py-3 text-sm text-slate-400 flex items-center gap-2">
+                <div className="flex items-center gap-2 px-4 py-3 text-sm text-[var(--kai-text-muted)]">
                   <Loader2 size={14} className="animate-spin" />
                   Loading models...
                 </div>
               )}
 
               {!loading && filteredOptions.length === 0 && (
-                <div className="px-4 py-3 text-sm text-slate-400">
+                <div className="px-4 py-3 text-sm text-[var(--kai-text-muted)]">
                   {allowManual || search.trim()
                     ? "No matches. Press Enter to use the typed model name."
                     : "No models available."}
@@ -308,25 +306,23 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
                       }}
                       onMouseEnter={() => setHighlightedIndex(index)}
                       onClick={() => handleSelect(option.value)}
-                      className={`w-full flex flex-col items-start gap-0.5 px-4 py-2.5 text-sm text-left transition-colors duration-150 ${
-                        highlighted || selected
-                          ? "bg-blue-500/20 text-blue-300"
-                          : "text-slate-300 hover:bg-blue-500/20 hover:text-blue-300"
-                      }`}
+                      role="option"
+                      aria-selected={selected}
+                      className={`kai-node-field-option flex w-full flex-col items-start gap-0.5 px-4 py-2.5 text-left text-sm ${highlighted || selected ? "is-selected" : ""}`}
                     >
                       <span>{option.label}</span>
-                      {option.hint && <span className="text-xs text-slate-500">{option.hint}</span>}
+                      {option.hint && <span className="text-xs text-[var(--kai-text-muted)]">{option.hint}</span>}
                     </button>
                   );
                 })}
             </div>
 
             {(allowManual || mergedOptions.length === 0) && search.trim() && (
-              <div className="border-t border-slate-700 p-2">
+              <div className="border-t border-[var(--kai-border-strong)] p-2">
                 <button
                   type="button"
                   onClick={handleManualCommit}
-                  className="w-full text-left px-3 py-2 text-sm text-blue-300 hover:bg-blue-500/20 rounded-md"
+                  className="w-full rounded-md px-3 py-2 text-left text-sm text-[var(--kai-accent-text)] transition-colors hover:bg-[var(--kai-accent-subtle)]"
                 >
                   Use &quot;{search.trim()}&quot;
                 </button>
@@ -336,7 +332,7 @@ export const NodeModelSelect = ({ property, values }: NodeModelSelectProps) => {
         )}
       </div>
 
-      {statusMessage && <p className="text-slate-400 text-xs mt-1">{statusMessage}</p>}
+      {statusMessage && <p className="kai-node-field-hint mt-1">{statusMessage}</p>}
     </div>
   );
 };

@@ -1,0 +1,345 @@
+.kai-auth-shell {
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(420px, 2fr);
+  overflow: hidden;
+  background: var(--kai-bg);
+  color: var(--kai-text);
+  color-scheme: dark;
+}
+
+.kai-auth-story {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  justify-content: space-between;
+  overflow: hidden;
+  padding: clamp(32px, 4vw, 64px);
+  border-right: 1px solid var(--kai-border);
+  background: var(--kai-auth-story-bg);
+}
+
+.kai-auth-brand {
+  display: inline-flex;
+  width: fit-content;
+  align-items: center;
+  gap: 10px;
+  color: var(--kai-text);
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.035em;
+}
+
+.kai-auth-brand-mark {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.kai-auth-story-content {
+  width: 100%;
+  max-width: 620px;
+  margin: auto;
+}
+
+.kai-auth-story-content h2 {
+  margin: 0;
+  color: var(--kai-auth-heading);
+  font-size: clamp(38px, 3.8vw, 56px);
+  font-weight: 600;
+  letter-spacing: -0.065em;
+  line-height: 1.06;
+}
+
+.kai-auth-story-content h2 span {
+  color: var(--kai-accent-text-soft);
+}
+
+.kai-auth-story-content > p {
+  max-width: 470px;
+  margin: 25px 0 0;
+  color: var(--kai-auth-copy);
+  font-size: 16px;
+  line-height: 1.7;
+}
+
+.kai-auth-panel {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  flex-direction: column;
+  overflow-y: auto;
+  padding: 32px clamp(28px, 5vw, 92px);
+  background: var(--kai-auth-panel-bg);
+}
+
+.kai-auth-mobile-brand {
+  display: none;
+}
+
+.kai-auth-form-wrap {
+  width: 100%;
+  max-width: 410px;
+  margin: auto;
+}
+
+.kai-auth-form-heading {
+  margin-bottom: 34px;
+}
+
+.kai-auth-form-heading h1 {
+  margin: 0;
+  color: var(--kai-text);
+  font-size: clamp(30px, 2.8vw, 38px);
+  font-weight: 600;
+  letter-spacing: -0.055em;
+  line-height: 1.15;
+}
+
+.kai-auth-form-heading p {
+  margin: 11px 0 0;
+  color: var(--kai-auth-muted);
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.kai-auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.kai-auth-field label {
+  display: block;
+  margin-bottom: 8px;
+  color: var(--kai-auth-label);
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.kai-auth-field input {
+  display: block;
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid var(--kai-auth-field-border);
+  border-radius: 8px;
+  outline: none;
+  background: var(--kai-auth-field-bg);
+  color: var(--kai-text);
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.kai-auth-field input::placeholder {
+  color: var(--kai-auth-placeholder);
+}
+
+.kai-auth-field input:hover:not(:disabled) {
+  border-color: var(--kai-auth-field-border-hover);
+}
+
+.kai-auth-field input:focus-visible {
+  border-color: var(--kai-accent);
+  box-shadow: 0 0 0 3px var(--kai-accent-soft);
+}
+
+.kai-auth-field input[aria-invalid="true"] {
+  border-color: var(--kai-auth-error);
+}
+
+.kai-auth-field input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.kai-auth-field-error {
+  margin: 7px 0 0;
+  color: var(--kai-auth-error);
+  font-size: 12px;
+}
+
+.kai-auth-password {
+  position: relative;
+}
+
+.kai-auth-password input {
+  padding-right: 72px;
+}
+
+.kai-auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  transform: translateY(-50%);
+  border: 0;
+  background: transparent;
+  color: var(--kai-auth-toggle);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.kai-auth-password-toggle:hover {
+  color: var(--kai-auth-toggle-hover);
+}
+
+.kai-auth-password-toggle:focus-visible,
+.kai-auth-switch a:focus-visible {
+  border-radius: 3px;
+  outline: 2px solid var(--kai-focus);
+  outline-offset: 3px;
+}
+
+.kai-auth-primary,
+.kai-auth-secondary {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.kai-auth-primary {
+  border: 1px solid var(--kai-auth-primary-bg);
+  background: var(--kai-auth-primary-bg);
+  color: var(--kai-auth-primary-text);
+}
+
+.kai-auth-primary:hover:not(:disabled) {
+  border-color: var(--kai-auth-primary-hover-bg);
+  background: var(--kai-auth-primary-hover-bg);
+}
+
+.kai-auth-secondary {
+  border: 1px solid var(--kai-auth-secondary-border);
+  background: var(--kai-surface-hover-subtle);
+  color: var(--kai-auth-secondary-text);
+}
+
+.kai-auth-secondary:hover:not(:disabled) {
+  border-color: var(--kai-auth-secondary-hover-border);
+  background: var(--kai-auth-secondary-hover-bg);
+}
+
+.kai-auth-primary:focus-visible,
+.kai-auth-secondary:focus-visible {
+  outline: 2px solid var(--kai-focus);
+  outline-offset: 3px;
+}
+
+.kai-auth-primary:disabled,
+.kai-auth-secondary:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.kai-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  color: var(--kai-text-muted);
+  font-size: 12px;
+}
+
+.kai-auth-divider::before,
+.kai-auth-divider::after {
+  height: 1px;
+  flex: 1;
+  background: var(--kai-auth-divider);
+  content: "";
+}
+
+.kai-auth-alert {
+  margin-bottom: 24px;
+  padding: 12px 14px;
+  border: 1px solid var(--kai-auth-error-border);
+  border-radius: 8px;
+  background: var(--kai-auth-error-bg);
+  color: var(--kai-auth-error-text);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.kai-auth-alert-success {
+  border-color: var(--kai-auth-success-border);
+  background: var(--kai-auth-success-bg);
+  color: var(--kai-auth-success-text);
+}
+
+.kai-auth-switch {
+  margin: 30px 0 0;
+  color: var(--kai-auth-muted);
+  font-size: 13px;
+  text-align: center;
+}
+
+.kai-auth-switch a {
+  color: var(--kai-accent-text-soft);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.kai-auth-switch a:hover {
+  color: var(--kai-auth-toggle-hover);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+@media (max-width: 1050px) {
+  .kai-auth-shell {
+    display: block;
+  }
+
+  .kai-auth-story {
+    display: none;
+  }
+
+  .kai-auth-panel {
+    height: 100%;
+    padding: 28px;
+  }
+
+  .kai-auth-mobile-brand {
+    display: inline-flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .kai-auth-panel {
+    padding: 18px 22px;
+  }
+
+  .kai-auth-form-wrap {
+    padding: 16px 0 8px;
+  }
+
+  .kai-auth-form-heading {
+    margin-bottom: 24px;
+  }
+
+  .kai-auth-form {
+    gap: 16px;
+  }
+
+  .kai-auth-switch {
+    margin-top: 22px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kai-auth-shell *,
+  .kai-auth-shell *::before,
+  .kai-auth-shell *::after {
+    transition-duration: 0.01ms !important;
+  }
+}

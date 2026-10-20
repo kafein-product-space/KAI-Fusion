@@ -24,7 +24,7 @@ export function ThemeToggle() {
             transition-all duration-500
             ${
               mode === "dark"
-                ? "bg-gradient-to-r from-indigo-900/30 to-blue-900/30"
+                ? "bg-blue-900/30"
                 : "bg-gradient-to-r from-yellow-100/60 to-yellow-300/60"
             }
           `}
@@ -43,7 +43,7 @@ export function ThemeToggle() {
           `}
       >
         {mode === "dark" ? (
-          <Moon className="w-4 h-4 text-indigo-200" />
+          <Moon className="w-4 h-4 text-blue-200" />
         ) : (
           <Sun className="w-4 h-4 text-yellow-500" />
         )}
@@ -62,7 +62,7 @@ export function ThemeToggle() {
         <Moon
           className={`w-4 h-4 ${
             mode === "dark"
-              ? "text-indigo-300 opacity-80"
+              ? "text-blue-300 opacity-80"
               : "text-zinc-400 opacity-40"
           }`}
         />

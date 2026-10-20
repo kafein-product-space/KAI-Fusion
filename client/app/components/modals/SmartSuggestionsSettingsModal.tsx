@@ -17,19 +17,20 @@ const SmartSuggestionsSettingsModal: React.FC<
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-      <div className="bg-gray-800 rounded-lg p-6 w-full max-w-2xl max-h-[80vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="smart-suggestions-title">
+      <div className="w-full max-w-2xl max-h-[80vh] overflow-y-auto rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] p-6 text-zinc-100 shadow-2xl shadow-black/50">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-2">
             <Sparkles className="h-5 w-5 text-yellow-400" />
-            <h2 className="text-xl font-bold text-white">
+            <h2 id="smart-suggestions-title" className="text-xl font-semibold text-white">
               Smart Suggestions Settings
             </h2>
           </div>
           <button
             onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close smart suggestions settings"
+            className="rounded-lg p-2 text-zinc-400 transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-white"
           >
             <X className="h-5 w-5" />
           </button>
@@ -37,7 +38,7 @@ const SmartSuggestionsSettingsModal: React.FC<
 
         {/* Enable/Disable Toggle */}
         <div className="mb-6">
-          <div className="flex items-center justify-between p-4 bg-gray-700 rounded-lg">
+          <div className="flex items-center justify-between rounded-lg border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-control)] p-4">
             <div className="flex items-center gap-3">
               <Sparkles className="h-5 w-5 text-yellow-400" />
               <div>
@@ -56,23 +57,23 @@ const SmartSuggestionsSettingsModal: React.FC<
                 onChange={(e) => setEnabled(e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-yellow-500"></div>
+              <div className="w-11 h-6 bg-gray-600 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-[var(--kai-accent)]/30 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--kai-accent)]"></div>
             </label>
           </div>
         </div>
 
         {/* Current Status */}
         {lastAddedNode && (
-          <div className="mb-6 p-4 bg-blue-900/20 border border-blue-500/30 rounded-lg">
+          <div className="mb-6 rounded-lg border border-[var(--kai-accent)]/25 bg-[var(--kai-accent)]/10 p-4">
             <div className="flex items-center gap-2 mb-2">
-              <Info className="h-4 w-4 text-blue-400" />
-              <span className="text-blue-400 text-sm font-medium">
+              <Info className="h-4 w-4 text-[var(--kai-accent-text)]" />
+              <span className="text-sm font-medium text-[var(--kai-accent-text)]">
                 Current Context
               </span>
             </div>
             <p className="text-white text-sm">
               Last added node:{" "}
-              <span className="font-medium text-blue-300">{lastAddedNode}</span>
+              <span className="font-medium text-[var(--kai-accent-text)]">{lastAddedNode}</span>
             </p>
             {SmartSuggestionsService.hasRecommendations(lastAddedNode) && (
               <p className="text-gray-300 text-xs mt-1">
@@ -92,7 +93,7 @@ const SmartSuggestionsSettingsModal: React.FC<
             {availableChains.map((chain, index) => (
               <div
                 key={index}
-                className="p-3 bg-gray-700 rounded-lg border border-gray-600"
+                className="rounded-lg border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-control)] p-3"
               >
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-white font-medium text-sm">
@@ -149,7 +150,7 @@ const SmartSuggestionsSettingsModal: React.FC<
         <div className="flex justify-end">
           <button
             onClick={onClose}
-            className="px-4 py-2 bg-gray-600 hover:bg-gray-500 text-white rounded transition-colors"
+            className="rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-surface-control)] px-4 py-2 text-white transition-colors hover:bg-[var(--kai-surface-hover)]"
           >
             Close
           </button>

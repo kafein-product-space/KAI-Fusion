@@ -84,7 +84,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
     }, 4000);
   };
   return (
-    <div className="bg-white border border-gray-200 rounded-lg p-4 hover:shadow-sm transition-all duration-200">
+    <div className="kai-credential-card rounded-lg border border-gray-200 bg-white p-4 transition-colors">
       {/* Header */}
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center gap-2.5">
@@ -134,16 +134,19 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         <span>Created: {timeAgo(credential.created_at)}</span>
         <span>·</span>
         <span>Updated: {timeAgo(credential.updated_at)}</span>
-        <span>·</span>
         <button
           type="button"
           onClick={handleToggleUsage}
-          className="inline-flex items-center gap-1 text-blue-600 hover:text-blue-800 hover:underline font-medium transition-colors cursor-pointer"
+          aria-expanded={isUsageOpen}
+          className={`inline-flex h-7 items-center gap-1.5 rounded-md border px-2 text-[11px] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--kai-accent)]/45 ${isUsageOpen
+            ? "border-[var(--kai-border-hover)] bg-[var(--kai-surface-hover-deep)] text-white"
+            : "border-[var(--kai-border-muted)] bg-[var(--kai-surface-raised)] text-[var(--kai-text-soft)] hover:border-[var(--kai-border-hover)] hover:bg-[var(--kai-surface-hover-deep)] hover:text-white"
+            }`}
         >
           {workflowUsageLoading ? (
-            <Loader2 className="w-3 h-3 animate-spin text-blue-600" />
+            <Loader2 className="h-3 w-3 animate-spin text-[var(--kai-icon-muted)]" />
           ) : (
-            <Link2 className="w-3 h-3" />
+            <Link2 className="h-3 w-3 text-[var(--kai-icon-muted)]" />
           )}
           {workflowUsageLoading ? (
             <span>Loading...</span>
@@ -172,11 +175,11 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
         <button
           onClick={handleTest}
           disabled={testState === "loading"}
-          className={`flex items-center gap-1 px-2 py-1 text-xs rounded-md transition-all duration-200
-            ${testState === "success" ? "text-green-600 bg-green-50" :
-              testState === "error" ? "text-red-500 bg-red-50" :
-                "text-gray-400 hover:text-blue-600 hover:bg-blue-50"}
-            disabled:opacity-50 disabled:cursor-not-allowed`}
+          className={`flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors
+            ${testState === "success" ? "border-emerald-400/30 bg-emerald-400/10 text-emerald-300" :
+              testState === "error" ? "border-red-400/30 bg-red-400/10 text-red-300" :
+                "border-[var(--kai-card-border)] bg-[var(--kai-surface-selected)] text-[var(--kai-control-accent-text)] hover:border-[var(--kai-accent)]/60 hover:bg-[var(--kai-accent)]/15 hover:text-white"}
+            disabled:cursor-not-allowed disabled:opacity-50`}
           title="Test connection"
         >
           {testState === "loading" && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
@@ -188,7 +191,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
 
         <button
           onClick={() => onEdit(credential)}
-          className="p-1.5 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-md transition-all duration-200"
+          className="flex h-7 w-7 items-center justify-center rounded-md border border-[var(--kai-card-border)] bg-[var(--kai-surface-selected)] text-[var(--kai-control-accent-text)] transition-colors hover:border-[var(--kai-accent)]/60 hover:bg-[var(--kai-accent)]/15 hover:text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--kai-accent)]"
           title="Edit credential"
         >
           <Pencil className="w-3.5 h-3.5" />
@@ -196,7 +199,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
 
         <button
           onClick={handleDeleteClick}
-          className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-md transition-all duration-200"
+          className="kai-delete-trigger rounded-md p-1.5"
           title="Delete credential"
         >
           <Trash className="w-3.5 h-3.5" />
@@ -213,18 +216,18 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
 
       {/* Delete Confirmation Modal */}
       {showDeleteConfirm && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl border border-gray-100 animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-lg font-bold mb-3 text-red-600">Delete Credential</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-[2px]" role="dialog" aria-modal="true" aria-labelledby="delete-credential-title">
+          <div className="w-full max-w-md rounded-xl border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-dialog)] p-6 text-zinc-100 shadow-2xl shadow-black/50">
+            <h3 id="delete-credential-title" className="mb-4 text-lg font-semibold text-white">Delete Credential</h3>
             
             {workflowUsageLoading ? (
-              <div className="flex items-center gap-2 py-4 justify-center text-sm text-gray-500">
-                <Loader2 className="h-5 w-5 animate-spin text-blue-600" />
+              <div className="flex items-center justify-center gap-2 py-4 text-sm text-zinc-400">
+                <Loader2 className="h-5 w-5 animate-spin text-[var(--kai-accent-text)]" />
                 Checking workflow usage safety...
               </div>
             ) : workflowUsage && workflowUsage.workflow_count > 0 ? (
               <div className="space-y-4">
-                <div className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-800">
+                <div className="rounded-lg border border-red-400/30 bg-red-400/10 p-3 text-sm text-red-200">
                   <p className="font-semibold mb-1">
                     Warning: This credential is in use!
                   </p>
@@ -234,24 +237,24 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
                 </div>
                 
                 <div>
-                  <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wider">
+                  <h4 className="mb-2 text-xs font-semibold text-zinc-300">
                     Affected Workflows:
                   </h4>
-                  <ul className="space-y-1.5 max-h-32 overflow-y-auto pr-1 border border-gray-200 rounded-md p-2 bg-gray-50 scrollbar-thin text-xs">
+                  <ul className="max-h-32 space-y-1.5 overflow-y-auto rounded-md border border-[var(--kai-border-dialog)] bg-[var(--kai-sidebar)] p-2 pr-1 text-xs scrollbar-thin">
                     {workflowUsage.workflows.map((workflow) => (
-                      <li key={workflow.id} className="text-gray-700 font-medium truncate">
+                      <li key={workflow.id} className="truncate font-medium text-zinc-200">
                         • {workflow.name}
                       </li>
                     ))}
                   </ul>
                 </div>
                 
-                <p className="text-xs text-gray-500">
+                <p className="text-xs text-zinc-400">
                   Are you absolutely sure you want to proceed? This action is highly disruptive and cannot be undone.
                 </p>
               </div>
             ) : (
-              <p className="text-gray-600 mb-5 text-sm">
+              <p className="mb-5 text-sm leading-6 text-zinc-300">
                 Are you sure you want to delete <strong>{credential.name}</strong>? This action cannot be undone.
               </p>
             )}
@@ -260,7 +263,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
               <button
                 type="button"
                 onClick={() => setShowDeleteConfirm(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 text-sm font-medium transition-all duration-200"
+                className="kai-secondary-action rounded-lg px-4 py-2 text-sm font-medium"
               >
                 Cancel
               </button>
@@ -270,7 +273,7 @@ const CredentialCard: React.FC<CredentialCardProps> = ({
                   onDelete(credential.id);
                   setShowDeleteConfirm(false);
                 }}
-                className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 text-sm font-medium transition-all duration-200 shadow-sm hover:shadow"
+                className="kai-delete-confirm rounded-lg px-4 py-2 text-sm font-medium"
               >
                 Delete
               </button>

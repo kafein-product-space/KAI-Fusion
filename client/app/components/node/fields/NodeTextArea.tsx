@@ -31,17 +31,17 @@ export const NodeTextArea = ({ property, values }: NodeTextAreaProps) => {
         name={property.name}
         placeholder={property.placeholder}
         rows={property.rows}
-        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-[#10182c] border border-slate-600 focus:border-blue-500 focus:ring-1 focus:ring-blue-500/20 resize-vertical"
+        className="kai-node-field-control resize-y px-4 py-3"
         onMouseDown={(e: any) => e.stopPropagation()}
         onTouchStart={(e: any) => e.stopPropagation()}
       />
       <ErrorMessage
         name={property.name}
         component="div"
-        className="text-red-400 text-sm mt-1"
+        className="kai-node-field-error mt-1"
       />
       {property.maxLength && (
-        <div className="text-gray-400 text-xs mt-1">
+        <div className="kai-node-field-hint mt-1">
           Characters: {property.value?.length.toLocaleString() || 0} /{" "}
           {property.maxLength.toLocaleString()}
         </div>

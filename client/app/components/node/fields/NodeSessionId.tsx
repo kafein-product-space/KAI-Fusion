@@ -65,8 +65,7 @@ export const NodeSessionId = ({ property, values, nodeId }: NodeSessionIdProps) 
                     value={sessionId}
                     readOnly={isAutomatic}
                     required={!isAutomatic}
-                    className={`input input-bordered w-full text-white text-sm rounded-lg px-4 py-3 border border-slate-600 focus:ring-1 focus:ring-blue-500/20 ${isAutomatic ? "bg-slate-900/80 cursor-default" : "bg-[#10182c] focus:border-blue-500 shadow-inner shadow-black/20"
-                        }`}
+                    className={`kai-node-field-control px-4 py-3 ${isAutomatic ? "cursor-default" : ""}`}
                     placeholder={property.placeholder || (isAutomatic ? "Automatically generated..." : "Enter manual session ID...")}
                 />
                 {isAutomatic && (
@@ -75,7 +74,7 @@ export const NodeSessionId = ({ property, values, nodeId }: NodeSessionIdProps) 
                         onClick={handleCopy}
                         disabled={!sessionId}
                         aria-label="Copy session ID to clipboard"
-                        className="px-3 py-2 text-xs font-medium rounded-lg bg-slate-800 hover:bg-slate-700 text-sky-300 border border-slate-600 transition-colors shrink-0 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="kai-node-field-action shrink-0 px-3 py-2 text-xs font-medium"
                     >
                         Copy
                     </button>

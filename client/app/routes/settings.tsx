@@ -99,7 +99,7 @@ function SettingsLayout() {
           <div className="max-w-2xl mx-auto">
             {/* Header Section */}
             <div className="mb-8">
-              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
+              <h1 className="text-4xl font-bold text-white">
                 Settings
               </h1>
               <p className="text-gray-600 text-lg mt-2">
@@ -111,7 +111,7 @@ function SettingsLayout() {
             <div className="bg-white border border-gray-200 rounded-2xl p-6 shadow-sm">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-xl flex items-center justify-center shadow-lg">
+                  <div className="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                     <User className="w-6 h-6 text-white" />
                   </div>
                   <div>

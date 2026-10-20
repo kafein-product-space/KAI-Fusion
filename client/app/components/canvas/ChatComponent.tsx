@@ -480,7 +480,7 @@ export default function ChatComponent({
   return (
     <div
       style={style}
-      className={`fixed bottom-20 right-4 bg-[#18181A] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-[opacity,transform,width,height] duration-200 ${isExpanded
+        className={`fixed bottom-20 right-4 bg-[var(--kai-chat-shell-bg)] rounded-xl shadow-2xl flex flex-col z-50 animate-slide-up border border-gray-700 transition-[opacity,transform,width,height] duration-200 ${isExpanded
           ? "w-[calc(100vw-2rem)] h-[calc(100vh-6rem)] left-4"
           : "w-148 h-[600px]"
         }`}
@@ -618,12 +618,13 @@ export default function ChatComponent({
 
       {/* ─── Settings Popover (Builder Mode) ─── */}
       {mode === "builder" && showSettings && (
-        <div className="px-4 py-3 border-b border-gray-700 bg-gray-800/50 space-y-3 animate-in">
+        <div className="space-y-3 border-b border-[var(--kai-border-soft)] bg-[var(--kai-surface-dialog)] px-4 py-3 animate-in">
           <div>
-            <label className="block text-xs text-gray-400 mb-1.5">
+            <label className="mb-1.5 block text-xs font-medium text-zinc-300">
               AI Provider Credential <span className="text-red-400">*</span>
             </label>
             <CredentialSelector
+              appearance="dark"
               value={selectedCredentialId}
               onChange={(credentialId) => setSelectedCredentialId(credentialId)}
               placeholder="Select a Credential..."
@@ -633,7 +634,7 @@ export default function ChatComponent({
           </div>
 
           {/* Advanced Settings Expander */}
-          <div className="border-t border-gray-700/50 pt-2">
+          <div className="border-t border-[var(--kai-border-soft)] pt-2">
             <button
               type="button"
               onClick={() => setShowAdvanced(!showAdvanced)}
@@ -676,7 +677,7 @@ export default function ChatComponent({
       )}
 
       {showHistoryView ? (
-        <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col bg-[#141416]">
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 flex flex-col bg-[var(--kai-chat-body-bg)]">
           {/* Start New Conversation Card */}
           <button
             onClick={() => handleSelectChat("")}
@@ -755,7 +756,7 @@ export default function ChatComponent({
                     {/* Delete Button */}
                     <button
                       onClick={(e) => handleDeleteChat(item.chatflowId, e)}
-                      className="absolute right-2 top-2 p-1 rounded hover:bg-red-500/10 text-gray-600 hover:text-red-400 opacity-0 group-hover:opacity-100 focus:opacity-100 transition-all duration-150"
+                      className="kai-delete-trigger absolute right-2 top-2 rounded p-1.5 opacity-70 transition-opacity group-hover:opacity-100 focus:opacity-100"
                       title="Delete conversation"
                     >
                       <Trash2 className="w-3.5 h-3.5" />

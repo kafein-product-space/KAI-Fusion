@@ -53,7 +53,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
         }}
         className="fixed inset-0 m-auto h-fit w-[calc(100%_-_2rem)] max-w-2xl overflow-visible bg-transparent p-0 text-left text-white backdrop:bg-black/50 backdrop:backdrop-blur-[2px]"
       >
-        <div className="relative rounded-xl border border-gray-700 bg-[#18181B] p-6 shadow-2xl shadow-black/50">
+        <div className="relative rounded-xl border border-gray-700 bg-[var(--kai-sidebar)] p-6 shadow-2xl shadow-black/50">
           <button
             type="button"
             aria-label="Close error handler settings"
@@ -75,7 +75,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
 
           {isLoading ? (
             <div className="flex justify-center items-center py-8">
-              <RefreshCw className="w-6 h-6 animate-spin text-blue-400" />
+              <RefreshCw className="w-6 h-6 animate-spin text-[var(--kai-accent-text)]" />
             </div>
           ) : errorWorkflows.length === 0 ? (
             <div className="rounded-lg border border-amber-500/25 bg-amber-500/10 p-6 text-center">
@@ -90,8 +90,8 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
             <div className="space-y-2 max-h-60 overflow-y-auto pr-2">
               <div
                 className={`p-3 rounded-lg border cursor-pointer transition-colors flex items-center justify-between ${localSelectedId === null
-                    ? "border-blue-500 bg-blue-500/15"
-                    : "border-gray-700 bg-gray-900/60 hover:border-blue-500/60 hover:bg-gray-800"
+                    ? "border-[var(--kai-accent)]/55 bg-[var(--kai-accent)]/20"
+                    : "border-gray-700 bg-gray-900/60 hover:border-[var(--kai-accent)]/55 hover:bg-gray-800"
                   }`}
                 onClick={() => setLocalSelectedId(null)}
               >
@@ -99,15 +99,15 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
                   <div className="font-medium text-white">None</div>
                   <div className="text-xs text-gray-400">Do not run a workflow on error</div>
                 </div>
-                {localSelectedId === null && <Check className="w-5 h-5 text-blue-400" />}
+                {localSelectedId === null && <Check className="w-5 h-5 text-[var(--kai-accent-text)]" />}
               </div>
 
               {errorWorkflows.map((wf) => (
                 <div
                   key={wf.id}
                   className={`p-3 rounded-lg border cursor-pointer transition-colors flex items-center justify-between ${localSelectedId === wf.id
-                      ? "border-blue-500 bg-blue-500/15"
-                      : "border-gray-700 bg-gray-900/60 hover:border-blue-500/60 hover:bg-gray-800"
+                      ? "border-[var(--kai-accent)]/55 bg-[var(--kai-accent)]/20"
+                      : "border-gray-700 bg-gray-900/60 hover:border-[var(--kai-accent)]/55 hover:bg-gray-800"
                     }`}
                   onClick={() => setLocalSelectedId(wf.id)}
                 >
@@ -117,7 +117,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
                       {wf.description || "No description"}
                     </div>
                   </div>
-                  {localSelectedId === wf.id && <Check className="w-5 h-5 text-blue-400" />}
+                  {localSelectedId === wf.id && <Check className="w-5 h-5 text-[var(--kai-accent-text)]" />}
                 </div>
               ))}
             </div>
@@ -133,7 +133,7 @@ const ErrorWorkflowModal = React.forwardRef<HTMLDialogElement, ErrorWorkflowModa
             </button>
             <button
               type="button"
-              className="flex items-center gap-2 rounded-lg border border-blue-600 bg-blue-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:border-blue-700 hover:bg-blue-700"
+              className="flex items-center gap-2 rounded-lg border border-[var(--kai-accent)] bg-[var(--kai-accent)] px-5 py-2 text-sm font-medium text-white transition-colors hover:border-[var(--kai-accent-hover)] hover:bg-[var(--kai-accent-hover)]"
               onClick={handleConfirm}
             >
               <Check className="w-4 h-4" />

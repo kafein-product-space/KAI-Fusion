@@ -19,7 +19,7 @@ export const NumberStepControls = ({
   increaseLabel = "Increase value",
   decreaseLabel = "Decrease value",
 }: NumberStepControlsProps) => (
-  <div className="flex w-7 shrink-0 flex-col border-l border-slate-700">
+  <div className="kai-node-field-stepper">
     <button
       type="button"
       tabIndex={-1}
@@ -27,7 +27,7 @@ export const NumberStepControls = ({
       disabled={increaseDisabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onIncrease}
-      className="flex min-h-0 flex-1 items-center justify-center text-slate-500 transition-colors hover:bg-blue-500/15 hover:text-blue-300 disabled:pointer-events-none disabled:text-slate-700"
+      className="kai-node-field-step"
     >
       <ChevronUp size={11} />
     </button>
@@ -38,7 +38,7 @@ export const NumberStepControls = ({
       disabled={decreaseDisabled}
       onMouseDown={(event) => event.preventDefault()}
       onClick={onDecrease}
-      className="flex min-h-0 flex-1 items-center justify-center border-t border-slate-700 text-slate-500 transition-colors hover:bg-blue-500/15 hover:text-blue-300 disabled:pointer-events-none disabled:text-slate-700"
+      className="kai-node-field-step"
     >
       <ChevronDown size={11} />
     </button>
@@ -99,7 +99,7 @@ export const ThemedNumberInput = ({
 
   return (
     <div
-      className={`${className} flex overflow-hidden rounded-lg border border-slate-600 bg-[#10182c] transition-colors focus-within:border-blue-500 focus-within:ring-1 focus-within:ring-blue-500/20`}
+      className={`${className} kai-node-field-shell ${disabled ? "is-disabled" : ""}`}
     >
       <input
         ref={inputRef}
@@ -114,7 +114,7 @@ export const ThemedNumberInput = ({
         placeholder={placeholder}
         onBlur={onBlur}
         onChange={(event) => onChange(event.target.value)}
-        className={`${inputSizeClass} min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-slate-500 disabled:cursor-not-allowed disabled:text-slate-500 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
+        className={`${inputSizeClass} kai-node-field-input [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none`}
       />
       <NumberStepControls
         increaseDisabled={increaseDisabled}

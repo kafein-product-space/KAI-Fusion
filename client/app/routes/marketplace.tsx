@@ -14,6 +14,7 @@ import {
   Download,
   Grid,
   List,
+  Zap,
 } from "lucide-react";
 import { prebuiltTemplates } from "~/data/prebuiltTemplates";
 import { useNavigate } from "react-router";
@@ -244,7 +245,7 @@ function MarketplaceLayout() {
                   <div className="flex items-center gap-4 mt-1 text-sm text-gray-500">
                     <span className="flex items-center gap-1">
                       <TrendingUp className="w-4 h-4" />
-                      {publicWorkflows.length} workflows available
+                      {publicWorkflows.length + prebuiltTemplates.length} items available
                     </span>
                     <span className="flex items-center gap-1">
                       <Users className="w-4 h-4" />
@@ -368,8 +369,9 @@ function MarketplaceLayout() {
                       <Star className="w-4 h-4 text-white" />
                     </div>
                     <div>
-                      <h2 className="text-2xl font-bold text-gray-900">
-                        ⚡ Quick Start Templates
+                      <h2 className="flex items-center gap-2 text-2xl font-bold text-gray-900">
+                        <Zap className="h-5 w-5 text-[var(--kai-accent-text)]" />
+                        Quick Start Templates
                       </h2>
                       <p className="text-sm text-gray-600">
                         Ready-to-use templates to get you started instantly
@@ -423,7 +425,7 @@ function MarketplaceLayout() {
 
                           {/* Action Button */}
                           <button
-                            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            className="kai-secondary-action w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors"
                             onClick={() => handleUseTemplate(tpl.id)}
                           >
                             <Download className="w-4 h-4" />
@@ -469,7 +471,7 @@ function MarketplaceLayout() {
                         {/* Action */}
                         <div className="flex-shrink-0">
                           <button
-                            className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors"
+                            className="kai-secondary-action flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors"
                             onClick={() => handleUseTemplate(tpl.id)}
                           >
                             <Download className="w-4 h-4" />
@@ -544,12 +546,12 @@ function MarketplaceLayout() {
             <div className="mb-10">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-[#2563EB] rounded-lg flex items-center justify-center">
+                  <div className="w-8 h-8 bg-[var(--kai-accent)] rounded-lg flex items-center justify-center">
                     <Users className="w-4 h-4 text-white" />
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">
-                      🌟 Community Workflows
+                      Community Workflows
                     </h2>
                     <p className="text-sm text-gray-600">
                       Workflows shared by our amazing community
@@ -646,7 +648,7 @@ function MarketplaceLayout() {
 
                             {/* Action Button */}
                             <button
-                              className="mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="kai-secondary-action mt-auto w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => handleDuplicate(wf.id)}
                               disabled={duplicating === wf.id}
                             >
@@ -720,7 +722,7 @@ function MarketplaceLayout() {
                           {/* Action */}
                           <div className="flex-shrink-0">
                             <button
-                              className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                              className="kai-secondary-action flex items-center gap-2 px-6 py-2.5 text-sm font-semibold rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                               onClick={() => handleDuplicate(wf.id)}
                               disabled={duplicating === wf.id}
                             >

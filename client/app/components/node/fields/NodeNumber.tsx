@@ -88,7 +88,7 @@ export const NodeNumber = ({ property, values }: NodeNumberProps) => {
           className={property.unit ? "flex-1" : "w-full"}
         />
         {property.unit && (
-          <span className="shrink-0 text-sm text-slate-400">{property.unit}</span>
+          <span className="shrink-0 text-sm text-[var(--kai-text-muted)]">{property.unit}</span>
         )}
       </div>
     </div>

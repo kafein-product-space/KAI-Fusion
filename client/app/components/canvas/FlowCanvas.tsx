@@ -2369,7 +2369,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       />
       <div className="w-full h-full relative pt-16 flex bg-black">
         {/* Left Activity Bar */}
-        <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-[#18181B] border-r border-gray-800/80 z-30 flex flex-col items-center justify-between py-4 select-none">
+        <div className="fixed left-0 top-16 w-16 h-[calc(100vh-4rem)] bg-[var(--kai-sidebar)] border-r border-gray-800/80 z-30 flex flex-col items-center justify-between py-4 select-none">
           {/* Top section: Nodes */}
           <div className="flex flex-col items-center gap-4 w-full">
             {/* Nodes Panel Toggle Button */}
@@ -2377,7 +2377,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className={`p-3 rounded-xl transition-all duration-200 border ${
                 isSidebarOpen
-                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20 shadow-lg"
+                  ? "bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55"
                   : "text-white border-transparent hover:bg-gray-800"
               }`}
               title={isSidebarOpen ? "Close Nodes Panel" : "Open Nodes Panel"}
@@ -2396,7 +2396,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               onClick={() => setIsLogPanelOpen(!isLogPanelOpen)}
               className={`p-3 rounded-xl transition-all duration-200 border ${
                 isLogPanelOpen
-                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20"
+                  ? "bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55"
                   : "text-white border-transparent hover:bg-gray-800"
               }`}
               title="Toggle Backend Logs"
@@ -2409,7 +2409,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
               onClick={() => setIsTutorialOpen(true)}
               className={`p-3 rounded-xl transition-all duration-200 border ${
                 isTutorialOpen
-                  ? "bg-blue-600/10 text-blue-400 border-blue-500/20"
+                  ? "bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55"
                   : "text-white border-transparent hover:bg-gray-800"
               }`}
               title="Open Tutorials"
@@ -2454,7 +2454,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           {/* Horizontal Canvas Controls */}
           <div
             style={isLogPanelOpen ? { bottom: `${logPanelHeight + 16}px` } : undefined}
-            className="absolute left-20 bottom-4 z-10 flex items-center gap-1 bg-[#18181B] border border-gray-800/80 p-1.5 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.5)] select-none"
+            className="absolute left-20 bottom-4 z-10 flex items-center gap-1 bg-[var(--kai-sidebar)] border border-gray-800/80 p-1.5 rounded-xl shadow-[0_8px_32px_var(--kai-shadow-overlay)] select-none"
           >
             {/* Zoom In Button */}
             <button
@@ -2500,7 +2500,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           <button
             style={isLogPanelOpen ? { bottom: `${logPanelHeight + 20}px` } : undefined}
             className={`fixed bottom-5 right-5 z-50 px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 transition-[background-color,border-color,color,box-shadow] duration-150 backdrop-blur-sm border ${chatOpen
-              ? "bg-blue-600 text-white border-blue-400/30 shadow-blue-500/25"
+              ? "bg-[var(--kai-accent)]/20 text-[var(--kai-accent-text)] border-[var(--kai-accent)]/55"
               : "bg-gray-900/80 text-gray-300 border-gray-700/50 hover:bg-gray-800/90 hover:border-gray-600/50 hover:text-white"
               }`}
             onClick={() => setChatOpen((v) => !v)}

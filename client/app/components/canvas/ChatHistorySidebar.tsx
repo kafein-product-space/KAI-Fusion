@@ -255,11 +255,9 @@ export default function ChatHistorySidebar({
                             onClick={(e) =>
                               handleDeleteChat(chat.chatflowId, e)
                             }
-                            className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
-                              activeChatflowId === chat.chatflowId
-                                ? "hover:bg-white"
-                                : "hover:bg-red-500"
-                            }`}
+                            className="kai-delete-trigger rounded p-1.5"
+                            title="Delete conversation"
+                            aria-label="Delete conversation"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>
@@ -335,11 +333,9 @@ export default function ChatHistorySidebar({
                             onClick={(e) =>
                               handleDeleteChat(chat.chatflowId, e)
                             }
-                            className={`p-1 rounded hover:bg-opacity-20 transition-colors ${
-                              activeChatflowId === chat.chatflowId
-                                ? "hover:bg-white"
-                                : "hover:bg-red-500"
-                            }`}
+                            className="kai-delete-trigger rounded p-1.5"
+                            title="Delete conversation"
+                            aria-label="Delete conversation"
                           >
                             <Trash2 className="w-3 h-3" />
                           </button>

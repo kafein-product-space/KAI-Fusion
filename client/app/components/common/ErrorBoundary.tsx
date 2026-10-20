@@ -48,26 +48,28 @@ class ErrorBoundary extends Component<Props, State> {
       }
 
       return (
-        <div className="min-h-screen bg-gray-50 flex items-center justify-center p-8">
+        <div className="flex min-h-screen items-center justify-center bg-[var(--kai-bg-deep)] p-8 text-zinc-100">
           <div className="max-w-md w-full">
-            <div className="bg-white rounded-lg shadow-lg p-8 text-center">
-              <AlertTriangle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <div className="rounded-xl border border-[var(--kai-surface-selected)] bg-[var(--kai-error-surface)] p-8 text-center shadow-2xl shadow-black/30">
+              <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-lg border border-red-500/20 bg-red-500/10">
+                <AlertTriangle className="h-6 w-6 text-red-400" />
+              </div>
 
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              <h1 className="mb-2 text-xl font-semibold tracking-tight text-zinc-100">
                 Oops! Something went wrong
               </h1>
 
-              <p className="text-gray-600 mb-6">
+              <p className="mb-6 text-sm leading-6 text-zinc-400">
                 We encountered an unexpected error. This has been logged and
                 we'll look into it.
               </p>
 
               {process.env.NODE_ENV === "development" && this.state.error && (
-                <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6 text-left">
-                  <h3 className="text-sm font-medium text-red-800 mb-2">
+                <div className="mb-6 rounded-lg border border-red-500/20 bg-red-500/[0.06] p-4 text-left">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-red-300">
                     Error Details:
                   </h3>
-                  <pre className="text-xs text-red-700 overflow-auto max-h-32">
+                  <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words text-xs leading-5 text-red-200/80">
                     {this.state.error.message}
                     {this.state.errorInfo?.componentStack && (
                       <div className="mt-2">
@@ -82,7 +84,7 @@ class ErrorBoundary extends Component<Props, State> {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <button
                   onClick={this.handleRetry}
-                  className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                  className="inline-flex h-9 items-center justify-center rounded-lg bg-[var(--kai-accent)] px-4 text-sm font-medium text-white transition-colors hover:bg-[var(--kai-accent-hover)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/40"
                 >
                   <RefreshCw className="h-4 w-4 mr-2" />
                   Try Again
@@ -90,7 +92,7 @@ class ErrorBoundary extends Component<Props, State> {
 
                 <button
                   onClick={this.handleGoHome}
-                  className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="inline-flex h-9 items-center justify-center rounded-lg border border-[var(--kai-error-action-border)] bg-[var(--kai-node-config-bg)] px-4 text-sm font-medium text-zinc-200 transition-colors hover:bg-[var(--kai-panel-raised)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/30"
                 >
                   <Home className="h-4 w-4 mr-2" />
                   Go Home

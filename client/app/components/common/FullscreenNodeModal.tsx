@@ -740,19 +740,19 @@ export default function FullscreenNodeModal({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
+        className="kai-node-modal fixed inset-0 z-50 bg-black/80 backdrop-blur-sm"
         onKeyDown={handleKeyDown}
         tabIndex={-1}
         data-workflow-history
       >
 
-        <div className="w-full h-full flex flex-col bg-gray-900">
+      <div className="w-full h-full flex flex-col bg-[var(--kai-node-modal-bg)]">
           {/* Header */}
           <motion.div
             initial={{ y: -50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.1 }}
-            className="flex items-center justify-between p-6 border-b border-gray-700 bg-gray-800"
+            className="flex items-center justify-between border-b border-[var(--kai-surface-hover)] bg-[var(--kai-sidebar)] p-6"
           >
             <div className="flex items-center gap-4 min-w-0 max-w-[75%]">
               <div className="min-w-0">
@@ -760,7 +760,7 @@ export default function FullscreenNodeModal({
                   {nodeMetadata.icon && (() => {
                     const iconObj = nodeMetadata.icon as any;
                     return (
-                      <div className="w-10 h-10 rounded-lg bg-blue-600 flex items-center justify-center flex-shrink-0">
+                      <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-lg bg-[var(--kai-accent)]">
                         {iconObj.path ? (
                           <img
                             src={resolveIconPath(iconObj.path)}
@@ -794,9 +794,9 @@ export default function FullscreenNodeModal({
                     Specify the node name for using node output.
                   </label>
                   <input
-                    className={`w-64 px-2 py-1 rounded bg-gray-900 border text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
+                      className={`w-64 rounded border bg-[var(--kai-node-modal-field-bg)] px-2 py-1 text-sm text-gray-100 focus:outline-none focus:ring-1 ${nodeAliasError
                       ? "border-yellow-500 focus:ring-yellow-500"
-                      : "border-gray-700 focus:ring-blue-500"
+                      : "border-[var(--kai-panel-border)] focus:border-[var(--kai-neutral-focus)] focus:ring-[var(--kai-neutral-focus)]"
                       }`}
                     value={nodeAlias}
                     onChange={handleNodeAliasChange}
@@ -814,7 +814,7 @@ export default function FullscreenNodeModal({
               </div>
 
             <div className="flex items-center gap-3">
-              <div className="px-3 py-1 rounded-full bg-gray-700 text-xs text-gray-300">
+              <div className="rounded-md border border-[var(--kai-panel-border)] bg-[var(--kai-panel-raised)] px-3 py-1 text-xs text-zinc-300">
                 {nodeMetadata.node_type}
               </div>
               {onExecute && nodeMetadata.node_type === "processor" && (
@@ -829,7 +829,7 @@ export default function FullscreenNodeModal({
               )}
               <button
                 onClick={onClose}
-                className="p-2 rounded-lg bg-gray-700 hover:bg-gray-600 transition-colors"
+                className="rounded-lg border border-[var(--kai-panel-border)] bg-[var(--kai-panel-raised)] p-2 transition-colors hover:bg-[var(--kai-surface-hover)]"
               >
                 <X className="w-5 h-5 text-white" />
               </button>
@@ -843,11 +843,11 @@ export default function FullscreenNodeModal({
               initial={{ x: -50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.2 }}
-              className="w-1/3 bg-gray-850 border-r border-gray-700 overflow-y-auto custom-scrollbar"
+              className="custom-scrollbar w-1/3 overflow-y-auto border-r border-[var(--kai-border-dialog)] bg-[var(--kai-sidebar)]"
             >
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
-                  <ArrowRight className="w-5 h-5 text-blue-400" />
+                  <ArrowRight className="h-5 w-5 text-zinc-400" />
                   <h2 className="text-lg font-semibold text-white">
                     Input Data
                   </h2>
@@ -858,8 +858,8 @@ export default function FullscreenNodeModal({
                   Object.keys(inputDataToDisplay).length > 0 ? (
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                      <span className="text-blue-300 font-medium">
+                      <div className="h-2 w-2 rounded-full bg-zinc-400"></div>
+                      <span className="font-medium text-zinc-300">
                         Standardized JSON Input
                       </span>
                     </div>
@@ -874,8 +874,8 @@ export default function FullscreenNodeModal({
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                    <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
-                      <ArrowRight className="w-8 h-8 text-blue-400" />
+                    <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--kai-panel-border)] bg-[var(--kai-surface-dialog)]">
+                      <ArrowRight className="h-8 w-8 text-zinc-400" />
                     </div>
                     <div className="text-lg font-medium text-white mb-2">
                       {executionData?.status === "running"
@@ -897,16 +897,16 @@ export default function FullscreenNodeModal({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               transition={{ delay: 0.3 }}
-              className="flex-1 overflow-y-auto bg-gray-900 custom-scrollbar"
+              className="custom-scrollbar min-w-0 flex-1 overflow-y-auto bg-[var(--kai-surface-dialog)]"
             >
               <div className="h-full flex flex-col">
-                <div className="p-4 border-b border-gray-700">
+              <div className="border-b border-[var(--kai-node-modal-divider)] px-5 py-4">
                   <h2 className="text-lg font-semibold text-white flex items-center gap-2">
-                    <Settings className="w-5 h-5 text-green-400" />
+                    <Settings className="h-5 w-5 text-[var(--kai-accent-text-soft)]" />
                     Node Configuration
                   </h2>
                 </div>
-                <div ref={configContainerRef} className="flex-1 p-3 overflow-y-auto custom-scrollbar">
+                <div ref={configContainerRef} className="kai-node-config custom-scrollbar flex-1 overflow-y-auto p-3">
                   <div className="max-w-full">
                     <ConfigComponent
                       key={formKey}
@@ -926,11 +926,11 @@ export default function FullscreenNodeModal({
               initial={{ x: 50, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               transition={{ delay: 0.4 }}
-              className="w-1/3 bg-gray-850 border-l border-gray-700 overflow-y-auto custom-scrollbar"
+              className="custom-scrollbar w-1/3 overflow-y-auto border-l border-[var(--kai-border-dialog)] bg-[var(--kai-sidebar)]"
             >
               <div className="p-4">
                 <div className="flex items-center gap-3 mb-6">
-                  <ArrowLeft className="w-5 h-5 text-blue-400" />
+                  <ArrowLeft className="h-5 w-5 text-zinc-400" />
                   <h2 className="text-lg font-semibold text-white">
                     Output Data
                   </h2>
@@ -941,10 +941,10 @@ export default function FullscreenNodeModal({
                   <div className="space-y-4">
                     <div className="flex items-center gap-2 text-sm mb-4">
                       <div className={`w-2 h-2 rounded-full animate-pulse ${
-                        executionData.outputs.success === false ? "bg-red-500" : "bg-blue-500"
+                        executionData.outputs.success === false ? "bg-red-500" : "bg-emerald-400"
                       }`}></div>
                       <span className={`${
-                        executionData.outputs.success === false ? "text-red-400" : "text-blue-300"
+                        executionData.outputs.success === false ? "text-red-400" : "text-zinc-300"
                       } font-medium`}>
                         {executionData.outputs.success === false ? "Execution Failed" : "Standardized JSON Output"}
                       </span>
@@ -963,8 +963,8 @@ export default function FullscreenNodeModal({
                   </div>
                 ) : (
                   <div className="text-center py-12">
-                     <div className="w-16 h-16 mx-auto mb-4 bg-gradient-to-br from-blue-500/20 to-blue-600/20 rounded-full flex items-center justify-center border border-blue-500/30">
-                       <ArrowLeft className="w-8 h-8 text-blue-400" />
+                     <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full border border-[var(--kai-panel-border)] bg-[var(--kai-surface-dialog)]">
+                       <ArrowLeft className="h-8 w-8 text-zinc-400" />
                      </div>
                     <div className="text-lg font-medium text-white mb-2">
                       {executionData?.status === "running"
@@ -987,7 +987,7 @@ export default function FullscreenNodeModal({
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             transition={{ delay: 0.5 }}
-            className="flex items-center justify-between py-3 px-6 border-t border-gray-700 bg-gray-800"
+            className="flex items-center justify-between border-t border-[var(--kai-surface-hover)] bg-[var(--kai-sidebar)] px-6 py-3"
           >
             <div className="flex items-center gap-4 text-sm text-gray-400">
               <span>Node Type: {nodeMetadata.node_type}</span>
@@ -1028,7 +1028,7 @@ export default function FullscreenNodeModal({
                     });
                   }
                 }}
-                className="px-4 py-2 rounded-lg bg-blue-600 text-white hover:bg-blue-700 transition-colors flex items-center gap-2"
+                className="flex items-center gap-2 rounded-lg border border-[var(--kai-accent-hover)] bg-[var(--kai-accent)] px-4 py-2 font-medium text-white transition-colors hover:bg-[var(--kai-accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent-text-soft)]"
               >
                 <Save className="w-4 h-4" />
                 Save Changes

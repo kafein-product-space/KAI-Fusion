@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { BookOpen, Play, Star, Clock, Tag } from "lucide-react";
+import { BookOpen, Play, Clock } from "lucide-react";
 import {
   TUTORIAL_WORKFLOWS,
   type TutorialWorkflow,
@@ -33,13 +33,13 @@ export default function TutorialLauncher({
   const getDifficultyColor = (difficulty: string) => {
     switch (difficulty) {
       case "Beginner":
-        return "bg-green-100 text-green-800";
+        return "border border-emerald-400/25 bg-emerald-400/10 text-emerald-300";
       case "Intermediate":
-        return "bg-yellow-100 text-yellow-800";
+        return "border border-amber-400/25 bg-amber-400/10 text-amber-300";
       case "Advanced":
-        return "bg-red-100 text-red-800";
+        return "border border-red-400/25 bg-red-400/10 text-red-300";
       default:
-        return "bg-gray-100 text-gray-800";
+        return "border border-[var(--kai-border-strong)] bg-[var(--kai-surface-hover)] text-zinc-300";
     }
   };
 
@@ -57,30 +57,21 @@ export default function TutorialLauncher({
   };
 
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6">
-      {/* Header */}
-      <div className="flex items-center gap-3 mb-6">
-        <BookOpen className="w-8 h-8 text-blue-600" />
-        <div>
-          <h2 className="text-2xl font-bold text-gray-900">
-            Tutorial Workflows
-          </h2>
-          <p className="text-gray-600">
-            Step-by-step guides to build amazing AI workflows
-          </p>
-        </div>
-      </div>
+    <div className="bg-[var(--kai-surface-dialog)] p-6 text-zinc-100">
+      <p className="mb-6 text-sm text-zinc-400">
+        Choose a guided workflow to get started.
+      </p>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className="mb-6 flex flex-wrap gap-4">
+        <div className="min-w-48 flex-1">
+          <label className="mb-2 block text-sm font-medium text-zinc-300">
             Category
           </label>
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-sidebar)] px-3 py-2 text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
             {categories.map((category) => (
               <option key={category} value={category}>
@@ -89,14 +80,14 @@ export default function TutorialLauncher({
             ))}
           </select>
         </div>
-        <div className="flex-1">
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+        <div className="min-w-48 flex-1">
+          <label className="mb-2 block text-sm font-medium text-zinc-300">
             Difficulty
           </label>
           <select
             value={selectedDifficulty}
             onChange={(e) => setSelectedDifficulty(e.target.value)}
-            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-[var(--kai-border-strong)] bg-[var(--kai-sidebar)] px-3 py-2 text-zinc-100 focus:border-[var(--kai-accent)] focus:outline-none focus:ring-2 focus:ring-[var(--kai-accent)]/20"
           >
             {difficulties.map((difficulty) => (
               <option key={difficulty} value={difficulty}>
@@ -108,11 +99,11 @@ export default function TutorialLauncher({
       </div>
 
       {/* Tutorial Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
         {filteredTutorials.map((tutorial) => (
           <div
             key={tutorial.id}
-            className="border border-gray-200 rounded-lg p-6 hover:shadow-md transition-all duration-200 hover:border-blue-300"
+            className="flex flex-col rounded-lg border border-[var(--kai-border-dialog)] bg-[var(--kai-surface-control)] p-5 transition-colors hover:border-[var(--kai-accent)]/55"
           >
             {/* Tutorial Header */}
             <div className="flex items-start justify-between mb-4">
@@ -121,10 +112,10 @@ export default function TutorialLauncher({
                   {getCategoryIcon(tutorial.category)}
                 </span>
                 <div>
-                  <h3 className="font-semibold text-gray-900 text-lg">
+                  <h3 className="text-lg font-semibold text-white">
                     {tutorial.name}
                   </h3>
-                  <p className="text-sm text-gray-500">{tutorial.category}</p>
+                  <p className="text-sm text-zinc-400">{tutorial.category}</p>
                 </div>
               </div>
               <span
@@ -137,12 +128,12 @@ export default function TutorialLauncher({
             </div>
 
             {/* Description */}
-            <p className="text-gray-600 text-sm mb-4 line-clamp-3">
+            <p className="mb-4 line-clamp-3 text-sm leading-6 text-zinc-300">
               {tutorial.description}
             </p>
 
             {/* Metadata */}
-            <div className="flex items-center gap-4 mb-4 text-sm text-gray-500">
+            <div className="mb-4 flex items-center gap-4 text-sm text-zinc-400">
               <div className="flex items-center gap-1">
                 <Clock className="w-4 h-4" />
                 {tutorial.estimatedTime}
@@ -156,14 +147,14 @@ export default function TutorialLauncher({
             {/* Prerequisites */}
             {tutorial.prerequisites.length > 0 && (
               <div className="mb-4">
-                <p className="text-xs font-medium text-gray-700 mb-2">
+                <p className="mb-2 text-xs font-medium text-zinc-300">
                   Prerequisites:
                 </p>
                 <div className="flex flex-wrap gap-1">
                   {tutorial.prerequisites.map((prereq, index) => (
                     <span
                       key={index}
-                      className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full"
+                      className="rounded-full border border-[var(--kai-border-strong)] bg-[var(--kai-surface-hover)] px-2 py-1 text-xs text-zinc-300"
                     >
                       {prereq}
                     </span>
@@ -177,13 +168,13 @@ export default function TutorialLauncher({
               {tutorial.tags.slice(0, 3).map((tag, index) => (
                 <span
                   key={index}
-                  className="px-2 py-1 bg-blue-100 text-blue-700 text-xs rounded-full"
+                  className="rounded-full border border-[var(--kai-accent)]/25 bg-[var(--kai-accent)]/10 px-2 py-1 text-xs text-[var(--kai-accent-text)]"
                 >
                   {tag}
                 </span>
               ))}
               {tutorial.tags.length > 3 && (
-                <span className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded-full">
+                <span className="rounded-full border border-[var(--kai-border-strong)] bg-[var(--kai-surface-hover)] px-2 py-1 text-xs text-zinc-300">
                   +{tutorial.tags.length - 3}
                 </span>
               )}
@@ -192,7 +183,7 @@ export default function TutorialLauncher({
             {/* Launch Button */}
             <button
               onClick={() => onLaunchTutorial(tutorial.id)}
-              className="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center gap-2"
+              className="mt-auto flex w-full items-center justify-center gap-2 rounded-lg bg-[var(--kai-accent)] px-4 py-2 text-white transition-colors hover:bg-[var(--kai-accent-hover)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--kai-accent-text)]"
             >
               <Play className="w-4 h-4" />
               Start Tutorial
@@ -204,25 +195,25 @@ export default function TutorialLauncher({
       {/* Empty State */}
       {filteredTutorials.length === 0 && (
         <div className="text-center py-12">
-          <BookOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-semibold text-gray-600 mb-2">
+          <BookOpen className="mx-auto mb-4 h-16 w-16 text-zinc-500" />
+          <h3 className="mb-2 text-lg font-semibold text-zinc-200">
             No tutorials found
           </h3>
-          <p className="text-gray-500">
+          <p className="text-zinc-400">
             Try adjusting your filters to see more tutorials.
           </p>
         </div>
       )}
 
       {/* Footer */}
-      <div className="mt-8 pt-6 border-t border-gray-200 text-center">
-        <p className="text-sm text-gray-500">
+      <div className="mt-8 border-t border-[var(--kai-border-dialog)] pt-6 text-center">
+        <p className="text-sm text-zinc-400">
           Need help? Check out our{" "}
-          <a href="#" className="text-blue-600 hover:text-blue-700 underline">
+          <a href="#" className="text-[var(--kai-accent-text)] underline hover:text-white">
             documentation
           </a>{" "}
           or{" "}
-          <a href="#" className="text-blue-600 hover:text-blue-700 underline">
+          <a href="#" className="text-[var(--kai-accent-text)] underline hover:text-white">
             community forum
           </a>
           .

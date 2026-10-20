@@ -61,7 +61,7 @@ export const NodeCredentialSelect = ({ property, values, setFieldValue }: NodeCr
         serviceType={property.serviceType}
         placeholder={property.placeholder}
         showCreateNew={true}
-        className="text-sm text-white px-4 py-3 rounded-lg w-full bg-slate-900/80 border"
+        appearance="dark"
       />
     </div>
   );

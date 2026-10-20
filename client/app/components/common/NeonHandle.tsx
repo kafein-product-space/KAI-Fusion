@@ -8,7 +8,7 @@ export const NeonHandle = ({
   isConnectable = true,
   className = "",
   size = 16,
-  color1 = "#a855f7",
+  color1 = "#3b82f6",
   glow = false,
   ...props
 }: {

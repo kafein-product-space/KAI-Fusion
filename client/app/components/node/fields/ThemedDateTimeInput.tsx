@@ -64,11 +64,7 @@ const TimeControl = ({
   onType,
   onStep,
 }: TimeControlProps) => (
-  <div
-    className={`flex h-9 w-[4.5rem] overflow-hidden rounded-md border bg-slate-900 transition-colors focus-within:border-blue-500 ${
-      disabled ? "border-slate-700 opacity-40" : "border-slate-600"
-    }`}
-  >
+  <div className={`kai-node-field-shell h-9 w-[4.5rem] rounded-md ${disabled ? "is-disabled opacity-40" : ""}`}>
     <input
       aria-label={label}
       type="text"
@@ -81,7 +77,7 @@ const TimeControl = ({
         const next = event.target.value.trim();
         if (/^\d{1,2}$/.test(next) && Number(next) <= max) onType(next);
       }}
-      className="min-w-0 flex-1 bg-transparent px-2 text-center text-sm text-white outline-none"
+      className="kai-node-field-input px-2 text-center"
     />
     <NumberStepControls
       increaseDisabled={disabled}
@@ -193,12 +189,10 @@ export const ThemedDateTimeInput = ({
           setHeaderPicker(null);
         }}
         onMouseDown={(event) => event.stopPropagation()}
-        className={`w-full flex items-center gap-3 bg-[#10182c] border rounded-lg px-3 py-2.5 text-left text-sm transition-colors focus:outline-none ${
-          open ? "border-blue-500 ring-2 ring-blue-500/20" : "border-slate-600 hover:border-slate-500"
-        }`}
+        className="kai-node-field-control flex items-center gap-3 px-3 py-2.5 text-left"
       >
-        <CalendarDays size={16} className="shrink-0 text-blue-400" />
-        <span className={displayValue ? "text-white" : "text-slate-500"}>
+        <CalendarDays size={16} className="shrink-0 text-[var(--kai-accent-text)]" />
+        <span className={displayValue ? "text-[var(--kai-text)]" : "text-[var(--kai-placeholder)]"}>
           {displayValue || placeholder}
         </span>
       </button>
@@ -207,7 +201,7 @@ export const ThemedDateTimeInput = ({
         <div
           role="dialog"
           aria-label="Choose date and time"
-          className="absolute z-[70] mt-2 w-full min-w-[20rem] max-w-sm rounded-xl border border-slate-700 bg-[#10182c] p-3 shadow-2xl shadow-black/60"
+          className="kai-node-field-menu absolute z-[70] mt-2 w-full min-w-[20rem] max-w-sm p-3"
         >
           <div className="relative mb-3 flex items-center justify-between">
             <button
@@ -216,7 +210,7 @@ export const ThemedDateTimeInput = ({
               onClick={() =>
                 setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1))
               }
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"
+              className="rounded-md p-1.5 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
             >
               <ChevronLeft size={17} />
             </button>
@@ -227,8 +221,8 @@ export const ThemedDateTimeInput = ({
                 onClick={() => openHeaderPicker("month")}
                 className={`rounded-md px-2 py-1 text-sm font-medium transition-colors ${
                   headerPicker === "month"
-                    ? "bg-blue-500/20 text-blue-300"
-                    : "text-slate-100 hover:bg-slate-700"
+                    ? "bg-[var(--kai-accent-soft)] text-[var(--kai-accent-text)]"
+                    : "text-[var(--kai-text)] hover:bg-[var(--kai-surface-hover)]"
                 }`}
               >
                 {MONTHS[viewMonth.getMonth()]}
@@ -239,8 +233,8 @@ export const ThemedDateTimeInput = ({
                 onClick={() => openHeaderPicker("year")}
                 className={`rounded-md px-2 py-1 text-sm font-medium transition-colors ${
                   headerPicker === "year"
-                    ? "bg-blue-500/20 text-blue-300"
-                    : "text-slate-100 hover:bg-slate-700"
+                    ? "bg-[var(--kai-accent-soft)] text-[var(--kai-accent-text)]"
+                    : "text-[var(--kai-text)] hover:bg-[var(--kai-surface-hover)]"
                 }`}
               >
                 {viewMonth.getFullYear()}
@@ -252,13 +246,13 @@ export const ThemedDateTimeInput = ({
               onClick={() =>
                 setViewMonth(new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1))
               }
-              className="rounded-md p-1.5 text-slate-400 hover:bg-slate-700 hover:text-white"
+              className="rounded-md p-1.5 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
             >
               <ChevronRight size={17} />
             </button>
 
             {headerPicker === "month" && (
-              <div className="absolute left-8 right-8 top-10 z-10 grid grid-cols-3 gap-1 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl shadow-black/50">
+              <div className="kai-node-field-menu absolute left-8 right-8 top-10 z-10 grid grid-cols-3 gap-1 p-2">
                 {MONTHS.map((month, index) => (
                   <button
                     key={month}
@@ -269,8 +263,8 @@ export const ThemedDateTimeInput = ({
                     }}
                     className={`rounded-md px-2 py-2 text-xs transition-colors ${
                       viewMonth.getMonth() === index
-                        ? "bg-blue-500 text-white"
-                        : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                        ? "bg-[var(--kai-accent)] text-[var(--kai-text-on-accent)]"
+                        : "text-[var(--kai-text-secondary)] hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                     }`}
                   >
                     {month.slice(0, 3)}
@@ -280,24 +274,24 @@ export const ThemedDateTimeInput = ({
             )}
 
             {headerPicker === "year" && (
-              <div className="absolute left-8 right-8 top-10 z-10 rounded-lg border border-slate-700 bg-slate-900 p-2 shadow-xl shadow-black/50">
+              <div className="kai-node-field-menu absolute left-8 right-8 top-10 z-10 p-2">
                 <div className="mb-2 flex items-center justify-between">
                   <button
                     type="button"
                     aria-label="Previous decade"
                     onClick={() => setYearPageStart((year) => year - 10)}
-                    className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white"
+                    className="rounded p-1 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                   >
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="text-xs font-medium text-slate-400">
+                  <span className="text-xs font-medium text-[var(--kai-text-muted)]">
                     {yearPageStart}–{yearPageStart + 9}
                   </span>
                   <button
                     type="button"
                     aria-label="Next decade"
                     onClick={() => setYearPageStart((year) => year + 10)}
-                    className="rounded p-1 text-slate-400 hover:bg-slate-700 hover:text-white"
+                    className="rounded p-1 text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                   >
                     <ChevronRight size={14} />
                   </button>
@@ -314,10 +308,10 @@ export const ThemedDateTimeInput = ({
                         }}
                         className={`rounded-md px-2 py-2 text-xs transition-colors ${
                           viewMonth.getFullYear() === year
-                            ? "bg-blue-500 text-white"
+                            ? "bg-[var(--kai-accent)] text-[var(--kai-text-on-accent)]"
                             : year < yearPageStart || year > yearPageStart + 9
-                              ? "text-slate-600 hover:bg-slate-700 hover:text-slate-300"
-                              : "text-slate-300 hover:bg-slate-700 hover:text-white"
+                              ? "text-[var(--kai-text-disabled)] hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text-secondary)]"
+                              : "text-[var(--kai-text-secondary)] hover:bg-[var(--kai-surface-hover)] hover:text-[var(--kai-text)]"
                         }`}
                       >
                         {year}
@@ -331,7 +325,7 @@ export const ThemedDateTimeInput = ({
 
           <div className="grid grid-cols-7 gap-1">
             {WEEKDAYS.map((weekday) => (
-              <div key={weekday} className="py-1 text-center text-[10px] font-medium text-slate-500">
+              <div key={weekday} className="py-1 text-center text-[10px] font-medium text-[var(--kai-text-muted)]">
                 {weekday}
               </div>
             ))}
@@ -343,10 +337,10 @@ export const ThemedDateTimeInput = ({
                   onClick={() => selectDay(day)}
                   className={`h-8 rounded-md text-xs transition-colors ${
                     sameDay(selected, day)
-                      ? "bg-blue-500 font-semibold text-white"
+                      ? "bg-[var(--kai-accent)] font-semibold text-[var(--kai-text-on-accent)]"
                       : sameDay(new Date(), day)
-                        ? "bg-blue-500/10 text-blue-300 hover:bg-blue-500/20"
-                        : "text-slate-300 hover:bg-slate-700"
+                        ? "bg-[var(--kai-accent-subtle)] text-[var(--kai-accent-text)] hover:bg-[var(--kai-accent-soft)]"
+                        : "text-[var(--kai-text-secondary)] hover:bg-[var(--kai-surface-hover)]"
                   }`}
                 >
                   {day.getDate()}
@@ -357,8 +351,8 @@ export const ThemedDateTimeInput = ({
             )}
           </div>
 
-          <div className="mt-3 flex items-center gap-2 border-t border-slate-700 pt-3">
-            <Clock size={15} className="text-slate-500" />
+          <div className="mt-3 flex items-center gap-2 border-t border-[var(--kai-border-strong)] pt-3">
+            <Clock size={15} className="text-[var(--kai-text-muted)]" />
             <TimeControl
               label="Hour"
               disabled={!selected}
@@ -367,7 +361,7 @@ export const ThemedDateTimeInput = ({
               onType={(nextValue) => updateTime("hours", nextValue)}
               onStep={(delta) => stepTime("hours", delta)}
             />
-            <span className="text-slate-500">:</span>
+            <span className="text-[var(--kai-text-muted)]">:</span>
             <TimeControl
               label="Minute"
               disabled={!selected}
@@ -383,7 +377,7 @@ export const ThemedDateTimeInput = ({
               <button
                 type="button"
                 onClick={chooseToday}
-                className="rounded-md px-2.5 py-1.5 text-xs text-blue-300 hover:bg-blue-500/10"
+                className="rounded-md px-2.5 py-1.5 text-xs text-[var(--kai-accent-text)] transition-colors hover:bg-[var(--kai-accent-subtle)]"
               >
                 Today
               </button>
@@ -391,7 +385,7 @@ export const ThemedDateTimeInput = ({
                 <button
                   type="button"
                   onClick={() => onChange("")}
-                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-slate-400 hover:bg-slate-700 hover:text-red-300"
+                  className="flex items-center gap-1 rounded-md px-2.5 py-1.5 text-xs text-[var(--kai-text-muted)] transition-colors hover:bg-[var(--kai-danger-subtle)] hover:text-[var(--kai-danger-text-soft)]"
                 >
                   <X size={12} /> Clear
                 </button>
@@ -400,7 +394,7 @@ export const ThemedDateTimeInput = ({
             <button
               type="button"
               onClick={() => setOpen(false)}
-              className="rounded-md bg-blue-500 px-3 py-1.5 text-xs font-medium text-white hover:bg-blue-400"
+              className="rounded-md bg-[var(--kai-accent)] px-3 py-1.5 text-xs font-medium text-[var(--kai-text-on-accent)] transition-colors hover:bg-[var(--kai-accent-hover)]"
             >
               Done
             </button>

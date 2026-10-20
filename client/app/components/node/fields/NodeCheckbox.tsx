@@ -42,7 +42,7 @@ export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
         <FieldLabel
           label={property.displayName}
           helpText={getFieldHelpText(property)}
-          className="text-sm text-slate-200"
+          className="mb-0 text-sm text-[var(--kai-text-soft)]"
         />
         {/* Toggle Switch */}
         <button
@@ -50,19 +50,19 @@ export const NodeCheckbox = ({ property, values }: NodeCheckboxProps) => {
           onClick={() => helpers.setValue(!isChecked)}
           onMouseDown={(e: any) => e.stopPropagation()}
           onTouchStart={(e: any) => e.stopPropagation()}
-          className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${isChecked ? "bg-blue-500" : "bg-slate-600"
-            }`}
+          className={`kai-node-toggle ${isChecked ? "is-active" : ""}`}
+          role="switch"
+          aria-checked={isChecked}
         >
           <span
-            className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ${isChecked ? "translate-x-5" : "translate-x-0"
-              }`}
+            className="kai-node-toggle-thumb"
           />
         </button>
       </div>
       <ErrorMessage
         name={property.name}
         component="div"
-        className="text-red-400 text-sm mt-1"
+        className="kai-node-field-error mt-1"
       />
     </div>
   );

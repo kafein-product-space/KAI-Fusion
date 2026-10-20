@@ -81,7 +81,7 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
       return 'bg-blue-100 border-blue-300 text-blue-800';
     }
     if (nodeType.toLowerCase().includes('memory')) {
-      return 'bg-purple-100 border-purple-300 text-purple-800';
+      return 'bg-blue-100 border-blue-300 text-blue-800';
     }
     if (nodeType.toLowerCase().includes('trigger') || nodeType.toLowerCase().includes('start')) {
       return 'bg-green-100 border-green-300 text-green-800';
@@ -189,7 +189,7 @@ export default function ExternalWorkflowViewer({ workflow, isOpen, onClose }: Ex
                         </span>
                       )}
                       {workflow.capabilities?.memory && (
-                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-purple-100 text-purple-800 rounded-full">
+                        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium bg-blue-100 text-blue-800 rounded-full">
                           <Clock className="w-3 h-3" />
                           Memory
                         </span>
