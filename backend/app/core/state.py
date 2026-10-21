@@ -23,11 +23,13 @@ IMPLEMENTATION DETAILS:
 """
 
 from pydantic import BaseModel, Field
-from typing import Any, List, Dict, Optional, Union, Annotated
+from typing import Any, List, Dict, Optional, Union, Annotated, Mapping
 from datetime import datetime
+import json
 import logging
 
 RUNTIME_NODE_STATUSES_KEY = "__kai_runtime_node_statuses"
+RUNTIME_CONNECTION_STATUSES_KEY = "__kai_runtime_connection_statuses"
 
 
 def _state_variables(state: Any) -> Dict[str, Any]:
@@ -42,11 +44,30 @@ def _state_variables(state: Any) -> Dict[str, Any]:
     return variables
 
 
-def set_runtime_node_status(state: Any, node_id: str, status: str) -> None:
+def set_runtime_node_status(
+    state: Any,
+    node_id: str,
+    status: str,
+    connection_info: Optional[Mapping[str, Any]] = None,
+) -> None:
     """Record the lifecycle of a node actually attempted during this run."""
     if not node_id:
         return
     variables = _state_variables(state)
+    event_data = {"node_id": node_id, "status": status}
+    if isinstance(connection_info, Mapping):
+        target_node_id = connection_info.get("target_node_id")
+        if isinstance(target_node_id, str) and target_node_id:
+            route = {
+                "source_node_id": node_id,
+                "source_handle": connection_info.get("source_handle") or "output",
+                "target_node_id": target_node_id,
+                "target_handle": connection_info.get("target_handle") or "input",
+            }
+            route_key = json.dumps(list(route.values()), separators=(",", ":"))
+            connection_statuses = variables.setdefault(RUNTIME_CONNECTION_STATUSES_KEY, {})
+            connection_statuses[route_key] = {**route, "status": status}
+            event_data.update(route)
 
     # When running inside a LangGraph Runnable, surface dependency lifecycle
     # changes immediately instead of waiting for the parent node to finish.
@@ -55,7 +76,7 @@ def set_runtime_node_status(state: Any, node_id: str, status: str) -> None:
 
         dispatch_custom_event(
             "kai_node_status",
-            {"node_id": node_id, "status": status},
+            event_data,
         )
     except RuntimeError:
         # Direct/synchronous calls may not have an active callback context.
@@ -70,6 +91,13 @@ def get_runtime_node_statuses(state: Any) -> Dict[str, str]:
     statuses = variables.get(RUNTIME_NODE_STATUSES_KEY, {})
     return dict(statuses) if isinstance(statuses, dict) else {}
 
+
+def get_runtime_connection_statuses(state: Any) -> List[Dict[str, Any]]:
+    """Return only connections actually resolved during this execution."""
+    statuses = _state_variables(state).get(RUNTIME_CONNECTION_STATUSES_KEY, {})
+    if not isinstance(statuses, dict):
+        return []
+    return [dict(value) for value in statuses.values() if isinstance(value, dict)]
 
 
 def attach_runtime_execution_context(error: Any, state: Any) -> None:
@@ -102,6 +130,19 @@ def attach_runtime_execution_context(error: Any, state: Any) -> None:
             else {}
         ),
     }
+    # Nested provider failures may carry connection records from a child state.
+    # Preserve those when the error crosses another execution boundary.
+    existing_connections = context.get("connection_statuses", [])
+    if not isinstance(existing_connections, list):
+        existing_connections = []
+    connection_statuses = {
+        tuple(item.get(key) for key in (
+            "source_node_id", "source_handle", "target_node_id", "target_handle"
+        )): item
+        for item in [*get_runtime_connection_statuses(state), *existing_connections]
+        if isinstance(item, dict)
+    }
+    context["connection_statuses"] = list(connection_statuses.values())
 
 
 def merge_node_outputs(left: Dict[str, Any], right: Dict[str, Any]) -> Dict[str, Any]:
@@ -320,4 +361,4 @@ class FlowState(BaseModel):
         
     def copy(self) -> "FlowState":
         """Create a copy of the current state"""
-        return FlowState.from_dict(self.to_dict()) 
+        return FlowState.from_dict(self.to_dict())

@@ -22,7 +22,7 @@ function CustomAnimatedEdge({
   const { setEdges } = useReactFlow();
   const [isHovered, setIsHovered] = React.useState(false);
   // read status that ReactFlowCanvas injected into edge.data
-  const status: 'success' | 'failed' | 'pending' | undefined = (style as any)?.__status;
+  const status: 'success' | 'failed' | 'pending' | 'unknown' | 'cancelled' | undefined = (style as any)?.__status;
   const isActive = status === "pending";
 
   const [edgePath, labelX, labelY] = getSmoothStepPath({
@@ -54,9 +54,11 @@ function CustomAnimatedEdge({
               ? '#22c55e'
               : status === 'failed'
               ? '#ef4444'
+              : status === 'unknown' || status === 'cancelled'
+              ? '#f59e0b'
               : "#6b7280",
           strokeWidth: isActive ? 3 : 2,
-          strokeDasharray: isActive ? "12 8" : "none",
+          strokeDasharray: isActive ? "12 8" : status === 'unknown' || status === 'cancelled' ? "4 6" : "none",
           strokeDashoffset: isActive ? 0 : undefined,
           animation: isActive ? "electric-flow 1.2s linear infinite" : "none",
           // carry status for BaseEdge consumption

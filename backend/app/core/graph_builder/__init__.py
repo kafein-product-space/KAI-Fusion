@@ -16,7 +16,7 @@ from langgraph.checkpoint.memory import MemorySaver
 from langchain_core.runnables import Runnable, RunnableConfig
 
 # Local imports - core
-from app.core.state import FlowState, get_runtime_node_statuses
+from app.core.state import FlowState, get_runtime_node_statuses, get_runtime_connection_statuses
 from app.core.execution_status import build_execution_edge_statuses
 from app.nodes import BaseNode
 from app.core.tracing import get_workflow_tracer
@@ -267,6 +267,7 @@ class GraphBuilder:
         node_id: str,
         previous_node_id: Optional[str] = None,
         completed_nodes: Optional[set] = None,
+        selected_condition_handles: Optional[Dict[str, str]] = None,
     ) -> List[str]:
         """Return the canvas edge IDs that represent data entering node_id.
 
@@ -276,6 +277,17 @@ class GraphBuilder:
         incoming = self._incoming_visual_edges.get(node_id, [])
         if not incoming:
             return []
+
+        # A ConditionNode can expose multiple handles leading to the same
+        # target. Matching by source node alone would mark both paths taken.
+        if selected_condition_handles:
+            incoming = [
+                edge for edge in incoming
+                if edge.get("source") not in selected_condition_handles
+                or edge.get("sourceHandle") == selected_condition_handles[edge["source"]]
+            ]
+            if not incoming:
+                return []
 
         # For branching graphs: match edges from any completed parent node
         if completed_nodes:
@@ -291,9 +303,46 @@ class GraphBuilder:
 
         return [edge.get("id") or self._fallback_edge_id(edge) for edge in incoming]
 
+    @staticmethod
+    def _condition_handle_from_output(node_id: str, raw_output: Any) -> Optional[str]:
+        """Read the route emitted by ConditionNode, including standard wrappers."""
+        candidates = [raw_output]
+        for _ in range(4):
+            next_candidates = []
+            for candidate in candidates:
+                if not isinstance(candidate, dict):
+                    continue
+                route = candidate.get("_route")
+                if isinstance(route, str) and route in {"true_output", "false_output"}:
+                    return route
+                if isinstance(candidate.get("condition_result"), bool):
+                    return "true_output" if candidate["condition_result"] else "false_output"
+                next_candidates.extend([
+                    candidate.get(f"output_{node_id}"),
+                    candidate.get("output"),
+                    candidate.get("node_outputs", {}).get(node_id)
+                    if isinstance(candidate.get("node_outputs"), dict) else None,
+                ])
+            candidates = next_candidates
+        return None
+
     def _visual_outgoing_edge_ids_for_node(self, node_id: str) -> List[str]:
         outgoing = self._outgoing_visual_edges.get(node_id, [])
         return [edge.get("id") or self._fallback_edge_id(edge) for edge in outgoing]
+
+    def _visual_edge_ids_for_connection(self, connection: Dict[str, Any]) -> List[str]:
+        """Match the precise source/consumer handles of a resolved dependency."""
+        source_id = connection.get("source_node_id")
+        target_id = connection.get("target_node_id")
+        if not source_id or not target_id:
+            return []
+        return [
+            edge.get("id") or self._fallback_edge_id(edge)
+            for edge in self._outgoing_visual_edges.get(source_id, [])
+            if edge.get("target") == target_id
+            and (edge.get("sourceHandle") or "output") == (connection.get("source_handle") or "output")
+            and (edge.get("targetHandle") or "input") == (connection.get("target_handle") or "input")
+        ]
 
     def _execution_role_for_node(self, node_id: str) -> str:
         """Expose the graph's node role to execution-event consumers."""
@@ -301,14 +350,19 @@ class GraphBuilder:
 
     def _edge_statuses_for_execution(
         self,
-        node_statuses: Dict[str, str],
         transmitted_edge_ids: Optional[set] = None,
+        failed_edge_ids: Optional[set] = None,
+        connection_statuses: Optional[List[Dict[str, Any]]] = None,
+        live_dependency_edges: Optional[Dict[str, str]] = None,
     ) -> Dict[str, str]:
+        dependency_edges = dict(live_dependency_edges or {})
+        for connection in connection_statuses or []:
+            for edge_id in self._visual_edge_ids_for_connection(connection):
+                dependency_edges[edge_id] = connection.get("status", "")
         return build_execution_edge_statuses(
-            node_statuses,
             transmitted_edge_ids or set(),
-            is_dependency_node=self._is_dependency_node,
-            outgoing_edge_ids_for_node=self._visual_outgoing_edge_ids_for_node,
+            dependency_edge_statuses=dependency_edges,
+            failed_edge_ids=failed_edge_ids or set(),
         )
 
     @staticmethod
@@ -1477,6 +1531,8 @@ class GraphBuilder:
         current_running_node: str | None = None
         completed_nodes: set = set()
         transmitted_edge_ids: set = set()
+        dependency_edge_statuses: Dict[str, str] = {}
+        selected_condition_handles: Dict[str, str] = {}
 
         try:
             logger.info(f"Starting streaming execution for session: {init_state.session_id}")
@@ -1497,7 +1553,9 @@ class GraphBuilder:
                     current_running_node = node_name
                     streamed_node_starts.add(node_name)
                     incoming_edge_ids = self._visual_edge_ids_for_node(
-                        node_name, completed_nodes=completed_nodes
+                        node_name,
+                        completed_nodes=completed_nodes,
+                        selected_condition_handles=selected_condition_handles,
                     )
                     transmitted_edge_ids.update(incoming_edge_ids)
                     yield {
@@ -1513,8 +1571,18 @@ class GraphBuilder:
                     # Extract output from the event data for node_end
                     ev_data = ev.get("data", {})
                     node_output = ev_data.get("output", {})
+                    if self.nodes[node_name].type == "ConditionNode":
+                        handle = self._condition_handle_from_output(node_name, node_output)
+                        if handle is None:
+                            handle = self._condition_handle_from_output(
+                                node_name, init_state.node_outputs.get(node_name)
+                            )
+                        if handle is not None:
+                            selected_condition_handles[node_name] = handle
                     incoming_edge_ids = self._visual_edge_ids_for_node(
-                        node_name, completed_nodes=completed_nodes
+                        node_name,
+                        completed_nodes=completed_nodes,
+                        selected_condition_handles=selected_condition_handles,
                     )
                     
                     # Try to extract meaningful output from various formats
@@ -1555,10 +1623,12 @@ class GraphBuilder:
                     if status_node_id and status_value in {"pending", "success", "failed"}:
                         execution_role = self._execution_role_for_node(status_node_id)
                         status_edge_ids = (
-                            self._visual_outgoing_edge_ids_for_node(status_node_id)
+                            self._visual_edge_ids_for_connection(status_data)
                             if execution_role == "dependency"
                             else []
                         )
+                        for edge_id in status_edge_ids:
+                            dependency_edge_statuses[edge_id] = status_value
                         status_event = {
                             "type": "node_status",
                             "node_id": status_node_id,
@@ -1612,6 +1682,7 @@ class GraphBuilder:
                         self._visual_edge_ids_for_node(
                             execution_node,
                             completed_nodes=completed_nodes,
+                            selected_condition_handles=selected_condition_handles,
                         )
                         if execution_node
                         else []
@@ -1631,8 +1702,13 @@ class GraphBuilder:
                         "incoming_edge_ids": execution_edge_ids,
                         "active_edge_ids": execution_edge_ids,
                         "edge_statuses": self._edge_statuses_for_execution(
-                            node_statuses,
                             transmitted_edge_ids,
+                            set(execution_edge_ids),
+                            connection_statuses=(
+                                deepest_error.context.get("connection_statuses", [])
+                                if deepest_error else get_runtime_connection_statuses(init_state)
+                            ),
+                            live_dependency_edges=dependency_edge_statuses,
                         ),
                         "node_statuses": node_statuses,
                         "node_outputs": current_node_outputs,
@@ -1673,8 +1749,11 @@ class GraphBuilder:
                 "session_id": init_state.session_id,
                 "node_statuses": node_statuses,
                 "edge_statuses": self._edge_statuses_for_execution(
-                    node_statuses,
                     transmitted_edge_ids,
+                    connection_statuses=get_runtime_connection_statuses(
+                        final_state.values if getattr(final_state, "values", None) else init_state
+                    ),
+                    live_dependency_edges=dependency_edge_statuses,
                 ),
             }
             
@@ -1728,7 +1807,10 @@ class GraphBuilder:
             # that the frontend never saw (because the stream was cut short by the exception)
             for completed_node_id in executed_nodes:
                 if completed_node_id in self.nodes and completed_node_id not in streamed_node_ends:
-                    completed_edge_ids = self._visual_edge_ids_for_node(completed_node_id)
+                    completed_edge_ids = self._visual_edge_ids_for_node(
+                        completed_node_id,
+                        selected_condition_handles=selected_condition_handles,
+                    )
                     transmitted_edge_ids.update(completed_edge_ids)
                     # Send node_start if we never sent it
                     if completed_node_id not in streamed_node_starts:
@@ -1752,6 +1834,7 @@ class GraphBuilder:
                 self._visual_edge_ids_for_node(
                     current_running_node,
                     completed_nodes=completed_nodes,
+                    selected_condition_handles=selected_condition_handles,
                 )
                 if current_running_node
                 else []
@@ -1768,8 +1851,13 @@ class GraphBuilder:
                 "incoming_edge_ids": execution_edge_ids,
                 "active_edge_ids": execution_edge_ids,
                 "edge_statuses": self._edge_statuses_for_execution(
-                    node_statuses,
                     transmitted_edge_ids,
+                    set(execution_edge_ids),
+                    connection_statuses=(
+                        deepest_error.context.get("connection_statuses", [])
+                        if deepest_error else get_runtime_connection_statuses(init_state)
+                    ),
+                    live_dependency_edges=dependency_edge_statuses,
                 ),
                 "session_id": init_state.session_id,
                 "node_outputs": node_outputs,

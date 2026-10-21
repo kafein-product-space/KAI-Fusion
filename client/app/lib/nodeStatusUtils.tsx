@@ -20,6 +20,11 @@ export function getExecutionStatusStyle(
       boxShadow: "0 0 0 3px #ef4444, 0 0 16px rgba(239, 68, 68, 0.6)",
     };
   }
+  if (status === "cancelled" || status === "unknown") {
+    return {
+      boxShadow: "0 0 0 2px #f59e0b",
+    };
+  }
   return undefined;
 }
 

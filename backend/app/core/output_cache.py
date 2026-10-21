@@ -297,7 +297,7 @@ class NodeConnectionExtractor:
         for input_name, connection_info in input_connections.items():
             try:
                 result = self._process_connection(
-                    input_name, connection_info, state
+                    input_name, connection_info, state, consumer_node_id=gnode.id
                 )
                 if result is not None:
                     connected[input_name] = result
@@ -349,7 +349,8 @@ class NodeConnectionExtractor:
     def _process_connection(self,
                            input_name: str,
                            connection_info: Union[Dict[str, str], List[Dict[str, str]]],
-                           state: FlowState) -> Optional[Any]:
+                           state: FlowState,
+                           consumer_node_id: Optional[str] = None) -> Optional[Any]:
         """
         Unified connection processing that handles both single and multiple connections.
         
@@ -361,6 +362,19 @@ class NodeConnectionExtractor:
         Returns:
             Processed connection result (single value or aggregated for multiple)
         """
+        # Input mappings know the source but not their owning consumer. Carry
+        # that identity with each resolution so shared providers report only
+        # the connection that was actually used.
+        if consumer_node_id:
+            def with_target(info: Dict[str, str]) -> Dict[str, str]:
+                return {**info, "target_node_id": consumer_node_id, "target_handle": input_name}
+
+            connection_info = (
+                [with_target(info) for info in connection_info]
+                if isinstance(connection_info, list)
+                else with_target(connection_info)
+            )
+
         if isinstance(connection_info, list):
             logger.debug(f"[DEBUG] Processing {len(connection_info)} multiple connections for {input_name}")
             return self._extract_many_connections(input_name, connection_info, state)
