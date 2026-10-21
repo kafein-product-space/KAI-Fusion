@@ -102,7 +102,7 @@ class MemoryNodeHandler(NodeExecutionHandler):
         """Extract memory node instance with session context."""
         node_id = connection_info["source_node_id"]
         self._log_execution(node_id, "memory", "extracting")
-        set_runtime_node_status(state, node_id, "pending")
+        set_runtime_node_status(state, node_id, "pending", connection_info)
         
         try:
             # Set session_id on memory nodes before execution
@@ -118,14 +118,14 @@ class MemoryNodeHandler(NodeExecutionHandler):
             
             # Execute memory node to get instance
             node_instance = source_node_instance.execute(**memory_inputs)
-            set_runtime_node_status(state, node_id, "success")
+            set_runtime_node_status(state, node_id, "success", connection_info)
             logger.debug(f"[DEBUG] Memory node {node_id} executed successfully: {type(node_instance).__name__}")
             
             return node_instance
             
         except Exception as e:
             logger.error(f"[ERROR] Failed to extract memory node {node_id}: {e}")
-            set_runtime_node_status(state, node_id, "failed")
+            set_runtime_node_status(state, node_id, "failed", connection_info)
             from app.core.graph_builder.exceptions import NodeExecutionError
 
             node_error = NodeExecutionError(
@@ -204,7 +204,7 @@ class ProviderNodeHandler(NodeExecutionHandler):
 
         node_id = connection_info["source_node_id"]
         self._log_execution(node_id, "provider", "extracting")
-        set_runtime_node_status(state, node_id, "pending")
+        set_runtime_node_status(state, node_id, "pending", connection_info)
 
         try:
             provider_inputs = self._extract_provider_inputs(source_node_instance, state)
@@ -237,9 +237,10 @@ class ProviderNodeHandler(NodeExecutionHandler):
                 node_config=getattr(source_node_instance, "user_data", {}) or {},
                 input_connections=getattr(source_node_instance, "_input_connections", {}) or {},
                 output_connections=getattr(source_node_instance, "_output_connections", {}) or {},
+                connection_info=connection_info,
             )
 
-            set_runtime_node_status(state, node_id, "success")
+            set_runtime_node_status(state, node_id, "success", connection_info)
             logger.debug(
                 f"[DEBUG] Provider node {node_id} executed successfully: "
                 f"{type(node_instance).__name__}"
@@ -252,11 +253,11 @@ class ProviderNodeHandler(NodeExecutionHandler):
 
             if deepest_error is not None and deepest_error.node_id != node_id:
                 # The provider's child failed; this provider is not the error source.
-                set_runtime_node_status(state, node_id, "success")
+                set_runtime_node_status(state, node_id, "success", connection_info)
                 attach_runtime_execution_context(deepest_error, state)
                 raise deepest_error from error
 
-            set_runtime_node_status(state, node_id, "failed")
+            set_runtime_node_status(state, node_id, "failed", connection_info)
             if isinstance(error, NodeExecutionError) and error.node_id == node_id:
                 attach_runtime_execution_context(error, state)
                 raise
@@ -347,7 +348,8 @@ class ProviderNodeHandler(NodeExecutionHandler):
         for input_name, connection_info in input_connections.items():
             try:
                 result = extractor._process_connection(
-                    input_name, connection_info, state
+                    input_name, connection_info, state,
+                    consumer_node_id=gnode_instance.id,
                 )
                 if result is not None:
                     connected_inputs[input_name] = result

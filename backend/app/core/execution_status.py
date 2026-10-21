@@ -1,29 +1,28 @@
-from collections.abc import Callable, Iterable, Mapping
+from collections.abc import Iterable, Mapping
 from typing import Literal
 
 ExecutionStatus = Literal["pending", "success", "failed"]
 
 
 def build_execution_edge_statuses(
-    node_statuses: Mapping[str, str],
     transmitted_edge_ids: Iterable[str] = (),
     *,
-    is_dependency_node: Callable[[str], bool],
-    outgoing_edge_ids_for_node: Callable[[str], Iterable[str]],
+    dependency_edge_statuses: Mapping[str, str] | None = None,
+    failed_edge_ids: Iterable[str] = (),
 ) -> dict[str, ExecutionStatus]:
-    """Map runtime lifecycle data to canvas edges without naming heuristics."""
+    """Combine observed control-flow edges with actually used dependency edges."""
     statuses: dict[str, ExecutionStatus] = {
         str(edge_id): "success"
         for edge_id in transmitted_edge_ids
         if edge_id
     }
 
-    for node_id, status in node_statuses.items():
-        if status not in {"pending", "success", "failed"}:
-            continue
-        if not is_dependency_node(node_id):
-            continue
-        for edge_id in outgoing_edge_ids_for_node(node_id):
+    for edge_id, status in (dependency_edge_statuses or {}).items():
+        if edge_id and status in {"pending", "success", "failed"}:
             statuses[str(edge_id)] = status
+
+    for edge_id in failed_edge_ids:
+        if edge_id:
+            statuses[str(edge_id)] = "failed"
 
     return statuses

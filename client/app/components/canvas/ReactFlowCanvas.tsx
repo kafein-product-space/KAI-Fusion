@@ -30,8 +30,8 @@ interface ReactFlowCanvasProps {
   reactFlowWrapper: React.RefObject<HTMLDivElement | null>;
   onDrop: (event: React.DragEvent) => void;
   onDragOver: (event: React.DragEvent) => void;
-  nodeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
-  edgeStatus?: Record<string, 'success' | 'failed' | 'pending'>;
+  nodeStatus?: Record<string, 'success' | 'failed' | 'pending' | 'unknown' | 'cancelled'>;
+  edgeStatus?: Record<string, 'success' | 'failed' | 'pending' | 'unknown' | 'cancelled'>;
   onNodeClick?: (event: React.MouseEvent, node: Node) => void;
   onNodeContextMenu?: (event: React.MouseEvent, node: Node) => void;
   onPaneClick?: (event: React.MouseEvent) => void;
@@ -45,7 +45,6 @@ export default function ReactFlowCanvas({
   onConnect,
   nodeTypes,
   edgeTypes,
-  activeNodes,
   reactFlowWrapper,
   onDrop,
   onDragOver,
@@ -55,8 +54,6 @@ export default function ReactFlowCanvas({
   onNodeContextMenu,
   onPaneClick,
 }: ReactFlowCanvasProps) {
-  const activeNodeIds = new Set(activeNodes);
-
   return (
     <div
       ref={reactFlowWrapper}
@@ -66,11 +63,7 @@ export default function ReactFlowCanvas({
     >
       <ReactFlow
         nodes={nodes.map((node) => {
-          const reportedStatus = getEffectiveNodeStatus(node.id, nodeStatus, nodes, edges);
-          const status =
-            reportedStatus === "pending" && !activeNodeIds.has(node.id)
-              ? undefined
-              : reportedStatus;
+          const status = getEffectiveNodeStatus(node.id, nodeStatus, nodes, edges);
           return {
             ...node,
             data: {

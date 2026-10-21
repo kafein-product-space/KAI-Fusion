@@ -478,6 +478,7 @@ class WorkflowExecutor:
                     final_outputs: Dict[str, Any] = {}
                     execution_failed = False
                     error_msg = None
+                    event_sequence = 0
 
                     def _capture_stream_metadata(chunk: Dict[str, Any]) -> None:
                         reported_outputs = chunk.get("node_outputs")
@@ -501,6 +502,13 @@ class WorkflowExecutor:
                                 **reported_statuses,
                             }
 
+                        reported_edges = chunk.get("edge_statuses")
+                        if isinstance(reported_edges, dict):
+                            final_outputs["edge_statuses"] = {
+                                **final_outputs.get("edge_statuses", {}),
+                                **reported_edges,
+                            }
+
                         for key in ("session_id", "errors"):
                             if key in chunk:
                                 final_outputs[key] = chunk.get(key)
@@ -512,6 +520,8 @@ class WorkflowExecutor:
                     try:
                         async for chunk in result:
                             if isinstance(chunk, dict):
+                                event_sequence += 1
+                                chunk["sequence"] = event_sequence
                                 chunk["execution_id"] = str(execution_id)
                                 # Track errors yielded as chunks
                                 if chunk.get("type") == "error":

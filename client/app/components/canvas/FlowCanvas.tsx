@@ -22,6 +22,11 @@ import { useWorkflows } from "~/stores/workflows";
 import { useNodes } from "~/stores/nodes";
 import WorkflowService from "~/services/workflows";
 import { hydrateWorkflowGraph } from "~/lib/workflowHydration";
+import {
+  cancelPendingExecutionEdges,
+  markActiveExecutionEdges,
+  mergeReportedEdgeStatuses,
+} from "~/lib/executionStatus";
 import { useExecutionsStore } from "~/stores/executions";
 import { useSmartSuggestions } from "~/stores/smartSuggestions";
 import StartNode from "../node/StartNode";
@@ -37,7 +42,7 @@ import type {
   WebhookStreamEvent,
 } from "~/types/api";
 
-type NodeStatus = "success" | "failed" | "pending";
+type NodeStatus = "success" | "failed" | "pending" | "unknown" | "cancelled";
 
 import { Plus, BookOpen, ZoomIn, ZoomOut, Maximize, Terminal } from "lucide-react";
 import ChatComponent from "./ChatComponent";
@@ -155,6 +160,13 @@ type RuntimePendingTransition = {
 
 const runtimePendingTransitions = new Map<string, RuntimePendingTransition>();
 
+const clearRuntimePendingTransitions = () => {
+  for (const transition of runtimePendingTransitions.values()) {
+    if (transition.timeoutId) clearTimeout(transition.timeoutId);
+  }
+  runtimePendingTransitions.clear();
+};
+
 const mergeReportedNodeStatuses = (
   current: Record<string, NodeStatus>,
   reported: unknown,
@@ -185,31 +197,6 @@ const mergeReportedNodeStatuses = (
     }
   }
 
-  return next;
-};
-
-const mergeReportedEdgeStatuses = (
-  current: Record<string, NodeStatus>,
-  reported: unknown,
-  fallbackSuccessEdgeIds: string[] = []
-): Record<string, NodeStatus> => {
-  const next = { ...current };
-
-  Object.keys(next).forEach((edgeId) => {
-    if (next[edgeId] === "pending") delete next[edgeId];
-  });
-
-  if (reported && typeof reported === "object") {
-    Object.entries(reported as Record<string, unknown>).forEach(([edgeId, status]) => {
-      if (status === "pending" || status === "success" || status === "failed") {
-        next[edgeId] = status;
-      }
-    });
-  }
-
-  fallbackSuccessEdgeIds.forEach((edgeId) => {
-    if (!(edgeId in next)) next[edgeId] = "success";
-  });
   return next;
 };
 
@@ -344,6 +331,8 @@ const normalizeExecutionForCanvas = (execution: any, currentNodes: Node[]): any 
         execution.result?.executed_nodes ??
         [],
       node_outputs: nodeOutputs ?? execution.result?.node_outputs ?? {},
+      node_statuses: resultPayload.node_statuses ?? execution.result?.node_statuses,
+      edge_statuses: resultPayload.edge_statuses ?? execution.result?.edge_statuses,
       session_id: resultPayload.session_id ?? execution.result?.session_id,
       status: resultPayload.status ?? execution.status,
     },
@@ -446,8 +435,10 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
   const [nodeStatus, setNodeStatus] = useState<Record<string, NodeStatus>>({});
   const [edgeStatus, setEdgeStatus] = useState<Record<string, NodeStatus>>({});
 
-  // Edge animation and edge color now share one source of truth. The setter
-  // adapter preserves existing listener call sites while writing edgeStatus.
+  // Active-edge notifications may overlap (parallel branches) or arrive before
+  // a delayed node_end. Never turn an in-progress edge back into an untouched
+  // edge merely because another edge became active or the animation was reset.
+  // Only a terminal execution event or a new run may settle/reset its status.
   const setActiveEdges = useCallback<
     React.Dispatch<React.SetStateAction<string[]>>
   >((nextActiveEdges) => {
@@ -459,18 +450,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         typeof nextActiveEdges === "function"
           ? nextActiveEdges(currentActiveEdges)
           : nextActiveEdges;
-      const activeEdgeIds = new Set(resolvedActiveEdges);
-      const nextStatuses = { ...currentStatuses };
-
-      Object.entries(nextStatuses).forEach(([edgeId, status]) => {
-        if (status === "pending" && !activeEdgeIds.has(edgeId)) {
-          delete nextStatuses[edgeId];
-        }
-      });
-      activeEdgeIds.forEach((edgeId) => {
-        nextStatuses[edgeId] = "pending";
-      });
-      return nextStatuses;
+      return markActiveExecutionEdges(currentStatuses, resolvedActiveEdges);
     });
   }, []);
   const [activeExecutionId, setActiveExecutionId] = useState<string | null>(null);
@@ -673,6 +653,14 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
         activeExecutionId;
 
       // Reset active nodes and edges states immediately
+      clearRuntimePendingTransitions();
+      setEdgeStatus((current) => cancelPendingExecutionEdges(current));
+      setNodeStatus((current) => Object.fromEntries(
+        Object.entries(current).map(([nodeId, status]) => [
+          nodeId,
+          status === "pending" ? "cancelled" : status,
+        ])
+      ));
       setActiveEdges([]);
       setActiveNodes([]);
       setActiveExecutionId(null);
@@ -743,6 +731,26 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           // Update store
           setCurrentExecutionForWorkflow(currentWorkflow.id, normalizeExecutionForCanvas(execution, nodes));
 
+          // Reconcile the canvas with the durable final execution snapshot. A
+          // missed SSE event must not leave an edge indefinitely animated.
+          const finalResult = execution.outputs || execution.result;
+          if (execution.status === "cancelled") {
+            setEdgeStatus((current) => cancelPendingExecutionEdges(current));
+            setNodeStatus((current) => Object.fromEntries(
+              Object.entries(current).map(([nodeId, status]) => [
+                nodeId,
+                status === "pending" ? "cancelled" : status,
+              ])
+            ));
+          } else if (finalResult && typeof finalResult === "object") {
+            setNodeStatus((current) =>
+              mergeReportedNodeStatuses(current, finalResult.node_statuses, nodes)
+            );
+            setEdgeStatus((current) =>
+              mergeReportedEdgeStatuses(current, finalResult.edge_statuses)
+            );
+          }
+
           // Clear active node and edge highlights
           setActiveEdges([]);
           setActiveNodes([]);
@@ -756,7 +764,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
       console.log(`[FlowCanvas] Cleaning up polling for execution ${currentExecution.id}`);
       clearInterval(intervalId);
     };
-  }, [currentWorkflow?.id, currentExecution?.id, currentExecution?.status, nodes, setCurrentExecutionForWorkflow, setActiveEdges, setActiveNodes]);
+  }, [currentWorkflow?.id, currentExecution?.id, currentExecution?.status, nodes, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
 
   // Clear execution data when workflow structure changes (nodes or edges added/removed/reconnected)
   const previousStructureRef = useRef<{ nodeIds: string[]; edgeConnections: string[] }>({
@@ -1471,6 +1479,7 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
 
       try {
         // Reset previous statuses
+        clearRuntimePendingTransitions();
         setNodeStatus({ [nodeId]: "pending" });
         setEdgeStatus({});
 
@@ -1698,7 +1707,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
                     mergeReportedEdgeStatuses(
                       current,
                       evt.edge_statuses,
-                      getEventEdgeIds(evt)
+                      getEventEdgeIds(evt),
+                      "failed"
                     )
                   );
 
@@ -1867,7 +1877,8 @@ function FlowCanvas({ workflowId }: FlowCanvasProps) {
           mergeReportedEdgeStatuses(
             current,
             error.edge_statuses,
-            getEventEdgeIds(error)
+            getEventEdgeIds(error),
+            "failed"
           )
         );
         setActiveEdges([]);
@@ -2789,6 +2800,7 @@ function useChatExecutionListener(
 ) {
   useEffect(() => {
     const handleChatExecutionStart = () => {
+      clearRuntimePendingTransitions();
       setNodeStatus({});
       setEdgeStatus({});
       setActiveEdges([]);
@@ -2825,7 +2837,8 @@ function useChatExecutionListener(
         mergeReportedEdgeStatuses(
           current,
           detail.edge_statuses,
-          getEventEdgeIds(detail)
+          getEventEdgeIds(detail),
+          "failed"
         )
       );
 
@@ -3029,9 +3042,8 @@ function useWebhookExecutionListener(
 
     const eventSources: EventSource[] = [];
     const processedEventIds = new Set<string>(); // Event deduplication
+    let visibleExecutionId: string | null = null;
     const retryCounts = new Map<string, number>(); // Retry tracking per webhook
-    const MAX_RETRIES = 5;
-    const INITIAL_RETRY_DELAY = 1000; // 1 second
 
     // Fallback completion timer
     let fallbackTimeout: NodeJS.Timeout | null = null;
@@ -3046,6 +3058,12 @@ function useWebhookExecutionListener(
     let lastUpdateTime = 0;
     const THROTTLE_DELAY = 50; // ms
     const pendingUpdates: Array<() => void> = [];
+    let pendingUpdateTimer: ReturnType<typeof setTimeout> | null = null;
+    const discardPendingUpdates = () => {
+      if (pendingUpdateTimer !== null) clearTimeout(pendingUpdateTimer);
+      pendingUpdateTimer = null;
+      pendingUpdates.length = 0;
+    };
 
     // Track webhook execution data for FullscreenNodeModal
     const webhookExecutionData = new Map<string, {
@@ -3094,26 +3112,13 @@ function useWebhookExecutionListener(
 
         eventSource.onerror = (error) => {
           const retryCount = retryCounts.get(webhookId) || 0;
-
-          if (retryCount < MAX_RETRIES) {
-            const delay = INITIAL_RETRY_DELAY * Math.pow(2, retryCount); // Exponential backoff
-            console.warn(
-              `[WebhookListener] Webhook stream error for ${webhookId} at URL: ${streamUrl} (readyState: ${eventSource.readyState}). Retrying in ${delay}ms (attempt ${retryCount + 1}/${MAX_RETRIES})`
-            );
-
-            retryCounts.set(webhookId, retryCount + 1);
-
-            // Close and reconnect after delay
-            setTimeout(() => {
-              eventSource.close();
-            }, delay);
-          } else {
-            console.error(
-              `[WebhookListener] Webhook stream error for ${webhookId} at URL: ${streamUrl}. Max retries reached. ReadyState: ${eventSource.readyState}. Connection failed.`,
-              error
-            );
-            retryCounts.delete(webhookId);
-          }
+          retryCounts.set(webhookId, retryCount + 1);
+          // EventSource reconnects automatically. Closing this instance here
+          // permanently detached the canvas until the component remounted.
+          console.warn(
+            `[WebhookListener] Stream interrupted for ${webhookId} (readyState: ${eventSource.readyState}, interruptions: ${retryCount + 1}); browser will reconnect.`,
+            error
+          );
         };
 
         eventSource.onmessage = async (event) => {
@@ -3144,7 +3149,9 @@ function useWebhookExecutionListener(
             // Backend already executes the workflow, we just need to process the events for UI updates
             if (data.type === "webhook_execution_event" && data.event) {
               // Event deduplication
-              const eventId = `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
+              const eventId = typeof data.event.sequence === "number"
+                ? `${data.execution_id || "unknown"}-${data.event.sequence}`
+                : `${data.execution_id || 'unknown'}-${data.event.type}-${data.event.node_id || 'unknown'}-${data.timestamp || Date.now()}`;
               if (processedEventIds.has(eventId)) {
                 console.warn("[WebhookListener] Duplicate webhook event ignored:", eventId);
                 return;
@@ -3163,6 +3170,14 @@ function useWebhookExecutionListener(
               const eventType = executionEvent.type || executionEvent.event;
               const node_id = executionEvent.node_id;
               const executionId = data.execution_id || 'unknown';
+
+              // The canvas displays one run at a time. Late events from a
+              // previous webhook run must not repaint a newer run's graph.
+              if (visibleExecutionId && visibleExecutionId !== executionId &&
+                  webhookExecutionData.has(executionId)) {
+                return;
+              }
+              visibleExecutionId = executionId;
 
               console.log("[WebhookListener] Processing event:", { type: eventType, node_id, executionId });
 
@@ -3183,11 +3198,14 @@ function useWebhookExecutionListener(
                     const pending = pendingUpdates.shift();
                     if (pending) pending();
                   }
+                  if (pendingUpdateTimer !== null) clearTimeout(pendingUpdateTimer);
+                  pendingUpdateTimer = null;
                 } else {
                   pendingUpdates.push(updateFn);
                   // Schedule batch update
                   if (pendingUpdates.length === 1) {
-                    setTimeout(() => {
+                    pendingUpdateTimer = setTimeout(() => {
+                      pendingUpdateTimer = null;
                       const batch = pendingUpdates.splice(0);
                       batch.forEach(fn => fn());
                       lastUpdateTime = Date.now();
@@ -3200,8 +3218,10 @@ function useWebhookExecutionListener(
               if (!webhookExecutionData.has(executionId)) {
                 console.log("[WebhookListener] New execution started. Clearing active canvas states. executionId:", executionId);
                 clearFallbackTimeout();
+                discardPendingUpdates();
 
                 // Clear previous run statuses on new execution
+                clearRuntimePendingTransitions();
                 setNodeStatus({});
                 setEdgeStatus({});
                 setActiveEdges([]);
@@ -3315,6 +3335,8 @@ function useWebhookExecutionListener(
                       result: execData.result,
                       executed_nodes: execData.executedNodes,
                       node_outputs: execData.nodeOutputs,
+                      node_statuses: executionEvent.node_statuses,
+                      edge_statuses: executionEvent.edge_statuses,
                       session_id: execData.sessionId,
                       status: "completed" as const,
                     },
@@ -3473,6 +3495,7 @@ function useWebhookExecutionListener(
               if (eventType === "complete" || eventType === "workflow_complete") {
                 console.log("[WebhookListener] complete / workflow_complete UI reset.");
                 clearFallbackTimeout();
+                discardPendingUpdates();
                 setNodeStatus((current) =>
                   mergeReportedNodeStatuses(
                     current,
@@ -3483,10 +3506,8 @@ function useWebhookExecutionListener(
                 setEdgeStatus((current) =>
                   mergeReportedEdgeStatuses(current, executionEvent.edge_statuses)
                 );
-                throttledUpdate(() => {
-                  setActiveEdges([]);
-                  setActiveNodes([]);
-                });
+                setActiveEdges([]);
+                setActiveNodes([]);
               }
 
               // Handle general execution error event
@@ -3494,6 +3515,7 @@ function useWebhookExecutionListener(
                 const ev = executionEvent as any;
                 console.error("[WebhookListener] workflow_error details:", ev);
                 clearFallbackTimeout();
+                discardPendingUpdates();
                 window.dispatchEvent(
                   new CustomEvent("chat-execution-error", {
                     detail: {
@@ -3570,6 +3592,7 @@ function useWebhookExecutionListener(
     return () => {
       console.log("[WebhookListener] Cleaning up. Closing EventSource count:", eventSources.length);
       clearFallbackTimeout();
+      discardPendingUpdates();
       eventSources.forEach((es) => {
         try {
           es.close();
@@ -3580,7 +3603,6 @@ function useWebhookExecutionListener(
       // Clear memory
       processedEventIds.clear();
       retryCounts.clear();
-      pendingUpdates.length = 0;
       webhookExecutionData.clear();
     };
   }, [webhookKey, workflowId, currentWorkflowId, setCurrentExecutionForWorkflow, setNodeStatus, setEdgeStatus, setActiveEdges, setActiveNodes]);
@@ -3727,6 +3749,7 @@ function useKafkaExecutionListener(
               clearFallbackTimeout();
 
               // Clear previous run statuses on new execution
+              clearRuntimePendingTransitions();
               setNodeStatus({});
               setEdgeStatus({});
               setActiveEdges([]);
@@ -4161,6 +4184,7 @@ function useErrorTriggerExecutionListener(
             clearFallbackTimeout();
 
             // Clear previous run statuses on new execution
+            clearRuntimePendingTransitions();
             setNodeStatus({});
             setEdgeStatus({});
             setActiveEdges([]);
@@ -4570,6 +4594,7 @@ function useTimerExecutionListener(
                 console.log("[TimerListener] New execution started. Clearing active canvas states. executionId:", executionId);
                 clearFallbackTimeout();
 
+                clearRuntimePendingTransitions();
                 setNodeStatus({});
                 setEdgeStatus({});
                 setActiveEdges([]);

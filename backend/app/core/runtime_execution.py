@@ -36,6 +36,7 @@ class RuntimeNodeTracker:
         node_config: Mapping[str, Any] | None = None,
         input_connections: Mapping[str, Any] | None = None,
         output_connections: Mapping[str, Any] | None = None,
+        connection_info: Mapping[str, Any] | None = None,
     ) -> None:
         self.node_id = node_id
         self.node_type = node_type
@@ -43,15 +44,16 @@ class RuntimeNodeTracker:
         self.node_config = dict(node_config or {})
         self.input_connections = dict(input_connections or {})
         self.output_connections = dict(output_connections or {})
+        self.connection_info = dict(connection_info or {})
         self.failed = False
 
     def pending(self) -> None:
         if not self.failed:
-            set_runtime_node_status(self.state, self.node_id, "pending")
+            set_runtime_node_status(self.state, self.node_id, "pending", self.connection_info)
 
     def success(self) -> None:
         if not self.failed:
-            set_runtime_node_status(self.state, self.node_id, "success")
+            set_runtime_node_status(self.state, self.node_id, "success", self.connection_info)
 
     def failure(self, error: BaseException) -> "NodeExecutionError":
         # Kept local to avoid importing the graph_builder package while its
@@ -69,7 +71,7 @@ class RuntimeNodeTracker:
             return nested_error
 
         self.failed = True
-        set_runtime_node_status(self.state, self.node_id, "failed")
+        set_runtime_node_status(self.state, self.node_id, "failed", self.connection_info)
 
         if nested_error is not None:
             node_error = nested_error
@@ -328,6 +330,7 @@ def instrument_runtime_artifact(
     node_config: Mapping[str, Any] | None = None,
     input_connections: Mapping[str, Any] | None = None,
     output_connections: Mapping[str, Any] | None = None,
+    connection_info: Mapping[str, Any] | None = None,
 ) -> T:
     """Attach runtime ownership to lazy provider artifacts and nested containers."""
     tracker = RuntimeNodeTracker(
@@ -337,6 +340,7 @@ def instrument_runtime_artifact(
         node_config=node_config,
         input_connections=input_connections,
         output_connections=output_connections,
+        connection_info=connection_info,
     )
     callback = RuntimeNodeStatusCallback(tracker)
     visited: set[int] = set()

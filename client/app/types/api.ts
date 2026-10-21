@@ -175,6 +175,8 @@ export interface WorkflowExecutionResult {
   executed_nodes?: string[];
   session_id?: string;
   node_outputs?: Record<string, any>;
+  node_statuses?: Record<string, 'pending' | 'success' | 'failed'>;
+  edge_statuses?: Record<string, 'pending' | 'success' | 'failed'>;
 }
 
 export interface WorkflowExecution {
@@ -182,6 +184,7 @@ export interface WorkflowExecution {
   workflow_id: string;
   input_text: string;
   result: WorkflowExecutionResult;
+  outputs?: WorkflowExecutionResult;
   started_at: string;
   completed_at?: string;
   status: 'completed' | 'failed' | 'running' | 'pending' | 'cancelled';
@@ -422,6 +425,7 @@ export interface ChatMessageInput {
 // Webhook execution event types
 export interface ExecutionEvent {
   type: "node_start" | "node_end" | "node_status" | "complete" | "workflow_complete" | "error" | "token";
+  sequence?: number;
   node_id?: string;
   output?: any;
   result?: any;
